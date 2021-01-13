@@ -8,7 +8,7 @@ This is the repository of 2021 OS comp
 > 这里记录了所有输出文档
 
 1. [00-Prepare](./Records/Docs/00-Prepare.md)
-2. 
+2. [01-SettleDown](./Records/Docs/01-SettleDown.md)
 
 ## ConfigurationControlBoard(CCB)
 
