@@ -9,6 +9,7 @@ This is the repository of 2021 OS comp
 
 1. [00-Prepare](./Records/Docs/00-Prepare.md)
 2. [01-SettleDown](./Records/Docs/01-SettleDown.md)
+3. [02-PreResearch](./Records/Docs/02-PreResearch.md)
 
 ## ConfigurationControlBoard(CCB)
 
