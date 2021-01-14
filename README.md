@@ -15,6 +15,7 @@ This is the repository of 2021 OS comp
 > 这里记录了会议纪要
 
 1. [2021-01-12](./Records/CCB/2021-01-12.md)
+2. [2021-01-14](./Records/CCB/2021-01-14.md)
 
 ## Basic Develop Method
 
