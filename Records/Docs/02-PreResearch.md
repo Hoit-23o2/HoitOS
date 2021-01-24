@@ -24,15 +24,20 @@
 > 10. [嵌入式系统FS](https://www.keil.com/pack/doc/mw/FileSystem/html/emb_fs.html#:~:text=The%20Embedded%20File%20System%20EFS,is%20optimized%20for%20maximum%20performance.&text=File%20Names%20%26%20Content%20are%20stored,provide%20optimal%20file%20access%20times.)
 > 11. [几种嵌入式文件系统比较](http://blog.chinaunix.net/uid-20692983-id-1892749.html?utm_source=jiancool)
 > 12. [XIP](https://www.embedded-computing.com/guest-blogs/execute-in-place-xip-an-external-flash-architecture-ideal-for-the-code-and-performance-requirements-of-edge-iot-and-ai#:~:text=XiP%20is%20a%20method%20of,the%20program%20from%20that%20RAM.&text=Serial%20flash%20memory%20is%20typically,as%20BIOS%20in%20a%20PC.)
-> 13. [NandFlash](https://www.taodocs.com/p-4196750-1.html)
-> 14. [NorFlash VS NandFlash](https://searchstorage.techtarget.com/definition/NOR-flash-memory)
-> 15. [LFS](https://web.stanford.edu/~ouster/cgi-bin/papers/lfs.pdf)
-> 16. [知乎：LFS](https://zhuanlan.zhihu.com/p/41358013)
-> 17. [JFFS](https://sourceware.org/jffs2/jffs2.pdf)
-> 18. [SPI](http://www.elecfans.com/d/778327.html)
-> 19. [SPIFFS：SPI NOR Flash - 无堆，RAM较小](https://zhuanlan.zhihu.com/p/27285177)
-> 20. [YAFFS Presentation](https://elinux.org/images/e/e3/Yaffs.pdf)
-> 21. [SylixOS TPSFS文件系统掉电安全原理浅析](https://blog.csdn.net/automan12138/article/details/71480863)
+> 13. [Flash与SSD的区别](http://www.yingtexin.net/news-2/54650.shtml)
+> 14. [NandFlash](https://www.taodocs.com/p-4196750-1.html)
+> 15. [NorFlash VS NandFlash](https://searchstorage.techtarget.com/definition/NOR-flash-memory)
+> 16. [LFS](https://web.stanford.edu/~ouster/cgi-bin/papers/lfs.pdf)
+> 17. [知乎：LFS](https://zhuanlan.zhihu.com/p/41358013)
+> 18. [JFFS](https://sourceware.org/jffs2/jffs2.pdf)
+> 19. [SPI](http://www.elecfans.com/d/778327.html)
+> 20. [SPIFFS：SPI NOR Flash - 无堆，RAM较小](https://zhuanlan.zhihu.com/p/27285177)
+> 21. [YAFFS Presentation](https://elinux.org/images/e/e3/Yaffs.pdf)
+> 22. [SylixOS TPSFS文件系统掉电安全原理浅析](https://blog.csdn.net/automan12138/article/details/71480863)
+>
+> 简单的会议PPT：
+>
+> [第一阶段预研工作(2021-01-24)](../Files/pre-research-stage1.pptx)
 
 [TOC]
 
@@ -196,5 +201,11 @@ SPI（Serial Peripheral Interface） NorFlash存储芯片被布局为扇区（se
 
 ### TPSFS
 
+TPSFS采用事务写机制，它的原理是在进行写操作之前，把各个步骤看为是一个个**小事务**，整体算一个**大事务**。TPSFS会把各个小事务先写进日志块区域，日志全部写进成功之后，再把它写进数据块区域。
 
+如果在保存日志的过程中发生掉电，则文件系统会忽略整个大事务。
+
+如果在写真实数据区域时发生掉电，则文件系统上电后可以重新提交该事务。
+
+TPSFS采用这种方式保证文件系统的一致性和完整性。
 
