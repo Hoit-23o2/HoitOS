@@ -47,7 +47,7 @@
 
 ### 文件系统的基本结构
 
-![image-20210115123904655](G:\MyProject\Project.HoitOS\HoitOS\Records\Docs\images\basics-of-fs-structure)
+![image-20210115123904655](.\images\basics-of-fs-structure)
 
 其中，各个模块的 **宽泛含义** 如下：
 
@@ -84,7 +84,7 @@ NorFlash是两种非易失Flash存储技术之一，NandFlash是另外一种。�
 
 Nor Flash 和Nand Flash用了不同的逻辑门来存储数据（或非门、与非门）。两种Flash都是Toshiba（东芝）公司发明的，但是商用Nor Flash由Intel于1988提出，Nand Flash由Toshiba于1989年提出。
 
-![NAND和NOR用的逻辑门](G:\MyProject\Project.HoitOS\HoitOS\Records\Docs\images\nand-nor-flash-gate.png)
+![NAND和NOR用的逻辑门](.\images\nand-nor-flash-gate.png)
 
 ### Nor Flash VS Nand Flash
 
@@ -102,7 +102,7 @@ NorFlash通常用于**手机、科学设备和医疗器械**。NandFlash在大�
 
 一些设备同时具有NorFlash与NandFlash。例如：平板或者只能手机可能用嵌入式NorFlash来启动OS，用NandFlash来存储。
 
-![storage-nonvolitale_memory_2](G:\MyProject\Project.HoitOS\HoitOS\Records\Docs\images\storage-comparison.jpg)
+![storage-nonvolitale_memory_2](.\images\storage-comparison.jpg)
 
 ### NorFlash的优点
 
