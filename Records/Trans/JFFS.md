@@ -34,7 +34,7 @@ Flash chips are arranged into blocks which are typically 128KiB on NOR flash and
 
 Aside from the difference in erase block sizes, NAND flash chips also have other differences from NOR chips. They are further divided into “pages” which are typically 512 bytes in size, each of which has an extra 16 bytes of “out of band” storage space, intended to be used for metadata or error correction codes. NAND flash is written by loading the required data into an internal buffer one byte at a time, then issuing a write command. While NOR flash allows bits to be cleared individually until there are none left to be cleared, NAND flash allows only ten such write cycles to each page before leakage causes the contents to become undefined until the next erase of the block in which the page resides.
 
-> 除了擦除块大小不同外，NAND flash和NOR flash芯片还有其他不同之处。它们都被进一步地被划分为512B的页面，每个页面还有额外的16B作为“Out Of Band（OOB）”存储空间，目的用于存储元数据或者纠错码（ECC）。NAND flash的写操作是通过将所需的数据一次一个字节送入内部缓冲区，然后调用写命令完成。而NOR flash允许清理单个的比特，直到没有比特可被清理为止。NAND flash允许每个页面在漏电（leakage）导致内容丢失之前有十个这样的写周期。
+> 除了擦除块大小不同外，NAND flash和NOR flash芯片还有其他不同之处。Nand Flash芯片被进一步地被划分为512B的页面，每个页面还有额外的16B作为“Out Of Band（OOB）”存储空间，目的用于存储元数据或者纠错码（ECC）。NAND flash的写操作是通过将所需的数据一次一个字节送入内部缓冲区，然后调用写命令完成。而NOR flash允许清理单个的比特，直到没有比特可被清理为止。NAND flash允许每个页面在漏电（leakage）导致内容丢失之前有十个这样的写周期。
 
 ### 1.2 Flash Translation Layers
 
