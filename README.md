@@ -19,6 +19,7 @@ This is the repository of 2021 OS comp
 1. [2021-01-12](./Records/CCB/2021-01-12.md)
 2. [2021-01-14](./Records/CCB/2021-01-14.md)
 3. [2021-01-24](./Records/CCB/2021-01-24.md)
+4. [2021-01-31](./Records/CCB/2021-01-31.md)
 
 ## Basic Develop Method
 
