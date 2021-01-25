@@ -3,7 +3,7 @@
 
 This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](https://vwpp20210125060242436.worktile.com/mission/projects/600e62ffd6e5f843a97f2182)
 
-![image-20210125143940231](G:\MyProject\Project.HoitOS\HoitOS\Records\Docs\images\worktile.png)
+![image-20210125143940231](.\Records\Docs\images\worktile.png)
 
 ## Log
 
