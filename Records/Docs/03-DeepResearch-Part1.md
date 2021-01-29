@@ -19,6 +19,11 @@
 > 8. [Raw Flash VS FTL Device](https://digitalcerebrum.wordpress.com/random-tech-info/flash-memory/raw-flash-vs-ftl-devices/)
 > 9. [Firmware](https://hanyu.baidu.com/zici/s?wd=固件&query=什么叫固件&srcid=28204&from=kg0)
 > 10. [MTD Doc](http://www.linux-mtd.infradead.org/doc/general.html)
+> 11. [Spin lock 与mutex 的区别](https://www.cnblogs.com/linshangyao/p/3362772.html)
+> 12. [SylixOS I/O](https://blog.csdn.net/qq_29476813/article/details/83302316)
+> 13. [什么是挂载（mount）？ - kkbill - 博客园 (cnblogs.com)](https://www.cnblogs.com/kkbill/p/11979082.html)
+> 14. [什么是文件的挂载？ - 小蒋的随笔 - 博客园 (cnblogs.com)](https://www.cnblogs.com/jynote/p/12449172.html)
+> 15. [能否通俗易懂，深入浅出地解释一下linux中的挂载的概念？ - 知乎 (zhihu.com)](https://www.zhihu.com/question/266907637/answer/316859400)
 
 [TOC]
 
@@ -163,7 +168,7 @@ F2FS的查找步骤如下：
 
 但是F2FS仅仅更新**一个direct node block**和它对应的NAT入口，这有效解决了Wandering Tree的问题。
 
-![image-20210127113254526](./images/f2fs-update)
+![image-20210127113254526](./images/f2fs-update.png)
 
 可以预见，**Single-indirect、Double-indirect以及Triple-indirect** 部分也都保存的**Node ID**。
 
@@ -276,7 +281,10 @@ F2FS实现了一个高效的前滚恢复机制来提升fsync性能。关键思�
   > 夏老师的回复：冷热分离，一方面是性能，另外对磨损均衡还是有作用的，热数据可以挪一挪
 
 - Adaptive Logging机制，一种混合Append Logging和Threaded Logging的方式，值得借鉴；
+
 - Foreground Cleaning的Greedy机制与Background Cleaning的基于Lazy Migration的Cost-benefit机制；
+
+
 
 ## SylixOS Simple FS Code Thru
 
@@ -286,6 +294,1161 @@ F2FS实现了一个高效的前滚恢复机制来提升fsync性能。关键思�
 > 2. 了解接口函数，标注它们的功能；
 > 3. ……
 > 4. 询问蒋老师目标NorFlash的硬件平台；
+
+### NorFlash开发板
+
+> 陈洪邦老师的回复：
+>
+>  根据市面上带NorFlash的 板卡，结合我司开源的BSP，建议选择mini2440/JZ2440均可以。
+
+**BSP（Board Support Package）：**
+
+The [Wind River](https://en.wikipedia.org/wiki/Wind_River_Systems) board support package for the ARM Integrator 920T single-board computer contains, among other things, the following elements:
+
+- A config.h file, which defines constants such as **ROM_SIZE and RAM_HIGH_ADRS**.
+
+- A Makefile, which defines **binary versions of VxWorks ROM images** for programming into [flash memory](https://en.wikipedia.org/wiki/Flash_memory).
+
+- A bootrom file, which **defines the boot line parameters for the board**.
+
+- A target.ref file, which describes board-specific information such as **switch and jumper settings, interrupt levels, and offset bias**.
+
+- A [VxWorks](https://en.wikipedia.org/wiki/VxWorks) image.
+
+- Various C files, including:
+
+  - flashMem.c—the device **driver for the board's flash memory**
+
+  - pciIomapShow.c—mapping file for the PCI bus
+
+  - primeCellSio.c—TTY（**TeleTYpewriter** ） driver
+
+  - sysLib.c—system-dependent routines specific to this board
+
+  - romInit.s—**ROM initialization module for the board**; contains **entry code for images that start running from ROM**
+
+Additionally the BSP is supposed to perform the following operations
+
+- Initialize the processor
+- Initialize the bus
+- Initialize the interrupt controller
+- Initialize the clock
+- Initialize the RAM settings
+- Configure the segments
+- Load and run bootloader from flash
+
+> 位于硬件和OS之间的板级支持包，为OS提供基本服务。
+>
+> 更新：终于找到BSP在哪里了
+>
+> ![image-20210129110111290](./images/sylix-os-bsp.png)
+
+
+
+### Code Thru
+
+#### fsCommon part
+
+> 这一部分是通用FS函数，显然，如果从面向对象的角度来看，它就是文件系统最抽象的类，我们需要用好这个Part。这里有一点值得注意，可以发现，在SylixOS中每个头文件的有一个#ifndef #define #endif的定义，考虑如下情况：多个文件同时include同一个头文件，那么当这些文件编译链接成一个可执行文件时，就会出现大量“重定义”的错误。添加 #ifndef #define #endif的妙处正是在这里。
+
+**fsCommon.h**
+
+首先**LW_CFG_MAX_VOLUMES**这个宏表示**系统同时支持的卷的数量** ，显然不能为**负数**
+
+```c
+#ifndef __FSCOMMON_H
+#define __FSCOMMON_H
+
+/*********************************************************************************************************
+  文件系统函数声明
+*********************************************************************************************************/
+#if LW_CFG_MAX_VOLUMES > 0
+
+INT      __fsRegister(CPCHAR   pcName, 
+                      FUNCPTR  pfuncCreate, 
+                      FUNCPTR  pfuncCheck,
+                      FUNCPTR  pfuncProb);                              /*  注册文件系统                */
+FUNCPTR  __fsCreateFuncGet(CPCHAR       pcName, 
+                           PLW_BLK_DEV  pblkd, 
+                           UINT8        ucPartType);                    /*  获得文件系统创建函数        */
+UINT8    __fsPartitionProb(PLW_BLK_DEV  pblkd);                         /*  特殊分区探测                */
+
+VOID     __fsDiskLinkCounterAdd(PLW_BLK_DEV  pblkd);                    /*  物理连接计数操作            */
+VOID     __fsDiskLinkCounterDec(PLW_BLK_DEV  pblkd);
+UINT     __fsDiskLinkCounterGet(PLW_BLK_DEV  pblkd);
+
+#endif                                                                  /*  (LW_CFG_MAX_VOLUMES > 0)    */
+
+/*********************************************************************************************************
+  通用函数声明
+*********************************************************************************************************/
+
+INT      __fsCheckFileName(CPCHAR  pcName);                             /*  文件名正确性检查            */
+
+#endif                                                                  /*  __FSCOMMON_H                */
+```
+
+**fsCommon.c**
+
+值得注意的是这个结构体（LW？？？**long wing？？是什么**）：
+
+```c
+/*********************************************************************************************************
+  文件系统名对应的文件系统装载函数 (不针对 yaffs 系统)
+*********************************************************************************************************/
+typedef struct {
+    LW_LIST_LINE                 FSN_lineManage;                        /*  管理链表                    */
+    FUNCPTR                      FSN_pfuncCreate;                       /*  文件系统创建函数            */
+    FUNCPTR                      FSN_pfuncCheck;                        /*  文件系统检查函数            */
+    FUNCPTR                      FSN_pfuncProb;                         /*  文件系统类型探测            */
+    CHAR                         FSN_pcFsName[1];                       /*  文件系统名称                */
+} __LW_FILE_SYSTEM_NODE;
+typedef __LW_FILE_SYSTEM_NODE   *__PLW_FILE_SYSTEM_NODE;
+
+static LW_SPINLOCK_DEFINE       (_G_slFsNode) = LW_SPIN_INITIALIZER;
+static LW_LIST_LINE_HEADER       _G_plineFsNodeHeader = LW_NULL;        /*  文件系统入口表              */
+```
+
+好，这里就看到了**LW_LIST_LINE**，结构如下：
+
+```c
+/*********************************************************************************************************
+  双向线形管理表
+*********************************************************************************************************/
+
+typedef struct __list_line {
+	struct __list_line      *LINE_plistNext;                            /*  线形表前向指针              */
+    struct __list_line      *LINE_plistPrev;                            /*  线形表后向指针              */
+} LW_LIST_LINE;
+typedef LW_LIST_LINE        *PLW_LIST_LINE;
+typedef PLW_LIST_LINE        LW_LIST_LINE_HEADER;                       /*  线形表表头                  */
+```
+
+这里的**LW_LIST_LINE**前加了一个P，应该是**Pointer**的意思。
+
+然后是定义了双向链表头**_G_plineFsNodeHeader**与一个自旋锁**_G_slFsNode**。
+
+> 关于spinlock和mutex，摘自[Spin lock 与mutex 的区别](https://www.cnblogs.com/linshangyao/p/3362772.html)：
+>
+> 从实现原理上来讲，**Mutex属于sleep-waiting**类型的锁。例如在一个双核的机器上有两个线程(线程A和线程B)，它们分别运行在Core0和 Core1上。假设线程A想要通过pthread_mutex_lock操作去得到一个临界区的锁，而此时这个锁正被线程B所持有，那么线程A就会被阻塞 (blocking)，Core0 会在此时进行上下文切换(Context Switch)将线程A置于等待队列中，此时Core0就可以运行其他的任务(例如另一个线程C)而不必进行忙等待。而**Spin lock则不然，它属于busy-waiting**类型的锁，如果线程A是使用pthread_spin_lock操作去请求锁，那么线程A就会一直在 Core0上进行忙等待并不停的进行锁请求，直到得到这个锁为止。
+
+下面分析几个函数：
+
+**__fsRegister**
+
+---
+
+```c
+/*********************************************************************************************************
+** 函数名称: __fsRegister
+** 功能描述: 注册一个文件系统
+** 输　入  : pcName           文件系统名
+**           pfuncCreate      文件系统创建函数
+**           pfuncCheck       文件系统检查函数
+** 输　出  : ERROR
+** 全局变量: 
+** 调用模块: 
+*********************************************************************************************************/
+INT  __fsRegister (CPCHAR  pcName, FUNCPTR  pfuncCreate, FUNCPTR  pfuncCheck, FUNCPTR  pfuncProb)
+{
+    INTREG                  iregInterLevel;
+    __PLW_FILE_SYSTEM_NODE  pfsnNew;
+
+    if (!pcName || !pfuncCreate) {
+        return  (PX_ERROR);
+    }
+    //分配了一个fs_node
+    pfsnNew = (__PLW_FILE_SYSTEM_NODE)__SHEAP_ALLOC(lib_strlen(pcName) + 
+                                                    sizeof(__LW_FILE_SYSTEM_NODE));
+    if (pfsnNew == LW_NULL) {
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
+        _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
+        return  (PX_ERROR);
+    }
+    pfsnNew->FSN_pfuncCreate = pfuncCreate;
+    pfsnNew->FSN_pfuncCheck  = pfuncCheck;
+    pfsnNew->FSN_pfuncProb   = pfuncProb;
+    lib_strcpy(pfsnNew->FSN_pcFsName, pcName);
+    
+    LW_SPIN_LOCK_QUICK(&_G_slFsNode, &iregInterLevel);
+    _List_Line_Add_Ahead(&pfsnNew->FSN_lineManage, &_G_plineFsNodeHeader);
+    LW_SPIN_UNLOCK_QUICK(&_G_slFsNode, iregInterLevel);
+    
+    return  (ERROR_NONE);
+}
+```
+
+实际上就是用**链表**管理**__LW_FILE_SYSTEM_NODE**，这里就是做**__LW_FILE_SYSTEM_NODE**的初始化，**easy！**
+
+这里有一个**LW_SPIN_LOCK_QUICK(&_G_slFsNode, &iregInterLevel)**，不用理会，应该就是SylixOS定义调用自旋锁的基本写法：
+
+```c
+static LW_SPINLOCK_DEFINE       (_G_sl_ObejectName) = LW_SPIN_INITIALIZER;
+INTREG                  iregInterLevel;
+LW_SPIN_LOCK_QUICK(&_G_sl_ObejectName, &iregInterLevel);
+//临界区代码
+//Do something here
+...
+LW_SPIN_UNLOCK_QUICK(&_G_sl_ObejectName, iregInterLevel);
+```
+
+另外，这里有一个**__SHEAP_ALLOC**，事实上它是**sys_heap_alloc**的缩写，即堆分配（理解为**malloc**即可），相关源码如下：
+
+```c
+/*********************************************************************************************************
+  内核与系统级内存堆宏操作 (驱动程序与其他内核模块必须使用 sys_malloc 分配内存)
+      
+  注意: 移植 linux 系统驱动时, kmalloc 与 kfree 可以使用   sys_malloc 与 sys_free 替换.
+                               vmalloc 与 vfree 也可以使用 sys_malloc 与 sys_free 替换.
+*********************************************************************************************************/
+
+#define ker_malloc(size)                __KHEAP_ALLOC((size_t)(size))
+#define ker_zalloc(size)                __KHEAP_ZALLOC((size_t)(size))
+#define ker_free(p)                     __KHEAP_FREE((p))
+#define ker_realloc(p, new_size)        __KHEAP_REALLOC((p), (size_t)(new_size))
+#define ker_malloc_align(size, align)   __KHEAP_ALLOC_ALIGN((size_t)(size), (size_t)(align))
+
+#define sys_malloc(size)                __SHEAP_ALLOC((size_t)(size))
+#define sys_zalloc(size)                __SHEAP_ZALLOC((size_t)(size))
+#define sys_free(p)                     __SHEAP_FREE((p))
+#define sys_realloc(p, new_size)        __SHEAP_REALLOC((p), (size_t)(new_size))
+#define sys_malloc_align(size, align)   __SHEAP_ALLOC_ALIGN((size_t)(size), (size_t)(align))
+```
+
+但有点离谱的是，**K**打头的和**S**打头的一毛一样……
+
+```c
+#define __KHEAP_ALLOC(stNBytes)         _HeapAllocate(_K_pheapKernel, stNBytes, __func__)
+#define __SHEAP_ALLOC(stNBytes)         _HeapAllocate(_K_pheapSystem, stNBytes, __func__)
+
+#define __KHEAP_ZALLOC(stNBytes)        _HeapZallocate(_K_pheapKernel, stNBytes, __func__)
+#define __SHEAP_ZALLOC(stNBytes)        _HeapZallocate(_K_pheapSystem, stNBytes, __func__)
+
+#define __KHEAP_REALLOC(pvMemory, stNBytes)     \
+        _HeapRealloc(_K_pheapKernel, pvMemory, stNBytes, LW_FALSE, __func__)
+         
+#define __SHEAP_REALLOC(pvMemory, stNBytes)     \
+        _HeapRealloc(_K_pheapSystem, pvMemory, stNBytes, LW_FALSE, __func__)
+
+#define __KHEAP_FREE(pvMemory)          _HeapFree(_K_pheapKernel, pvMemory, LW_FALSE, __func__)
+#define __SHEAP_FREE(pvMemory)          _HeapFree(_K_pheapSystem, pvMemory, LW_FALSE, __func__)
+```
+
+ **__fsCreateFuncGet**
+
+---
+
+```c
+/*********************************************************************************************************
+** 函数名称: __fsCreateFuncGet
+** 功能描述: 获取文件系统创建函数
+** 输　入  : pcName           文件系统名
+**           pblkd            对应磁盘
+**           ucPartType       对应分区类型
+** 输　出  : 文件系统创建函数
+** 全局变量: 
+** 调用模块: 
+*********************************************************************************************************/
+FUNCPTR  __fsCreateFuncGet (CPCHAR   pcName, PLW_BLK_DEV  pblkd, UINT8  ucPartType)
+{
+    INTREG                  iregInterLevel;
+    __PLW_FILE_SYSTEM_NODE  pfsnFind;
+    PLW_LIST_LINE           plineTemp;
+
+    if (!pcName) {
+        return  (LW_NULL);
+    }
+    
+    LW_SPIN_LOCK_QUICK(&_G_slFsNode, &iregInterLevel);
+    plineTemp = _G_plineFsNodeHeader;
+    LW_SPIN_UNLOCK_QUICK(&_G_slFsNode, iregInterLevel);
+    
+    while (plineTemp) {
+        pfsnFind = (__PLW_FILE_SYSTEM_NODE)plineTemp;
+        if (lib_strcmp(pfsnFind->FSN_pcFsName, pcName) == 0) {
+            break;
+        }
+        plineTemp = _list_line_get_next(plineTemp);
+    }
+    
+    if (plineTemp) {
+        if (pfsnFind->FSN_pfuncCheck && pblkd) {
+            if (pfsnFind->FSN_pfuncCheck(pblkd, ucPartType) < ERROR_NONE) {
+                return  (LW_NULL);
+            }
+        }
+        return  (pfsnFind->FSN_pfuncCreate);
+    
+    } else {
+        return  (LW_NULL);
+    }
+}
+```
+
+很简单，首先用**SPIN_LOCK**取**FS_NODE链表**头部作为**plineTemp**，然后遍历**FS_NODE链表**，根据**pcName**寻找对应相应的文件系统**NODE**，找到后对应于**pfsnFind**，接着调用**FSN_pfuncCheck**文件系统检查函数检验该文件系统的**对应磁盘**与**对应分区类型**是否合法，如果合法，就返回**pfsnFind->FSN_pfuncCreate**，否则返回**LW_NULL**。
+
+**__fsPartitionProb** 
+
+---
+
+```c
+/*********************************************************************************************************
+** 函数名称: __fsPartitionProb
+** 功能描述: 分区类型探测
+** 输　入  : pblkd            对应磁盘
+** 输　出  : 分区类型
+** 全局变量: 
+** 调用模块: 
+*********************************************************************************************************/
+UINT8  __fsPartitionProb (PLW_BLK_DEV  pblkd)
+{
+#ifndef LW_DISK_PART_TYPE_EMPTY
+#define LW_DISK_PART_TYPE_EMPTY  0x00
+#endif
+
+    INTREG                  iregInterLevel;
+    __PLW_FILE_SYSTEM_NODE  pfsnProb;
+    PLW_LIST_LINE           plineTemp;
+    UINT8                   ucPartType = LW_DISK_PART_TYPE_EMPTY;
+    
+    LW_SPIN_LOCK_QUICK(&_G_slFsNode, &iregInterLevel);
+    plineTemp = _G_plineFsNodeHeader;
+    LW_SPIN_UNLOCK_QUICK(&_G_slFsNode, iregInterLevel);
+    
+    while (plineTemp) {
+        pfsnProb = (__PLW_FILE_SYSTEM_NODE)plineTemp;
+        if (pfsnProb->FSN_pfuncProb) {
+            pfsnProb->FSN_pfuncProb(pblkd, &ucPartType);
+            if (ucPartType != LW_DISK_PART_TYPE_EMPTY) {
+                break;
+            }
+        }
+        plineTemp = _list_line_get_next(plineTemp);
+    }
+    
+    return  (ucPartType);
+}
+```
+
+该函数与**__fsCreateFuncGet**函数类似，通过遍历链表，然后不断调用**文件系统类型探测函数FSN_pfuncProb**，如果探测到的类型不为**LW_DISK_PART_TYPE_EMPTY**，那么就返回**该磁盘的分区类型**
+
+**__fsDiskLinkCounterAdd**
+
+---
+
+```c
+/*********************************************************************************************************
+** 函数名称: __fsDiskLinkCounterAdd
+** 功能描述: 将物理磁盘链接数量加1
+** 输　入  : pblkd           块设备控制块
+** 输　出  : ERROR
+** 全局变量: 
+** 调用模块: 
+*********************************************************************************************************/
+VOID  __fsDiskLinkCounterAdd (PLW_BLK_DEV  pblkd)
+{
+    INTREG       iregInterLevel;
+    PLW_BLK_DEV  pblkdPhy;
+
+    __LW_ATOMIC_LOCK(iregInterLevel);
+    if (pblkd->BLKD_pvLink) {
+        pblkdPhy = (PLW_BLK_DEV)pblkd->BLKD_pvLink;                     /*  获得物理设备连接            */
+        pblkdPhy->BLKD_uiLinkCounter++;
+        if (pblkdPhy->BLKD_uiLinkCounter == 1) {
+            pblkdPhy->BLKD_uiPowerCounter = 0;
+            pblkdPhy->BLKD_uiInitCounter  = 0;
+        }
+    } else {
+        pblkd->BLKD_uiLinkCounter++;
+    }
+    __LW_ATOMIC_UNLOCK(iregInterLevel);
+}
+```
+
+关于**PLW_BLK_DEV**的定义如下：
+
+```c
+  BLKD_iLogic               // 是否为逻辑磁盘, 用户驱动程序只要将其设置为 0 即可.
+  BLKD_iLinkCounter         // 物理设备驱动相关字段, 初始化时必须为 0
+  BLKD_pvLink               // 物理设备驱动相关字段, 初始化时必须为 NULL
+  
+  BLKD_uiPowerCounter       // 电源控制计数器, 初始化时必须为 0
+  BLKD_uiInitCounter        // 磁盘初始化计数器, 初始化时必须为 0
+```
+
+> 不是很明白**BLKD_pvLink** 是什么，按照注释来看是**物理设备链接**，有什么用？
+>
+> 追溯代码，看一下pvLink在何处被赋了值：
+>
+> ```c
+> //位于SylixOS/system/device/block/blockRaw.c
+> 
+> if (bLogic) {
+>     pblkd->BLKD_iLogic = 1;
+>     pblkd->BLKD_pvLink = (PLW_BLK_DEV)pblkd;
+> }
+> ```
+> 其中，bLogic为一个Bool变量。
+>
+> 这段代码发生在**__blkRawCreate**时，当且仅当bLogic（**代表逻辑分区**）为真时，**BLKD_pvLink**被赋值，还是不是很清楚有什么用……
+
+**__fsDiskLinkCounterDec**
+
+---
+
+```c
+/*********************************************************************************************************
+** 函数名称: __fsDiskLinkCounterDec
+** 功能描述: 将物理磁盘链接数量减1
+** 输　入  : pblkd           块设备控制块
+** 输　出  : ERROR
+** 全局变量: 
+** 调用模块: 
+*********************************************************************************************************/
+VOID  __fsDiskLinkCounterDec (PLW_BLK_DEV  pblkd)
+{
+    INTREG       iregInterLevel;
+    PLW_BLK_DEV  pblkdPhy;
+
+    __LW_ATOMIC_LOCK(iregInterLevel);
+    if (pblkd->BLKD_pvLink) {
+        pblkdPhy = (PLW_BLK_DEV)pblkd->BLKD_pvLink;                     /*  获得物理设备连接            */
+        pblkdPhy->BLKD_uiLinkCounter--;
+    } else {
+        pblkd->BLKD_uiLinkCounter--;
+    }
+    __LW_ATOMIC_UNLOCK(iregInterLevel);
+}
+```
+
+**__fsDiskLinkCounterGet**
+
+---
+
+```c
+/*********************************************************************************************************
+** 函数名称: __fsDiskLinkCounterGet
+** 功能描述: 获取物理磁盘链接数量
+** 输　入  : pblkd           块设备控制块
+** 输　出  : 物理磁盘连接数量
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+UINT  __fsDiskLinkCounterGet (PLW_BLK_DEV  pblkd)
+{
+    INTREG       iregInterLevel;
+    PLW_BLK_DEV  pblkdPhy;
+    UINT         uiRet;
+
+    __LW_ATOMIC_LOCK(iregInterLevel);
+    if (pblkd->BLKD_pvLink) {
+        pblkdPhy = (PLW_BLK_DEV)pblkd->BLKD_pvLink;                     /*  获得物理设备连接            */
+        uiRet    = pblkdPhy->BLKD_uiLinkCounter;
+    } else {
+        uiRet    = pblkd->BLKD_uiLinkCounter;
+    }
+    __LW_ATOMIC_UNLOCK(iregInterLevel);
+
+    return  (uiRet);
+}
+```
+
+**__fsCheckFileName**
+
+---
+
+```c
+/*********************************************************************************************************
+** 函数名称: __fsCheckFileName
+** 功能描述: 检查文件名操作
+** 输　入  : pcName           文件名
+** 输　出  : ERROR
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT  __fsCheckFileName (CPCHAR  pcName)
+{
+#ifndef __LW_FILE_ERROR_NAME_STR
+#define __LW_FILE_ERROR_NAME_STR        "\\*?<>:\"|\t\r\n"              /*  不能包含在文件内的字符      */
+#endif                                                                  /*  __LW_FILE_ERROR_NAME_STR    */
+
+    REGISTER PCHAR  pcTemp;
+
+    /*
+     *  不能建立 . 或 .. 文件
+     */
+    pcTemp = lib_rindex(pcName, PX_DIVIDER);
+    if (pcTemp) {
+        pcTemp++;
+        if (*pcTemp == PX_EOS) {                                        /*  文件名长度为 0              */
+            return  (PX_ERROR);
+        }
+        if ((lib_strcmp(pcTemp, ".")  == 0) ||
+            (lib_strcmp(pcTemp, "..") == 0)) {                          /*  . , .. 检查                 */
+            return  (PX_ERROR);
+        }
+
+    } else {
+        if (pcName[0] == PX_EOS) {                                      /*  文件名长度为 0              */
+            return  (PX_ERROR);
+        }
+    }
+
+    /*
+     *  不能包含非法字符
+     */
+    pcTemp = (PCHAR)pcName;
+    for (; *pcTemp != PX_EOS; pcTemp++) {
+        if (lib_strchr(__LW_FILE_ERROR_NAME_STR, *pcTemp)) {            /*  检查合法性                  */
+            return  (PX_ERROR);
+        }
+    }
+
+    return  (ERROR_NONE);
+}
+```
+
+通用文件名合法性检测函数，不多提了。
+
+#### ramFs part
+
+> 从一个简单一点的文件系统开始研究，为什么选择ramFs呢？
+>
+> 因为NorFlash与Ram其实具有相似的特征，都能够随机访问，并且可执行代码，因此选择看ramFs。
+>
+> 主要看几个基本部分：
+>
+> 1. 如何注册ramFs；
+> 2. 基本操作的实现，调用了那些API？
+
+**ramFs.h**
+
+```c
+LW_API INT      API_RamFsDrvInstall(VOID);
+LW_API INT      API_RamFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd);
+LW_API INT      API_RamFsDevDelete(PCHAR   pcName);
+
+#define ramFsDrv                API_RamFsDrvInstall
+#define ramFsDevCreate          API_RamFsDevCreate
+#define ramFsDevDelete          API_RamFsDevDelete
+```
+
+定义的API接口比较简单。
+
+**ramFs.c**
+
+**API_RamFsDrvInstall，注册RamFs**
+
+---
+
+```c
+/*********************************************************************************************************
+** 函数名称: API_RamFsDrvInstall
+** 功能描述: 安装 ramfs 文件系统驱动程序
+** 输　入  :
+** 输　出  : < 0 表示失败
+** 全局变量:
+** 调用模块:
+                                           API 函数
+*********************************************************************************************************/
+LW_API
+INT  API_RamFsDrvInstall (VOID)
+{
+    struct file_operations     fileop;
+    
+    if (_G_iRamfsDrvNum > 0) {
+        return  (ERROR_NONE);
+    }
+    
+    lib_bzero(&fileop, sizeof(struct file_operations));
+
+    fileop.owner       = THIS_MODULE;
+    fileop.fo_create   = __ramFsOpen;
+    fileop.fo_release  = __ramFsRemove;
+    fileop.fo_open     = __ramFsOpen;
+    fileop.fo_close    = __ramFsClose;
+    fileop.fo_read     = __ramFsRead;
+    fileop.fo_read_ex  = __ramFsPRead;
+    fileop.fo_write    = __ramFsWrite;
+    fileop.fo_write_ex = __ramFsPWrite;
+    fileop.fo_lstat    = __ramFsLStat;
+    fileop.fo_ioctl    = __ramFsIoctl;
+    fileop.fo_symlink  = __ramFsSymlink;
+    fileop.fo_readlink = __ramFsReadlink;
+    
+    _G_iRamfsDrvNum = iosDrvInstallEx2(&fileop, LW_DRV_TYPE_NEW_1);     /*  使用 NEW_1 型设备驱动程序   */
+
+    DRIVER_LICENSE(_G_iRamfsDrvNum,     "GPL->Ver 2.0");
+    DRIVER_AUTHOR(_G_iRamfsDrvNum,      "Han.hui");
+    DRIVER_DESCRIPTION(_G_iRamfsDrvNum, "ramfs driver.");
+
+    _DebugHandle(__LOGMESSAGE_LEVEL, "ram file system installed.\r\n");
+                                     
+    __fsRegister("ramfs", API_RamFsDevCreate, LW_NULL, LW_NULL);        /*  注册文件系统，连接到链表上去  */
+
+    return  ((_G_iRamfsDrvNum > 0) ? (ERROR_NONE) : (PX_ERROR));
+}
+```
+
+这里**iosDrvInstallEx2**的作用是：
+
+搜索全局 _S_deventryTbl（默认64）表，查找未使用的驱动程序控制块，返回该数组下标，关联设备文件操作控制块函数
+
+~~然而我并没有找到它的实现。~~
+
+实现在文件**SylixOS/system/ioLib/ioSys.c**中，看起来还是比较好理解的。
+
+```c
+/*********************************************************************************************************
+** 函数名称: API_IosDrvInstallEx2
+** 功能描述: 注册设备驱动程序
+** 输　入  : pFileOp                     文件操作块
+**           iType                       设备驱动类型 
+                                         LW_DRV_TYPE_ORIG or LW_DRV_TYPE_NEW_? or LW_DRV_TYPE_SOCKET
+** 输　出  : 驱动程序索引号
+** 全局变量: 
+** 调用模块: 
+** 注  意  : pfileop 中的 open 与 create 操作 (如果非符号链接, 则不可更改 name 参数内容)
+             仅当 LW_CFG_PATH_VXWORKS == 0 才支持部分符号链接功能
+                                           API 函数
+*********************************************************************************************************/
+LW_API  
+INT  API_IosDrvInstallEx2 (struct file_operations  *pfileop, INT  iType)
+{
+    REGISTER PLW_DEV_ENTRY    pdeventry = LW_NULL;
+    REGISTER INT              iDrvNum;
+    
+    if (!pfileop) {                                                     /*  参数错误                    */
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "file_operations invalidate.\r\n");
+        _ErrorHandle(ERROR_IOS_FILE_OPERATIONS_NULL);
+        return  (PX_ERROR);
+    }
+    
+    if ((iType != LW_DRV_TYPE_ORIG)  &&
+        (iType != LW_DRV_TYPE_NEW_1) &&
+        (iType != LW_DRV_TYPE_SOCKET)) {                                /*  驱动是否符合标准            */
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "driver type invalidate.\r\n");
+        _ErrorHandle(EINVAL);
+        return  (PX_ERROR);
+    }
+    
+    _IosLock();                                                         /*  进入 IO 临界区              */
+    for (iDrvNum = 1; iDrvNum < LW_CFG_MAX_DRIVERS; iDrvNum++) {        /*  搜索驱动程序表              */
+        if (_S_deventryTbl[iDrvNum].DEVENTRY_bInUse == LW_FALSE) {
+            pdeventry = &_S_deventryTbl[iDrvNum];                       /*  找到空闲位置                */
+            break;
+        }
+    }
+    if (pdeventry == LW_NULL) {                                         /*  没有空闲位置                */
+        _IosUnlock();                                                   /*  退出 IO 临界区              */
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "major device is full (driver table full).\r\n");
+        _ErrorHandle(ERROR_IOS_DRIVER_GLUT);
+        return  (PX_ERROR);
+    }
+    
+    pdeventry->DEVENTRY_bInUse   = LW_TRUE;                             /*  填写驱动程序表              */
+    pdeventry->DEVENTRY_iType    = iType;
+    pdeventry->DEVENTRY_usDevNum = 0;
+    
+    pdeventry->DEVENTRY_pfuncDevCreate  = pfileop->fo_create;
+    pdeventry->DEVENTRY_pfuncDevDelete  = pfileop->fo_release;
+    pdeventry->DEVENTRY_pfuncDevOpen    = pfileop->fo_open;
+    pdeventry->DEVENTRY_pfuncDevClose   = pfileop->fo_close;
+    pdeventry->DEVENTRY_pfuncDevRead    = pfileop->fo_read;
+    pdeventry->DEVENTRY_pfuncDevReadEx  = pfileop->fo_read_ex;
+    pdeventry->DEVENTRY_pfuncDevWrite   = pfileop->fo_write;
+    pdeventry->DEVENTRY_pfuncDevWriteEx = pfileop->fo_write_ex;
+    pdeventry->DEVENTRY_pfuncDevIoctl   = pfileop->fo_ioctl;
+    pdeventry->DEVENTRY_pfuncDevSelect  = pfileop->fo_select;
+    pdeventry->DEVENTRY_pfuncDevLseek   = pfileop->fo_lseek;
+    pdeventry->DEVENTRY_pfuncDevFstat   = pfileop->fo_fstat;
+    pdeventry->DEVENTRY_pfuncDevLstat   = pfileop->fo_lstat;
+    
+    pdeventry->DEVENTRY_pfuncDevSymlink  = pfileop->fo_symlink;
+    pdeventry->DEVENTRY_pfuncDevReadlink = pfileop->fo_readlink;
+    
+    pdeventry->DEVENTRY_pfuncDevMmap  = pfileop->fo_mmap;
+    pdeventry->DEVENTRY_pfuncDevUnmap = pfileop->fo_unmap;
+    
+    pdeventry->DEVENTRY_drvlicLicense.DRVLIC_pcLicense     = LW_NULL;   /*  清空许可证信息              */
+    pdeventry->DEVENTRY_drvlicLicense.DRVLIC_pcAuthor      = LW_NULL;
+    pdeventry->DEVENTRY_drvlicLicense.DRVLIC_pcDescription = LW_NULL;
+    
+    _IosUnlock();                                                       /*  退出 IO 临界区              */
+    
+    return  (iDrvNum);
+}
+```
+
+其中**_S_deventryTbl**中，每一个元素都是一个驱动入口**LW_DEV_ENTRY**。至于**LW_DEV_ENTRY**的定义，它与**struct file_operations**的定义基本一致。
+
+**API_RamFsDevCreate**
+
+---
+
+```c
+/*********************************************************************************************************
+** 函数名称: API_RamFsDevCreate
+** 功能描述: 创建 ramfs 文件系统设备.
+** 输　入  : pcName            设备名(设备挂接的节点地址)
+**           pblkd             使用 pblkd->BLKD_pcName 作为 最大大小 标示.
+** 输　出  : < 0 表示失败
+** 全局变量:
+** 调用模块:
+                                           API 函数
+*********************************************************************************************************/
+LW_API
+INT  API_RamFsDevCreate (PCHAR   pcName, PLW_BLK_DEV  pblkd)
+{
+    PRAM_VOLUME     pramfs;
+    size_t          stMax;
+
+    if (_G_iRamfsDrvNum <= 0) {
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "ramfs Driver invalidate.\r\n");
+        _ErrorHandle(ERROR_IO_NO_DRIVER);
+        return  (PX_ERROR);
+    }
+    if ((pblkd == LW_NULL) || (pblkd->BLKD_pcName == LW_NULL)) {
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "block device invalidate.\r\n");
+        _ErrorHandle(ERROR_IOS_DEVICE_NOT_FOUND);
+        return  (PX_ERROR);
+    }
+    if ((pcName == LW_NULL) || __STR_IS_ROOT(pcName)) {
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "mount name invalidate.\r\n");
+        _ErrorHandle(EFAULT);                                           /*  Bad address                 */
+        return  (PX_ERROR);
+    }
+    if (sscanf(pblkd->BLKD_pcName, "%zu", &stMax) != 1) {
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "max size invalidate.\r\n");
+        _ErrorHandle(EINVAL);
+        return  (PX_ERROR);
+    }
+    
+    pramfs = (PRAM_VOLUME)__SHEAP_ALLOC(sizeof(RAM_VOLUME));
+    if (pramfs == LW_NULL) {
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
+        _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
+        return  (PX_ERROR);
+    }
+    lib_bzero(pramfs, sizeof(RAM_VOLUME));                              /*  清空卷控制块                */
+    
+    pramfs->RAMFS_bValid = LW_TRUE;
+    
+    pramfs->RAMFS_hVolLock = API_SemaphoreMCreate("ramvol_lock", LW_PRIO_DEF_CEILING,
+                                             LW_OPTION_WAIT_PRIORITY | LW_OPTION_DELETE_SAFE | 
+                                             LW_OPTION_INHERIT_PRIORITY | LW_OPTION_OBJECT_GLOBAL,
+                                             LW_NULL);
+    if (!pramfs->RAMFS_hVolLock) {                                      /*  无法创建卷锁                */
+        __SHEAP_FREE(pramfs);
+        return  (PX_ERROR);
+    }
+    
+    pramfs->RAMFS_mode     = S_IFDIR | DEFAULT_DIR_PERM;
+    pramfs->RAMFS_uid      = getuid();
+    pramfs->RAMFS_gid      = getgid();
+    pramfs->RAMFS_time     = lib_time(LW_NULL);
+    pramfs->RAMFS_ulCurBlk = 0ul;
+    
+    if (stMax == 0) {
+#if LW_CFG_CPU_WORD_LENGHT == 32
+        pramfs->RAMFS_ulMaxBlk = (__ARCH_ULONG_MAX / __RAM_BSIZE);
+#else
+        pramfs->RAMFS_ulMaxBlk = ((ULONG)(128ul * LW_CFG_GB_SIZE) / __RAM_BSIZE);
+#endif
+    } else {
+        pramfs->RAMFS_ulMaxBlk = (ULONG)(stMax / __RAM_BSIZE);
+    }
+	//事实上是一个空操作
+    __ram_mount(pramfs);
+    
+    if (iosDevAddEx(&pramfs->RAMFS_devhdrHdr, pcName, _G_iRamfsDrvNum, DT_DIR)
+        != ERROR_NONE) {                                                /*  安装文件系统设备            */
+        API_SemaphoreMDelete(&pramfs->RAMFS_hVolLock);
+        __SHEAP_FREE(pramfs);
+        return  (PX_ERROR);
+    }
+    
+    _DebugFormat(__LOGMESSAGE_LEVEL, "target \"%s\" mount ok.\r\n", pcName);
+
+    return  (ERROR_NONE);
+}
+```
+
+这里**PRAM_VOLUME**结构如下：
+
+```c
+typedef struct {
+    LW_DEV_HDR          RAMFS_devhdrHdr;                                /*  ramfs 文件系统设备头        */
+    LW_OBJECT_HANDLE    RAMFS_hVolLock;                                 /*  卷操作锁                    */
+    LW_LIST_LINE_HEADER RAMFS_plineFdNodeHeader;                        /*  fd_node 链表                */
+    LW_LIST_LINE_HEADER RAMFS_plineSon;                                 /*  儿子链表                    */
+    
+    BOOL                RAMFS_bForceDelete;                             /*  是否允许强制卸载卷          */
+    BOOL                RAMFS_bValid;
+    
+    uid_t               RAMFS_uid;                                      /*  用户 id                     */
+    gid_t               RAMFS_gid;                                      /*  组   id                     */
+    mode_t              RAMFS_mode;                                     /*  文件 mode                   */
+    time_t              RAMFS_time;                                     /*  创建时间                    */
+    ULONG               RAMFS_ulCurBlk;                                 /*  当前消耗内存大小            */
+    ULONG               RAMFS_ulMaxBlk;                                 /*  最大内存消耗量              */
+} RAM_VOLUME;
+typedef RAM_VOLUME     *PRAM_VOLUME;
+```
+
+另外，**iosDevAddEx**函数能够实现安装文件系统的功能。网上有一张图，显示了安装一个基本设备的流程，~~后两步看不怎么懂，可能需要看rootFs~~。
+
+![image-20210128173512097](./images/sylix-os-add-dev.png)
+
+补充一下，今天找到了**iosDevAddEx**的实现，同样在**ioSys.c**中，首先介绍一下`register`变量修饰符：可以理解为将该变量放入寄存器中（不需要编译器来猜测）。
+
+```c
+/*********************************************************************************************************
+** 函数名称: API_IosDevAddEx
+** 功能描述: 向系统中添加一个设备 (可以设置设备的 mode)
+** 输　入  : 
+**           pdevhdrHdr                   设备头指针
+**           pcDevName                    设备名
+**           iDrvNum                      驱动程序索引
+**           ucType                       设备 type (与 dirent 中的 d_type 相同)
+** 输　出  : ERROR CODE
+** 全局变量: 
+** 调用模块: 
+                                           API 函数
+*********************************************************************************************************/
+LW_API  
+ULONG  API_IosDevAddEx (PLW_DEV_HDR    pdevhdrHdr,
+                        CPCHAR         pcDevName,
+                        INT            iDrvNum,
+                        UCHAR          ucType)
+{
+    REGISTER PLW_LIST_LINE  plineTemp;
+    REGISTER PLW_DEV_HDR    pdevhdrTemp;
+    REGISTER PLW_DEV_HDR    pdevhdrMatch;
+    REGISTER size_t         stNameLen;
+    
+             UINT16         usDevNum;
+             CHAR           cNameBuffer[MAX_FILENAME_LENGTH];
+             CPCHAR         pcName;
+    
+    if (pcDevName == LW_NULL) {
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "device name error.\r\n");
+        _ErrorHandle(EFAULT);                                           /*  Bad address                 */
+        return  (EFAULT);
+    }
+    
+    if ((iDrvNum < 0) || (iDrvNum >= LW_CFG_MAX_DRIVERS)) {
+        _ErrorHandle(EINVAL);                                           /*  Driver number error         */
+        return  (EINVAL);
+    }
+    
+    if (!_S_deventryTbl[iDrvNum].DEVENTRY_bInUse) {
+        _ErrorHandle(ENXIO);                                            /*  No such driver              */
+        return  (ENXIO);
+    }
+    
+    _PathGetFull(cNameBuffer, MAX_FILENAME_LENGTH, pcDevName);
+    
+    pcName = cNameBuffer;                                               /*  使用绝对路径                */
+    
+    stNameLen = lib_strlen(pcName);                                     /*  设备名长短                  */
+    
+    pdevhdrMatch = API_IosDevMatch(pcName);                             /*  匹配设备名                  */
+    if (pdevhdrMatch != LW_NULL) {                                      /*  出现重名设备                */
+        if (lib_strcmp(pdevhdrMatch->DEVHDR_pcName, pcName) == 0) {
+            _ErrorHandle(ERROR_IOS_DUPLICATE_DEVICE_NAME);
+            return  (ERROR_IOS_DUPLICATE_DEVICE_NAME);
+        }
+    }
+                                                                        /*  开辟设备名空间              */
+    pdevhdrHdr->DEVHDR_pcName = (PCHAR)__SHEAP_ALLOC(stNameLen + 1);
+    if (pdevhdrHdr->DEVHDR_pcName == LW_NULL) {                         /*  缺少内存                    */
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
+        _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
+        return  (ERROR_SYSTEM_LOW_MEMORY);
+    }
+    
+    pdevhdrHdr->DEVHDR_usDrvNum = (UINT16)iDrvNum;
+    pdevhdrHdr->DEVHDR_ucType   = ucType;                               /*  设备 d_type                 */
+    pdevhdrHdr->DEVHDR_atomicOpenNum.counter = 0;                       /*  没有被打开过                */
+    lib_strcpy(pdevhdrHdr->DEVHDR_pcName, pcName);                      /*  拷贝名字                    */
+    
+    _IosLock();                                                         /*  进入 IO 临界区              */
+    
+    usDevNum = __LW_DEV_NUMINIT(iDrvNum);
+__again:                                                                /*  分配子设备号                */
+    for (plineTemp  = _S_plineDevHdrHeader;
+         plineTemp != LW_NULL;
+         plineTemp  = _list_line_get_next(plineTemp)) {
+        
+        pdevhdrTemp = _LIST_ENTRY(plineTemp, LW_DEV_HDR, DEVHDR_lineManage);
+        if (pdevhdrTemp->DEVHDR_usDrvNum == (UINT16)iDrvNum) {
+            if (usDevNum == pdevhdrTemp->DEVHDR_usDevNum) {
+                usDevNum++;
+                goto    __again;
+            }
+        }
+    }
+    
+    pdevhdrHdr->DEVHDR_usDevNum = usDevNum;
+    __LW_DEV_NUMINIT(iDrvNum)   = usDevNum + 1;                         /*  添加如设备头链表            */
+    _List_Line_Add_Ahead(&pdevhdrHdr->DEVHDR_lineManage, &_S_plineDevHdrHeader);
+    
+    _IosUnlock();                                                       /*  退出 IO 临界区              */
+    
+#if LW_CFG_PATH_VXWORKS == 0                                            /*  是否分级目录管理            */
+    if (rootFsMakeDev(pcName, pdevhdrHdr) < ERROR_NONE) {               /*  创建根目录节点              */
+        _IosLock();                                                     /*  进入 IO 临界区              */
+        _List_Line_Del(&pdevhdrHdr->DEVHDR_lineManage, &_S_plineDevHdrHeader);
+        _IosUnlock();                                                   /*  退出 IO 临界区              */
+        __SHEAP_FREE(pdevhdrHdr->DEVHDR_pcName);                        /*  释放设备名缓冲              */
+        return  (API_GetLastError());
+    }
+#endif                                                                  /*  LW_CFG_PATH_VXWORKS == 0    */
+    
+    return  (ERROR_NONE);
+}
+```
+
+这里需要给一下**PLW_DEV_HDR**的定义，显然，由于具有`DEVHDR_lineManage`，因此，设备头也是用链表来管理的。
+
+```c
+/*********************************************************************************************************
+  设备头
+*********************************************************************************************************/
+
+typedef struct {
+    LW_LIST_LINE               DEVHDR_lineManage;                       /*  设备头管理链表              */
+    UINT16                     DEVHDR_usDrvNum;                         /*  主设备号                    */
+    UINT16                     DEVHDR_usDevNum;                         /*  子设备号                    */
+    PCHAR                      DEVHDR_pcName;                           /*  设备名称                    */
+    UCHAR                      DEVHDR_ucType;                           /*  设备 dirent d_type          */
+    atomic_t                   DEVHDR_atomicOpenNum;                    /*  打开的次数                  */
+    PVOID                      DEVHDR_pvReserve;                        /*  保留                        */
+} LW_DEV_HDR;
+typedef LW_DEV_HDR            *PLW_DEV_HDR;
+typedef LW_DEV_HDR             DEV_HDR;
+```
+
+另外，代码中出现了**API_IosDevMatch**，这个函数主要工作是在root下寻找相应设备。可以理解为寻找/dev/xxx？？？
+
+呐，你看在代码末尾出现了
+
+```c
+if (rootFsMakeDev(pcName, pdevhdrHdr) < ERROR_NONE) {               /*  创建根目录节点              */
+        _IosLock();                                                     /*  进入 IO 临界区              */
+        _List_Line_Del(&pdevhdrHdr->DEVHDR_lineManage, &_S_plineDevHdrHeader);
+        _IosUnlock();                                                   /*  退出 IO 临界区              */
+        __SHEAP_FREE(pdevhdrHdr->DEVHDR_pcName);                        /*  释放设备名缓冲              */
+        return  (API_GetLastError());
+}
+```
+
+这就相当于在**/dev**目录下添加了新设备了……
+
+接下来，我们可以看一看**API_RamFsDevCreate**在哪些地方被用到了，主要用到的地方在下面，虽然目前不是很懂跟文件系统映射是什么意思，不过看到**ramFsDevCreate("/dev/ram", &blkdevRam);**的调用，我们就可以交叉论证前面说的过程的正确性。
+
+```c
+/*********************************************************************************************************
+** 函数名称: API_RootFsMap
+** 功能描述: 根文件系统映射
+** 输　入  : pdevhdr                       设备头
+**           pcName                        链接原始文件名
+**           pcLinkDst                     链接目标文件名
+**           stMaxSize                     缓冲大小
+** 输　出  : < 0 表示错误
+** 全局变量: 
+** 调用模块: 
+                                           API 函数
+*********************************************************************************************************/
+LW_API 
+INT  API_RootFsMap (ULONG  ulFlags)
+{
+   	...
+    
+    if (lib_strcmp(_G_rfsmapRoot.RFSMN_cMapDir, "/dev/ram") == 0) {
+        lib_bzero(&blkdevRam, sizeof(LW_BLK_DEV));
+        blkdevRam.BLKD_pcName = "0";
+        ramFsDevCreate("/dev/ram", &blkdevRam);
+    }
+	
+    ...
+    
+    return  (ERROR_NONE);
+}
+```
+
+**API_RamFsDevDelete**
+
+---
+
+```c
+/*********************************************************************************************************
+** 函数名称: API_RamFsDevDelete
+** 功能描述: 删除一个 ramfs 文件系统设备, 例如: API_RamFsDevDelete("/mnt/ram0");
+** 输　入  : pcName            文件系统设备名(物理设备挂接的节点地址)
+** 输　出  : < 0 表示失败
+** 全局变量:
+** 调用模块:
+                                           API 函数
+*********************************************************************************************************/
+LW_API
+INT  API_RamFsDevDelete (PCHAR   pcName)
+{
+    if (API_IosDevMatchFull(pcName)) {                                  /*  如果是设备, 这里就卸载设备  */
+        return  (unlink(pcName));
+    
+    } else {
+        _ErrorHandle(ENOENT);
+        return  (PX_ERROR);
+    }
+}
+```
+
+多简单哦！
+
+> 好，在这里停顿，可以看到这三个API函数中有大量关于设备dev与mnt的操作，要是不搞清楚，我只能说**焗鸡**。SylixOS的dev、mnt文件夹的原理应该与linux差不多，下面学习一下**linux的dev、mnt是什么**鬼。
+>
+> 下面做了一个实验，插入了USB后（见上，拔出后见下），多了**sdb**、**sdb1**以及**sg2** 三个文件；
+>
+> ![image-20210128192754676](./images/dev-usb-plug.png)
+>
+> 个人理解是，dev文件下记录了所有设备名，但是没有进行挂载，只有挂载后，才能通过根目录文件访问，即以/xx/xx/sdb的方式访问。
+>
+
+关于**ramFs.c**的具体操作是如何实现的，在此就不多提了，其一是不知道ramFs一般是什么格式，即布局、Node、Dirent长什么样子，直接看代码比较费时费力，没必要。值得一提的是，ramFs部分有两个子部分，还有一个为**ramFsLib**，这个库函数封装主要文件操作，例如它有一个**__ram_open**函数：
+
+```c
+/*********************************************************************************************************
+** 函数名称: __ram_open
+** 功能描述: ramfs 打开一个文件
+** 输　入  : pramfs           文件系统
+**           pcName           文件名
+**           ppramnFather     当无法找到节点时保存最接近的一个,
+                              但寻找到节点时保存父系节点. 
+                              LW_NULL 表示根
+             pbRoot           是否为根节点
+**           pbLast           当匹配失败时, 是否是最后一级文件匹配失败
+**           ppcTail          如果存在连接文件, 指向连接文件后的路径
+** 输　出  : 打开结果
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+PRAM_NODE  __ram_open (PRAM_VOLUME  pramfs,
+                       CPCHAR       pcName,
+                       PRAM_NODE   *ppramnFather,
+                       BOOL        *pbRoot,
+                       BOOL        *pbLast,
+                       PCHAR       *ppcTail)
+{
+    CHAR                pcTempName[MAX_FILENAME_LENGTH];
+    PCHAR               pcNext;
+    PCHAR               pcNode;
+    
+    PRAM_NODE           pramn;
+    PRAM_NODE           pramnTemp;
+    
+    PLW_LIST_LINE       plineTemp;
+    PLW_LIST_LINE       plineHeader;                                    /*  当前目录头                  */
+    
+    if (ppramnFather == LW_NULL) {
+        ppramnFather = &pramnTemp;                                      /*  临时变量                    */
+    }
+    *ppramnFather = LW_NULL;
+    
+    if (*pcName == PX_ROOT) {                                           /*  忽略根符号                  */
+        lib_strlcpy(pcTempName, (pcName + 1), PATH_MAX);
+    } else {
+        lib_strlcpy(pcTempName, pcName, PATH_MAX);
+    }
+    
+    if (pcTempName[0] == PX_EOS) {
+        if (pbRoot) {
+            *pbRoot = LW_TRUE;                                          /*  pcName 为根                 */
+        }
+        if (pbLast) {
+            *pbLast = LW_FALSE;
+        }
+        return  (LW_NULL);
+    
+    } else {
+        if (pbRoot) {
+            *pbRoot = LW_FALSE;                                         /*  pcName 不为根               */
+        }
+    }
+    
+    pcNext      = pcTempName;
+    plineHeader = pramfs->RAMFS_plineSon;                               /*  从根目录开始搜索            */
+    
+    do {
+        pcNode = pcNext;
+        pcNext = lib_index(pcNode, PX_DIVIDER);                         /*  移动到下级目录              */
+        if (pcNext) {                                                   /*  是否可以进入下一层          */
+            *pcNext = PX_EOS;
+            pcNext++;                                                   /*  下一层的指针                */
+        }
+        
+        for (plineTemp  = plineHeader;
+             plineTemp != LW_NULL;
+             plineTemp  = _list_line_get_next(plineTemp)) {
+            
+            pramn = _LIST_ENTRY(plineTemp, RAM_NODE, RAMN_lineBrother);
+            if (S_ISLNK(pramn->RAMN_mode)) {                            /*  链接文件                    */
+                if (lib_strcmp(pramn->RAMN_pcName, pcNode) == 0) {
+                    goto    __find_ok;                                  /*  找到链接                    */
+                }
+            
+            } else if (S_ISDIR(pramn->RAMN_mode)) {
+                if (lib_strcmp(pramn->RAMN_pcName, pcNode) == 0) {      /*  已经找到一级目录            */
+                    break;
+                }
+                
+            } else {
+                if (lib_strcmp(pramn->RAMN_pcName, pcNode) == 0) {
+                    if (pcNext) {                                       /*  还存在下级, 这里必须为目录  */
+                        goto    __find_error;                           /*  不是目录直接错误            */
+                    }
+                    break;
+                }
+            }
+        }
+        if (plineTemp == LW_NULL) {                                     /*  无法继续搜索                */
+            goto    __find_error;
+        }
+        
+        *ppramnFather = pramn;                                          /*  从当前节点开始搜索          */
+        plineHeader   = pramn->RAMN_plineSon;                           /*  从第一个儿子开始            */
+        
+    } while (pcNext);                                                   /*  不存在下级目录              */
+    
+__find_ok:
+    *ppramnFather = pramn->RAMN_pramnFather;                            /*  父系节点                    */
+    /*
+     *  计算 tail 的位置.
+     */
+    if (ppcTail) {
+        if (pcNext) {
+            INT   iTail = pcNext - pcTempName;
+            *ppcTail = (PCHAR)pcName + iTail;                           /*  指向没有被处理的 / 字符     */
+        } else {
+            *ppcTail = (PCHAR)pcName + lib_strlen(pcName);              /*  指向最末尾                  */
+        }
+    }
+    return  (pramn);
+    
+__find_error:
+    if (pbLast) {
+        if (pcNext == LW_NULL) {                                        /*  最后一级查找失败            */
+            *pbLast = LW_TRUE;
+        } else {
+            *pbLast = LW_FALSE;
+        }
+    }
+    return  (LW_NULL);                                                  /*  无法找到节点                */
+}
+```
+
+这个函数的功能和**xv6**中的**iname**十分相似，这与我的**Ext2**文件系统的**find_dir_item**也类似，不过不同的是我是寻找**directory entry**，**iname**和这个**__ram_open**都是寻找**node**。
 
 
 
