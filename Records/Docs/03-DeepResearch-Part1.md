@@ -24,6 +24,7 @@
 > 13. [什么是挂载（mount）？ - kkbill - 博客园 (cnblogs.com)](https://www.cnblogs.com/kkbill/p/11979082.html)
 > 14. [什么是文件的挂载？ - 小蒋的随笔 - 博客园 (cnblogs.com)](https://www.cnblogs.com/jynote/p/12449172.html)
 > 15. [能否通俗易懂，深入浅出地解释一下linux中的挂载的概念？ - 知乎 (zhihu.com)](https://www.zhihu.com/question/266907637/answer/316859400)
+> 16. [LFS-Proj](https://github.com/cd17822/log-structured-file-system)
 
 [TOC]
 
@@ -1462,3 +1463,834 @@ __find_error:
 >    - 目录操作，如opendir、readdir、rename等操作
 >
 > 可能基本操作这个星期研究不完，努力研究吧！
+
+网上没有纯粹介绍JFFS的代码，我觉得不应该直接看成熟的代码，因为LFS中有些细节部分还没有弄得很清楚，于是在Github上找了一个实验项目来看[LFS-Proj](https://github.com/cd17822/log-structured-file-system)。该项目的实验指导书在[这里](../Files/cs350-Program2.pdf)，讲得非常详尽，有些地方通过源码注释的形式整理出来。
+
+### Config
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <cstring>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <sstream>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <cmath>
+#include <set>
+#include <stdbool.h>
+
+/* Segment的总数为32个 */
+#define NO_SEGMENTS 32
+/* 每个Segment的大小为1MB */
+#define SEG_SIZE 1048576 // 1MB
+/* 每个Segment中有1K个Block：1MB/1KB = 1K */
+#define BLOCKS_IN_SEG 1024 // 1K
+/* 每个Block大小为1KB */
+#define BLOCK_SIZE 1024  // 1KB
+/* IMAP需要消耗40个Block，指导书中认为要消耗80个Block，这里我认为代码作者省去了Inode Num
+   ，即把Inode Num当作索引来搜索即可，所以除以2 */
+#define IMAP_BLOCKS 40
+/* ？？？瞎写的把 */
+#define MAX_FILESIZE 10
+/* 每个文件最大数据块为128个 */
+#define MAX_DATA_BLOCKS 128
+/* 本文件系统最大支持10K个文件 */
+#define MAX_FILES 10240 // 10K
+/* Summary Blocks占用8个Block */
+#define SUMMARY_BLOCKS 8  
+#define CLEAN 0
+#define DIRTY 1
+/* 可写入数据的Block为1024 - 8 = 1016个，8个作为Summary Blocks */
+#define ASSIGNABLE_BLOCKS 1016 // 1024 - 8
+/* FILE MAP的每个块大小为256B，那么FILE MAP是什么？
+   第一个字节为0/1有效位；
+   后面254个字节为文件名；
+   最后一个字节为Null；
+*/
+#define FILEMAP_BLOCK_SIZE 256 // first byte: 0/1 valid byte (0 means free, 1 means used),
+                               // next 254: filename, last: null terminator
+/* 用于FILE MAP中的第一个字节 */
+char INVALID[1] = {0};
+char VALID[1] = {127}; // used to tag filenames in the filemap
+/* IMAP长这个样子，大小为 4 * 40 * 1KB = 160KB，是不是应该
+   unsigned int IMAP[IMAP_BLOCKS * (BLOCK_SIZE / sizeof(unsigned int))]
+   这样就刚好40KB   
+*/
+unsigned int IMAP[IMAP_BLOCKS*BLOCK_SIZE]; // entire imap
+/* 当前内存中的Segment，应该是Buffer */
+char SEGMENT[SEG_SIZE]; // current segment in memory
+/* 当前写到的Segment编号，编号范围为：1-32 */
+unsigned int SEGMENT_NO = 1; // current segment 1-32
+/* 当前Segment中下一个空闲的Block编号，编号范围为：0-1023 */
+unsigned int AVAILABLE_BLOCK = 0; // next free block on current segment 0-1023
+/* 对于Segment中的每一个Block都有一个Summary，存储在Segment的末尾8个Block之中，每个Block的Summary占有8个字节，
+   具体代表什么只有看下去才知道
+*/
+unsigned int SEGMENT_SUMMARY[BLOCKS_IN_SEG][2];
+/* CPR有指向所有IMAP Blocks */
+unsigned int CHECKPOINT_REGION[IMAP_BLOCKS];
+/* 空闲Segemnt列表，HJH，直接开辟数组 */
+char CLEAN_SEGMENTS[NO_SEGMENTS]; //0 = clean, 1 = not clean
+
+typedef struct {
+  char filename[FILEMAP_BLOCK_SIZE - 1];
+  int size; // in true bytes rather than number of blocks
+  /* Block Pointer */
+  int block_locations[MAX_DATA_BLOCKS]; // global block locations
+} inode;
+
+```
+
+### 初始化硬盘布局
+
+```c
+#include "Lab7.h"
+
+void makeDriveDir(){
+  struct stat st = {0};
+
+  if (stat("./DRIVE", &st) == -1)
+    mkdir("./DRIVE", 0700);
+}
+
+void initSegments(){
+  std::ofstream outs[NO_SEGMENTS];
+  for (int i = 0; i < NO_SEGMENTS; ++i){
+    outs[i].open("DRIVE/SEGMENT"+std::to_string(i+1), std::ofstream::out | std::ofstream::trunc | std::ofstream::binary);
+
+    char true_zero[1] = {0};
+    for (int j = 0; j < ASSIGNABLE_BLOCKS * BLOCK_SIZE; ++j)
+      outs[i].write(true_zero, 1);
+
+    unsigned int neg1 = -1;
+    /* 注意到了吗，这里的*2就是对前面的unsigned int SEGMENT_SUMMARY[BLOCKS_IN_SEG][2];
+        1024 * 2 * 4 = 8KB，刚好是Summary Block的个数(8个Block)，这里为何每个Block要用两部分记录，后面再说了 */
+    for (int j = 0; j < BLOCKS_IN_SEG * 2; ++j)
+      outs[i].write(reinterpret_cast<const char*>(&neg1), 4);
+
+    outs[i].close();
+  }
+}
+
+void initCheckpointRegion(){
+  std::ofstream out;
+  out.open("DRIVE/CHECKPOINT_REGION", std::ofstream::out | std::ofstream::trunc | std::ofstream::binary);
+
+  /* 这里的CheckPoint Region由两部分构成：
+     一个是指向所有IMAP Block的指针列表；
+     另一个是Segment，这一部分暂时不清楚
+  */
+  unsigned int neg1 = -1;
+  /* 40 * 4 = 160 B */
+  for (int i = 0; i < IMAP_BLOCKS; ++i)
+    out.write(reinterpret_cast<const char*>(&neg1), 4);
+  
+  char true_zero[1] = {0};
+  /* 32B */
+  for (int i = 0; i < NO_SEGMENTS; ++i)
+    out.write(true_zero, 1);
+
+  out.close();
+}
+
+void initFilenameMap(){
+  std::ofstream out;
+  out.open("DRIVE/FILEMAP", std::ofstream::out | std::ofstream::trunc | std::ofstream::binary);
+
+  char true_zero = 0;
+  /* 这是文件映射表，256B * 10K = 2560KB 约等于 2MB，同时用于记录inode编号，就是文件映射表索引
+
+    初始化全0，表明没有一个inode被占用
+   */
+  for (int i = 0; i < FILEMAP_BLOCK_SIZE * MAX_FILES; ++i)
+    out << true_zero;
+
+  out.close();
+}
+
+
+int main(int argc, char const *argv[]){
+  makeDriveDir();
+  initSegments();
+  initCheckpointRegion();
+  initFilenameMap();
+  printf("%s\n", "Drive created.");
+  return 0;
+}
+
+```
+
+### 工具函数
+
+```c
+#include "Lab7.h"
+
+std::vector<std::string> split(const std::string &str) {
+  std::string buf;
+  std::stringstream ss(str);
+  std::vector<std::string> tokens;
+  int no_tokens = 0;
+  while (ss >> buf) tokens.push_back(buf);
+  return tokens;
+}
+
+/* 读CheckPoint Region */
+void readInCheckpointRegion(){
+  std::fstream cpr("DRIVE/CHECKPOINT_REGION", std::ios::binary | std::ios::out | std::ios::in);
+  
+  /* 看这里，只读了40 * 4 = 160个字节，还有32B没有读 */
+  char buffer[IMAP_BLOCKS * 4];
+  cpr.read(buffer, IMAP_BLOCKS * 4);
+  std::memcpy(CHECKPOINT_REGION, buffer, IMAP_BLOCKS * 4);
+  /* 读了另外32B，原来是标记当前空闲块 */
+  cpr.read(CLEAN_SEGMENTS, NO_SEGMENTS);
+
+  cpr.close();
+}
+/* 找下一个空闲Block */
+void findNextAvailableBlock(){
+  bool at_least_one_imap_piece = false;
+  unsigned int most_recent_imap_pos = 0;
+  /* 在CheckPoint Region中检查所有Imap，找到最大的Block Num，Block Num最大的Imap一定是在Log最后的
+     TODO：是这样理解吗？GC时怎么办？
+  
+  CheckPoint Region 布局：
+    +---------------+
+    | Imap1 Block No|     -> Block 32
+    +---------------+
+    | Imap2 Block No|     -> Block 80
+    +---------------+
+    |      ...      |
+    +---------------+
+    | ImapN Block No|     -> Block 60
+    +---------------+
+  */
+  for (int i = 0; i < IMAP_BLOCKS; ++i){
+    if (CHECKPOINT_REGION[i] != (unsigned int) -1 && CHECKPOINT_REGION[i] >= most_recent_imap_pos){
+      most_recent_imap_pos = CHECKPOINT_REGION[i];
+      at_least_one_imap_piece = true;
+    }
+  }
+  /* 如果按照我们上面的理解，那么这个Imap Block对应的后一块就是Avaliable Block
+
+     不可能出现没有Imap却有非空闲块的情况 */
+  AVAILABLE_BLOCK = (at_least_one_imap_piece) ? (most_recent_imap_pos % BLOCK_SIZE) + 1 : 0;
+  SEGMENT_NO = 1 + most_recent_imap_pos / BLOCK_SIZE;
+}
+
+/* 读当前Segment */
+void readInSegment(){
+  std::fstream segment_file("DRIVE/SEGMENT"+std::to_string(SEGMENT_NO), std::fstream::binary | std::ios::in);
+  /* 先读前1016个数据块的内容到SEGMENT中 */
+  segment_file.read(SEGMENT, ASSIGNABLE_BLOCKS * BLOCK_SIZE);
+
+  char buffer[SUMMARY_BLOCKS * BLOCK_SIZE];
+  /* 再读8个Summary Block到SEGMENT_SUMMARY中 */
+  segment_file.read(buffer, SUMMARY_BLOCKS * BLOCK_SIZE);
+  std::memcpy(&SEGMENT_SUMMARY, buffer, SUMMARY_BLOCKS * BLOCK_SIZE);
+
+  segment_file.close();
+}
+
+/* 
+  读Imap Block
+  @address：就是Block Num，线性布局。
+  @fragment_no：CheckPoint Region中从上往下数第几片Imap
+  使用方法：
+    void readInImap(){
+      for (unsigned int i = 0; i < IMAP_BLOCKS; ++i){
+        if (CHECKPOINT_REGION[i] != (unsigned int) -1)
+          readInImapBlock(CHECKPOINT_REGION[i], i);
+      }
+    }
+*/
+void readInImapBlock(unsigned int address, unsigned int fragment_no){
+  unsigned int segment_no = (address / BLOCKS_IN_SEG) + 1;
+  unsigned int block_start_pos = (address % BLOCKS_IN_SEG) * BLOCK_SIZE;
+  std::fstream segment_file("DRIVE/SEGMENT" + std::to_string(segment_no), std::fstream::binary | std::ios::in | std::ios::out);
+
+  char buffer[BLOCK_SIZE];
+  segment_file.seekg(block_start_pos);
+  segment_file.read(buffer, BLOCK_SIZE);
+  /* IMAP每个元素大小为4B，那么表示一个BLOCK就需要BLOCK_SIZE/4这么多个元素，即256个为一组，
+     前面乘上一个偏移即可，不是太明白为啥他那里要开一个160KB的数组，可能写错了？
+  */
+  std::memcpy(&IMAP[fragment_no*(BLOCK_SIZE/4)], buffer, BLOCK_SIZE);
+
+  segment_file.close();
+}
+
+void readInImap(){
+  for (unsigned int i = 0; i < IMAP_BLOCKS; ++i){
+    if (CHECKPOINT_REGION[i] != (unsigned int) -1)
+      readInImapBlock(CHECKPOINT_REGION[i], i);
+  }
+}
+
+/* 回写CheckoutPoint Region */
+void writeOutCheckpointRegion(){
+  std::fstream cpr("DRIVE/CHECKPOINT_REGION", std::fstream::binary | std::ios::out);
+
+  char buffer[IMAP_BLOCKS * 4];
+  std::memcpy(buffer, CHECKPOINT_REGION, IMAP_BLOCKS * 4);
+  /* 先写回指向的所有Imap Block Num */
+  cpr.write(buffer, IMAP_BLOCKS * 4);
+  /* 再写当前可用的Segment */
+  cpr.write(CLEAN_SEGMENTS, NO_SEGMENTS);
+
+  cpr.close();
+}
+
+/* 寻找下一个空闲的Segment */
+void findNextCleanSegment(){
+  for (int i = 0; i < NO_SEGMENTS; ++i){
+    if (CLEAN_SEGMENTS[i] == CLEAN) {
+      SEGMENT_NO = i+1;
+      return;
+    }
+  }
+  /* 空间不足，创建检查点并退出 */
+  printf("No available memory remaining. Exiting...\n");
+  writeOutCheckpointRegion();
+  exit(0);
+}
+
+/* 回写Segment */
+void writeOutSegment(){
+  std::fstream segment_file("DRIVE/SEGMENT"+std::to_string(SEGMENT_NO), std::fstream::binary | std::ios::out);
+  /* 先回写数据块 */
+  segment_file.write(SEGMENT, ASSIGNABLE_BLOCKS * BLOCK_SIZE);
+  /* 再回写Summary Block */
+  segment_file.write(reinterpret_cast<const char*>(&SEGMENT_SUMMARY), SUMMARY_BLOCKS * BLOCK_SIZE);
+
+  segment_file.close();
+  /* 回写后立刻更新当前空闲Segment */
+  findNextCleanSegment();
+  AVAILABLE_BLOCK = 0;
+}
+
+/* 寻找下一个Inode Number 
+  
+  原来是用filemap来记录每个inode编号
+*/
+unsigned int nextInodeNumber(){
+  std::ifstream filemap("DRIVE/FILEMAP");
+
+  for (int i = 0; i < MAX_FILES; ++i){
+    filemap.seekg(i*FILEMAP_BLOCK_SIZE);
+    char valid[1];
+    filemap.read(valid, 1);
+    /* valid = 0表示free了，valid = 1表示used */
+    if (!valid[0]) {
+      filemap.close();
+      return i;
+    }
+  }
+
+  filemap.close();
+
+  return -1;
+}
+
+/* 更新Filemap
+  @inode_number：inode号
+  @lfs_filename：更新文件名。。。
+
+  因为每个Filemap就保存了Valid Byte与Name Bytes
+*/
+void updateFilemap(unsigned int inode_number, std::string lfs_filename){
+  std::fstream filemap("DRIVE/FILEMAP", std::fstream::binary | std::ios::out | std::ios::in);
+
+  filemap.seekp(inode_number * FILEMAP_BLOCK_SIZE);
+  filemap.write(VALID, 1);
+  filemap.write(lfs_filename.c_str(), lfs_filename.length()+1);
+
+  filemap.close();
+}
+
+/* 追加写Inode到空闲块 */
+void writeInode(const inode& node, unsigned int inode_number){
+  /* 这里就可以看到对每一个Segment Summary来说，两个元素保存了什么：
+     第一个标识Inode Number
+     第二个标识有效？
+   */
+  SEGMENT_SUMMARY[AVAILABLE_BLOCK][0] =  inode_number;
+  SEGMENT_SUMMARY[AVAILABLE_BLOCK][1] = (unsigned int) -1;
+
+  //write that inode to the next BLOCK
+  std::memcpy(&SEGMENT[AVAILABLE_BLOCK*BLOCK_SIZE], &node, sizeof(inode));
+  AVAILABLE_BLOCK++;
+}
+/* 更新Imap
+  @inode_number：inode number；
+  @block_position：更新Imap对应Block的位置
+
+  IMAP布局:
+    +---------------+
+    | inode1      No|     -> Block 32
+    +---------------+
+    | inode2      No|     -> Block 80
+    +---------------+
+    |      ...      |
+    +---------------+
+    | inodeN      No|     -> Block 60
+    +---------------+
+
+*/
+void updateImap(unsigned int inode_number, unsigned int block_position){
+  if (AVAILABLE_BLOCK == BLOCKS_IN_SEG)
+    writeOutSegment();
+  /* 更新IMAP，建立inode_number到block_position的映射*/
+  IMAP[inode_number] = block_position;
+  /* 属于第inode_number / (BLOCKS_IN_SEG / 4)片 */
+  unsigned int fragment_no = inode_number / (BLOCKS_IN_SEG / 4);
+  /* 将第fragment_no片的IMAP Block追加写进SEGMENT里面 */
+  std::memcpy(&SEGMENT[AVAILABLE_BLOCK * BLOCK_SIZE], &IMAP[fragment_no * (BLOCK_SIZE / 4)], BLOCK_SIZE);
+  /* 这里就可以看到对每一个Segment Summary来说，两个元素保存了什么：
+     第一个标识-1
+     第二个标识fragment_no
+     TODO：与Inode Block标记相反啊，其实这里可以用一个标志位，更好看
+   */
+  SEGMENT_SUMMARY[AVAILABLE_BLOCK][0] = -1;
+  SEGMENT_SUMMARY[AVAILABLE_BLOCK][1] = fragment_no;
+  /* 还要更新Checkpoint Region，第fragment片对应真实Block位置 */
+  CHECKPOINT_REGION[fragment_no] = AVAILABLE_BLOCK + (SEGMENT_NO - 1) * BLOCKS_IN_SEG;
+  /* 为啥就Dirty了？ 
+    ~~TODO:难道不是：
+    1. UPDATEING_SEGMENT = CHECKPOINT_REGION[fragment];
+    2. IF UPDATEING_SEGMENT == SEGMENT_NO goto End
+    3. CLEAN_SEGMENT[UPDATEING_SEGMENT] = DIRTY
+    END~~
+    理解错了，DIRTY就是这个SEGMENT被写脏了
+  */
+  CLEAN_SEGMENTS[SEGMENT_NO - 1] = DIRTY;
+
+  AVAILABLE_BLOCK++;
+}
+/* 获取文件大小 */
+int getFileSize(int inode_number){
+  /* 通过IMAP获取Inode的物理Block位置 */
+  unsigned int block_position = IMAP[inode_number];
+  /* 通过物理Block位置获取Segmnet位置 */
+  unsigned int segment_location = block_position/BLOCKS_IN_SEG + 1;
+  /* 获取相对偏移，以字节为单位 */
+  unsigned int local_block_pos = (block_position % BLOCKS_IN_SEG) * BLOCK_SIZE;
+
+  inode meta;
+  /* 检查是否在内存中 */
+  if(SEGMENT_NO == segment_location){
+    std::memcpy(&meta, &SEGMENT[local_block_pos], sizeof(inode));
+  }else{
+    std::fstream disk_segment("DRIVE/SEGMENT" + std::to_string(segment_location), std::ios::binary | std::ios::in);
+
+    disk_segment.seekg(local_block_pos);
+    char buffer[sizeof(inode)];
+    disk_segment.read(buffer, sizeof(inode));
+    std::memcpy(&meta, buffer, sizeof(inode));
+
+    disk_segment.close();
+  }
+
+  return meta.size;
+}
+
+/* 根据文件名获取文件Inode号，其实就是在FILEMAP中的偏移 */
+unsigned int getInodeNumberOfFile(std::string lfs_filename){
+  std::fstream filemap("DRIVE/FILEMAP", std::ios::binary | std::ios::in | std::ios::out);
+
+  for (unsigned int i = 0; i < MAX_FILES; ++i){
+    filemap.seekg(i*FILEMAP_BLOCK_SIZE);
+    char valid[1];
+    filemap.read(valid, 1);
+    /* 有效才读 */
+    if (valid[0]) {
+      char filename_buffer[FILEMAP_BLOCK_SIZE-1];
+      filemap.read(filename_buffer, FILEMAP_BLOCK_SIZE-1);
+
+      std::string filename(filename_buffer);
+      if (filename == lfs_filename){
+        filemap.close();
+        return i;
+      }
+    }
+  }
+
+  filemap.close();
+
+  return (unsigned int) -1;
+}
+
+/* 输出Block 
+  @global_block_pos：就是Block物理号；
+  @start_byte：起始字节
+  @end_byte：终止字节
+  @first_block：是否是第一个block；
+  @last_block：是否是最后一个block；
+*/
+void printBlock(unsigned int global_block_pos, unsigned int start_byte, unsigned int end_byte, bool first_block, bool last_block){
+  unsigned int segment_no = (global_block_pos / BLOCKS_IN_SEG) + 1;
+  unsigned int local_block_pos = (global_block_pos % BLOCKS_IN_SEG) * BLOCK_SIZE;
+  if (first_block) local_block_pos += start_byte;
+
+  unsigned int buffer_size;
+  if (first_block && last_block) buffer_size = end_byte - start_byte;
+  else if (last_block) buffer_size = end_byte % BLOCK_SIZE;
+  else if (first_block) buffer_size = BLOCK_SIZE - (start_byte % BLOCK_SIZE);
+  else buffer_size = BLOCK_SIZE;
+
+  char buffer[buffer_size];
+
+  if (segment_no != SEGMENT_NO){
+    std::fstream seg_file("DRIVE/SEGMENT"+std::to_string(segment_no), std::ios::binary | std::ios::in);
+
+    seg_file.seekg(local_block_pos);
+    seg_file.read(buffer, buffer_size);
+
+    seg_file.close();
+  }else{
+    std::memcpy(buffer, &SEGMENT[local_block_pos], buffer_size);
+  }
+
+  for (int i = 0; i < buffer_size; ++i)
+    printf("%c", buffer[i]);
+
+  if (last_block) printf("\n");
+}
+
+/* 根据Inode号获取Inode */
+inode getInode(unsigned int inode_number){
+  /* 查找inode对应的物理块号 */
+  unsigned int global_block_pos = IMAP[inode_number];
+  /* 对应的segment号 */
+  unsigned int segment_no = (global_block_pos / BLOCKS_IN_SEG) + 1;
+  /* 相对字节偏移 */
+  unsigned int local_block_pos = (global_block_pos % BLOCKS_IN_SEG) * BLOCK_SIZE;
+
+  inode meta;
+  /* 不存在到这个Inode的映射 */
+  if (global_block_pos == (unsigned int) -1) { // if there isn't an inode to be returned
+    meta.size = -1;
+    return meta;
+  }
+
+  if (segment_no != SEGMENT_NO){
+    std::fstream segment_file("DRIVE/SEGMENT"+std::to_string(segment_no), std::ios::binary | std::ios::in);
+
+    segment_file.seekg(local_block_pos);
+    char buffer[BLOCK_SIZE];
+    segment_file.read(buffer, BLOCK_SIZE);
+
+    std::memcpy(&meta, buffer, sizeof(inode));
+
+    segment_file.close();
+  }else{
+    std::memcpy(&meta, &SEGMENT[local_block_pos], sizeof(inode));
+  }
+
+  return meta;
+}
+
+/* 写入Clean Segment
+  @clean_summary：已经回收的summary
+  @clean_segment：已经回收的segment
+  @next_available_block_clean：该段号的可用block
+  @clean_segment_no：要写入的段号
+  @inodes：要写入的inodes
+  @fragments：要写入的Imap Block Num
+*/
+void writeCleanSegment(unsigned int clean_summary[BLOCKS_IN_SEG][2], 
+                       char clean_segment[ASSIGNABLE_BLOCKS * BLOCK_SIZE], 
+                       unsigned int& next_available_block_clean, 
+                       int& clean_segment_no, 
+                       std::vector<inode>& inodes, 
+                       std::set<int>& fragments){
+  
+  /* 首先写Inode */
+  for (int i = 0; i < inodes.size(); ++i) {
+    /* 填充clean_segment、clean_summary */
+    std::memcpy(&clean_segment[next_available_block_clean * BLOCK_SIZE], &inodes[i], sizeof(inode));
+
+    int inode_number = getInodeNumberOfFile(inodes[i].filename);
+
+    clean_summary[next_available_block_clean][0] = inode_number;
+    clean_summary[next_available_block_clean][1] = -1;
+    /* 修改IMAP */
+    IMAP[inode_number] = (clean_segment_no - 1) * BLOCKS_IN_SEG + next_available_block_clean;
+
+    next_available_block_clean++;
+  }
+  /* 写Imap */
+  for (auto fragment_no: fragments){
+    std::memcpy(&clean_segment[next_available_block_clean * BLOCK_SIZE], &IMAP[fragment_no * (BLOCK_SIZE / 4)], BLOCK_SIZE);
+
+    clean_summary[next_available_block_clean][0] = -1;
+    clean_summary[next_available_block_clean][1] = fragment_no;
+    /* 更新CHECKPOINT_REGION */
+    CHECKPOINT_REGION[fragment_no] = next_available_block_clean + (clean_segment_no - 1) * BLOCKS_IN_SEG;
+
+    next_available_block_clean++;
+  }
+  /* 经过上述操作后，可以看到Imap位于最末 */
+
+  //for (int i = 0; i < next_available_block_clean; ++i)
+    //printf("CLEAN[%d]: {%u, %u}\n", i, clean_summary[i][0], clean_summary[i][1]);
+  
+  /* 写SEGMENT */
+  std::fstream segment_file("DRIVE/SEGMENT"+std::to_string(clean_segment_no), std::fstream::binary | std::ios::out);
+  /* 先写clean_segment */
+  segment_file.write(clean_segment, ASSIGNABLE_BLOCKS * BLOCK_SIZE);
+  char buffer[SUMMARY_BLOCKS * BLOCK_SIZE];
+  /* 再写Summary */
+  std::memcpy(buffer, clean_summary, SUMMARY_BLOCKS * BLOCK_SIZE);
+  segment_file.write(buffer, SUMMARY_BLOCKS * BLOCK_SIZE);
+  segment_file.close();
+
+  fragments.clear();
+  inodes.clear();
+  /* 这里又是前一个变为DIRTY了，很奇怪 */
+  CLEAN_SEGMENTS[clean_segment_no - 1] = DIRTY;
+  next_available_block_clean = 0;
+
+  for (int i = 0; i < BLOCKS_IN_SEG; ++i) {
+    for (int j = 0; j < 2; ++j)
+      clean_summary[i][j] = (unsigned int) -1;
+  }
+
+  clean_segment_no++;
+}
+/* free某个Segment 
+  @dirty_segment_no：脏段
+  @clean_summary：回收的summary
+  @clean_segment：回收的segment
+  @next_available_block_clean：
+  @clean_segment_no：可以写入的clean段
+  @inodes：回收的所有inodes
+  @fragments：回收的所有Imap Block num
+*/
+void cleanSegment(int dirty_segment_no, 
+                  unsigned int clean_summary[BLOCKS_IN_SEG][2], 
+                  char clean_segment[ASSIGNABLE_BLOCKS * BLOCK_SIZE], 
+                  unsigned int& next_available_block_clean, 
+                  int& clean_segment_no, 
+                  std::vector<inode>& inodes, 
+                  std::set<int>& fragments){
+  // import dirty segment into memory
+  unsigned int dirty_summary[BLOCKS_IN_SEG][2];
+  char dirty_segment[ASSIGNABLE_BLOCKS * BLOCK_SIZE];
+
+  if (dirty_segment_no == SEGMENT_NO){
+    std::memcpy(dirty_summary, SEGMENT_SUMMARY, SUMMARY_BLOCKS * BLOCK_SIZE);
+    std::memcpy(dirty_segment, SEGMENT, ASSIGNABLE_BLOCKS * BLOCK_SIZE);
+  }else{
+    char summary_buffer[SUMMARY_BLOCKS * BLOCK_SIZE];
+    std::fstream segment_file("DRIVE/SEGMENT"+std::to_string(dirty_segment_no), std::ios::in | std::ios::out | std::ios::binary);
+    segment_file.read(dirty_segment, ASSIGNABLE_BLOCKS * BLOCK_SIZE);
+    segment_file.read(summary_buffer, SUMMARY_BLOCKS * BLOCK_SIZE);
+    std::memcpy(dirty_summary, summary_buffer, SUMMARY_BLOCKS * BLOCK_SIZE);
+    segment_file.close();
+  }
+
+  for (int i = 0; i < ASSIGNABLE_BLOCKS; ++i){
+    /* 这个块属于哪一个inode */
+    unsigned int inode_no = dirty_summary[i][0];
+    /* 这个块在inode中的偏移是多少 */
+    unsigned int block_no = dirty_summary[i][1];
+    /* 是数据块Data Block */
+    if (inode_no != (unsigned int) -1 && block_no != (unsigned int) -1){       //--------datablock--------
+      if (ASSIGNABLE_BLOCKS - next_available_block_clean < 3 + fragments.size() + inodes.size())
+        writeCleanSegment(clean_summary, clean_segment, next_available_block_clean, clean_segment_no, inodes, fragments);
+      /* 获取其对应的inode */
+      inode old_node = getInode(inode_no);
+      /* inode对应偏移的物理Block号刚好等于该块的物理偏移号，说明该数据块是有效的 */
+      if (old_node.size != (unsigned int) -1 && 
+          old_node.block_locations[block_no] == (dirty_segment_no-1) * BLOCKS_IN_SEG + i) { //if data block is live
+        /* 把这个inode对应的Imap Block号存进fragments里面 */
+        //deal with imap piece
+        fragments.insert(inode_no / (BLOCKS_IN_SEG / 4));
+        /* 把inode放进inodes里面 */
+        //deal with inode
+        bool duplicate_inode = false; // sees whether this inode was already in our vector
+        for (int j = 0; j < inodes.size(); ++j) {
+          if (strcmp(inodes[j].filename, old_node.filename) == 0){
+            inodes[j].block_locations[block_no] = (clean_segment_no-1) * BLOCKS_IN_SEG + next_available_block_clean;
+            duplicate_inode = true;
+            break;
+          }
+        }
+
+        if (!duplicate_inode){
+          old_node.block_locations[block_no] = (clean_segment_no-1) * BLOCKS_IN_SEG + next_available_block_clean;
+          inodes.push_back(old_node);
+        }
+        /* 把这个Block写进clean_segment中 */
+        //deal with actual data
+        std::memcpy(&clean_segment[next_available_block_clean * BLOCK_SIZE], &dirty_segment[i * BLOCK_SIZE], BLOCK_SIZE);
+        clean_summary[next_available_block_clean][0] = inode_no;
+        clean_summary[next_available_block_clean][1] = block_no;
+        next_available_block_clean++;
+      }
+    }
+    /* 是Inode Block */
+    else if (inode_no != (unsigned int) -1 && block_no == (unsigned int) -1){ //--------inode block--------
+      if (ASSIGNABLE_BLOCKS - next_available_block_clean < 2 + fragments.size() + inodes.size())
+        writeCleanSegment(clean_summary, clean_segment, next_available_block_clean, clean_segment_no, inodes, fragments);
+      /* inode在IMAP中的映射的物理地址刚好是对应的物理地址，即该Inode有效 */
+      if (IMAP[inode_no] == (dirty_segment_no-1) * BLOCKS_IN_SEG + i) { //if actual inode
+        inode old_node = getInode(inode_no);
+
+        fragments.insert(inode_no / (BLOCKS_IN_SEG / 4));
+
+        bool duplicate_inode = false; // sees whether this inode was already in our vector
+        for (int j = 0; j < inodes.size(); ++j) {
+          if (strcmp(inodes[j].filename, old_node.filename) == 0){
+            duplicate_inode = true;
+            break;
+          }
+        }
+        if (!duplicate_inode)
+          inodes.push_back(old_node);
+      }
+    }
+    /* 是Imap Block */
+    else if (inode_no == (unsigned int) -1 && block_no != (unsigned int) -1){ //--------imap fragment--------
+      if (ASSIGNABLE_BLOCKS - next_available_block_clean < 1 + fragments.size() + inodes.size())
+        writeCleanSegment(clean_summary, clean_segment, next_available_block_clean, clean_segment_no, inodes, fragments);
+
+      fragments.insert(block_no);
+    }
+  }
+}
+```
+
+### 操作
+
+> 这部分就是简单的调用函数了
+>
+> 令人无语的是，GC需要手动调用，太离谱了，不过现在整个基本流程大概理解了
+>
+> ~~但是GC过程还是有点迷……~~
+>
+> 文件更新的时候会出现Obseleted块，通过Summary Block与Current Segment进行比较……
+>
+> 明天写一个小文件，再捋一捋。
+
+```c
+/* 导入一个文件，相当于创建一个文件了 */
+void import(std::string filename, std::string lfs_filename) {
+  std::ifstream in(filename);
+  if (!in.good()){
+    std::cout << "Could not find file." << std::endl;
+    return;
+  }
+
+  //get input file length
+  in.seekg(0, std::ios::end);
+  int in_size = in.tellg();
+  in.seekg(0, std::ios::beg);
+
+  /* 没有足够的缓存了，回写Segment */
+  if ((in_size / BLOCK_SIZE) + 3 > ASSIGNABLE_BLOCKS - AVAILABLE_BLOCK)
+    writeOutSegment();
+
+  if (lfs_filename.length() > 254){
+    std::cout << "Filename too large." << std::endl;
+    in.close();
+    return;
+  }
+
+  if (getInodeNumberOfFile(lfs_filename) != (unsigned int) -1){
+    std::cout << "Duplicate filename." << std::endl;
+    in.close();
+    return;
+  }
+  /* 获取下一个可用的inode号 */
+  unsigned int inode_number = nextInodeNumber();
+
+  if (inode_number == -1) {
+    std::cout << "Max files reached." << std::endl;
+    in.close();
+    return;
+  }
+  /* 更新FileMap */
+  updateFilemap(inode_number, lfs_filename);
+
+  //read from file we're importing and write it in blocks of SEGMENT
+  char buffer[in_size];
+  in.read(buffer, in_size);
+  /* 写数据块，这里保证一次写入的文件不超过一个Segment大小，这有点离谱 */
+  std::memcpy(&SEGMENT[AVAILABLE_BLOCK * BLOCK_SIZE], buffer, in_size);
+
+  //inode blocks
+  inode meta;
+  for (int i = 0; i < lfs_filename.length(); ++i){
+    meta.filename[i] = lfs_filename[i];
+  }
+  meta.filename[lfs_filename.length()] = '\0';
+  meta.size = in_size;
+  /* 写Block Summary */
+  for (unsigned int i = 0; i <= in_size/BLOCK_SIZE; ++i){
+    meta.block_locations[i] = AVAILABLE_BLOCK + (SEGMENT_NO-1)*BLOCKS_IN_SEG;
+    SEGMENT_SUMMARY[AVAILABLE_BLOCK][0] = inode_number;
+    SEGMENT_SUMMARY[AVAILABLE_BLOCK][1] = i;
+    AVAILABLE_BLOCK++;
+  }
+  /* 写Inode进Segment */
+  writeInode(meta, inode_number);
+
+  /* Imap紧跟在Inode之后，为啥UpdateImap后，这个段就标记为了 DIRTY？ */
+  //update imap (which also updates checkpoint region)
+  updateImap(inode_number, (AVAILABLE_BLOCK - 1) + (SEGMENT_NO-1)*BLOCKS_IN_SEG);
+
+  //for (int i = AVAILABLE_BLOCK - meta.size/BLOCK_SIZE - 3; i < AVAILABLE_BLOCK; ++i)
+    //printf("SUMMARY[%d]: {%u, %u}\n", i+(SEGMENT_NO-1)*BLOCKS_IN_SEG, SEGMENT_SUMMARY[i][0], SEGMENT_SUMMARY[i][1]);
+
+  in.close();
+}
+
+/* 移除一个文件 */
+void remove(std::string lfs_filename) {
+  unsigned int inode_number = getInodeNumberOfFile(lfs_filename);
+
+  if (inode_number == (unsigned int) -1){
+    std::cout << "Could not find file." << std::endl;
+    return;
+  }
+
+  std::fstream filemap("DRIVE/FILEMAP", std::ios::binary | std::ios::in | std::ios::out);
+
+  filemap.seekp(inode_number*FILEMAP_BLOCK_SIZE);
+  filemap.write(INVALID, 1);
+
+  filemap.close();
+  /* 只需要取消inode映射就好了 */
+  updateImap(inode_number, (unsigned int) -1);
+
+  //printf("SUMMARY[%d]: {%u, %u}\n", AVAILABLE_BLOCK - 1, SEGMENT_SUMMARY[AVAILABLE_BLOCK - 1][0], SEGMENT_SUMMARY[AVAILABLE_BLOCK - 1][1]);
+}
+
+/* 查看文件内容 */
+void cat(std::string lfs_filename) {
+  unsigned int inode_number = getInodeNumberOfFile(lfs_filename);
+
+  if (inode_number == (unsigned int) -1){
+    std::cout << "Could not find file." << std::endl;
+    return;
+  }
+
+  inode meta = getInode(inode_number);
+
+  int no_data_blocks = (meta.size / BLOCK_SIZE) + 1;
+
+  for (int i = 0; i < no_data_blocks; ++i)
+    printBlock(meta.block_locations[i], 0, meta.size, (i == 0), (i == no_data_blocks - 1));
+}
+```
+
+### 测试&总结
+
+> Makefile里加了一个"-g"Flag，明天GDB调试看看具体操作把，今天就先到这里了，让我的树莓派休息一下
+
