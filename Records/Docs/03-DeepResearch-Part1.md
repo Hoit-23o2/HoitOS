@@ -1,4 +1,4 @@
-# 2021-01-26 ~ 2021-01-31 Deep Research
+2021-01-26 ~ 2021-01-31 Deep Research
 
 > 主要解决几个问题：
 >
@@ -2293,4 +2293,105 @@ void cat(std::string lfs_filename) {
 ### 测试&总结
 
 > Makefile里加了一个"-g"Flag，明天GDB调试看看具体操作把，今天就先到这里了，让我的树莓派休息一下
+
+#### 初始化
+
+![image-20210131143434465](./images/lfs-test-initialize.png)
+
+初始状态有32个没有任何Block的Segment，当前内存中即将写入的Segment编号为1，下一个可用的Block是Block0。
+
+我们构造如下测试文件：
+
+> lorem.txt:
+>
+> Deadpool and His Star
+
+不到1KB的字符，预计在LFS中创建该文件后，会产生以下变化：
+
+1. Clean Segments少了一个1；
+
+2. segmentno不变，因为没有写完一个Segment（**1MB**）这么大的大小；
+
+3. Next Available Block变化：
+
+   - 首先在内存中先写一个 Data Block；
+   - 然后写内存中的 Summary Block（就是末尾8个Block）；
+   - 然后写Inode，花费一个Block；
+   - 最后写Imap，花费一个Block；（IMAP在内存中有一个大的映射，这里是将大的映射取一部分，即一个Block大小，写入Segment中）；
+   - 于是Next AvailableBlock就应该变为**3**；
+
+
+#### 创建一个小文件后
+
+![image-20210131144744652](G:\MyProject\Project.HoitOS\HoitOS\Records\Docs\images\lfs-test-create-a-little-file.png)
+
+#### 更新一个文件
+
+为了简化操作，我们可以分析删除文件。
+
+删除操作只需要更新Imap，即重新写一个Imap Block，这个Imap Block里对应文件Inode的映射被无效即对应文件被删除了。
+
+因此，删除操作后对应的变化应该是：
+
+1. Clean Segments仍然是2、3、4……
+2. segmentno不变；
+3. Next Available Block变为4，因为写了一个Imap Block
+
+![image-20210131181013721](./images/lfs-test-rm-file.png)
+
+   #### GC
+
+在这个实验中，这个Team做的GC并不是自动的，而是手动触发的，通过将Summary Block中的内容与当前内存中的IMAP进行比较即可判断。有三种类型：
+
+1. Data Block；
+
+   在Summary Block中，记录了Data Block的两个信息，其一是它属于的Inode号**ino**，其二是它在Inode内的偏移**ioff**；
+
+   由于IMAP中放了最新的所有Imap映射关系，因此，我们可以按照如下步骤来判断Data Block是否过期：
+
+   - 通过**ino**，在IMAP中找到对应的**Inode**；
+   - 通过**ioff**，在**Inode**中找到其指向的物理地址**blockno**；
+   - 比较这个Data Block的物理地址和blockno是否一致，如果一致，则说明这个块没有过期，否则过期
+
+2. Inode Block；
+
+   在Summary Block中，记录了Inode Block的一个信息，即它的Inode号**ino**；
+
+   在IMAP中通过**ino**找到最新的Inode Block的物理地址**blockno**，即可比较该Inode块是否过期；
+
+3. Imap Block；
+
+   在Summary Block中，记录了该Imap Block在IMAP中的**逻辑位置segmentno**；
+
+   由于Imap Block的逻辑位置不会发生改变，因此我们只需记录设置一个集合来保证回收一个segmentno即可；
+
+   
+
+下面，我们先来看一下当前内存布局是什么样子的：
+
+![image-20210131185753307](./images/lfs-test-layout2.png)
+
+回收的过程中，这个Team做的操作是，从第一个被回收的Segment开始，然后向后写。可以简单理解为下图：
+
+![image-20210131192253506](./images/lfs-test-gc2.png)
+
+回收之后，可以预见，只有唯一一个IMAP中的第二个Imap Block被留了下来。因为前面的Data Block、Inode Block都过时了，而由于IMAP中保留的是第二个Imap Block，因此写回的也只有第二个Imap Block；
+
+结果如下：
+
+![image-20210131185035438](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20210131185035438.png)
+
+   
+
+#### 总结
+
+上述实验将LFS的结构更加清晰地展现了出来，事实上，有很多地方都是很简单的。
+
+其一没有考虑文件大小超过Segment会怎么样；
+
+其二GC不是自动触发；
+
+其三GC的方式可能与我们所想有所不同；
+
+不过，掌握这个实验的基本思想，也就基本掌握了LFS结构的基本思想。
 
