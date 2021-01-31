@@ -14,6 +14,7 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 3. [02-PreResearch-Part1](./Records/Docs/02-PreResearch-Part1.md)
 4. [02-PreResearch-Part2](./Records/Docs/02-PreResearch-Part2.md)
 5. [03-DeepResearch-Part1](./Records/Docs/03-DeepResearch-Part1.md)
+6. [03-DeepResearch-Part2](./Records/Docs/03-DeepResearch-Part2.md)
 
 ## ConfigurationControlBoard(CCB)
 
