@@ -165,7 +165,7 @@ MTD设备的Nor Flash芯片驱动位于drivers/mtd/chips/子目录下，Nand Fla
 
 #### MTD子系统框架
 
-![img1](/images/mtd-01.png)
+![img1](./images/mtd-01.png)
 
 - **设备节点层**:MTD框架可以在/dev下创建字符设备节点(主设备号90)以及块设备节点(主设备号31), 用户通过访问此设备节点即可访问MTD字符设备或块设备。
 - **MTD设备层**: 基于MTD原始设备, Linux在这一层次定义出了MTD字符设备和块设备, 字符设备在mtdchar.c中实现, 块设备则是通过结构mtdblk_dev来描述,**"/drivers/mtd/mtdchar.c"**文件实现了MTD字符设备接口; **"/drivers/mtd/mtdblock.c"**文件实现了MTD块设备接口
@@ -618,12 +618,12 @@ NANDFlash和NORFlash都是基于MTD框架编写的，由于MTD框架中通用代
 
 下图就是NORFlash驱动在MTD驱动框架中的位置
 
-![img-02](images/mtd-02.png)
+![img-02](./images/mtd-02.png)
 
 基于上述的MTD框架, Flash驱动都变的十分的简单, 因为当下Flash的操作接口已经很统一, a, 相应的代码在**"drivers/mtd/chips"**中文件实现，所以在设备驱动层, 留给驱动工程师的工作就大大的减少了。
 基于MTD子系统开发NOR FLash驱动，只需要构造一个map_info类型的对象并调用do_map_probe()来匹配内核中已经写好的驱动，比如CFI接口的驱动或JEDEC接口的驱动。当下编写一个NorFlash驱动的工作流程如下
 
-![img-03](/images/mtd-03.png)
+![img-03](./images/mtd-03.png)
 
 ##### map_info
 
