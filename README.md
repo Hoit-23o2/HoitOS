@@ -37,6 +37,10 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 
    除了研究F2FS文件系统，还特别研究了SylixOS中Yaffs文件系统的装载工作；
 
+8. [04-SylixOSResearch-Part1](./Records/Docs/04-SylixOSResearch-Part1.md)
+
+   待补充
+
 ## ConfigurationControlBoard(CCB)
 
 > 这里记录了会议纪要
