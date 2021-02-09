@@ -560,7 +560,7 @@ int yaffs_guts_initialise(struct yaffs_dev *dev)
 
 这个函数主要是计算一些设备的参数（chunk,Tnode等配置），以及初始化buffer，cache等。
 
-#### 挂载
+#### YAFFS挂载
 
 ```C
 /*
@@ -630,6 +630,216 @@ int yaffs_mount_common(struct yaffs_dev *dev, const YCHAR *path,
 
 }
 ```
+
+#### 一般文件系统的挂载
+
+##### 挂载指令
+
+```c
+/*********************************************************************************************************
+** 函数名称: __tshellFsCmdMount
+** 功能描述: 系统命令 "mount"
+** 输　入  : iArgC         参数个数
+**           ppcArgV       参数表
+** 输　出  : 0
+** 全局变量: 
+** 调用模块: 
+*********************************************************************************************************/
+#if LW_CFG_MOUNT_EN > 0
+
+static INT  __tshellFsCmdMount (INT  iArgC, PCHAR  ppcArgV[])
+{
+    PCHAR       pcType   = LW_NULL;
+    PCHAR       pcDev    = LW_NULL;
+    PCHAR       pcFs     = LW_NULL;
+    PCHAR       pcOption = LW_NULL;
+
+    INT         iC;
+    INT         iOptInd;
+    
+    if (iArgC < 3) {
+        fprintf(stderr, "option error!\n");
+        return  (-ERROR_TSHELL_EPARAM);
+    }
+    
+    while ((iC = getopt(iArgC, ppcArgV, "t:o:")) != EOF) {
+        switch (iC) {
+        
+        case 't':
+            pcType = optarg;
+            break;
+            
+        case 'o':
+            pcOption = optarg;
+            break;
+        }
+    }
+    
+    iOptInd = optind;
+    
+    getopt_free();
+    
+    if (iOptInd > (iArgC - 2)) {
+        fprintf(stderr, "option error!\n");
+        return  (-ERROR_TSHELL_EPARAM);
+    }
+    
+    pcDev = ppcArgV[iOptInd];
+    pcFs  = ppcArgV[iOptInd + 1];
+    
+    if (API_MountEx(pcDev, pcFs, pcType, pcOption) != ERROR_NONE) {
+        fprintf(stderr, "mount error, error: %s\n", lib_strerror(errno));
+        return  (PX_ERROR);
+    } else {
+        return  (ERROR_NONE);
+    }
+}
+```
+
+##### 挂载指令关键函数
+
+```
+/*********************************************************************************************************
+** 函数名称: API_MountEx
+** 功能描述: 挂载一个分区
+** 输　入  : pcDevName         块设备名   例如: /dev/sda1
+**           pcVolName         挂载目标   例如: /mnt/usb (不能使用相对路径, 否则无法卸载)
+**           pcFileSystem      文件系统格式 "vfat" "iso9660" "ntfs" "nfs" "romfs" "ramfs" ... 
+                               NULL 表示使用默认文件系统
+**           pcOption          选项, 当前支持 ro 或者 rw
+** 输　出  : < 0 表示失败
+** 全局变量: 
+** 调用模块: 
+                                           API 函数
+*********************************************************************************************************/
+LW_API 
+INT  API_MountEx (CPCHAR  pcDevName, CPCHAR  pcVolName, CPCHAR  pcFileSystem, CPCHAR  pcOption)
+{
+    INT     iRet;
+    
+    __KERNEL_SPACE_ENTER();
+    iRet = __mount(pcDevName, pcVolName, pcFileSystem, pcOption);
+    __KERNEL_SPACE_EXIT();
+    
+    return  (iRet);
+}
+
+```
+
+##### 挂载指令关键函数（详细）
+
+```c
+/*********************************************************************************************************
+** 函数名称: __mount
+** 功能描述: 挂载一个分区(内部函数)
+** 输　入  : pcDevName         块设备名   例如: /dev/sda1
+**           pcVolName         挂载目标   例如: /mnt/usb (不能使用相对路径, 否则无法卸载)
+**           pcFileSystem      文件系统格式 "vfat" "iso9660" "ntfs" "nfs" "romfs" "ramfs" ... 
+                               NULL 表示使用默认文件系统
+**           pcOption          选项, 当前支持 ro 或者 rw
+** 输　出  : < 0 表示失败
+** 全局变量: 
+** 调用模块: 
+*********************************************************************************************************/
+static INT  __mount (CPCHAR  pcDevName, CPCHAR  pcVolName, CPCHAR  pcFileSystem, CPCHAR  pcOption)
+{
+#define __LW_MOUNT_OPT_RO   "ro"
+#define __LW_MOUNT_OPT_RW   "rw"
+
+    REGISTER PCHAR      pcFs;
+    PLW_MOUNT_NODE      pmnDev;
+             FUNCPTR    pfuncFsCreate;
+             BOOL       bRdOnly = LW_FALSE;
+             BOOL       bNeedDelete;
+             CHAR       cVolNameBuffer[MAX_FILENAME_LENGTH];
+             size_t     stLen;
+
+    if (!pcDevName || !pcVolName) {
+        _ErrorHandle(EINVAL);
+        return  (PX_ERROR);
+    }
+    
+    if (pcOption) {                                                     /*  文件系统挂载选项            */
+        if (lib_strcasecmp(__LW_MOUNT_OPT_RO, pcOption) == 0) {
+            bRdOnly = LW_TRUE;
+        
+        } else if (lib_strcasecmp(__LW_MOUNT_OPT_RW, pcOption) == 0) {
+            bRdOnly = LW_FALSE;
+        }
+    }
+    
+    pcFs = (!pcFileSystem) ? __LW_MOUNT_DEFAULT_FS : (PCHAR)pcFileSystem;
+    pfuncFsCreate = __fsCreateFuncGet(pcFs, LW_NULL, 0);                /*  文件系统创建函数            */
+    if (pfuncFsCreate == LW_NULL) {
+        _ErrorHandle(ERROR_IO_NO_DRIVER);                               /*  没有文件系统驱动            */
+        return  (PX_ERROR);
+    }
+    
+    if ((lib_strcmp(pcFs, __LW_MOUNT_NFS_FS) == 0) ||
+        (lib_strcmp(pcFs, __LW_MOUNT_RAM_FS) == 0)) {                   /*  NFS 或者 RAM FS             */
+        bNeedDelete = LW_FALSE;                                         /*  不需要操作 BLK RAW 设备     */
+
+    } else {
+        bNeedDelete = LW_TRUE;
+    }
+    
+    _PathGetFull(cVolNameBuffer, MAX_FILENAME_LENGTH, pcVolName);
+    pcVolName = cVolNameBuffer;                                         /*  使用绝对路径                */
+    
+    stLen  = lib_strlen(pcVolName);
+    pmnDev = (PLW_MOUNT_NODE)__SHEAP_ALLOC(sizeof(LW_MOUNT_NODE) + stLen);
+    if (pmnDev == LW_NULL) {
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
+        _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
+        return  (PX_ERROR);
+    }
+    lib_bzero(pmnDev, sizeof(LW_MOUNT_NODE));
+    lib_strcpy(pmnDev->MN_cVolName, pcVolName);                         /*  保存卷挂载名                */
+    pmnDev->MN_bNeedDelete = bNeedDelete;
+    
+    if (bNeedDelete) {
+        if (API_BlkRawCreate(pcDevName, bRdOnly, 
+                             LW_TRUE, &pmnDev->MN_blkraw) < ERROR_NONE) {
+            __SHEAP_FREE(pmnDev);
+            return  (PX_ERROR);
+        }
+    
+    } else {
+        pmnDev->MN_blkd.BLKD_pcName = (PCHAR)__SHEAP_ALLOC(lib_strlen(pcDevName) + 1);
+        if (pmnDev->MN_blkd.BLKD_pcName == LW_NULL) {
+            __SHEAP_FREE(pmnDev);
+            _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
+            _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
+            return  (PX_ERROR);
+        }
+        lib_strcpy(pmnDev->MN_blkd.BLKD_pcName, pcDevName);             /*  记录设备名 (nfs ram 使用)   */
+        
+        pmnDev->MN_blkd.BLKD_iFlag = (bRdOnly) ? O_RDONLY : O_RDWR;
+    }
+    
+    if (pfuncFsCreate(pcVolName, &pmnDev->MN_blkd) < 0) {               /*  挂载文件系统                */
+        if (bNeedDelete) {
+            API_BlkRawDelete(&pmnDev->MN_blkraw);
+        
+        } else {
+            __SHEAP_FREE(pmnDev->MN_blkd.BLKD_pcName);
+        }
+        
+        __SHEAP_FREE(pmnDev);                                           /*  释放控制块                  */
+        return  (PX_ERROR);
+    }
+    
+    __LW_MOUNT_LOCK();
+    _List_Line_Add_Ahead(&pmnDev->MN_lineManage,
+                         &_G_plineMountDevHeader);                      /*  挂入链表                    */
+    __LW_MOUNT_UNLOCK();
+    
+    return  (ERROR_NONE);
+}
+
+```
+
+
 
 #### 创建目录文件关键函数
 
@@ -839,6 +1049,12 @@ static struct yaffs_obj *yaffs_new_obj(struct yaffs_dev *dev, int number,
 	return the_obj;
 }
 ```
+
+```c
+
+```
+
+
 
 ### YAFFS为啥不用注册
 
