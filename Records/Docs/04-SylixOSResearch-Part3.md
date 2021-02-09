@@ -2,7 +2,7 @@
 
 ### YAFFS2的机制
 
-1. YAFFS2使用T节点树来保存文件。每个T节点树一共分为三级(level0,1,2)。
+1. YAFFS2使用T节点树来保存文件。每个T节点树一共分为三级(level0,1,2)。 T-tree是一种一个节点中包含多个索引条目的平衡二叉树 。
 
 ### 名词解释
 
@@ -840,6 +840,68 @@ static struct yaffs_obj *yaffs_new_obj(struct yaffs_dev *dev, int number,
 }
 ```
 
+### YAFFS为啥不用注册
+
+```C
+/*********************************************************************************************************
+** 函数名称: __fsRegister
+** 功能描述: 注册一个文件系统
+** 输　入  : pcName           文件系统名
+**           pfuncCreate      文件系统创建函数
+**           pfuncCheck       文件系统检查函数
+** 输　出  : ERROR
+** 全局变量: 
+** 调用模块: 
+*********************************************************************************************************/
+/*
+* 这个函数创建了一个结构体__PLW_FILE_SYSTEM_NODE，然后把一些函数添加到结构体里面，在ramFS里也是只填了
+* 一个创建 ramfs 文件系统设备的函数(API_RamFsDevCreate)。接着就把这个结构体添加到全局的文件系统入口表上(_G_plineFsNodeHeader)
+*/
+
+INT  __fsRegister (CPCHAR  pcName, FUNCPTR  pfuncCreate, FUNCPTR  pfuncCheck, FUNCPTR  pfuncProb)
+{
+    INTREG                  iregInterLevel;
+    __PLW_FILE_SYSTEM_NODE  pfsnNew;
+
+    if (!pcName || !pfuncCreate) {
+        return  (PX_ERROR);
+    }
+    
+    pfsnNew = (__PLW_FILE_SYSTEM_NODE)__SHEAP_ALLOC(lib_strlen(pcName) + 
+                                                    sizeof(__LW_FILE_SYSTEM_NODE));
+    if (pfsnNew == LW_NULL) {
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
+        _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
+        return  (PX_ERROR);
+    }
+    pfsnNew->FSN_pfuncCreate = pfuncCreate;
+    pfsnNew->FSN_pfuncCheck  = pfuncCheck;
+    pfsnNew->FSN_pfuncProb   = pfuncProb;
+    lib_strcpy(pfsnNew->FSN_pcFsName, pcName);
+    
+    LW_SPIN_LOCK_QUICK(&_G_slFsNode, &iregInterLevel);
+    _List_Line_Add_Ahead(&pfsnNew->FSN_lineManage, &_G_plineFsNodeHeader);
+    LW_SPIN_UNLOCK_QUICK(&_G_slFsNode, iregInterLevel);
+    
+    return  (ERROR_NONE);
+}
+```
+
+
+
+```c
+/*********************************************************************************************************
+  文件系统名对应的文件系统装载函数 (不针对 yaffs 系统)
+*********************************************************************************************************/
+typedef struct {
+    LW_LIST_LINE                 FSN_lineManage;                        /*  管理链表                    */
+    FUNCPTR                      FSN_pfuncCreate;                       /*  文件系统创建函数            */
+    FUNCPTR                      FSN_pfuncCheck;                        /*  文件系统检查函数            */
+    FUNCPTR                      FSN_pfuncProb;                         /*  文件系统类型探测            */
+    CHAR                         FSN_pcFsName[1];                       /*  文件系统名称                */
+} __LW_FILE_SYSTEM_NODE;
+```
+
 
 
 ### 应用开发文档阅读
@@ -848,7 +910,7 @@ static struct yaffs_obj *yaffs_new_obj(struct yaffs_dev *dev, int number,
 
 1.  PROC 文件系统是保存操作系统信息和进程信息的文件系统，这个文件系统对应的文件 实体都在操作系统内核中，是内核反馈出来的运行参数和信息 。也就是说，它的数据不是保存在外部物理存储器的，而是由内核生成的，打开相应的文件就可以查看所有文件系统的基本信息。
 
-   ![proc_yaffs](./image/proc_yaffs2.png)
+   ![proc_yaffs](./images/proc_yaffs2.png)
 
 2. 
 
