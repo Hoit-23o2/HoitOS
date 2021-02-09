@@ -2323,7 +2323,7 @@ void cat(std::string lfs_filename) {
 
 #### 创建一个小文件后
 
-![image-20210131144744652](G:\MyProject\Project.HoitOS\HoitOS\Records\Docs\images\lfs-test-create-a-little-file.png)
+![image-20210131144744652](\images\lfs-test-create-a-little-file.png)
 
 #### 更新一个文件
 
