@@ -1,4 +1,4 @@
-2021-01-26 ~ 2021-01-31 Deep Research
+# 2021-01-26 ~ 2021-01-31 Deep Research
 
 > 主要解决几个问题：
 >
@@ -25,6 +25,10 @@
 > 14. [什么是文件的挂载？ - 小蒋的随笔 - 博客园 (cnblogs.com)](https://www.cnblogs.com/jynote/p/12449172.html)
 > 15. [能否通俗易懂，深入浅出地解释一下linux中的挂载的概念？ - 知乎 (zhihu.com)](https://www.zhihu.com/question/266907637/answer/316859400)
 > 16. [LFS-Proj](https://github.com/cd17822/log-structured-file-system)
+>
+> 简单的会议PPT：
+>
+> [第二阶段预研工作(2021-01-31)](../Files/pre-research-stage2.pptx)
 
 [TOC]
 
@@ -175,7 +179,7 @@ F2FS的查找步骤如下：
 
 #### 目录结构（Directory Structure）
 
-在F2FS中，一个4KB大小的**dentry block**由几个部分组成：bitmap以及两个成对的slot和name数组。其中，slot包含了一个文件名的hash值，**inode num**，文件名长度以及文件类型（例如：普通文件、目录文件以及符号链接）。一个目录文件构建了一个多级哈希表来更有效地管理dentries。具体操作见[wiki百科](https://en.wikipedia.org/wiki/F2FS#Directory_structure)。
+在F2FS中，一个4KB大小的**dentry block**由几个部分组成：bitmap以及两个成对的slot和name数组。其中，slot包含了一个文件名的hash值，**inode num**，文件名长度以及文件类型（例如：普通文件、目录文件以及符号链接）。一个目录文件构建了一个**多级哈希表**来更有效地管理dentries。具体操作见[wiki百科](https://en.wikipedia.org/wiki/F2FS#Directory_structure)。
 
 > 个人理解是：相当于每一个dentry block中的name的hash值都相同，可将多个block看作一个hash桶。因为在[wiki百科](https://en.wikipedia.org/wiki/F2FS#Directory_structure)中提到：
 >
@@ -229,7 +233,7 @@ F2FS提供了一种Zone可定制FTL兼容方法，能够间接减轻GC开销。*
 
    对于Background Cleaning，F2FS并不会引起移动有效块的I/O。相反，F2FS将**有效块**装载到**Page Cache**中，然后将它们标记为**Dirty**。接下来，F2FS就将他们留在Page Cache中，等待内核工作进程将他们Flush到存储器中。这种模式被称为**Lazy Migration**，它不止减轻了对前台应用I/O的影响，同时允许**小的写入（Small Write）**被合并起来。Background Cleaning在常规I/O或者Foreground Cleaning时不会工作。
 
-3. **Post-cleaning process：**当所有有效块都被迁移后，那个**Victiom Section**就会被标记为**Pre-Free**。当Checkpoint生成后，这个Section才变成一个Free Section，等待被重新分配。这个机制的原因是：如果一个Pre-Free Section在Checkpoint生成前就被当作空闲块使用，那么当掉电时，文件系统可能会丢失在上一个Checkpoint时的数据。（因为Pre-Free Section已经被覆写了。Brilliant！）
+3. **Post-cleaning process：**当所有有效块都被迁移后，那个**Victim Section**就会被标记为**Pre-Free**。当Checkpoint生成后，这个Section才变成一个Free Section，等待被重新分配。这个机制的原因是：如果一个Pre-Free Section在Checkpoint生成前就被当作空闲块使用，那么当掉电时，文件系统可能会丢失在上一个Checkpoint时的数据。（因为Pre-Free Section已经被覆写了。Brilliant！）
 
 #### Adaptive Logging
 
@@ -283,7 +287,7 @@ F2FS实现了一个高效的前滚恢复机制来提升fsync性能。关键思�
 
 - Adaptive Logging机制，一种混合Append Logging和Threaded Logging的方式，值得借鉴；
 
-- Foreground Cleaning的Greedy机制与Background Cleaning的基于Lazy Migration的Cost-benefit机制；
+- Foreground Cleaning的Greedy机制与Background Cleaning的基于**Lazy Migration**的Cost-benefit机制；
 
 
 
@@ -864,8 +868,8 @@ INT  API_RamFsDrvInstall (VOID)
     lib_bzero(&fileop, sizeof(struct file_operations));
 
     fileop.owner       = THIS_MODULE;
-    fileop.fo_create   = __ramFsOpen;
-    fileop.fo_release  = __ramFsRemove;
+    fileop.fo_create   = __ramFsOpen; //__norFsOpen
+    fileop.fo_release  = __ramFsRemove;//
     fileop.fo_open     = __ramFsOpen;
     fileop.fo_close    = __ramFsClose;
     fileop.fo_read     = __ramFsRead;
@@ -1492,7 +1496,10 @@ __find_error:
 /* 每个Block大小为1KB */
 #define BLOCK_SIZE 1024  // 1KB
 /* IMAP需要消耗40个Block，指导书中认为要消耗80个Block，这里我认为代码作者省去了Inode Num
-   ，即把Inode Num当作索引来搜索即可，所以除以2 */
+   ，即把Inode Num当作索引来搜索即可，所以除以2 inode num <-> block num imap[inode_num] <-> block_num 
+   4B * 10K = 40KB INODE pointer
+   40KB / 1KB = 40 Block
+*/
 #define IMAP_BLOCKS 40
 /* ？？？瞎写的把 */
 #define MAX_FILESIZE 10
@@ -1500,7 +1507,12 @@ __find_error:
 #define MAX_DATA_BLOCKS 128
 /* 本文件系统最大支持10K个文件 */
 #define MAX_FILES 10240 // 10K
-/* Summary Blocks占用8个Block */
+/* Summary Blocks占用8个Block，1024， 1024 * (4B + 4B) = 8KB 
+   Data Block: 1. belong inode num 2. index in inode;
+   Inode Block: 1. Inode num 	   2. -1;
+   Imap Block:1. -1 			   2. Fragment Num
+   IMAP:包含了所有Imap，并且存在于内存；
+*/
 #define SUMMARY_BLOCKS 8  
 #define CLEAN 0
 #define DIRTY 1
@@ -1658,7 +1670,7 @@ void findNextAvailableBlock(){
   /* 在CheckPoint Region中检查所有Imap，找到最大的Block Num，Block Num最大的Imap一定是在Log最后的
      TODO：是这样理解吗？GC时怎么办？
   
-  CheckPoint Region 布局：
+  CheckPoint Region 布局：（Fragment Num 作为CPR的Index）
     +---------------+
     | Imap1 Block No|     -> Block 32
     +---------------+
@@ -1829,11 +1841,11 @@ void writeInode(const inode& node, unsigned int inode_number){
   @inode_number：inode number；
   @block_position：更新Imap对应Block的位置
 
-  IMAP布局:
+  IMAP布局 40 Imap Block, 1KB / 4B = 256个:
     +---------------+
     | inode1      No|     -> Block 32
     +---------------+
-    | inode2      No|     -> Block 80
+    | inode2      No|     -> Block 80 
     +---------------+
     |      ...      |
     +---------------+
@@ -2379,7 +2391,7 @@ void cat(std::string lfs_filename) {
 
 结果如下：
 
-![image-20210131185035438](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20210131185035438.png)
+![image-20210131185035438](./images/lfs-test-gc.png)
 
    
 
