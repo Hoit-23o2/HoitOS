@@ -1,4 +1,4 @@
-# 2021-02-02 ~ 2021-02-07 SylixOS Research
+# 2021-02-02 ~ 2021-02-14 SylixOS Research
 
 > 这周杂事比较多，时间比较紧，因此主要解决几个小问题：
 >
@@ -280,5 +280,73 @@ ls /mnt/starfs/
 
 > 这几天折腾了mini2440半天，又折腾了Lab半天，今天终于解决了Lab问题。mini2440的转接头可能有问题，还需继续研究——心态有点蹦蹦炸。
 
+现在感觉这个实验和我们的SylixOS FS关联其实并不是很大，因为在Linux中文件系统注册是采用VFS，这是一个在SylixOS中没有的概念，因此，在大概了解内核模块的运作流程后，我认为就可以开始着手SylixOS内核模块的研究了。
 
+### SylixOS内核研究
+
+首先是发现了一些问题，与Linux中文件系统的注册不一样，SylixOS中文件系统注册后，在**/proc/fs/fssup** 目录中并没有最新注册的文件系统：
+
+```c
+int module_init (void)
+{
+    printk("simple fs register!\n");
+    struct file_operations     fileop;
+
+
+    lib_bzero(&fileop, sizeof(struct file_operations));
+
+    fileop.owner       = THIS_MODULE;
+    fileop.fo_create   = NULL;
+    fileop.fo_release  = NULL;
+    fileop.fo_open     = NULL;
+    fileop.fo_close    = NULL;
+    fileop.fo_read     = NULL;
+    fileop.fo_read_ex  = NULL;
+    fileop.fo_write    = NULL;
+    fileop.fo_write_ex = NULL;
+    fileop.fo_lstat    = NULL;
+    fileop.fo_ioctl    = NULL;
+    fileop.fo_symlink  = NULL;
+    fileop.fo_readlink = NULL;
+
+    _G_iSimplefsDrvNum = iosDrvInstallEx2(&fileop, LW_DRV_TYPE_NEW_1);     /*  使用 NEW_1 型设备驱动程序   */
+
+    DRIVER_LICENSE(_G_iSimplefsDrvNum,     "GPL->Ver 2.0");
+    DRIVER_AUTHOR(_G_iSimplefsDrvNum,      "Han.hui");
+    DRIVER_DESCRIPTION(_G_iSimplefsDrvNum, "ramfs driver.");
+
+    _DebugHandle(__LOGMESSAGE_LEVEL, "ram file system installed.\r\n");
+
+    __fsRegister("simple fs", NULL, LW_NULL, LW_NULL);        /*  注册文件系统                */
+
+    return  ((_G_iSimplefsDrvNum > 0) ? (ERROR_NONE) : (PX_ERROR));
+}
+```
+
+这是因为，在procFssup.c中是完全用硬编码来输出文件系统，那这就离天下之大谱了，也就是说，我们若想要开发一个文件系统，那就必须得修改部分源码？还在等待蒋老师回应。
+
+![硬编码文件信息](./images/hard-code-fs.png)
+
+另外，我认为还得研究一下**SylixOS设备驱动程序开发**，看看能不能从中找到更多关于内核模块开发的头绪。
+
+##### SylixOS中对驱动的定义
+
+> 个人认为讲解得非常好
+
+- **宏观概念：**“设备驱动是最底层的、直接控制和监视各类硬件的部分，它们的职责是隐藏硬件的具体细节，并向其他部分提供一个抽象的、通用的接口。”
+
+- **驱动功能：**“在 SylixOS 中，设备驱动是**内核空间**的一部分，其运行在内核态下，**驱动与底层硬件直接打交道**，按照**硬件设备的具体工作方式**，读写设备的寄存器，完成设备的轮询、中断处理、 DMA 通信，进行物理内存向虚拟内存的映射等，最终让通信设备能收发数据，让显示设备能显示文字和画面，让存储设备能记录文件和数据。”
+
+- **BSP再理解：**“**同一个芯片的多种驱动支持组合**被称为板级支持包BSP。”
+
+##### SylixOS中的char与block device
+
+- **Char Dev：**字符设备是能够像字节流一样被访问的设备。字符设备驱动程序通常至少要实现 open、close、read、write 等系统调用。字符设备可以通过文件系统节点进行访问，这些设备文件和普通文件之间的唯一差别在于对普通文件的访问可 以前后移动访问位置，而大多数字符设备是一个只能顺序访问的数据通道，如触摸屏、鼠标等都是字符设备。
+- **Block Dev：**块设备能够容纳文件系统，其也是通过设备节点来访问。在 SylixOS 系统中，进行 I/O 操作时块设备每次只能传输一个或多个完整的块，而每块包含 512 字节（或 2 的幂字节倍数的数据），如 SD、硬盘等都是块设备。
+
+## Mini2440 研究
+
+USB转串口线好像买到崴货了，不能正常工作，只有年后才可以买了。可以用qemu来模拟mini2440环境，SylixOS的模拟器中刚好有mini2440，至于怎么用这个模拟器模拟NorFlash的mini2440，还得继续询问蒋老师。
+
+![image-20210210142329201](./images/mini2440-sim.png)
 

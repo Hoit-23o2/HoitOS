@@ -37,9 +37,21 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 
    除了研究F2FS文件系统，还特别研究了SylixOS中Yaffs文件系统的装载工作；
 
+   - NAT
+   - GC
+   - Adaptive Logging
+
 8. [04-SylixOSResearch-Part1](./Records/Docs/04-SylixOSResearch-Part1.md)
 
-   待补充
+   简要经历了SylixOS中内核模块的开发流程，研究了Linux中文件系统的注册与挂载，完成了内核模块的注册、卸载，完成了Linux内核开发的VScode配置；
+
+9. [04-SylixOSResearch-Part2](./Records/Docs/04-SylixOSResearch-Part2.md)
+
+   主要研究了Linux中的文件系统以及文件系统的挂载，研究了SylixOS中ramFs的实现；
+
+10. [04-SylixOSResearch-Part3](./Records/Docs/04-SylixOSResearch-Part3.md)
+
+    主要研究了SylixOS中Yaffs文件系统的驱动安装、系统挂载流程，至于Yaffs如何对设备进行读写操作还需进一步考察；
 
 ## ConfigurationControlBoard(CCB)
 
