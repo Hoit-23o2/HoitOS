@@ -14,6 +14,10 @@
 > 5. [VSCode内核编程BUG](https://github.com/microsoft/vscode-cpptools/issues/5588)
 > 6. [Linux内核编程之文件系统](https://linux-kernel-labs.github.io/refs/heads/master/labs/filesystems_part1.html#registering-and-unregistering-the-minfs-file-system)
 > 7. [Linux下创建虚拟磁盘](../Files/Linux-create-vd.pdf)
+>
+> 简单的总结PPT
+>
+> [第三阶段-SylixOS研究(2021-02-14)](../Files/PPT/sylixos-research-stage.pptx)
 
 ## SylixOS内核编程
 

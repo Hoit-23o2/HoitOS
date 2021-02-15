@@ -37,7 +37,7 @@
 >
 > 简单的会议PPT：
 >
-> [第一阶段预研工作(2021-01-24)](../Files/pre-research-stage1.pptx)
+> [第一阶段预研工作(2021-01-24)](../Files/PPT/pre-research-stage1.pptx)
 
 [TOC]
 

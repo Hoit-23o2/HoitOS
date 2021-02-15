@@ -286,6 +286,41 @@ struct backing_dev_info{
 
 ## Sylix中的ramFs
 
+#### RAM_NODE结构
+
+```c
+typedef struct ramfs_node {
+    LW_LIST_LINE        RAMN_lineBrother;                               /*  兄弟节点链表                */
+    struct ramfs_node  *RAMN_pramnFather;                               /*  父亲指针                    */
+    PLW_LIST_LINE       RAMN_plineSon;                                  /*  子节点链表                  */
+    PRAM_VOLUME         RAMN_pramfs;                                    /*  文件系统                    */
+    
+    BOOL                RAMN_bChanged;                                  /*  文件内容是否更改            */
+    mode_t              RAMN_mode;                                      /*  文件 mode                   */
+    time_t              RAMN_timeCreate;                                /*  创建时间                    */
+    time_t              RAMN_timeAccess;                                /*  最后访问时间                */
+    time_t              RAMN_timeChange;                                /*  最后修改时间                */
+    
+    size_t              RAMN_stSize;                                    /*  当前文件大小 (可能大于缓冲) */
+    size_t              RAMN_stVSize;                                   /*  lseek 出的虚拟大小          */
+    
+    uid_t               RAMN_uid;                                       /*  用户 id                     */
+    gid_t               RAMN_gid;                                       /*  组   id                     */
+    PCHAR               RAMN_pcName;                                    /*  文件名称                    */
+    PCHAR               RAMN_pcLink;                                    /*  链接目标                    */
+    
+    PLW_LIST_LINE       RAMN_plineBStart;                               /*  文件头                      */
+    PLW_LIST_LINE       RAMN_plineBEnd;                                 /*  文件尾                      */
+    ULONG               RAMN_ulCnt;                                     /*  文件数据块数量              */
+    
+    PRAM_BUFFER         RAMN_prambCookie;                               /*  文件 cookie                 */
+    ULONG               RAMN_ulCookie;                                  /*  文件 cookie 下标            */
+} RAM_NODE;
+typedef RAM_NODE       *PRAM_NODE;
+```
+
+
+
 #### _LIST_ENTRY函数
 
 _LIST_ENTRY就是container_of；
