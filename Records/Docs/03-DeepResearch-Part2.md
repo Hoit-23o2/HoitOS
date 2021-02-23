@@ -621,7 +621,7 @@ NANDFlash和NORFlash都是基于MTD框架编写的，由于MTD框架中通用代
 ![img-02](./images/mtd-02.png)
 
 基于上述的MTD框架, Flash驱动都变的十分的简单, 因为当下Flash的操作接口已经很统一, a, 相应的代码在**"drivers/mtd/chips"**中文件实现，所以在设备驱动层, 留给驱动工程师的工作就大大的减少了。
-基于MTD子系统开发NOR FLash驱动，只需要构造一个map_info类型的对象并调用do_map_probe()来匹配内核中已经写好的驱动，比如CFI接口的驱动或JEDEC接口的驱动。当下编写一个NorFlash驱动的工作流程如下
+基于MTD子系统开发NOR FLash驱动，只需要构造一个map_info类型的对象并调用do_map_probe()来匹配内核中已经写好的驱动，比如CFI接口的驱动或JEDEC接口的驱动。当下编写一个NorFlash驱动的工作流程如下：
 
 ![img-03](./images/mtd-03.png)
 
@@ -737,11 +737,11 @@ static void __exit cleanup_xxx_map(void)
 
 下图就是基于MTD框架的NandFlash驱动的位置。
 
-![img-04](/images/mtd-04.png)
+![img-04](./images/mtd-04.png)
 
 Nand Flash和NOR Flash类似，内核中已经在**"drivers/mtd/nand/nand_base.c"**中实现了通用的驱动程序，驱动开发中不需要再实现mtd_info中的read, write, read_oob, write_oob等接口，只需要构造并注册一个nand_chip对象， 这个对象主要描述了一片flash芯片的相关信息，包括地址信息，读写方法，ECC模式，硬件控制等一系列底层机制。当下，编写一个NandFlash驱动的工作流程如下：
 
-![img-05](/images/mtd-05.png)
+![img-05](./images/mtd-05.png)
 
 ##### nand_chip
 
