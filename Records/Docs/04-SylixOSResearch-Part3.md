@@ -10,6 +10,21 @@
 
  Chunk：YAFFS 的寻址单元，通常与 Page 大小一致。
 
+新型NEW_1驱动：字符设备驱动
+
+```c
+2013-01-04: han.hui
+SylixOS 加入新的一种驱动程序模型(NEW_1), 主要是为了支持 UNIX 兼容系统的 vnode 功能, 
+这样为 SylixOS 未来支持文件记录锁打好基础, 
+SylixOS 可以同时支持多种驱动程序模型, 
+ORIG 为 VxWorks 兼容驱动模型, 
+NEW_1 为新一代驱动程序模型, 
+SOCKET 为独立的 socket 模型, 
+安装设备驱动时可以指定驱动程序的类型, 用户不可以建立 SOCKET 类型设备驱动.
+```
+
+
+
 ### 源码分析
 
 #### 装载YAFFS2大致流程
@@ -841,7 +856,7 @@ static INT  __mount (CPCHAR  pcDevName, CPCHAR  pcVolName, CPCHAR  pcFileSystem,
 
 
 
-#### 创建目录文件关键函数
+#### YAFFS创建目录文件关键函数
 
 ```c
 int yaffs_mkdir_reldir(struct yaffs_obj *reldir, const YCHAR *path, mode_t mode)
@@ -904,7 +919,10 @@ int yaffs_mkdir_reldir(struct yaffs_obj *reldir, const YCHAR *path, mode_t mode)
 
 	return retVal;
 }
+
 ```
+
+##### 创建新的对象
 
 ```c
 /*
@@ -1050,8 +1068,495 @@ static struct yaffs_obj *yaffs_new_obj(struct yaffs_dev *dev, int number,
 }
 ```
 
-```c
+#### YAFFS写入操作
 
+```c
+/*********************************************************************************************************
+** 函数名称: __yaffsWrite
+** 功能描述: yaffs write 操作
+** 输　入  : pfdentry         文件控制块
+**           pcBuffer         缓冲区
+**           stNBytes         需要写入的数据
+** 输　出  : 驱动相关
+** 全局变量: 
+** 调用模块: 
+*********************************************************************************************************/
+static ssize_t  __yaffsWrite (PLW_FD_ENTRY  pfdentry,
+                              PCHAR         pcBuffer, 
+                              size_t        stNBytes)
+{
+    PLW_FD_NODE   pfdnode     = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PYAFFS_FILE   pyaffile    = (PYAFFS_FILE)pfdnode->FDNODE_pvFile;
+    ssize_t       sstWriteNum = PX_ERROR;
+    
+    
+    __YAFFS_OPLOCK();
+    if (pyaffile->YAFFIL_iFileType != __YAFFS_FILE_TYPE_NODE) {
+        __YAFFS_OPUNLOCK();
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);
+    }
+    
+    if (pfdentry->FDENTRY_iFlag & O_APPEND) {                           /*  追加模式                    */
+        pfdentry->FDENTRY_oftPtr = pfdnode->FDNODE_oftSize;             /*  移动读写指针到末尾          */
+    }
+    
+    sstWriteNum = (ssize_t)yaffs_pwrite(pyaffile->YAFFIL_iFd,
+                                        (CPVOID)pcBuffer, (unsigned int)stNBytes,
+                                        pfdentry->FDENTRY_oftPtr);
+    if (sstWriteNum > 0) {
+        struct yaffs_stat   yafstat;
+        pfdentry->FDENTRY_oftPtr += (off_t)sstWriteNum;                 /*  更新文件指针                */
+        yaffs_fstat(pyaffile->YAFFIL_iFd, &yafstat);
+        pfdnode->FDNODE_oftSize = yafstat.st_size;                      /*  更新文件大小                */
+    }
+    __YAFFS_OPUNLOCK();
+    
+    if (sstWriteNum >= 0) {
+        if (pfdentry->FDENTRY_iFlag & O_SYNC) {                         /*  需要立即同步                */
+            __yaffsFlush(pfdentry);
+        
+        } else if (pfdentry->FDENTRY_iFlag & O_DSYNC) {
+            __yaffsDataSync(pfdentry);
+        }
+    }
+    
+    return  (sstWriteNum);
+}
+```
+
+##### 写入设备的关键函数
+
+yaffsfs_do_write又又pwrite和非pwrite之分，现在还不知道差别。
+
+###### yaffs的handle management
+
+```c
+/*
+ * Handle management.
+ * There are open inodes in struct yaffsfs_Inode.
+ * There are open file descriptors in yaffsfs_FileDes.
+ * There are open handles in yaffsfs_FileDes.
+ *
+ * Things are structured this way to be like the Linux VFS model
+ * so that interactions with the yaffs guts calls are similar.
+ * That means more common code paths and less special code.
+ * That means better testing etc.
+ *
+ * We have 3 layers because:
+ * A handle is different than an fd because you can use dup()
+ * to create a new handle that accesses the *same* fd. The two
+ * handles will use the same offset (part of the fd). We only close
+ * down the fd when there are no more handles accessing it.
+ *
+ * More than one fd can currently access one file, but each fd
+ * has its own permsiions and offset.
+ */
+```
+
+1. yaffs管理文件的结构体被设计成类似Linux的VFS模式，以便更好地被yaffs guts调用
+
+2. yaffs管理打开的文件用了一个三层的结构。
+
+   对同一个文件描述符fd可以用dup()来创建多个handle。每一个fd
+
+```mermaid
+graph TB
+	A[inode or file] --> B1[fd1]
+	A[inode or file] --> B2[fd2]
+	A[inode or file] --> B3[...]
+	
+	B1 --> C1[handle1]
+	B1 --> C2[handle2]
+	B1 --> C3[...]
+	
+	B2 --> C4[handle1]
+	B2 --> C5[handle2]
+	B2 --> C6[...]	
+```
+
+
+
+###### 具体代码
+
+```c
+static int yaffsfs_do_write(int handle, const void *vbuf, unsigned int nbyte,
+		     int isPwrite, Y_LOFF_T offset)
+{
+	struct yaffsfs_FileDes *fd = NULL;
+	struct yaffs_obj *obj = NULL;
+	Y_LOFF_T pos = 0;
+	Y_LOFF_T startPos = 0;
+	Y_LOFF_T endPos;
+	int nWritten = 0;
+	int totalWritten = 0;
+	int write_trhrough = 0;
+	int nToWrite = 0;
+	const u8 *buf = (const u8 *)vbuf;
+	
+    /* 检查vbuf指针是否为空 */
+	if (yaffsfs_CheckMemRegion(vbuf, nbyte, 0) < 0) {
+		yaffsfs_SetError(-EFAULT);
+		return -1;
+	}
+
+	yaffsfs_Lock();
+    /* 根据文件描述符handle获取相应yaffsfs_FileDes结构体和object对象。
+    *  这里获取fd和文件对象用到了三种表
+    *  1.yaffsfs_Handle yaffsfs_handle[YAFFSFS_N_HANDLES]  --> 保存文件useCount
+    *  2.yaffsfs_FileDes yaffsfs_fd[YAFFSFS_N_HANDLES]     --> 保存文件类型、读写权限等
+    *  3.yaffsfs_Inode yaffsfs_inode[YAFFSFS_N_HANDLES]    --> 保存文件inode，inode就是
+    *    object，还有正在操作object的handle数量。
+    */
+    
+	fd = yaffsfs_HandleToFileDes(handle);
+	obj = yaffsfs_HandleToObject(handle);
+
+	if (!fd || !obj) {
+		/* bad handle */
+		yaffsfs_SetError(-EBADF);
+		totalWritten = -1;
+	} else if (!fd->writing) {
+		yaffsfs_SetError(-EINVAL);
+		totalWritten = -1;
+	} else if (obj->my_dev->read_only) {
+		yaffsfs_SetError(-EROFS);
+		totalWritten = -1;
+    } else if (isPwrite && (offset < 0)) { /* sylixos fix bug */
+        yaffsfs_SetError(-EINVAL);
+		totalWritten = -1;
+	} else {
+		if (fd->append)
+            /* 如果是追加写模式，就从文件尾部开始写 */
+			startPos = yaffs_get_obj_length(obj);
+		else if (isPwrite)
+			startPos = offset;
+		else
+			startPos = fd->v.position;
+		/* 增加handle里的useCount */
+		yaffsfs_GetHandle(handle);
+		pos = startPos;
+		endPos = pos + nbyte;
+
+		if (pos < 0 || pos > YAFFS_MAX_FILE_SIZE ||
+		    nbyte > YAFFS_MAX_FILE_SIZE ||
+		    endPos < 0 || endPos > YAFFS_MAX_FILE_SIZE) {
+			totalWritten = -1;
+			nbyte = 0;
+		}
+
+		while (nbyte > 0) {
+
+			nToWrite = YAFFSFS_RW_SIZE -
+			    (pos & (YAFFSFS_RW_SIZE - 1));
+			if (nToWrite > nbyte)
+				nToWrite = nbyte;
+
+			/* Tricky bit...
+			 * Need to reverify object in case the device was
+			 * remounted or unmounted in another thread.
+			 */
+			obj = yaffsfs_HandleToObject(handle);
+			if (!obj || obj->my_dev->read_only)
+				nWritten = 0;
+			else
+				nWritten =
+				    yaffs_wr_file(obj, buf, pos, nToWrite,
+						  write_trhrough);
+			if (nWritten > 0) {
+				totalWritten += nWritten;
+				pos += nWritten;
+				buf += nWritten;
+			}
+
+			if (nWritten == nToWrite)
+				nbyte -= nToWrite;
+			else
+				nbyte = 0;
+
+			if (nWritten < 1 && totalWritten < 1) {
+				yaffsfs_SetError(-ENOSPC);
+				totalWritten = -1;
+			}
+
+			if (nbyte > 0) {
+				yaffsfs_Unlock();
+				yaffsfs_Lock();
+			}
+		}
+
+		yaffsfs_PutHandle(handle);
+
+		if (!isPwrite) {
+			if (totalWritten > 0)
+				fd->v.position = startPos + totalWritten;
+			else
+				yaffsfs_SetError(-EINVAL);
+		}
+	}
+
+	yaffsfs_Unlock();
+
+	return (totalWritten >= 0) ? totalWritten : -1;
+}
+```
+
+###### 文件写入
+
+这里要稍微讲讲yaffs2的原理，也就是这个handle的hole是什么。
+
+[yaffs的shrink header 和文件中的hole](#YAFFS的shrink header 和文件中的hole)
+
+```c
+int yaffs_wr_file(struct yaffs_obj *in, const u8 *buffer, loff_t offset,
+		  int n_bytes, int write_through)
+{
+    /* 如果写入位置offset大于原来文件的大小，则说明存在hole，需要进行相应处理。hole比较小就填充0
+    *  如果hole比较大，则添加一个新的hole marker
+    */
+	yaffs2_handle_hole(in, offset);
+	return yaffs_do_file_wr(in, buffer, offset, n_bytes, write_through);
+}
+```
+
+##### 处理hole
+
+```c
+int yaffs2_handle_hole(struct yaffs_obj *obj, loff_t new_size)
+{
+	/* if new_size > old_file_size.
+	 * We're going to be writing a hole.
+	 * If the hole is small then write zeros otherwise write a start
+	 * of hole marker.
+	 */
+	loff_t old_file_size;
+	loff_t increase;
+	int small_hole;
+	int result = YAFFS_OK;
+	struct yaffs_dev *dev = NULL;
+	u8 *local_buffer = NULL;
+	int small_increase_ok = 0;
+
+	if (!obj)
+		return YAFFS_FAIL;
+
+	if (obj->variant_type != YAFFS_OBJECT_TYPE_FILE)
+		return YAFFS_FAIL;
+
+	dev = obj->my_dev;
+
+	/* Bail out if not yaffs2 mode */
+	if (!dev->param.is_yaffs2)
+		return YAFFS_OK;
+
+	old_file_size = obj->variant.file_variant.file_size;
+
+	if (new_size <= old_file_size)
+		return YAFFS_OK;
+
+	increase = new_size - old_file_size;
+
+	if (increase < YAFFS_SMALL_HOLE_THRESHOLD * dev->data_bytes_per_chunk &&
+	    yaffs_check_alloc_available(dev, YAFFS_SMALL_HOLE_THRESHOLD + 1))
+		small_hole = 1;
+	else
+		small_hole = 0;
+	/* 如果是小洞，就直接找一个buffer把那个位置全部填充成0，再写入设备就好 */
+	if (small_hole)
+		local_buffer = yaffs_get_temp_buffer(dev);
+
+	if (local_buffer) {
+		/* fill hole with zero bytes */
+		loff_t pos = old_file_size;
+		int this_write;
+		int written;
+		memset(local_buffer, 0, dev->data_bytes_per_chunk);
+		small_increase_ok = 1;
+
+		while (increase > 0 && small_increase_ok) {
+			this_write = increase;
+			if (this_write > dev->data_bytes_per_chunk)
+				this_write = dev->data_bytes_per_chunk;
+			written =
+			    yaffs_do_file_wr(obj, local_buffer, pos, this_write,
+					     0);
+			if (written == this_write) {
+				pos += this_write;
+				increase -= this_write;
+			} else {
+				small_increase_ok = 0;
+			}
+		}
+
+		yaffs_release_temp_buffer(dev, local_buffer);
+
+		/* If out of space then reverse any chunks we've added */
+		if (!small_increase_ok)
+			yaffs_resize_file_down(obj, old_file_size);
+	}
+	/*如果是大洞，则更新Nand flash里的文件头*/
+	if (!small_increase_ok &&
+	    obj->parent &&
+	    obj->parent->obj_id != YAFFS_OBJECTID_UNLINKED &&
+	    obj->parent->obj_id != YAFFS_OBJECTID_DELETED) {
+		/* Write a hole start header with the old file size */
+		yaffs_update_oh(obj, NULL, 0, 1, 0, NULL);
+	}
+
+	return result;
+}
+```
+
+##### yaffs_update_oh
+
+```c
+/* UpdateObjectHeader updates the header on NAND for an object.
+ * If name is not NULL, then that new name is used.
+ */
+int yaffs_update_oh(struct yaffs_obj *in, const YCHAR *name, int force,
+		    int is_shrink, int shadows, struct yaffs_xattr_mod *xmod)
+{
+
+	struct yaffs_block_info *bi;
+	struct yaffs_dev *dev = in->my_dev;
+	int prev_chunk_id;
+	int ret_val = 0;
+	int __unused result = 0;
+	int new_chunk_id;
+	struct yaffs_ext_tags new_tags;
+	struct yaffs_ext_tags old_tags;
+	const YCHAR *alias = NULL;
+	u8 *buffer = NULL;
+	YCHAR old_name[YAFFS_MAX_NAME_LENGTH + 1];
+	struct yaffs_obj_hdr *oh = NULL;
+	loff_t file_size = 0;
+
+	strcpy(old_name, _Y("silly old name"));
+
+	if (in->fake && in != dev->root_dir && !force && !xmod)
+		return ret_val;
+
+	yaffs_check_gc(dev, 0);
+	yaffs_check_obj_details_loaded(in);
+
+	buffer = yaffs_get_temp_buffer(in->my_dev);
+	oh = (struct yaffs_obj_hdr *)buffer;
+
+	prev_chunk_id = in->hdr_chunk;
+
+	if (prev_chunk_id > 0) {
+		result = yaffs_rd_chunk_tags_nand(dev, prev_chunk_id,
+						  buffer, &old_tags);
+
+		yaffs_verify_oh(in, oh, &old_tags, 0);
+		memcpy(old_name, oh->name, sizeof(oh->name));
+		memset(buffer, 0xff, sizeof(struct yaffs_obj_hdr));
+	} else {
+		memset(buffer, 0xff, dev->data_bytes_per_chunk);
+	}
+
+	oh->type = in->variant_type;
+	oh->yst_mode = in->yst_mode;
+	oh->shadows_obj = oh->inband_shadowed_obj_id = shadows;
+
+	yaffs_load_attribs_oh(oh, in);
+
+	if (in->parent)
+		oh->parent_obj_id = in->parent->obj_id;
+	else
+		oh->parent_obj_id = 0;
+
+	if (name && *name) {
+		memset(oh->name, 0, sizeof(oh->name));
+		yaffs_load_oh_from_name(dev, oh->name, name);
+	} else if (prev_chunk_id > 0) {
+		memcpy(oh->name, old_name, sizeof(oh->name));
+	} else {
+		memset(oh->name, 0, sizeof(oh->name));
+	}
+
+	oh->is_shrink = is_shrink;
+
+	switch (in->variant_type) {
+	case YAFFS_OBJECT_TYPE_UNKNOWN:
+		/* Should not happen */
+		break;
+	case YAFFS_OBJECT_TYPE_FILE:
+		if (oh->parent_obj_id != YAFFS_OBJECTID_DELETED &&
+		    oh->parent_obj_id != YAFFS_OBJECTID_UNLINKED)
+			file_size = in->variant.file_variant.file_size;
+		yaffs_oh_size_load(oh, file_size);
+		break;
+	case YAFFS_OBJECT_TYPE_HARDLINK:
+		oh->equiv_id = in->variant.hardlink_variant.equiv_id;
+		break;
+	case YAFFS_OBJECT_TYPE_SPECIAL:
+		/* Do nothing */
+		break;
+	case YAFFS_OBJECT_TYPE_DIRECTORY:
+		/* Do nothing */
+		break;
+	case YAFFS_OBJECT_TYPE_SYMLINK:
+		alias = in->variant.symlink_variant.alias;
+		if (!alias)
+			alias = _Y("no alias");
+		strncpy(oh->alias, alias, YAFFS_MAX_ALIAS_LENGTH);
+		oh->alias[YAFFS_MAX_ALIAS_LENGTH] = 0;
+		break;
+	}
+
+	/* process any xattrib modifications */
+	if (xmod)
+		yaffs_apply_xattrib_mod(in, (char *)buffer, xmod);
+
+	/* Tags */
+	memset(&new_tags, 0, sizeof(new_tags));
+	in->serial++;
+	new_tags.chunk_id = 0;
+	new_tags.obj_id = in->obj_id;
+	new_tags.serial_number = in->serial;
+
+	/* Add extra info for file header */
+	new_tags.extra_available = 1;
+	new_tags.extra_parent_id = oh->parent_obj_id;
+	new_tags.extra_file_size = file_size;
+	new_tags.extra_is_shrink = oh->is_shrink;
+	new_tags.extra_equiv_id = oh->equiv_id;
+	new_tags.extra_shadows = (oh->shadows_obj > 0) ? 1 : 0;
+	new_tags.extra_obj_type = in->variant_type;
+	yaffs_verify_oh(in, oh, &new_tags, 1);
+
+	/* Create new chunk in NAND */
+	new_chunk_id =
+	    yaffs_write_new_chunk(dev, buffer, &new_tags,
+				  (prev_chunk_id > 0) ? 1 : 0);
+
+	if (buffer)
+		yaffs_release_temp_buffer(dev, buffer);
+
+	if (new_chunk_id < 0)
+		return new_chunk_id;
+
+	in->hdr_chunk = new_chunk_id;
+
+	if (prev_chunk_id > 0)
+		yaffs_chunk_del(dev, prev_chunk_id, 1, __LINE__);
+
+	if (!yaffs_obj_cache_dirty(in))
+		in->dirty = 0;
+
+	/* If this was a shrink, then mark the block
+	 * that the chunk lives on */
+	if (is_shrink) {
+		bi = yaffs_get_block_info(in->my_dev,
+					  new_chunk_id /
+					  in->my_dev->param.chunks_per_block);
+		bi->has_shrink_hdr = 1;
+	}
+
+
+	return new_chunk_id;
+}
 ```
 
 
@@ -1117,6 +1622,25 @@ typedef struct {
     CHAR                         FSN_pcFsName[1];                       /*  文件系统名称                */
 } __LW_FILE_SYSTEM_NODE;
 ```
+
+### YAFFS的shrink header 和文件中的hole
+
+[原文讲解](https://yaffs.net/documents/how-yaffs-works)
+
+[例子](../Files/YAFFS_hole.ppt)
+
+```c
+h = open(“foo”,O_CREAT| O_RDWR, S_IREAD|S_IWRITE); /* create file */
+write(h,data,5*MB); /* write 5 MB of data /
+truncate(h,1*MB); /* truncate to 1MB */
+lseek(h,2*MB, SEEK_SET); /* set the file access position to 2MB */
+write(h,data,1*MB); /* write 1MB of data */
+close(h);
+```
+
+文件在上面这个例子的操作下，这个文件出现了一个空洞区。根据POXIS的标准，像这种空洞区内的数据应该全为0。但因为之前写入了旧的数据，所以如不针对这个空洞区做相应的标记，就会读取到原来的旧数据。因此，YAFFS创建一个shrink header来记录这个hole的位置。
+
+
 
 
 
