@@ -5,7 +5,10 @@
 > 参考资料：
 >
 > 1. [韩辉的博客？？？](https://blog.51cto.com/hanhui03/1663598)
-> 2. 
+>
+> 简单的总结PPT：
+>
+> [第四阶段-SylixOS进阶研究(2021-02-23)](../Files/PPT/sylixos-further-research-stage.pptx)
 
 ## 初窥BSP
 
@@ -215,6 +218,4 @@ https://blog.csdn.net/Mculover666/article/details/104115535
 **mini2440 nand初始化**
 
 ![image-20210223111438291](./images/bsp-nand-drv.png)
-
-### 
 

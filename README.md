@@ -40,6 +40,7 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
    - NAT
    - GC
    - Adaptive Logging
+   - Multi Log
 
 8. [04-SylixOSResearch-Part1](./Records/Docs/04-SylixOSResearch-Part1.md)
 
@@ -52,6 +53,18 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 10. [04-SylixOSResearch-Part3](./Records/Docs/04-SylixOSResearch-Part3.md)
 
     主要研究了SylixOS中Yaffs文件系统的驱动安装、系统挂载流程，至于Yaffs如何对设备进行读写操作还需进一步考察；
+    
+11. [05-SylixOSResearch-Part1](./Records/Docs/05-SylixOSResearch-Part1.md)
+
+    主要研究了SylixOS中的BSP，以及验证并确定开发流程，另外对mini2440虚拟机的norflash进行了一定的研究，无果；
+
+12. [05-SylixOSResearch-Part2](./Records/Docs/05-SylixOSResearch-Part2.md)
+
+    主要研究了JFFS2的概貌，掌握几种数据结构的含义，这是JFFS2源码研究的第一部分；
+
+13. [05-SylixOSResearch-Part3](./Records/Docs/05-SylixOSResearch-Part3.md)
+
+    主要研究了SylixOS中的Yaffs2与MTD设备交互过程，但是蒋老师说这部分对项目来说没什么太大的作用；
 
 ## ConfigurationControlBoard(CCB)
 
@@ -62,6 +75,7 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 3. [2021-01-24](./Records/CCB/2021-01-24.md)
 4. [2021-01-31](./Records/CCB/2021-01-31.md)
 5. [2021-02-07](./Records/CCB/2021-02-07.md)
+6. [2021-02-23](./Records/CCB/2021-02-23.md)
 
 ## Basic Develop Method
 
