@@ -35,7 +35,7 @@ B --> C[__mount]
 C --> D[__fsCreateFuncGet]
 C --> E[创建LW_MOUNT_NODE]
 C --> F[pfuncFsCreate]
-F -.-> G[API_RamFsDevCreate]
+F -.-> G[API_SimpleFsDevCreate]
 G --> H[API_IosDevAddEx]
 
 ```
