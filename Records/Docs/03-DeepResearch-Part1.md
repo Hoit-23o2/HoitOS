@@ -1576,11 +1576,12 @@ void initSegments(){
 
     char true_zero[1] = {0};
     for (int j = 0; j < ASSIGNABLE_BLOCKS * BLOCK_SIZE; ++j)
-      outs[i].write(true_zero, 1);
+      outs[i].write(true_zero, 1);/* 模拟flash，全置为0 */
 
     unsigned int neg1 = -1;
     /* 注意到了吗，这里的*2就是对前面的unsigned int SEGMENT_SUMMARY[BLOCKS_IN_SEG][2];
         1024 * 2 * 4 = 8KB，刚好是Summary Block的个数(8个Block)，这里为何每个Block要用两部分记录，后面再说了 */
+    /* 不初始化SEGMENT_SUMMARY，直接写入flash，而且直接写到每一块的 */
     for (int j = 0; j < BLOCKS_IN_SEG * 2; ++j)
       outs[i].write(reinterpret_cast<const char*>(&neg1), 4);
 
@@ -1598,6 +1599,7 @@ void initCheckpointRegion(){
   */
   unsigned int neg1 = -1;
   /* 40 * 4 = 160 B */
+  /* IMAP_BLOCKS = 40 ，即用40个block保存整个imap */
   for (int i = 0; i < IMAP_BLOCKS; ++i)
     out.write(reinterpret_cast<const char*>(&neg1), 4);
   
@@ -1690,6 +1692,7 @@ void findNextAvailableBlock(){
   /* 如果按照我们上面的理解，那么这个Imap Block对应的后一块就是Avaliable Block
 
      不可能出现没有Imap却有非空闲块的情况 */
+  /* most_recent_imap_pos相当于block在全局的位置，这里计算segment号和segment内部的block号 */
   AVAILABLE_BLOCK = (at_least_one_imap_piece) ? (most_recent_imap_pos % BLOCK_SIZE) + 1 : 0;
   SEGMENT_NO = 1 + most_recent_imap_pos / BLOCK_SIZE;
 }
@@ -2013,6 +2016,8 @@ inode getInode(unsigned int inode_number){
   @clean_segment_no：要写入的段号
   @inodes：要写入的inodes
   @fragments：要写入的Imap Block Num
+  具体是将一系列inode和imap写入到新的segment中，同时更新该segment的summary，
+  最后写入到flash里。然后修改CLEAN_SEGMENT相应标记为dirty。注意，他这里将
 */
 void writeCleanSegment(unsigned int clean_summary[BLOCKS_IN_SEG][2], 
                        char clean_segment[ASSIGNABLE_BLOCKS * BLOCK_SIZE], 
