@@ -9,62 +9,102 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 
 > 这里记录了所有输出文档
 
-1. [00-Prepare](./Records/Docs/00-Prepare.md)
+### Week0
 
-   主要挑选合适的项目， 并对各项目进行再评估；
+[00-Prepare](./Records/Docs/00-Prepare.md)
 
-2. [01-SettleDown](./Records/Docs/01-SettleDown.md)
+主要挑选合适的项目， 并对各项目进行再评估；
 
-   定夺项目Proj32，开始着手预研工作；
+### Week1
 
-3. [02-PreResearch-Part1](./Records/Docs/02-PreResearch-Part1.md)
+[01-SettleDown](./Records/Docs/01-SettleDown.md)
 
-   主要介绍Flash、基于Flash的文件系统：JFFS、JFFS2、YAFFS、SPIFFS等、SylixOS的IDE配置、TPSFS的掉电安全机制等；
+定夺项目Proj32，开始着手预研工作；
 
-4. [02-PreResearch-Part2](./Records/Docs/02-PreResearch-Part2.md)
+### Week2
 
-   与Part1类似，额外添加了Github上提供的一种**写平衡** 算法；
+> 本周总结：[第一阶段预研工作(2021-01-24)](./Records/Files/PPT/pre-research-stage2.pptx)
 
-5. [03-DeepResearch-Part1](./Records/Docs/03-DeepResearch-Part1.md)
+[02-PreResearch-Part1](./Records/Docs/02-PreResearch-Part1.md)
 
-   主要确定了Why Norflash、板子选型，研究了F2FS的基本结构以及其优势、研究了基于ramFs的SylixOS注册文件系统的一般方式、学习了关于**/mnt**、**/dev**目录的意义，以及驱动相关的概念，最后通过UCS的Lab7，深入理解了LFS的写操作、更新操作、GC操作等；
+主要介绍Flash、基于Flash的文件系统：JFFS、JFFS2、YAFFS、SPIFFS等、SylixOS的IDE配置、TPSFS的掉电安全机制等；
 
-6. [03-DeepResearch-Part2](./Records/Docs/03-DeepResearch-Part2.md)
+[02-PreResearch-Part2](./Records/Docs/02-PreResearch-Part2.md)
 
-   主要研究了MTD的结构、详细方法、NorFlash驱动模板框架等；
+与Part1类似，额外添加了Github上提供的一种**写平衡** 算法；
 
-7. [03-DeepResearch-Part3](./Records/Docs/03-DeepResearch-Part3.md)
+### Week3
 
-   除了研究F2FS文件系统，还特别研究了SylixOS中Yaffs文件系统的装载工作；
+> 本周总结：[第二阶段预研工作(2021-01-31)](./Records/Files/PPT/pre-research-stage2.pptx)
 
-   - NAT
-   - GC
-   - Adaptive Logging
-   - Multi Log
+[03-DeepResearch-Part1](./Records/Docs/03-DeepResearch-Part1.md)
 
-8. [04-SylixOSResearch-Part1](./Records/Docs/04-SylixOSResearch-Part1.md)
+主要确定了Why Norflash、板子选型，研究了F2FS的基本结构以及其优势、研究了基于ramFs的SylixOS注册文件系统的一般方式、学习了关于**/mnt**、**/dev**目录的意义，以及驱动相关的概念，最后通过UCS的Lab7，深入理解了LFS的写操作、更新操作、GC操作等；
 
-   简要经历了SylixOS中内核模块的开发流程，研究了Linux中文件系统的注册与挂载，完成了内核模块的注册、卸载，完成了Linux内核开发的VScode配置；
+[03-DeepResearch-Part2](./Records/Docs/03-DeepResearch-Part2.md)
 
-9. [04-SylixOSResearch-Part2](./Records/Docs/04-SylixOSResearch-Part2.md)
+主要研究了MTD的结构、详细方法、NorFlash驱动模板框架等；
 
-   主要研究了Linux中的文件系统以及文件系统的挂载，研究了SylixOS中ramFs的实现；
+[03-DeepResearch-Part3](./Records/Docs/03-DeepResearch-Part3.md)
 
-10. [04-SylixOSResearch-Part3](./Records/Docs/04-SylixOSResearch-Part3.md)
+除了研究F2FS文件系统，还特别研究了SylixOS中Yaffs文件系统的装载工作；
 
-    主要研究了SylixOS中Yaffs文件系统的驱动安装、系统挂载流程，至于Yaffs如何对设备进行读写操作还需进一步考察；
-    
-11. [05-SylixOSResearch-Part1](./Records/Docs/05-SylixOSResearch-Part1.md)
+- NAT
+- GC
+- Adaptive Logging
+- Multi Log
 
-    主要研究了SylixOS中的BSP，以及验证并确定开发流程，另外对mini2440虚拟机的norflash进行了一定的研究，无果；
+### Week4
 
-12. [05-SylixOSResearch-Part2](./Records/Docs/05-SylixOSResearch-Part2.md)
+> 本周总结：[第三阶段-SylixOS研究(2021-02-14)](./Records/Files/PPT/sylixos-research-stage.pptx)
 
-    主要研究了JFFS2的概貌，掌握几种数据结构的含义，这是JFFS2源码研究的第一部分；
+[04-SylixOSResearch-Part1](./Records/Docs/04-SylixOSResearch-Part1.md)
 
-13. [05-SylixOSResearch-Part3](./Records/Docs/05-SylixOSResearch-Part3.md)
+简要经历了SylixOS中内核模块的开发流程，研究了Linux中文件系统的注册与挂载，完成了内核模块的注册、卸载，完成了Linux内核开发的VScode配置；
 
-    主要研究了SylixOS中的Yaffs2与MTD设备交互过程，但是蒋老师说这部分对项目来说没什么太大的作用；
+[04-SylixOSResearch-Part2](./Records/Docs/04-SylixOSResearch-Part2.md)
+
+主要研究了Linux中的文件系统以及文件系统的挂载，研究了SylixOS中ramFs的实现；
+
+[04-SylixOSResearch-Part3](./Records/Docs/04-SylixOSResearch-Part3.md)
+
+主要研究了SylixOS中Yaffs文件系统的驱动安装、系统挂载流程，至于Yaffs如何对设备进行读写操作还需进一步考察；
+
+### Week5
+
+> 本周总结：[第四阶段-SylixOS进阶研究(2021-02-23)](./Records/Files/PPT/sylixos-further-research-stage.pptx)
+
+[05-SylixOSResearch-Part1](./Records/Docs/05-SylixOSResearch-Part1.md)
+
+主要研究了SylixOS中的BSP，以及验证并确定开发流程，另外对mini2440虚拟机的norflash进行了一定的研究，无果；
+
+[05-SylixOSResearch-Part2](./Records/Docs/05-SylixOSResearch-Part2.md)
+
+主要研究了JFFS2的概貌，掌握几种数据结构的含义，这是JFFS2源码研究的第一部分；
+
+[05-SylixOSResearch-Part3](./Records/Docs/05-SylixOSResearch-Part3.md)
+
+主要研究了SylixOS中的Yaffs2与MTD设备交互过程，但是蒋老师说这部分对项目来说没什么太大的作用；
+
+### Week6
+
+> 本周总结：[第五阶段-基于SylixOS的实践研究(2021-03-02)](./Records/Files/PPT/sylixos-practice.pptx)
+
+[06-SylixOSPractice-Part1](./Records/Docs/06-SylixOSPractice-Part1.md)
+
+在SylixOS BSP中模拟SST39VF1601 norflash，提供了**接口**与**用例**，并提供了norflash坏块检测方法，研究了mini2440串口连接方法；
+
+[06-SylixOSPractice-Part2](./Records/Docs/06-SylixOSPractice-Part2.md)
+
+主要研究了JFFS2的文件、目录创建、写入操作，需要**再做总结**；
+
+[06-SylixOSPractice-Part3](./Records/Docs/06-SylixOSPractice-Part3.md)
+
+根据ramFs，在BSP项目中开发simpleFs，能够使SylixOS访问simpleFs的所有API，包括mount、mkdir、open等等，这里介绍修改内容，以及访问流程；
+
+> 在Week7，一定要完成在mini2440上对Norflash进行访问控制，这将成为第一个里程碑；另外，需要验证norflash模拟器的可行性，等待；完成第一代文件系统设计初稿……加油啊！！！
+
+
 
 ## ConfigurationControlBoard(CCB)
 

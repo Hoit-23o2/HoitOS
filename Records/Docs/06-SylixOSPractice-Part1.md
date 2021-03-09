@@ -19,6 +19,10 @@
 > 涉及源码：
 >
 > 1. [nor](../../Src/nor)
+>
+> 第五阶段会议PPT：
+>
+> [第五阶段-基于SylixOS的实践研究(2021-03-02)](../Files/PPT/sylixos-practice.pptx)
 
 ## 蒋老师的回复
 
@@ -384,7 +388,34 @@ sleep(1);                                                                       
 
 
 
+## Mini2440研究
 
+### 登入FriendlyARM
 
+折腾了半天，终于可以进入串口界面了：
 
+![image-20210228115730833](./images/mini2440-serial-port.png)
 
+具体步骤如下：
+
+1. 连接串口线；
+
+2. 将开关拨到Nandflash位置；
+
+   <img src="./images/mini2440-nand-flash-boot.png" alt="image-20210228120023476" style="zoom:10%;" />
+
+3. 打开SecurCRT；
+
+4. 打开设备管理器，查看串口号；
+
+   ![image-20210228120208176](./images/mini2440-serial-port-number.png)
+
+5. 用SecureCRT连接COM6串口；
+
+   ![image-20210228120347922](./images/mini2440-sp-setting.png)
+
+6. 打开mini2440电源即可访问FriendlyARM；
+
+### 访问NorFlash
+
+> 好像需要Jlink V8，目前手里没有，只有等待……
