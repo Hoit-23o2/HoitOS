@@ -1,9 +1,10 @@
 # HoitOS
+
 > 这里是项目简介
 
 This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](https://vwpp20210125060242436.worktile.com/mission/projects/600e62ffd6e5f843a97f2182)
 
-![worktile](./images/worktile.png)
+![worktile](G:/MyProject/Project.HoitOS/HoitOS/images/worktile.png)
 
 ## Log
 
@@ -103,6 +104,18 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 根据ramFs，在BSP项目中开发simpleFs，能够使SylixOS访问simpleFs的所有API，包括mount、mkdir、open等等，这里介绍修改内容，以及访问流程；
 
 > 在Week7，一定要完成在mini2440上对Norflash进行访问控制，这将成为第一个里程碑；另外，需要验证norflash模拟器的可行性，等待；完成第一代文件系统设计初稿……加油啊！！！
+
+### Week7
+
+> 本周总结：
+
+[07-SylixOS&Driver&FS-Part1](./Records/Docs/07-SylixOS&Driver&FS-Part1)
+
+主要工作是在mini2440真实板子上烧录SylixOS，包括烧录至内存以及烧录至nandflash上，关于如何访问norflash，还在等待翼辉信息的回复中；
+
+[07-SylixOS&Driver&FS-Part2](./Records/Docs/07-SylixOS&Driver&FS-Part2)
+
+主要工作是研究透彻了JFFS2，包括文件系统的挂载流程，以及对文件的具体操作：读、写、创建、关闭、删除，并作出了相应的总结工作；
 
 
 
