@@ -115,6 +115,10 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 
 [07-SylixOS&Driver&FS-Part2](./Records/Docs/07-SylixOS&Driver&FS-Part1)
 
+主要工作是研究透了JFFS2的工作方式，包括文件的系统的挂载、文件的创建、打开、关闭、删除等，还需进一步的总结；
+
+
+
 
 
 ## ConfigurationControlBoard(CCB)
