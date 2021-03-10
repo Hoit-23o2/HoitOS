@@ -2016,8 +2016,7 @@ inode getInode(unsigned int inode_number){
   @clean_segment_no：要写入的段号
   @inodes：要写入的inodes
   @fragments：要写入的Imap Block Num
-  具体是将一系列inode和imap写入到新的segment中，同时更新该segment的summary，
-  最后写入到flash里。然后修改CLEAN_SEGMENT相应标记为dirty。注意，他这里将
+  具体是将一系列inode和imap写入到新的segment中，同时更新该segment的summary，接着还修改了CPR，最后写入到flash里。然后修改CLEAN_SEGMENT相应标记为dirty。注意，他这里将next_available_block_clean和clean_segment_no都修改了。我觉得这个函数除了写入Clean Segment还去找下一个干净块。
 */
 void writeCleanSegment(unsigned int clean_summary[BLOCKS_IN_SEG][2], 
                        char clean_segment[ASSIGNABLE_BLOCKS * BLOCK_SIZE], 
@@ -2087,6 +2086,7 @@ void writeCleanSegment(unsigned int clean_summary[BLOCKS_IN_SEG][2],
   @clean_segment_no：可以写入的clean段
   @inodes：回收的所有inodes
   @fragments：回收的所有Imap Block num
+  把脏segment和它的summary读到内存。
 */
 void cleanSegment(int dirty_segment_no, 
                   unsigned int clean_summary[BLOCKS_IN_SEG][2], 
@@ -2122,7 +2122,7 @@ void cleanSegment(int dirty_segment_no,
         writeCleanSegment(clean_summary, clean_segment, next_available_block_clean, clean_segment_no, inodes, fragments);
       /* 获取其对应的inode */
       inode old_node = getInode(inode_no);
-      /* inode对应偏移的物理Block号刚好等于该块的物理偏移号，说明该数据块是有效的 */
+      /* inode对应偏移的物理Block号刚好summary中等于该块的物理偏移号，说明该数据块是有效的（未过期） */
       if (old_node.size != (unsigned int) -1 && 
           old_node.block_locations[block_no] == (dirty_segment_no-1) * BLOCKS_IN_SEG + i) { //if data block is live
         /* 把这个inode对应的Imap Block号存进fragments里面 */
