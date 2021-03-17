@@ -19,29 +19,65 @@
 ** 描        述: NorFlash裸板驱动
 *********************************************************************************************************/
 #include "nor.h"
-
-
+#include "fake_nor.h"
+#include "nor_cmd.h"
 /*********************************************************************************************************
 ** 函数名称: nor_init
 ** 功能描述: 初始化NorFlash，主要做SylixOS base的地址映射
-** 输　入  : NONE
+** 输　入  : nor_init_flag			初始化类型
 ** 输　出  : NONE
 ** 全局变量: 
 ** 调用模块: 
 *********************************************************************************************************/
-VOID nor_init(){
-	NOR_FLASH_BASE = (UINT32)API_VmmIoRemap2(0, 2 * 1024 * 1024);
+VOID nor_init(ENUM_NOR_INIT_FLAG nor_init_flag){
+	switch (nor_init_flag)
+	{
+	case INIT_FAKE_NOR:{
+		FAKE_MODE();
+		if((NOR_FLASH_BASE = (UINT32)lib_malloc(NOR_FLASH_SZ)) < 0){
+			pretty_print("[nor init statue]", "fail cannot create nor", DONT_CENTRAL);
+			return;
+		}
+		lib_memset((PVOID)NOR_FLASH_BASE, (INT)-1, NOR_FLASH_SZ);
+		if((sector_infos = (sector_info_t *)malloc(NOR_FLASH_NSECTOR * sizeof(sector_info_t))) < 0){
+			pretty_print("[nor init statue]", "fail cannot create sector info", DONT_CENTRAL);
+			return;
+		}
+		INT i;
+		for (i = 0; i < NOR_FLASH_NSECTOR; i++)
+		{
+			sector_infos[i].erase_cnt = 0;
+			sector_infos[i].is_bad = FALSE;
+		}
+		pretty_print("[nor init statue]", "init successfully", DONT_CENTRAL);
+
+		API_ThreadCreate("t_generate_bad_block",
+						(PTHREAD_START_ROUTINE)generate_bad_sector,
+						LW_NULL,
+						LW_NULL);
+		break;
+	}
+	case INIT_TRUE_NOR:
+		TRUE_MODE();
+		NOR_FLASH_BASE = (UINT32)API_VmmIoRemap2(0, 2 * 1024 * 1024);
+		break;
+	default:
+		break;
+	}
+	register_nor_cmd();
+	
 	INT fd;
 	fd = open(NOR_FLASH_SECTOR_INFO_FILE_PATH, O_RDWR);
 	if(fd < 0){
 		fd = open(NOR_FLASH_SECTOR_INFO_FILE_PATH, O_CREAT | O_RDWR,
 				  S_IXUSR | S_IRUSR | S_IWUSR);
 		if(fd < 0){
-			pretty_print("[nor init statue]:", "#FAIL - can't get vital infos#", DONT_CENTRAL);
+			pretty_print("[nor init statue]:", "fail can't get vital infos", DONT_CENTRAL);
 			return;
 		}
 	}
-	pretty_print("[nor init statue]:", "#OK#", DONT_CENTRAL);
+	pretty_print("[nor init statue]:", "OK", DONT_CENTRAL);
+	
 }
 
 /*********************************************************************************************************
@@ -57,41 +93,7 @@ VOID scan_nor(){
 		pretty_print("[nor scanning statue]", "fail call `nor_init()` first", DONT_CENTRAL);
 		goto scan_fail;
 	}
-	INT device_id, manufacturer_id;
-	INT nor_flash_size = 0;
-	INT nor_eraseable_nregions;
-	PCHAR cfi_magic = (PCHAR)lib_malloc(4);
-	pretty_print("[nor scanning statue]", "scanning start", DONT_CENTRAL);
-	
-	nor_command_unlock(NOR_FLASH_BASE);										/* 解锁擦写、读ID命令 */
-	write_word_to_mem(NOR_FLASH_BASE, 0x555, 0x90);
-	manufacturer_id = read_word_from_mem(NOR_FLASH_BASE, 0x00);
-	device_id = read_word_from_mem(NOR_FLASH_BASE, 0x01);
-	nor_reset(NOR_FLASH_BASE);
-	
-	write_word_to_mem(NOR_FLASH_BASE, 0x55, 0x98);							/* 进入CFI模式 */
-	nor_flash_size = 1 << (read_word_from_mem(NOR_FLASH_BASE, 0x27));		/* 查询norflash大小 */
-	*cfi_magic = read_word_from_mem(NOR_FLASH_BASE, 0x10);					/* 查找 Q.R.Y */
-	*(cfi_magic + 1) = read_word_from_mem(NOR_FLASH_BASE, 0x11);
-	*(cfi_magic + 2) = read_word_from_mem(NOR_FLASH_BASE, 0x12);
-	*(cfi_magic + 3) = '\0';
-	nor_eraseable_nregions = read_word_from_mem(NOR_FLASH_BASE, 0x2C);	    /* 查询区域数 */
-	nor_reset(NOR_FLASH_BASE);
-	
-	if(manufacturer_id != NOR_FLASH_MANUID || device_id != NOR_FLASH_DEVID
-	|| nor_flash_size != NOR_FLASH_SZ 
-	|| nor_eraseable_nregions != NOR_FALSH_NREGION
-	|| lib_strcmp(cfi_magic, CFI_FLAG) != 0){
-		// printf("manufacturer_id: 0x%x 0x%x \n", manufacturer_id, NOR_FLASH_MANUID);
-		// printf("device_id: 0x%x 0x%x \n", device_id, NOR_FLASH_DEVID);
-		// printf("nor_flash_size: %d %d \n", nor_flash_size, NOR_FLASH_SZ);
-		// printf("nor_eraseable_nregions: %d %d \n", nor_eraseable_nregions, NOR_FALSH_NREGION);
-		// printf("cfi_magic: %s %s \n", cfi_magic, CFI_FLAG);
-		pretty_print("[nor scanning statue]", "#FAIL - Lost Device Info#", DONT_CENTRAL);
-		goto scan_fail;
-	}
-	else
-	{
+	if(IS_FAKE_MODE()){
 		show_divider(LW_NULL);
 		CHAR temp[TEMP_BUF_SZ];
 
@@ -99,28 +101,88 @@ VOID scan_nor(){
 
 		pretty_print("| [Driver By]", "PYQ |", DONT_CENTRAL);
 		pretty_print("| [Date]", "2021-03-15 |", DONT_CENTRAL);
-		pretty_print("| [License]", "... |", DONT_CENTRAL);
+		pretty_print("| [License]", "FAKE |", DONT_CENTRAL);
+		pretty_print("| [Manufacturer]", "0x2302 |", DONT_CENTRAL);
+		pretty_print("| [Device Ident]", "0xC |", DONT_CENTRAL);
 
-		sprintf(temp, "0x%x |", manufacturer_id);
-		pretty_print("| [Manufacturer]", temp, DONT_CENTRAL);
-		lib_memset(temp, 0, TEMP_BUF_SZ);
-
-		sprintf(temp, "0x%x |", device_id);
-		pretty_print("| [Device Ident]", temp, DONT_CENTRAL);
-		lib_memset(temp, 0, TEMP_BUF_SZ);
-
-		sprintf(temp, "%dMB |", nor_flash_size / (1024 * 1024));
+		sprintf(temp, "%dMB |", NOR_FLASH_SZ / (1024 * 1024));
 		pretty_print("| [Nor Flash SZ]", temp, DONT_CENTRAL);
 		lib_memset(temp, 0, TEMP_BUF_SZ);
 
-		sprintf(temp, "#%d |", nor_eraseable_nregions);
+		sprintf(temp, "#%d |", NOR_FLASH_NSECTOR);
 		pretty_print("| [Eraseable Regions]", temp, DONT_CENTRAL);
 		lib_memset(temp, 0, TEMP_BUF_SZ);
 		
 		show_divider(LW_NULL);
 		pretty_print("[scan over]", "", DO_CENTRAL);
 	}
-	return;
+	else
+	{
+		INT device_id, manufacturer_id;
+		INT nor_flash_size = 0;
+		INT nor_eraseable_nregions;
+		PCHAR cfi_magic = (PCHAR)lib_malloc(4);
+		pretty_print("[nor scanning statue]", "scanning start", DONT_CENTRAL);
+		
+		nor_command_unlock(NOR_FLASH_BASE);										/* 解锁擦写、读ID命令 */
+		write_word_to_mem(NOR_FLASH_BASE, 0x555, 0x90);
+		manufacturer_id = read_word_from_mem(NOR_FLASH_BASE, 0x00);
+		device_id = read_word_from_mem(NOR_FLASH_BASE, 0x01);
+		nor_reset(NOR_FLASH_BASE);
+		
+		write_word_to_mem(NOR_FLASH_BASE, 0x55, 0x98);							/* 进入CFI模式 */
+		nor_flash_size = 1 << (read_word_from_mem(NOR_FLASH_BASE, 0x27));		/* 查询norflash大小 */
+		*cfi_magic = read_word_from_mem(NOR_FLASH_BASE, 0x10);					/* 查找 Q.R.Y */
+		*(cfi_magic + 1) = read_word_from_mem(NOR_FLASH_BASE, 0x11);
+		*(cfi_magic + 2) = read_word_from_mem(NOR_FLASH_BASE, 0x12);
+		*(cfi_magic + 3) = '\0';
+		nor_eraseable_nregions = read_word_from_mem(NOR_FLASH_BASE, 0x2C);	    /* 查询区域数 */
+		nor_reset(NOR_FLASH_BASE);
+		
+		if(manufacturer_id != NOR_FLASH_MANUID || device_id != NOR_FLASH_DEVID
+		|| nor_flash_size != NOR_FLASH_SZ 
+		|| nor_eraseable_nregions != NOR_FALSH_NREGION
+		|| lib_strcmp(cfi_magic, CFI_FLAG) != 0){
+			// printf("manufacturer_id: 0x%x 0x%x \n", manufacturer_id, NOR_FLASH_MANUID);
+			// printf("device_id: 0x%x 0x%x \n", device_id, NOR_FLASH_DEVID);
+			// printf("nor_flash_size: %d %d \n", nor_flash_size, NOR_FLASH_SZ);
+			// printf("nor_eraseable_nregions: %d %d \n", nor_eraseable_nregions, NOR_FALSH_NREGION);
+			// printf("cfi_magic: %s %s \n", cfi_magic, CFI_FLAG);
+			pretty_print("[nor scanning statue]", "#FAIL - Lost Device Info#", DONT_CENTRAL);
+			goto scan_fail;
+		}
+		else
+		{
+			show_divider(LW_NULL);
+			CHAR temp[TEMP_BUF_SZ];
+
+			lib_memset(temp, 0, TEMP_BUF_SZ);
+
+			pretty_print("| [Driver By]", "PYQ |", DONT_CENTRAL);
+			pretty_print("| [Date]", "2021-03-15 |", DONT_CENTRAL);
+			pretty_print("| [License]", "... |", DONT_CENTRAL);
+
+			sprintf(temp, "0x%x |", manufacturer_id);
+			pretty_print("| [Manufacturer]", temp, DONT_CENTRAL);
+			lib_memset(temp, 0, TEMP_BUF_SZ);
+
+			sprintf(temp, "0x%x |", device_id);
+			pretty_print("| [Device Ident]", temp, DONT_CENTRAL);
+			lib_memset(temp, 0, TEMP_BUF_SZ);
+
+			sprintf(temp, "%dMB |", nor_flash_size / (1024 * 1024));
+			pretty_print("| [Nor Flash SZ]", temp, DONT_CENTRAL);
+			lib_memset(temp, 0, TEMP_BUF_SZ);
+
+			sprintf(temp, "#%d |", nor_eraseable_nregions);
+			pretty_print("| [Eraseable Regions]", temp, DONT_CENTRAL);
+			lib_memset(temp, 0, TEMP_BUF_SZ);
+			
+			show_divider(LW_NULL);
+			pretty_print("[scan over]", "", DO_CENTRAL);
+		}
+		return;	
+	}
 
 scan_fail:
 	pretty_print("[nor scanning statue]", "scan fail", DONT_CENTRAL);
@@ -164,6 +226,7 @@ UINT8 erase_nor(UINT offset, ENUM_ERASE_OPTIONS ops)
 		pretty_print("[nor erase statue]", temp, DONT_CENTRAL);
 		lib_memset(temp, 0, TEMP_BUF_SZ);
 	}
+
 	pretty_print("[nor erase statue]", "nor erase start", DONT_CENTRAL);
 	switch (ops)
 	{
@@ -184,11 +247,7 @@ UINT8 erase_nor(UINT offset, ENUM_ERASE_OPTIONS ops)
 		pretty_print("[nor erase statue]", temp, DONT_CENTRAL);
 		lib_memset(temp, 0, TEMP_BUF_SZ);
 
-		nor_command_unlock(NOR_FLASH_BASE);
-		write_word_to_mem(NOR_FLASH_BASE,0x555, 0x80);	 
-		nor_command_unlock(NOR_FLASH_BASE);
-		write_word_to_mem(NOR_FLASH_BASE,offset >> 1, 0x30);	 	           /* 发出扇区地址 */ 
-		wait_ready(NOR_FLASH_BASE, offset);									   /* 等待擦除完成 */
+		nor_erase_sector(NOR_FLASH_BASE, offset);						/* 擦除该sector */
 
 		sprintf(temp, "sector %d erased", sector_no);
 		pretty_print("[nor erase statue]", temp, DONT_CENTRAL);
@@ -235,7 +294,7 @@ UINT8 write_nor(UINT offset, PCHAR content, UINT size_bytes, ENUM_WRITE_OPTIONS 
 		return -1;
 	}
 	UINT8 	start_sector_no = GET_SECTOR_NO(offset);
-	UINT8 	end_sector_no = GET_SECTOR_NO(offset + size_bytes);
+	UINT8 	end_sector_no = GET_SECTOR_NO(offset + size_bytes - 1);
 	UINT8 	sector_no;
 	UINT 	size_bytes_have_written = 0;
 	for (sector_no = start_sector_no; sector_no <= end_sector_no; sector_no++)			    /* 按照每个sector来写 */
@@ -330,55 +389,124 @@ UINT8 write_nor(UINT offset, PCHAR content, UINT size_bytes, ENUM_WRITE_OPTIONS 
 
 #ifdef NOR_TEST
 BOOL test_nor(){
-	UINT sector_no = GET_SECTOR_NO(NOR_FLASH_START_OFFSET);
-	pretty_print("#[nor test1]", "basic erase test", DONT_CENTRAL);
-	erase_nor(NOR_FLASH_START_OFFSET, ERASE_SECTOR);
-	if(IS_SECTOR_DIRTY(NOR_FLASH_BASE, sector_no)){
-		pretty_print("#[nor test1]", "fail erase", DONT_CENTRAL);
-		return FALSE;
+	if(IS_FAKE_MODE()){
+		BOOL is_success = TRUE;
+		show_divider(LW_NULL);
+
+		pretty_print("| [test case 1 (write 1st sector)]:", "|", DONT_CENTRAL);
+		write_nor(NOR_FLASH_START_OFFSET, "hello power nor, and you know deadpool loves his star!", 55, WRITE_OVERWRITE);
+
+		pretty_print("| [test case 2 (read 1st setcor)]:", "|", DONT_CENTRAL);
+		PCHAR content = lib_malloc(56); 
+		read_nor(NOR_FLASH_START_OFFSET, content, 55);
+		*(content + 55) = '\0';
+		if(lib_strcmp(content, "hello power nor, and you know deadpool loves his star!") != 0){
+			pretty_print("[test case 2 failed]", "some byte not match", DONT_CENTRAL);
+			printf("origin is: hello power nor, and you know deadpool loves his star! \n");
+			printf("yours: %s \n", content);
+			is_success = FALSE;
+		}
+
+		pretty_print("| [test case 3 (pressure write)]:", "|", DONT_CENTRAL);
+		INT sector_no, write_cnt;
+		INT start_sector_no = GET_SECTOR_NO(NOR_FLASH_START_OFFSET);
+		UINT offset = NOR_FLASH_START_OFFSET;
+		for (sector_no = start_sector_no; sector_no < NOR_FLASH_NSECTOR; sector_no++)	/* 写n个sector */
+		{
+			UINT sector_size = GET_SECTOR_SIZE(sector_no);
+			PCHAR content_zero = (PCHAR)lib_malloc(sector_size);
+			lib_memset(content_zero, 0, sector_size);
+			for (write_cnt = 1; write_cnt <= NOR_FLASH_MAX_ERASE_CNT; write_cnt++)                       		/* 每个setcor写MAX_CNT */
+			{
+				write_nor(offset, content_zero, sector_size, WRITE_OVERWRITE);
+			}
+			offset += GET_SECTOR_SIZE(sector_no);
+			lib_free(content_zero);
+			//sleep(1);
+		}
+		nor_summary();
+
+		pretty_print("| [test case 4 (check bad)]:", "|", DONT_CENTRAL);
+		BOOL has_bad = FALSE;
+		offset = 0;
+		for (sector_no = start_sector_no; sector_no < NOR_FLASH_NSECTOR; sector_no++)                                 /* 写n个sector */
+		{
+			UINT sector_size = GET_SECTOR_SIZE(sector_no);
+			
+			PCHAR content = (PCHAR)lib_malloc(sector_size); 
+			read_nor(offset, content, sector_size);
+
+			PCHAR content_zero = (PCHAR)lib_malloc(sector_size);
+			lib_memset(content_zero, 0, sector_size);
+
+			if(lib_memcmp(content_zero, content, sector_size) != 0){
+				has_bad = TRUE;
+				break;
+			}
+			printf("-> sectcor #%d checked\n", sector_no);
+			offset += GET_SECTOR_SIZE(sector_no);
+		}
+		if(!has_bad){
+			pretty_print("| [test case 5 failed]", "no differece (bad) |", DONT_CENTRAL);
+			pretty_print("| sector origin is: 00000...", "|", DONT_CENTRAL);
+			pretty_print("| yours: 00000...", "|", DONT_CENTRAL);
+			is_success = FALSE;
+		}
+		show_divider(LW_NULL);
+		return is_success;
 	}
+	else{
+		UINT sector_no = GET_SECTOR_NO(NOR_FLASH_START_OFFSET);
+		pretty_print("#[nor test1]", "basic erase test", DONT_CENTRAL);
+		erase_nor(NOR_FLASH_START_OFFSET, ERASE_SECTOR);
+		if(IS_SECTOR_DIRTY(NOR_FLASH_BASE, sector_no)){
+			pretty_print("#[nor test1]", "fail erase", DONT_CENTRAL);
+			return FALSE;
+		}
 
-	pretty_print("#[nor test2]", "basic write&read test - OVERWRITE", DONT_CENTRAL);
-	write_nor(NOR_FLASH_START_OFFSET, "hello", 5, WRITE_OVERWRITE);
-	PCHAR content = (PCHAR)lib_malloc(6);
-	read_nor(NOR_FLASH_START_OFFSET, content, 5);
-	*(content + 5) = '\0';
-	if(lib_strcmp(content, "hello") != 0){
-		pretty_print("#[nor test2]", "fail write or read", DONT_CENTRAL);
-		return FALSE;
+		pretty_print("#[nor test2]", "basic write&read test - OVERWRITE", DONT_CENTRAL);
+		write_nor(NOR_FLASH_START_OFFSET, "hello", 5, WRITE_OVERWRITE);
+		PCHAR content = (PCHAR)lib_malloc(6);
+		read_nor(NOR_FLASH_START_OFFSET, content, 5);
+		*(content + 5) = '\0';
+		if(lib_strcmp(content, "hello") != 0){
+			pretty_print("#[nor test2]", "fail write or read", DONT_CENTRAL);
+			return FALSE;
+		}
+		lib_free(content);
+
+		pretty_print("#[nor test3]", "basic write&read test - KEEP", DONT_CENTRAL);
+		write_nor(NOR_FLASH_START_OFFSET + 1, "hello", 5, WRITE_KEEP);
+		content = (PCHAR)lib_malloc(7);
+		read_nor(NOR_FLASH_START_OFFSET, content, 6);
+		*(content + 6) = '\0';
+		if(lib_strcmp(content, "hhello") != 0){
+			pretty_print("#[nor test3]", "fail write or read", DONT_CENTRAL);
+			return FALSE;
+		}
+		lib_free(content);
+
+		pretty_print("#[nor test4]", "write without erase test", DONT_CENTRAL);
+		erase_nor(NOR_FLASH_START_OFFSET, ERASE_SECTOR);
+		write_nor(NOR_FLASH_START_OFFSET, ">", 1, WRITE_OVERWRITE);
+		write_nor(NOR_FLASH_START_OFFSET, "4", 1, WRITE_OVERWRITE);
+
+		pretty_print("#[nor test5]", "write big content", DONT_CENTRAL);
+		UINT size_bytes = GET_SECTOR_SIZE(sector_no) + GET_SECTOR_SIZE(sector_no + 1);
+		PCHAR buffer = (PCHAR)lib_malloc(size_bytes);
+		lib_memset(buffer, 0, size_bytes);
+		write_nor(NOR_FLASH_START_OFFSET, buffer, size_bytes, WRITE_OVERWRITE); 
+
+		content = (PCHAR)lib_malloc(size_bytes);
+		read_nor(NOR_FLASH_START_OFFSET, content, size_bytes);
+
+		if(lib_memcmp(content, buffer, size_bytes) != 0){
+			pretty_print("#[nor test5]", "fail write big size 128KB", DONT_CENTRAL);
+			return FALSE;
+		}
+		lib_free(content);
+		lib_free(buffer);
 	}
-	lib_free(content);
-
-	pretty_print("#[nor test3]", "basic write&read test - KEEP", DONT_CENTRAL);
-	write_nor(NOR_FLASH_START_OFFSET + 1, "hello", 5, WRITE_KEEP);
-	content = (PCHAR)lib_malloc(7);
-	read_nor(NOR_FLASH_START_OFFSET, content, 6);
-	*(content + 6) = '\0';
-	if(lib_strcmp(content, "hhello") != 0){
-		pretty_print("#[nor test3]", "fail write or read", DONT_CENTRAL);
-		return FALSE;
-	}
-	lib_free(content);
-
-	pretty_print("#[nor test4]", "write without erase test", DONT_CENTRAL);
-	erase_nor(NOR_FLASH_START_OFFSET, ERASE_SECTOR);
-	write_nor(NOR_FLASH_START_OFFSET, ">", 1, WRITE_OVERWRITE);
-	write_nor(NOR_FLASH_START_OFFSET, "4", 1, WRITE_OVERWRITE);
-
-	pretty_print("#[nor test5]", "write big content", DONT_CENTRAL);
-	UINT size_bytes = GET_SECTOR_SIZE(sector_no) + GET_SECTOR_SIZE(sector_no + 1);
-	PCHAR buffer = (PCHAR)lib_malloc(size_bytes);
-	lib_memset(buffer, 0, size_bytes);
-	write_nor(NOR_FLASH_START_OFFSET, buffer, size_bytes, WRITE_OVERWRITE); 
-
-	content = (PCHAR)lib_malloc(size_bytes);
-	read_nor(NOR_FLASH_START_OFFSET, content, size_bytes);
-	if(lib_memcmp(content, buffer, size_bytes) == 0){
-		pretty_print("#[nor test5]", "fail write big size 128KB", DONT_CENTRAL);
-		return FALSE;
-	}
-	lib_free(content);
-	lib_free(buffer);
 
 	return TRUE;
 }

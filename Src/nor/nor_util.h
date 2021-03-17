@@ -97,6 +97,7 @@ VOID     wait_ready(UINT32 base, UINT32 addr);
 VOID     nor_command_unlock(UINT32 base);
 VOID     nor_reset(UINT32 base);
 VOID     nor_write_buffer(UINT32 base, UINT offset, PCHAR content, UINT size_bytes);
+VOID     nor_erase_sector(UINT32 base, UINT offset);
 UINT8    nor_erase_range(UINT8 low_sector_no, UINT8 high_sector_no, UINT8 (*erase_nor)(UINT, ENUM_ERASE_OPTIONS));
 UINT8    nor_erase_region(INT8 region_no, UINT8 (*erase_nor)(UINT, ENUM_ERASE_OPTIONS));
 BOOL     nor_check_offset_range(UINT32 base, UINT32 offset, UINT size_bytes);
@@ -111,4 +112,8 @@ VOID     pretty_print(PCHAR header, PCHAR content, BOOL centralized);
 
 VOID     show_divider(PCHAR header);
 
+/*********************************************************************************************************
+   ¹¤¾ßº¯Êý
+*********************************************************************************************************/
+INT case_ignore_strcmp(PCHAR str1, PCHAR str2);
 #endif /* SYLIXOS_DRIVER_MTD_NOR_NOR_UTIL_H_ */

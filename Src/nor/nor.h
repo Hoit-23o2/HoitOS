@@ -21,10 +21,6 @@
 #ifndef SYLIXOS_DRIVER_MTD_NOR_NOR_H_
 #define SYLIXOS_DRIVER_MTD_NOR_NOR_H_
 
-
-
-
-
 #include "Am29LV160DB.h"
 #include "nor_util.h"
 
@@ -34,12 +30,25 @@
   这里要为其计算，因为SylixOS只能写入虚拟地址，需要用API_VmmIoRemap2将其映射到某个地方
 *********************************************************************************************************/
 UINT32 NOR_FLASH_BASE;
+/*********************************************************************************************************
+  NorFlash启动模式
+*********************************************************************************************************/
+typedef enum nor_init_flag
+{
+    INIT_FAKE_NOR,
+    INIT_TRUE_NOR
+} ENUM_NOR_INIT_FLAG;
 
+ENUM_NOR_INIT_FLAG _G_nor_flash_init_flag;
+
+#define FAKE_MODE()             _G_nor_flash_init_flag = INIT_FAKE_NOR
+#define TRUE_MODE()             _G_nor_flash_init_flag = INIT_TRUE_NOR
+#define IS_FAKE_MODE()          _G_nor_flash_init_flag == INIT_FAKE_NOR
 /*********************************************************************************************************
   Mini2440 NorFLash操作 
 *********************************************************************************************************/
+VOID             nor_init(ENUM_NOR_INIT_FLAG nor_init_flag);
 VOID             scan_nor();
-VOID             nor_init();
 UINT8            erase_nor(UINT offset, ENUM_ERASE_OPTIONS ops);
 UINT8            write_nor(UINT offset, PCHAR content, UINT size_bytes, ENUM_WRITE_OPTIONS ops);
 UINT8            read_nor(UINT offset, CHAR* content, UINT size_bytes);

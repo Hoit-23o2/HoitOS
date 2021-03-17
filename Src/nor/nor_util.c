@@ -18,7 +18,9 @@
 **
 ** 描        述: NorFlash裸板驱动工具库
 *********************************************************************************************************/
+#include "nor.h"
 #include "nor_util.h"
+#include "fake_nor.h"
 
 /*********************************************************************************************************
 ** 函数名称: write_word_to_mem
@@ -74,22 +76,28 @@ UINT8 read_byte_from_mem(UINT32 base, UINT32 offset){
 *********************************************************************************************************/
 VOID wait_ready(UINT32 base, UINT32 offset)
 {
-	UINT32 val;
-	UINT32 pre;
+	if(IS_FAKE_MODE()){
+		return;
+	}
+	else{
+		UINT32 val;
+		UINT32 pre;
 
-	pre = read_word_from_mem(base, offset >> 1);
-	val = read_word_from_mem(base, offset >> 1);
-	while ((val & (1 << 6)) != (pre & (1 << 6)))			/* 比较 Q6 位 */
-	{
+		pre = read_word_from_mem(base, offset >> 1);
+		val = read_word_from_mem(base, offset >> 1);
+		while ((val & (1 << 6)) != (pre & (1 << 6)))			/* 比较 Q6 位 */
+		{
 #ifdef NOR_DEBUG
 		// printf("pre: %d, val: %d\n", (val & (1 << 6)), (pre & (1 << 6)));
 		// printf("pre: %d, val: %d\n", val, pre);
 		// printf("pre: %u, val: %u\n", val, pre);
 		// printf("pre: %x, val: %x\n", val, pre);
 #endif  // NOR_DEBUG
-		pre = val;
-		val = read_word_from_mem(base, offset >> 1);		
+			pre = val;
+			val = read_word_from_mem(base, offset >> 1);		
+		}
 	}
+	
 }
 
 /*********************************************************************************************************
@@ -101,8 +109,13 @@ VOID wait_ready(UINT32 base, UINT32 offset)
 ** 调用模块: 
 *********************************************************************************************************/
 VOID nor_command_unlock(UINT32 base){
-	write_word_to_mem(base, 0x555, 0xAA); 			/* 解锁 */
-	write_word_to_mem(base, 0x2AA, 0x55); 
+	if(IS_FAKE_MODE()){
+		return;
+	}
+	else{
+		write_word_to_mem(base, 0x555, 0xAA); 			/* 解锁 */
+		write_word_to_mem(base, 0x2AA, 0x55); 
+	}
 }
 /*********************************************************************************************************
 ** 函数名称: nor_reset
@@ -113,7 +126,19 @@ VOID nor_command_unlock(UINT32 base){
 ** 调用模块: 
 *********************************************************************************************************/
 VOID nor_reset(UINT32 base){
-	write_word_to_mem(base, 0x0, 0xF0); 			
+	if(IS_FAKE_MODE()){
+		lib_memset((PVOID)NOR_FLASH_BASE, (INT)-1, NOR_FLASH_SZ);
+		lib_memset((PVOID)sector_infos, 0, NOR_FLASH_NSECTOR * sizeof(sector_info_t));
+		INT i;
+		for (i = 0; i < NOR_FLASH_NSECTOR; i++)
+		{
+			sector_infos[i].erase_cnt = 0;
+			sector_infos[i].is_bad = FALSE;
+		}
+	}
+	else{
+		write_word_to_mem(base, 0x0, 0xF0);	
+	}
 }
 
 /*********************************************************************************************************
@@ -188,7 +213,7 @@ BOOL nor_check_should_erase(UINT32 base, UINT offset, PCHAR content, UINT size_b
 
 /*********************************************************************************************************
 ** 函数名称: nor_write_buffer
-** 功能描述: 将buffer中的内容写入norflash中
+** 功能描述: 将buffer中的内容写入norflash中，只允许写入不超过从相对sector的offset算起，sector剩余空间的内容，
 ** 输　入  : base         norflash起始地址
 ** 			 offset		  片内偏移
 **			 content      写入的内容
@@ -198,31 +223,84 @@ BOOL nor_check_should_erase(UINT32 base, UINT offset, PCHAR content, UINT size_b
 ** 调用模块: 
 *********************************************************************************************************/
 VOID nor_write_buffer(UINT32 base, UINT offset, PCHAR content, UINT size_bytes){
-	UINT size_words = size_bytes / 2;
-	INT remain_byte = size_bytes - size_words * 2 ;
-	INT i;
-#ifdef NOR_DEBUG
-	printf("size_words: %d, remain_byte: %dB \n", size_words, remain_byte);
-#endif // NOR_DEBUG
-	for (i = 0; i < size_words; i++)
-	{
-		INT index = 2 * i;
-		UINT32 data = content[index] + (content[index + 1] << 8);
-		nor_command_unlock(base);
-		write_word_to_mem(base, 0x555, 0xA0);
-		write_word_to_mem(base, offset >> 1, data);
-		wait_ready(base, offset);	   
-		offset += 2;
+	UINT8 sector_no = GET_SECTOR_NO(offset);
+	UINT32 sector_start_offset = GET_SECTOR_OFFSET(sector_no);
+	UINT sector_remain_size = GET_SECTOR_SIZE(sector_no) - (offset - sector_start_offset); 
+	if(size_bytes > sector_remain_size){
+		pretty_print("[nor write buffer]", "size not permit", DONT_CENTRAL);
+		printf("size_bytes: %d\n", size_bytes);
+		printf("sector_remain_size: %d\n", sector_remain_size);
+		printf("offset: %d\n", offset);
+		return;
 	}
-	if(remain_byte){
-		UINT32 data = content[size_bytes - 1];
-		nor_command_unlock(base);
-		write_word_to_mem(base, 0x555, 0xA0);
-		write_word_to_mem(base, offset >> 1, data);
-		wait_ready(base, offset);	   
+	if(IS_FAKE_MODE()){
+		PCHAR p = content;
+		if(get_sector_is_bad(sector_no)){                                                          /* 随机修改 */
+			printf("[sector #%d is bad, there may be some error(s), remember to check]\n", sector_no);
+			PCHAR pe = p + GET_SECTOR_SIZE(sector_no);
+			for (; p < pe; p++)
+			{
+				INT possibily = rand() % 100 + 1;
+				INT random_change = rand() % 127;                                          			/* 0 ~ 127 ascii */
+				if(possibily >= 50){                                                       			/* 50%的几率写错 */
+					*p += random_change;
+				}
+			} 
+		}
+		lib_memcpy((PVOID)base + offset, content, size_bytes);
+	}
+	else{
+		UINT size_words = size_bytes / 2;
+		INT remain_byte = size_bytes - size_words * 2 ;
+		INT i;
+#ifdef NOR_DEBUG
+		printf("size_words: %d, remain_byte: %dB \n", size_words, remain_byte);
+#endif // NOR_DEBUG
+		for (i = 0; i < size_words; i++)
+		{
+			INT index = 2 * i;
+			UINT32 data = content[index] + (content[index + 1] << 8);
+			nor_command_unlock(base);
+			write_word_to_mem(base, 0x555, 0xA0);
+			write_word_to_mem(base, offset >> 1, data);
+			wait_ready(base, offset);	   
+			offset += 2;
+		}
+		if(remain_byte){
+			UINT32 data = content[size_bytes - 1];
+			nor_command_unlock(base);
+			write_word_to_mem(base, 0x555, 0xA0);
+			write_word_to_mem(base, offset >> 1, data);
+			wait_ready(base, offset);	   
+		}
 	}
 }
 
+/*********************************************************************************************************
+** 函数名称: nor_erase_sector
+** 功能描述: 根据offset擦除一个扇区
+** 输　入  : base		  norflash起始地址
+** 			 offset		  偏移地址		  
+** 输　出  : 0 成功 , -1失败
+** 全局变量: 
+** 调用模块: 
+*********************************************************************************************************/
+VOID nor_erase_sector(UINT32 base, UINT offset){
+	if(IS_FAKE_MODE()){
+		UINT8 sector_no = GET_SECTOR_NO(offset);
+		UINT32 sector_start_offset = GET_SECTOR_OFFSET(sector_no);
+		UINT sector_size = GET_SECTOR_SIZE(sector_no);
+		lib_memset((PVOID)(base + sector_start_offset), (INT)-1, sector_size);
+		sector_infos[sector_no].erase_cnt++;
+	}
+	else{
+		nor_command_unlock(NOR_FLASH_BASE);
+		write_word_to_mem(NOR_FLASH_BASE,0x555, 0x80);	 
+		nor_command_unlock(NOR_FLASH_BASE);
+		write_word_to_mem(NOR_FLASH_BASE,offset >> 1, 0x30);	 	           /* 发出扇区地址 */ 
+		wait_ready(NOR_FLASH_BASE, offset);									   /* 等待擦除完成 */
+	}
+}
 /*********************************************************************************************************
 ** 函数名称: nor_erase_range
 ** 功能描述: 将[low_sector_no, high_sector_no)一并擦除
@@ -360,3 +438,5 @@ VOID show_divider(PCHAR header){
 	}
 	printf("+\n");
 }
+
+
