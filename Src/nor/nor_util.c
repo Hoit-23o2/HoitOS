@@ -227,17 +227,19 @@ VOID nor_write_buffer(UINT32 base, UINT offset, PCHAR content, UINT size_bytes){
 	UINT32 sector_start_offset = GET_SECTOR_OFFSET(sector_no);
 	UINT sector_remain_size = GET_SECTOR_SIZE(sector_no) - (offset - sector_start_offset); 
 	if(size_bytes > sector_remain_size){
-		pretty_print("[nor write buffer]", "size not permit", DONT_CENTRAL);
+		pretty_print("[nor write buffer]", FAIL "size not permit", DONT_CENTRAL);
+#ifdef NOR_DEBUG
 		printf("size_bytes: %d\n", size_bytes);
 		printf("sector_remain_size: %d\n", sector_remain_size);
 		printf("offset: %d\n", offset);
+#endif // NOR_DEBUG
 		return;
 	}
 	if(IS_FAKE_MODE()){
 		PCHAR p = content;
 		if(get_sector_is_bad(sector_no)){                                                          /* Ëæ»úÐÞ¸Ä */
-			printf("[sector #%d is bad, there may be some error(s), remember to check]\n", sector_no);
-			PCHAR pe = p + GET_SECTOR_SIZE(sector_no);
+			printf("| -> [sector #%d is bad, there may be some error(s), remember to check]\n", sector_no);
+			PCHAR pe = p + size_bytes;
 			for (; p < pe; p++)
 			{
 				INT possibily = rand() % 100 + 1;
@@ -247,7 +249,7 @@ VOID nor_write_buffer(UINT32 base, UINT offset, PCHAR content, UINT size_bytes){
 				}
 			} 
 		}
-		lib_memcpy((PVOID)base + offset, content, size_bytes);
+		lib_memcpy((PVOID)(base + offset), content, size_bytes);
 	}
 	else{
 		UINT size_words = size_bytes / 2;
@@ -316,8 +318,10 @@ UINT8 nor_erase_range(UINT8 low_sector_no, UINT8 high_sector_no, UINT8 (*erase_n
 	for (i = low_sector_no; i < high_sector_no; i++)
 	{
 		if(erase_nor(GET_SECTOR_OFFSET(i), ERASE_SECTOR) < 0){
-			/* return -1; */
-			/* Do nothing */
+			CHAR temp[TEMP_BUF_SZ];
+			lib_memset(temp, 0, TEMP_BUF_SZ);
+			sprintf(temp, WARN "try to erase protected sector %d", i);
+			pretty_print("[nor erase range statue]", temp, DONT_CENTRAL);
 		}
 	}
 	return 0;
@@ -356,7 +360,11 @@ UINT8 nor_erase_region(INT8 region_no, UINT8 (*erase_nor)(UINT, ENUM_ERASE_OPTIO
 		break;
 	}
 	if(nor_erase_range(region_base, region_base + count, erase_nor) < 0){
-		return -1;
+		//return -1
+		CHAR temp[TEMP_BUF_SZ];
+		lib_memset(temp, 0, TEMP_BUF_SZ);
+		sprintf(temp, WARN "region %d has protected sectors", region_no);
+		pretty_print("[nor erase region statue]", temp, DONT_CENTRAL);
 	}
 	return 0;
 }
@@ -375,21 +383,22 @@ VOID pretty_print(PCHAR header, PCHAR content, BOOL centralized){
     INT space_i;
     INT width = NMAX_DISPLAY;
 	if(!centralized){
-		printf("%s", header);
-		INT header_len = lib_strlen(header);
-		INT content_len = lib_strlen(content);
+		printf("| %s", header);
+		INT header_len = lib_strlen(header) + 2;
+		INT content_len = lib_strlen(content) + 2;
 		INT space_len = width - header_len - content_len;
 		for (space_i = 0; space_i < space_len; space_i++)
 		{
 			printf(" ");
 		}
-		printf("%s\n", content);
+		printf("%s |\n", content);
 	}
     else
 	{
-		INT header_len = lib_strlen(header);
+		INT header_len = lib_strlen(header) + 4;
 		INT l_minus_len = (width - header_len) / 2;
 		INT r_minus_len = width - header_len - l_minus_len;
+		printf("| ");
 		for (space_i = 1; space_i < l_minus_len; space_i++)
 		{
 			printf(" ");
@@ -399,7 +408,7 @@ VOID pretty_print(PCHAR header, PCHAR content, BOOL centralized){
 		{
 			printf(" ");
 		}
-		printf("\n");
+		printf(" |\n");
 	}
 	
 }

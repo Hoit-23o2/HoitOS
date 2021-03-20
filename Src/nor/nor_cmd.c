@@ -1,22 +1,22 @@
 /*********************************************************************************************************
 **
-**                                    ä¸­å›½è½¯ä»¶å¼€æºç»„ç»‡
+**                                    ÖÐ¹úÈí¼þ¿ªÔ´×éÖ¯
 **
-**                                   åµŒå…¥å¼å®žæ—¶æ“ä½œç³»ç»Ÿ
+**                                   Ç¶ÈëÊ½ÊµÊ±²Ù×÷ÏµÍ³
 **
 **                                       SylixOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
-**--------------æ–‡ä»¶ä¿¡æ¯--------------------------------------------------------------------------------
+**--------------ÎÄ¼þÐÅÏ¢--------------------------------------------------------------------------------
 **
-** æ–‡   ä»¶   å: nor_cmd.c
+** ÎÄ   ¼þ   Ãû: nor_cmd.c
 **
-** åˆ›   å»º   äºº: Pan yanqi (æ½˜å»¶éº’)
+** ´´   ½¨   ÈË: Pan yanqi (ÅËÑÓ÷è)
 **
-** æ–‡ä»¶åˆ›å»ºæ—¥æœŸ: 2021 å¹´ 03 æœˆ 17 æ—¥
+** ÎÄ¼þ´´½¨ÈÕÆÚ: 2021 Äê 03 ÔÂ 17 ÈÕ
 **
-** æ        è¿°: NorFlashé©±åŠ¨ å‘½ä»¤ ä¾¿äºŽè°ƒè¯•BUGï¼Œæ”¯æŒFakeå’ŒTrue
+** Ãè        Êö: NorFlashÇý¶¯ ÃüÁî ±ãÓÚµ÷ÊÔBUG£¬Ö§³ÖFakeºÍTrue
 *********************************************************************************************************/
 #include "nor.h"
 #include "nor_cmd.h"
@@ -30,7 +30,7 @@ INT case_ignore_strcmp(PCHAR str1, PCHAR str2){
     return lib_strcmp(str1, str2);
 }
 /*********************************************************************************************************
-** ä»¥ä¸‹å‡ä¸ºå‘½ä»¤è§£æžéƒ¨åˆ†å‡½æ•°
+** ÒÔÏÂ¾ùÎªÃüÁî½âÎö²¿·Öº¯Êý
 *********************************************************************************************************/
 CMD_TYPE parse_cmd(PCHAR ops) {
     CMD_TYPE type = SUMMARY;
@@ -82,42 +82,55 @@ ENUM_ERASE_OPTIONS parse_erase_options(PCHAR ops){
     }
     return erase_ops;
 }
+
+ENUM_WRITE_OPTIONS parse_write_options(PCHAR ops){
+    ENUM_WRITE_OPTIONS write_ops = WRITE_KEEP;
+    if(case_ignore_strcmp(ops, "o") == 0 || case_ignore_strcmp(ops, "overwrite") == 0)
+    {
+        write_ops = WRITE_OVERWRITE;
+    }
+    else if (case_ignore_strcmp(ops, "k") == 0 || case_ignore_strcmp(ops, "keep") == 0)
+    {
+        write_ops = WRITE_KEEP;
+    }
+    return write_ops;
+}
+
 /*********************************************************************************************************
-** å‡½æ•°åç§°: nor_flash_test_ablility
-** åŠŸèƒ½æè¿°: æµ‹è¯•æ¨¡æ‹Ÿçš„nor_flashåŠŸèƒ½
-** è¾“ã€€å…¥  : NONE
-** è¾“ã€€å‡º  : å¦‚æžœé€šè¿‡æ‰€æœ‰æµ‹è¯•ç‚¹ï¼Œè¿”å›žTRUEï¼Œå¦åˆ™è¿”å›žFALSE
-** å…¨å±€å˜é‡: 
-** è°ƒç”¨æ¨¡å—: 
+** º¯ÊýÃû³Æ: nor_flash_test_ablility
+** ¹¦ÄÜÃèÊö: ²âÊÔÄ£ÄâµÄnor_flash¹¦ÄÜ
+** Êä¡¡Èë  : NONE
+** Êä¡¡³ö  : Èç¹ûÍ¨¹ýËùÓÐ²âÊÔµã£¬·µ»ØTRUE£¬·ñÔò·µ»ØFALSE
+** È«¾Ö±äÁ¿: 
+** µ÷ÓÃÄ£¿é: 
 *********************************************************************************************************/
 BOOL nor_flash_test_ablility(){
     return test_nor();
 }
 /*********************************************************************************************************
-** å‡½æ•°åç§°: nor_flash_cmd_wrppaer
-** åŠŸèƒ½æè¿°: æ³¨å†ŒSylixOS ttinyShellå‘½ä»¤å‡½æ•°
-** è¾“ã€€å…¥  : iArgC         å˜é‡æ•°
-**           ppcArgV       å˜é‡å†…å®¹
-** è¾“ã€€å‡º  : 0
-** å…¨å±€å˜é‡: 
-** è°ƒç”¨æ¨¡å—: 
+** º¯ÊýÃû³Æ: nor_flash_cmd_wrppaer
+** ¹¦ÄÜÃèÊö: ×¢²áSylixOS ttinyShellÃüÁîº¯Êý
+** Êä¡¡Èë  : iArgC         ±äÁ¿Êý
+**           ppcArgV       ±äÁ¿ÄÚÈÝ
+** Êä¡¡³ö  : 0
+** È«¾Ö±äÁ¿: 
+** µ÷ÓÃÄ£¿é: 
 *********************************************************************************************************/
 INT nor_flash_cmd_wrppaer(INT  iArgC, PCHAR  ppcArgV[]){
-    CHAR temp[40] = {'\0'};
-    show_divider(LW_NULL);
-    sprintf(temp, "%s |", GET_PREFIX());                                   
-    pretty_print("| func:", temp, DONT_CENTRAL);
-    lib_memset(temp, 0, 40);
+    CHAR temp[TEMP_BUF_SZ] = {'\0'};
 
-    sprintf(temp, "%s |", GET_ARG(1));                                    /* åªæ˜¾ç¤ºä¸€ä¸ªå‚æ•°ï¼Œé¿å…æº¢å‡º */
-    pretty_print("| args:", temp, DONT_CENTRAL);
+    show_divider(LW_NULL);
+    sprintf(temp, "%s", GET_PREFIX());                                   
+    pretty_print("func:", temp, DONT_CENTRAL);
+    lib_memset(temp, 0, TEMP_BUF_SZ);
+    if(iArgC > 2){
+        sprintf(temp, "%s", GET_ARG(1));                                    /* Ö»ÏÔÊ¾Ò»¸ö²ÎÊý£¬±ÜÃâÒç³ö */
+        pretty_print("args:", temp, DONT_CENTRAL);
+    }
     show_divider(LW_NULL);
 
     if(iArgC == 1){
-        if(IS_FAKE_MODE())
-            nor_summary();
-        else
-            printf("Not Support\n");
+        nor_summary();
     }
     else
     {
@@ -132,7 +145,12 @@ INT nor_flash_cmd_wrppaer(INT  iArgC, PCHAR  ppcArgV[]){
             UINT offset = atoi(GET_ARG(2));
             PCHAR content = GET_ARG(3);
             UINT size = lib_strlen(content);
-            write_nor(offset, content, size, WRITE_KEEP);
+            BOOL toggle_high_level_ops = iArgC >= 5 ? TRUE : FALSE;
+            ENUM_WRITE_OPTIONS write_ops = WRITE_KEEP;
+            if(toggle_high_level_ops){
+                write_ops = parse_write_options(GET_ARG(4));
+            }
+            write_nor(offset, content, size, write_ops);
             break;
         }
         case READ:{
@@ -140,11 +158,10 @@ INT nor_flash_cmd_wrppaer(INT  iArgC, PCHAR  ppcArgV[]){
             UINT size = atoi(GET_ARG(3));
             PCHAR content = (PCHAR)lib_malloc(size);
             read_nor(offset, content, size);
-            printf("[read content belows]: \n");
+            pretty_print("[read content belows]", "", DONT_CENTRAL);
             INT i;
             for (i = 0; i < size; i++)
             {
-                /* code */
                 printf("%c", *(content + i));
             }
             printf("\n");
@@ -163,12 +180,17 @@ INT nor_flash_cmd_wrppaer(INT  iArgC, PCHAR  ppcArgV[]){
         case HELP:{
             show_divider(LW_NULL);
             pretty_print("[summary]", "fls [-s|-S] | fls", DONT_CENTRAL);
-            printf("\n[description]: Check nor flash status, you can use '-s' or '-S' or NULL to trigger summary command. Summary includes some configs, whether sector is bad and earsing count of sectors and so on. \n");
+            printf("\n[description]: Check nor flash status, you can use '-s' or '-S' or NULL to trigger summary command. \ 
+                    \nSummary includes some configs, whether sector is bad and earsing count of sectors and so on. \n");
             
             show_divider(LW_NULL);
 
-            pretty_print("[write]", "fls [-w|-W] offset content", DONT_CENTRAL);
-            printf("\n[description]: Write some content to offset, you can use '-w' or '-W' to trigger write command. Here, offset means bias of [flash base address], so you don't need to manage actual address yourself :)\n");
+            pretty_print("[write]", "", DONT_CENTRAL);
+            pretty_print("  -[normal]:", "fls [-w|-W] offset content", DONT_CENTRAL);
+            pretty_print("  -[option]:","fls [-e|-E] offset -o [k|o]", DONT_CENTRAL);
+            printf("\n[description]: Write some `content` to `offset`, you can use '-w' or '-W' to trigger write command.    \ 
+                    \nHere, offset means bias of [flash base address], so you don't need to manage actual address yourself :)\
+                    \nBy the way, '-o o' means overwrite `content` in flash, while '-o k' means keep `content` in flash\n");
             
             show_divider(LW_NULL);
 
@@ -180,17 +202,28 @@ INT nor_flash_cmd_wrppaer(INT  iArgC, PCHAR  ppcArgV[]){
             pretty_print("  -[normal]:", "fls [-e|-E] offset", DONT_CENTRAL);
             pretty_print("  -[option]:","fls [-e|-E] offset -o [r|s|c]", DONT_CENTRAL);
             pretty_print("", "default:  -o s", DONT_CENTRAL);
-            printf("\n[description]: Erase some content in offset, you can use '-e' or '-E' to trigger erase command. Here, '-o r' means erase one region, [Note that] one region is consist of numbers of sectors, and '-o s' means erase one sector, while '-o c' means erase the whole chip.\n");
+            printf("\n[description]: Erase some content in offset, you can use '-e' or '-E' to trigger erase command.       \
+                    \nHere, '-o r' means erase one region, [Note that] one region is consist of numbers of sectors, and     \
+                    \n'-o s' means erase one sector, while '-o c' means erase the whole chip. However, some erase operation \
+                    \nwill give some warning becase of UBOOT region\n");
+                    
             
             show_divider(LW_NULL);
 
             pretty_print("[test]:", "fls [-t|-T]", DONT_CENTRAL);
-            printf("\n[description]: Do some tests to verify the correction of this fake nor flash. Test includes: \n 1. write small content. \n 2. read the content which step 1 write in by '-o s' and see if they are same. \n 3. read the content which step 1 write in by '-o b' and see if their first character is same. \n 4. pressure write test. \n 5. bad sector test, see if our bad sector simulator works. \nBy the way, you can use '-t' or '-T' to trigger test command. \n");
+            printf("\n[description]: Do some tests to verify the correction of nor flash. Test includes:            \ 
+                    \n 1. write small content.                                                                      \
+                    \n 2. read the content which step 1 write in by '-o s' and see if they are same.                \ 
+                    \n 3. read the content which step 1 write in by '-o b' and see if their first character is same.\
+                    \n 4. pressure write test.(Fake Only)                                                           \
+                    \n 5. bad sector test, see if our bad sector simulator works.(Fake Only)                        \
+                    \nBy the way, you can use '-t' or '-T' to trigger test command. \n");
             
             show_divider(LW_NULL);
             
             pretty_print("[reset]:", "fls -reset", DONT_CENTRAL);
-            printf("\n[description]: Reset the whole nor flash as it looks like a brand new one. \n");
+            printf("\n[description]: Reset the whole nor flash as it looks like a brand new one. (Fake Only) While \
+                    \nThe True Nor Flash is only reset its cmd.\n");
             show_divider(LW_NULL);
             break;
         }
@@ -206,10 +239,7 @@ INT nor_flash_cmd_wrppaer(INT  iArgC, PCHAR  ppcArgV[]){
             break;
         }
         case RESET:{
-            if(IS_FAKE_MODE())
-                nor_reset(NOR_FLASH_BASE);
-            else
-                pretty_print("[nor reset]", "cannot reset in TRUE mode", DONT_CENTRAL);
+            nor_reset(NOR_FLASH_BASE);
             break;
         }
         default:
