@@ -63,7 +63,7 @@ Build BSP Project后，在Debug文件夹下能够找到`.elf`和`.bin`文件。�
 
 ### Nand驱动安装
 
-![image-20210219113157680](G:\MyProject\Project.HoitOS\HoitOS\Records\Docs\images\bsp-nand-init-check.png)
+![image-20210219113157680](images\bsp-nand-init-check.png)
 
 这样不太方便观察，我们绘制一下调用图：
 
