@@ -289,7 +289,7 @@ UINT8 erase_nor(UINT offset, ENUM_ERASE_OPTIONS ops)
 	default:
 		break;
 	}
-	pretty_print("[nor erase statue]", INFO "erase successfully", DO_CENTRAL);
+	pretty_print("[nor erase statue]", INFO "erase successfully", DONT_CENTRAL);
 	return 0;
 }
 
@@ -308,11 +308,11 @@ UINT8 write_nor(UINT offset, PCHAR content, UINT size_bytes, ENUM_WRITE_OPTIONS 
 	printf("offset: %x \n", offset);
 #endif // NOR_DEBUG
 	if(nor_check_offset_range(NOR_FLASH_BASE, offset, size_bytes)){
-		pretty_print("[nor write statue]", FAIL "out of range", DO_CENTRAL);
+		pretty_print("[nor write statue]", FAIL "out of range", DONT_CENTRAL);
 		return -1;
 	}
 	if(!nor_check_modifiable_perm(offset)){
-		pretty_print("[nor write statue]", FAIL "no permission", DO_CENTRAL);
+		pretty_print("[nor write statue]", FAIL "no permission", DONT_CENTRAL);
 		return -1;
 	}
 	UINT8 	start_sector_no = GET_SECTOR_NO(offset);

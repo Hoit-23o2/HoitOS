@@ -145,10 +145,10 @@ INT nor_flash_cmd_wrppaer(INT  iArgC, PCHAR  ppcArgV[]){
             UINT offset = atoi(GET_ARG(2));
             PCHAR content = GET_ARG(3);
             UINT size = lib_strlen(content);
-            BOOL toggle_high_level_ops = iArgC >= 5 ? TRUE : FALSE;
+            BOOL toggle_high_level_ops = iArgC >= 6 ? TRUE : FALSE;
             ENUM_WRITE_OPTIONS write_ops = WRITE_KEEP;
             if(toggle_high_level_ops){
-                write_ops = parse_write_options(GET_ARG(4));
+                write_ops = parse_write_options(GET_ARG(5));
             }
             write_nor(offset, content, size, write_ops);
             break;

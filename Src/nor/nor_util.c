@@ -360,7 +360,8 @@ UINT8 nor_erase_region(INT8 region_no, UINT8 (*erase_nor)(UINT, ENUM_ERASE_OPTIO
 		break;
 	}
 	if(nor_erase_range(region_base, region_base + count, erase_nor) < 0){
-		//return -1
+		// return -1
+		
 		CHAR temp[TEMP_BUF_SZ];
 		lib_memset(temp, 0, TEMP_BUF_SZ);
 		sprintf(temp, WARN "region %d has protected sectors", region_no);

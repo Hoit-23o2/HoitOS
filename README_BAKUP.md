@@ -107,7 +107,7 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 
 ### Week7
 
-> 本周总结：
+> 本周总结：[第六阶段-NorFlash驱动、基于SylixOS的文件系统设计 - 第一部分(2021-03-09)](./Records/Files/PPT/sylixos-driver-fs-stage1.pptx)
 
 [07-SylixOS&Driver&FS-Part1](./Records/Docs/07-SylixOS&Driver&FS-Part1)
 
@@ -116,6 +116,25 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 [07-SylixOS&Driver&FS-Part2](./Records/Docs/07-SylixOS&Driver&FS-Part1)
 
 主要工作是研究透了JFFS2的工作方式，包括文件的系统的挂载、文件的创建、打开、关闭、删除等，还需进一步的总结；
+
+[07-SylixOS&Driver&FS-Part3](./Records/07-SylixOS&Driver&FS-Part3.md)
+
+
+
+### Week8
+> 本周总结：[第七阶段-NorFlash驱动、基于SylixOS的文件系统设计 - 第二部分(2021-03-16)](./Records/Files/PPT/sylixos-driver-fs-stage2.pptx)
+
+[08-SylixOS&Driver&FS-Continue-Part1](./Records/Docs/08-SylixOS&Driver&FS-Continue-Part1.md)
+
+主要工作是能够通过NorFlash启动SylixOS，并编写了NorFlash驱动程序，能够对NorFlash进行读写擦除操作，提供API文档；
+[08-SylixOS&Driver&FS-Continue-Part2](./Records/Docs/08-SylixOS&Driver&FS-Continue-Part2.md)
+
+自行设计了基于JFFS2的文件系统，去掉了一些细节，总结了基本思想，基本可以开工，还需要进行修改，谨记F2FS的内容
+
+- NAT
+- GC
+- Adaptive Logging
+- Multi Log
 
 
 

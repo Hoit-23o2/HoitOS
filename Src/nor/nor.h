@@ -107,7 +107,7 @@ VOID             nor_init(ENUM_NOR_INIT_FLAG nor_init_flag);
 VOID             scan_nor();
 UINT8            erase_nor(UINT offset, ENUM_ERASE_OPTIONS ops);
 UINT8            write_nor(UINT offset, PCHAR content, UINT size_bytes, ENUM_WRITE_OPTIONS ops);
-UINT8            read_nor(UINT offset, CHAR* content, UINT size_bytes);
+UINT8            read_nor(UINT offset, PCHAR content, UINT size_bytes);
 
 #ifdef NOR_TEST
 /*********************************************************************************************************
