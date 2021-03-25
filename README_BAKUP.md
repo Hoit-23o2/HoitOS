@@ -119,7 +119,7 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 
 [07-SylixOS&Driver&FS-Part3](./Records/07-SylixOS&Driver&FS-Part3.md)
 
-
+对RamFS进行了深入了解，基于FAKE NOR完成LFS FS的基本create、mount操作；
 
 ### Week8
 > 本周总结：[第七阶段-NorFlash驱动、基于SylixOS的文件系统设计 - 第二部分(2021-03-16)](./Records/Files/PPT/sylixos-driver-fs-stage2.pptx)
@@ -135,12 +135,18 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 - GC
 - Adaptive Logging
 - Multi Log
+### Week9 - 里程碑
+> 本周总结：[第八阶段-NorFlash驱动、基于SylixOS的文件系统设计 - 第三部分(2021-03-23)](./Records/Files/PPT/sylixos-driver-fs-stage3.pptx)
 
+[09-SylixOS&Driver&FS-Again-Part1](./Records/Docs/09-SylixOS&Driver&FS-Again-Part1.md)
 
+完成最终NorFlash驱动，基于`Am29LV160DB` Nor Flash。集成**Fake Nor Flash**与**True Nor Flash**。本文主要介绍了**实现原理**；
+[09-SylixOS&Driver&FS-Again-Part2](./Records/Docs/09-SylixOS&Driver&FS-Again-Part2.md)
 
+搭建HoitFS基础框架，为HoitFS V0.1打下基础；
+[09-SylixOS&Driver&FS-Again-Part3](./Records/Docs/09-SylixOS&Driver&FS-Again-Part3.md)
 
-
-
+基本完成基于Fake Nor的LFS FS，包括了mount、unmount、ls等，**打通SylixOS**构建文件系统的通路；
 
 ## ConfigurationControlBoard(CCB)
 
@@ -155,6 +161,10 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 7. [2021-03-01](./Records/CCB/2021-03-01.md)
 8. [2021-03-08](./Records/CCB/2021-03-08.md)
 9. [2021-03-15](./Records/CCB/2021-03-15.md)
+
+## Specification
+
+**代码规范**请参考[这里](./SPECIFICATION.md)。
 
 ## Basic Develop Method
 

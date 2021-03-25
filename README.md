@@ -162,9 +162,7 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 8. [2021-03-08](./Records/CCB/2021-03-08.md)
 9. [2021-03-15](./Records/CCB/2021-03-15.md)
 
-## Specification
-
-**代码规范**请参考[这里](./SPECIFICATION.md)。
+10. [2021-03-23](./Records/CCB/2021-03-23.md)
 
 ## Basic Develop Method
 
@@ -195,3 +193,6 @@ git pull origin main
 git push origin main
 ```
 
+## Specification
+
+**代码规范**请参考[这里](./SPECIFICATION.md)。
