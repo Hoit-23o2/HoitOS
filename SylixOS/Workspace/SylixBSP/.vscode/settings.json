@@ -1,0 +1,32 @@
+{
+    "files.associations": {
+        "rootfs.h": "c",
+        "s3c2440a_lcd.h": "c",
+        "k9f1g08.h": "c",
+        "samsungdma.h": "c",
+        "sst39vf1601.h": "c",
+        "fake_nor_cmd.h": "c",
+        "array": "c",
+        "functional": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "fake_nor.h": "c",
+        "algorithm": "c",
+        "nor.h": "c",
+        "am29lv160db.h": "c",
+        "nor_util.h": "c",
+        "stdio.h": "c",
+        "sdinit.h": "c",
+        "samsungi2c.h": "c",
+        "compiler.h": "c",
+        "sylixos.h": "c",
+        "config.h": "c",
+        "s3c2440a_pm.h": "c",
+        "samsungtty.h": "c",
+        "dm9000x.h": "c",
+        "stdlib.h": "c",
+        "sstream": "c",
+        "nor_cmd.h": "c"
+    }
+}
