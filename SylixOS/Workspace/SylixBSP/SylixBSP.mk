@@ -32,7 +32,34 @@ LOCAL_TARGET_NAME := SylixBSP.elf
 #*********************************************************************************************************
 # Source list
 #*********************************************************************************************************
-LOCAL_SRCS := 
+LOCAL_SRCS :=  \
+SylixOS/bsp/startup.S \
+SylixOS/bsp/bspInit.c \
+SylixOS/bsp/bspLib.c \
+SylixOS/bsp/targetInit.c \
+SylixOS/driver/dma/samsungdma.c \
+SylixOS/driver/gpio/s3c2440_gpio.c \
+SylixOS/driver/i2c/samsungi2c.c \
+SylixOS/driver/lcd/s3c2440a_lcd.c \
+SylixOS/driver/mtd/nand/k9f1g08.c \
+SylixOS/driver/mtd/nand/nand.c \
+SylixOS/driver/mtd/nand/s3c24xx_nand.c \
+SylixOS/driver/mtd/nor/fake_nor.c \
+SylixOS/driver/mtd/nor/nor.c \
+SylixOS/driver/mtd/nor/nor_cmd.c \
+SylixOS/driver/mtd/nor/nor_util.c \
+SylixOS/driver/netif/dm9000x.c \
+SylixOS/driver/pm/s3c2440a_pm.c \
+SylixOS/driver/rtc/rtc.c \
+SylixOS/driver/sdi/mciLib.c \
+SylixOS/driver/sdi/s3csdi.c \
+SylixOS/driver/sdi/sdInit.c \
+SylixOS/driver/timer/timer.c \
+SylixOS/driver/touchscr/s3c_onewire.c \
+SylixOS/driver/touchscr/touchscr.c \
+SylixOS/driver/tty/samsungtty.c \
+SylixOS/driver/tty/uart.c \
+SylixOS/user/main.c
 
 #*********************************************************************************************************
 # Header file search path (eg. LOCAL_INC_PATH := -I"Your header files search path")

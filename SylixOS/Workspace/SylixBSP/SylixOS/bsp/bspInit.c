@@ -47,6 +47,7 @@
 #endif                                                                  /*  MICRO2440_PACKET            */
 #include "driver/netif/dm9000x.h"                                       /*  DM9000 网络芯片驱动         */
 #include "driver/sdi/sdInit.h"                                          /*  SD 接口                     */
+#include "driver/mtd/nor/nor.h"                                         /*  nor flash 驱动         */
 /*********************************************************************************************************
   操作系统符号表
 *********************************************************************************************************/
@@ -571,6 +572,10 @@ static PVOID  halBootThread (PVOID  pvBootArg)
 #ifdef __GNUC__
     nand_init();
     mtdDevCreateEx("/n");                                               /*  mount mtddevice             */
+
+    nor_init(INIT_FAKE_NOR);
+    scan_nor();
+    test_nor();
 #else
     nandDevCreateEx("/n");                                              /*  mount nandflash disk(yaffs) */
 #endif
