@@ -44,10 +44,12 @@
 #include "driver/touchscr/touchscr.h"                                   /*  ´¥ÃþÆÁÇý¶¯                  */
 #elif defined(MICRO2440_PACKET)
 #include "driver/touchscr/s3c_onewire.h"                                /*  ´¥ÃþÆÁÇý¶¯                  */
-#endif                                                                  /*  MICRO2440_PACKET            */
+#endif                                                                  /*  MICRO2440_PACKET           */
 #include "driver/netif/dm9000x.h"                                       /*  DM9000 ÍøÂçÐ¾Æ¬Çý¶¯         */
 #include "driver/sdi/sdInit.h"                                          /*  SD ½Ó¿Ú                     */
-#include "driver/mtd/nor/nor.h"                                         /*  nor flash Çý¶¯         */
+#include "driver/mtd/nor/nor.h"                                         /*  nor flash Çý¶¯              */
+
+#include "extfs/hoitFs/hoitFsTreeUtil.h"                                /*  ºìºÚÊ÷²âÊÔ - PYQ              */
 /*********************************************************************************************************
   ²Ù×÷ÏµÍ³·ûºÅ±í
 *********************************************************************************************************/
@@ -576,6 +578,8 @@ static PVOID  halBootThread (PVOID  pvBootArg)
     nor_init(INIT_FAKE_NOR);
     scan_nor();
     test_nor();
+
+    hoitRbTreeTest();
 #else
     nandDevCreateEx("/n");                                              /*  mount nandflash disk(yaffs) */
 #endif
