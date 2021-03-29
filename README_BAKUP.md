@@ -4,7 +4,7 @@
 
 This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](https://vwpp20210125060242436.worktile.com/mission/projects/600e62ffd6e5f843a97f2182)
 
-![worktile](G:/MyProject/Project.HoitOS/HoitOS/images/worktile.png)
+![worktile](./images/worktile.png)
 
 ## Log
 
@@ -127,6 +127,7 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 [08-SylixOS&Driver&FS-Continue-Part1](./Records/Docs/08-SylixOS&Driver&FS-Continue-Part1.md)
 
 主要工作是能够通过NorFlash启动SylixOS，并编写了NorFlash驱动程序，能够对NorFlash进行读写擦除操作，提供API文档；
+
 [08-SylixOS&Driver&FS-Continue-Part2](./Records/Docs/08-SylixOS&Driver&FS-Continue-Part2.md)
 
 自行设计了基于JFFS2的文件系统，去掉了一些细节，总结了基本思想，基本可以开工，还需要进行修改，谨记F2FS的内容
@@ -141,9 +142,11 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 [09-SylixOS&Driver&FS-Again-Part1](./Records/Docs/09-SylixOS&Driver&FS-Again-Part1.md)
 
 完成最终NorFlash驱动，基于`Am29LV160DB` Nor Flash。集成**Fake Nor Flash**与**True Nor Flash**。本文主要介绍了**实现原理**；
+
 [09-SylixOS&Driver&FS-Again-Part2](./Records/Docs/09-SylixOS&Driver&FS-Again-Part2.md)
 
 搭建HoitFS基础框架，为HoitFS V0.1打下基础；
+
 [09-SylixOS&Driver&FS-Again-Part3](./Records/Docs/09-SylixOS&Driver&FS-Again-Part3.md)
 
 基本完成基于Fake Nor的LFS FS，包括了mount、unmount、ls等，**打通SylixOS**构建文件系统的通路；
@@ -162,9 +165,7 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 8. [2021-03-08](./Records/CCB/2021-03-08.md)
 9. [2021-03-15](./Records/CCB/2021-03-15.md)
 
-## Specification
-
-**代码规范**请参考[这里](./SPECIFICATION.md)。
+10. [2021-03-23](./Records/CCB/2021-03-23.md)
 
 ## Basic Develop Method
 
@@ -195,3 +196,6 @@ git pull origin main
 git push origin main
 ```
 
+## Specification
+
+**代码规范**请参考[这里](./SPECIFICATION.md)。
