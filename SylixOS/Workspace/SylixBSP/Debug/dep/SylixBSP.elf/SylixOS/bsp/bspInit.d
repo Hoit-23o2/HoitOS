@@ -302,7 +302,8 @@ Debug/obj/SylixBSP.elf/SylixOS/bsp/bspInit.o: SylixOS/bsp/bspInit.c \
  g:\myproject\project.hoitos\hoitos\sylixos\workspace\sylixos\libsylixos\sylixos\lib\libc\stdarg\lib_stdarg.h \
  g:\myproject\project.hoitos\hoitos\sylixos\workspace\sylixos\libsylixos\sylixos\lib\lib_private.h \
  g:\myproject\project.hoitos\hoitos\sylixos\workspace\sylixos\libsylixos\sylixos\lib\libc\limits\lib_limits.h \
- SylixOS/driver/mtd/nor/nor_util.h SylixOS/bsp/symbol.h \
+ SylixOS/driver/mtd/nor/nor_util.h SylixOS/extfs/hoitFs/hoitFsTreeUtil.h \
+ SylixOS/extfs/hoitFs/hoitType.h SylixOS/bsp/symbol.h \
  G:/MyProject/Project.HoitOS/HoitOS/SylixOS/Workspace/SylixOS/libsylixos/SylixOS/include/symboltools.h \
  SylixOS/bsp/bspMap.h
 
@@ -931,6 +932,10 @@ g:\myproject\project.hoitos\hoitos\sylixos\workspace\sylixos\libsylixos\sylixos\
 g:\myproject\project.hoitos\hoitos\sylixos\workspace\sylixos\libsylixos\sylixos\lib\libc\limits\lib_limits.h:
 
 SylixOS/driver/mtd/nor/nor_util.h:
+
+SylixOS/extfs/hoitFs/hoitFsTreeUtil.h:
+
+SylixOS/extfs/hoitFs/hoitType.h:
 
 SylixOS/bsp/symbol.h:
 

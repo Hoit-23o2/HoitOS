@@ -151,6 +151,8 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 
 基本完成基于Fake Nor的LFS FS，包括了mount、unmount、ls等，**打通SylixOS**构建文件系统的通路；
 
+
+
 ## ConfigurationControlBoard(CCB)
 
 > 这里记录了会议纪要

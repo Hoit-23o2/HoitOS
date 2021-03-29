@@ -3,8 +3,8 @@
         {
             "name": "Win32",
             "includePath": [
-                "G:\\MyProject\\Project.HoitOS\\HoitOS\\SylixOS\\Workspace\\ToyBSP\\SylixOS",
-                "G:\\MyProject\\Project.HoitOS\\HoitOS\\SylixOS\\Workspace\\ToyBSP\\SylixOS\\bsp",
+                "G:\\MyProject\\Project.HoitOS\\HoitOS\\SylixOS\\Workspace\\SylixBSP\\SylixOS",
+                "G:\\MyProject\\Project.HoitOS\\HoitOS\\SylixOS\\Workspace\\SylixBSP\\SylixOS\\bsp",
                 "G:\\MyProject\\Project.HoitOS\\HoitOS\\SylixOS\\SylixOS-IDE\\RealEvo\\compiler\\arm-sylixos-toolchain\\arm-sylixos-eabi\\include",
                 "G:\\MyProject\\Project.HoitOS\\HoitOS\\SylixOS\\SylixOS-IDE\\RealEvo\\compiler\\arm-sylixos-toolchain\\lib\\gcc\\arm-sylixos-eabi\\4.9.3\\include",
                 "G:\\MyProject\\Project.HoitOS\\HoitOS\\SylixOS\\Workspace\\SylixOS\\libcextern\\libcextern\\include",

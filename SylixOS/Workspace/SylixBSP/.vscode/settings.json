@@ -27,6 +27,7 @@
         "dm9000x.h": "c",
         "stdlib.h": "c",
         "sstream": "c",
-        "nor_cmd.h": "c"
+        "nor_cmd.h": "c",
+        "hoitfstreeutil.h": "c"
     }
 }
