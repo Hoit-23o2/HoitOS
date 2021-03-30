@@ -366,3 +366,70 @@ B --> C[C:__ramFsRead]
 C --> D[D:__ram_read]
 ```
 
+## MV重命名或移动文件
+
+```c
+/*********************************************************************************************************
+** 函数名称: __ramFsRename
+** 功能描述: ramFs rename 操作
+** 输　入  : pfdentry         文件控制块
+**           pcNewName        新的名称
+** 输　出  : 驱动相关
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static INT  __ramFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
+{
+    PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PRAM_NODE     pramn   = (PRAM_NODE)pfdnode->FDNODE_pvFile;
+    PRAM_VOLUME   pramfs  = (PRAM_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    PRAM_VOLUME   pramfsNew;
+    CHAR          cNewPath[PATH_MAX + 1];
+    INT           iError;
+    
+    if (pramn == LW_NULL) {                                             /*  检查是否为设备文件          */
+        _ErrorHandle(ERROR_IOS_DRIVER_NOT_SUP);                         /*  不支持设备重命名            */
+        return (PX_ERROR);
+    }
+    
+    if (pcNewName == LW_NULL) {
+        _ErrorHandle(EFAULT);                                           /*  Bad address                 */
+        return (PX_ERROR);
+    }
+    
+    if (__STR_IS_ROOT(pcNewName)) {
+        _ErrorHandle(ENOENT);
+        return (PX_ERROR);
+    }
+    
+    if (__RAMFS_FILE_LOCK(pramn) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);
+    }
+    /* 	这一步cNewPath获取的是文件系统下的新目录路径（带文件名）。
+    	同时获取新文件路径（根文件系统下的完整文件路径）所在的文件系统设备卷pramfsNew。由于SylixOS不允		许文件在不同设备之间移动，因此要检查新文件路径对应的设备和原来文件所在的设备是否为同一设备。
+    */
+    if (ioFullFileNameGet(pcNewName, 
+                          (LW_DEV_HDR **)&pramfsNew, 
+                          cNewPath) != ERROR_NONE) {                    /*  获得新目录路径              */
+        __RAMFS_FILE_UNLOCK(pramn);
+        return  (PX_ERROR);
+    }
+    
+    if (pramfsNew != pramfs) {                                          /*  必须为同一设备节点          */
+        __RAMFS_FILE_UNLOCK(pramn);
+        _ErrorHandle(EXDEV);
+        return  (PX_ERROR);
+    }
+    
+    iError = __ram_move(pramn, cNewPath);
+    
+    __RAMFS_FILE_UNLOCK(pramn);
+    
+    return  (iError);
+}
+```
+
+
+
+还有一个问题就是，SylixOS不支持文件和目录同名。

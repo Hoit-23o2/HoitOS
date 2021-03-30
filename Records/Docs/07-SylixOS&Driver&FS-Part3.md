@@ -172,7 +172,13 @@ __ramFsReadDir:
    >
    > umount /mnt/ram
 
-8. 写入
+8. 重命名
+
+   > mv /mnt/lfs/newFile /mnt/lfs/newFileRename
+   >
+   > mv /mnt/ram/newFile /mnt/ram/newFileRename
+
+9. 
 
 ## 进展
 
@@ -204,7 +210,11 @@ __ramFsReadDir:
 
 11. PRAM_NODE里的stVSize到底是什么（应该是虚拟文件大小，会比实际文件大小大），read的时候stDataLeft又是多少。
 
-12. 
+12. ramfs中重命名调用ioFullFileNameGet要干嘛。
+
+    
+
+13. 
 
 
 

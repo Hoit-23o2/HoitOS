@@ -10,7 +10,7 @@
 
 HoitFs将首先以Jffs2为原型进行设计，我们采用**Layer Model**进行建模，保证开发的高效进行，如下：
 
-![image-20210328131456435](G:\MyProject\Project.HoitOS\HoitOS\Records\Docs\images\hoit-fs-layer.png)
+![image-20210328131456435](./images/hoit-fs-layer.png)
 
 
 
