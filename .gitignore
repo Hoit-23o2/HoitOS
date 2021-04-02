@@ -5,3 +5,5 @@
 
 /SylixOS/Workspace/*
 !/SylixOS/Workspace/SylixBSP
+
+/SylixOS/Workspace/SylixBSP/Debug

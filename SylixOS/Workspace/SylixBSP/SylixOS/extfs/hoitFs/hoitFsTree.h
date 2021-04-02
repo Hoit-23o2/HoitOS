@@ -31,8 +31,8 @@ typedef struct hoit_inode_tree_node
 {
     PHOIT_RB_NODE pRbn;
     // struct jffs2_full_dnode *node; 
-	UINT32 uiSize;
-	UINT32 uiOfs; /* The offset to which this fragment belongs */
+	  UINT32 uiSize;
+	  UINT32 uiOfs; /* The offset to which this fragment belongs */
 } HOIT_INODE_TREE_NODE;
 
 typedef HOIT_INODE_TREE_NODE *PHOIT_INODE_TREE_NODE;

@@ -30,7 +30,15 @@
 
 #define RB_IS_LEFT_CHILD(pRbn)       pRbn == RB_LEFT_CHILD(RB_PARENT(pRbn))
 #define RB_IS_RIGHT_CHILD(pRbn)      pRbn == RB_RIGHT_CHILD(RB_PARENT(pRbn))
-
+/*********************************************************************************************************
+** 函数名称: __hoitRbMinimum
+** 功能描述: 寻找某个红黑子树中最小的子节点
+** 输　入  : pRbTree          红黑树
+**           pRbnRoot          红黑子树树根             
+** 输　出  : 返回最小子节点
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
 PHOIT_RB_NODE __hoitRbMinimum(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnRoot){
     PHOIT_RB_NODE pRbnTraverse;
     pRbnTraverse = pRbnRoot;
@@ -40,28 +48,45 @@ PHOIT_RB_NODE __hoitRbMinimum(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnRoot){
     }
     return pRbnTraverse;
 }
-
+/*********************************************************************************************************
+** 函数名称: __hoitRbMaximum
+** 功能描述: 寻找某个红黑子树中最大的子节点
+** 输　入  : pRbTree          红黑树
+**           pRbnRoot          红黑子树树根             
+** 输　出  : 返回最大子节点
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
 PHOIT_RB_NODE __hoitRbMaximum(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnRoot){
     PHOIT_RB_NODE pRbnTraverse;
     pRbnTraverse = pRbnRoot;
     while (pRbnTraverse != pRbTree->pRbnGuard)
     {
-        pRbnTraverse = RB_IS_RIGHT_CHILD(pRbnTraverse);   
+        pRbnTraverse = RB_RIGHT_CHILD(pRbnTraverse);   
     }
     return pRbnTraverse;
 }
-
-VOID __hoitRbTransplant(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnTarget, PHOIT_RB_NODE pRbnConquer){
+/*********************************************************************************************************
+** 函数名称: __hoitRbConquer
+** 功能描述: 用征服者节点及其子树替换目标节点
+** 输　入  : pRbTree          红黑树
+**           pRbnTarget       目标节点      
+**           pRbnConqueror    征服者节点        
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID __hoitRbConquer(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnTarget, PHOIT_RB_NODE pRbnConqueror){
     if(RB_PARENT(pRbnTarget) == pRbTree->pRbnGuard){
-        pRbTree->pRbnRoot = pRbnConquer;
+        pRbTree->pRbnRoot = pRbnConqueror;
     }
     else if (RB_IS_LEFT_CHILD(pRbnTarget))
     {
-        pRbnTarget->pRbnParent->pRbnLeft = pRbnConquer;
+        pRbnTarget->pRbnParent->pRbnLeft = pRbnConqueror;
     }
-    else pRbnTarget->pRbnParent->pRbnRight = pRbnConquer;
+    else pRbnTarget->pRbnParent->pRbnRight = pRbnConqueror;
 
-    pRbnConquer->pRbnParent = pRbnTarget->pRbnParent;
+    pRbnConqueror->pRbnParent = pRbnTarget->pRbnParent;
 }
 /*********************************************************************************************************
 ** 函数名称: __hoitFsLeftRotate
@@ -226,9 +251,76 @@ VOID __hoitRbInsertFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
     pRbTree->pRbnRoot->uiColor = RB_BLACK;
 }
 
+/*********************************************************************************************************
+** 函数名称: __hoitRbDeleteFixUp
+** 功能描述: 重绘节点颜色
+** 输　入  : pRbTree          红黑树
+**           pRbn             待更新的红黑树节点
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
 VOID __hoitRbDeleteFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
+    PHOIT_RB_NODE           pRbnBrother;
 
+    while (pRbn != pRbTree->pRbnRoot && pRbn->uiColor == RB_BLACK)              /* 当待更新节点没有过更新到根节点，且待更新节点为黑色，参考算法导论第三版 P 201 */
+    {
+        if(RB_IS_LEFT_CHILD(pRbn)){                                             /* 考虑待更新节点是左孩子 */
+            pRbnBrother = RB_RIGHT_CHILD(RB_PARENT(pRbn));
+            if(pRbnBrother->uiColor == RB_RED){                                 /* 情况1：待更新节点的兄弟节点为红色，将其转为黑色，变成情况2、3、4 */
+                pRbnBrother->uiColor = RB_BLACK;
+                pRbnBrother->pRbnParent->uiColor = RB_RED;
+                __hoitRbLeftRotate(pRbTree, RB_PARENT(pRbn));
+            }
+            if(RB_LEFT_CHILD(pRbnBrother)->uiColor == RB_BLACK 
+               && RB_RIGHT_CHILD(pRbnBrother)->uiColor == RB_BLACK){            /* 情况2：待更新节点的兄弟节点的儿子节点均为黑色 */
+                pRbnBrother->uiColor = RB_RED;
+                pRbn = RB_PARENT(pRbn);
+            }
+            else if (RB_RIGHT_CHILD(pRbnBrother)->uiColor == RB_BLACK)          /* 情况3：待更新节点的兄弟节点的右孩子是黑色 */
+            {
+                pRbnBrother->pRbnLeft->uiColor = RB_BLACK;
+                pRbnBrother->uiColor = RB_RED;
+                __hoitRbRightRotate(pRbTree, pRbnBrother);
+                pRbnBrother = RB_RIGHT_CHILD(RB_PARENT(pRbn));
 
+                pRbnBrother->uiColor = RB_PARENT(pRbn)->uiColor;                /* 情况4：待更新节点的兄弟节点的右孩子是红色 */
+                pRbn->pRbnParent->uiColor = RB_BLACK;
+                RB_RIGHT_CHILD(pRbnBrother)->uiColor = RB_BLACK;
+                __hoitRbLeftRotate(pRbTree, RB_PARENT(pRbn));
+                pRbn = pRbTree->pRbnRoot;
+            }
+        }
+        else
+        {
+            pRbnBrother = RB_LEFT_CHILD(RB_PARENT(pRbn));
+            if(pRbnBrother->uiColor == RB_RED){
+                pRbnBrother->uiColor = RB_BLACK;
+                pRbnBrother->pRbnParent->uiColor = RB_RED;
+                __hoitRbRightRotate(pRbTree, RB_PARENT(pRbn));
+            }
+            if(RB_LEFT_CHILD(pRbnBrother)->uiColor == RB_BLACK 
+               && RB_RIGHT_CHILD(pRbnBrother)->uiColor == RB_BLACK){
+                pRbnBrother->uiColor = RB_RED;
+                pRbn = RB_PARENT(pRbn);
+            }
+            else if (RB_LEFT_CHILD(pRbnBrother)->uiColor == RB_BLACK)
+            {
+                pRbnBrother->pRbnRight->uiColor = RB_BLACK;
+                pRbnBrother->uiColor = RB_RED;
+                __hoitRbLeftRotate(pRbTree, pRbnBrother);
+                pRbnBrother = RB_LEFT_CHILD(RB_PARENT(pRbn));
+
+                pRbnBrother->uiColor = RB_PARENT(pRbn)->uiColor;
+                pRbn->pRbnParent->uiColor = RB_BLACK;
+                RB_LEFT_CHILD(pRbnBrother)->uiColor = RB_BLACK;
+                __hoitRbRightRotate(pRbTree, RB_PARENT(pRbn));
+                pRbn = pRbTree->pRbnRoot;
+            }
+        }
+        
+    }
+    pRbn->uiColor = RB_BLACK;
 }
 /*********************************************************************************************************
 ** 函数名称: __hoitRbTraverse
@@ -309,68 +401,101 @@ PHOIT_RB_NODE hoitRbInsertNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
 ** 调用模块:
 *********************************************************************************************************/
 PHOIT_RB_NODE hoitRbSearchNode(PHOIT_RB_TREE pRbTree, INT32 iKey){
-    PHOIT_RB_NODE       pRbnTrailing;
     PHOIT_RB_NODE       pRbnTraverse;
 
-    pRbnTrailing = pRbTree->pRbnGuard;
     pRbnTraverse = pRbTree->pRbnRoot;
 
     while (pRbnTraverse != pRbTree->pRbnGuard)
     {
-        pRbnTrailing = pRbnTraverse;
-        if(pRbnTraverse->iKey < iKey){
+        if(pRbnTraverse->iKey == iKey){
+            return pRbnTraverse;
+        }
+        else if(pRbnTraverse->iKey < iKey){
             pRbnTraverse = RB_RIGHT_CHILD(pRbnTraverse);
         }
-        else pRbnTraverse = RB_RIGHT_CHILD(pRbnTraverse);
+        else{
+            pRbnTraverse = RB_LEFT_CHILD(pRbnTraverse);
+        }
     }
-    if(pRbnTraverse == pRbTree->pRbnGuard){
-        return LW_NULL;
-    }
-    return pRbnTraverse;
+    return LW_NULL;
 }
-//TODO: 删除、修改
+
+/*********************************************************************************************************
+** 函数名称: hoitRbDeleteNode
+** 功能描述: 删除一个红黑树节点，注意，会释放该节点的内存，注意保存
+** 输　入  : pRbTree          红黑树
+**           pRbn             待删除节点              
+** 输　出  : 成功返回True，失败返回False
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
 BOOL hoitRbDeleteNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
-    PHOIT_RB_NODE           pRbnTrailing;
-    PHOIT_RB_NODE           pRbnChild;
-    UINT32                  uiTrallingOriginColor;
+    PHOIT_RB_NODE           pRbnTraverse;
+    PHOIT_RB_NODE           pRbnConqueror;
+    UINT32                  uiTraverseOriginColor;
 
-    pRbnTrailing = pRbn;
-    uiTrallingOriginColor = pRbnTrailing->uiColor;
-
+    pRbnTraverse = pRbn;                            /* 记录待删除节点颜色 */
+    uiTraverseOriginColor = pRbnTraverse->uiColor;
+    /* 待删除节点的右孩子为空，则直接移动 (同样适于LC是NIL的情况)
+              |                             |
+            pRbn            =>             LC
+            /  \                          /  \
+           LC   NIL
+    */
     if(RB_RIGHT_CHILD(pRbn) == pRbTree->pRbnGuard){
-        pRbnChild = RB_LEFT_CHILD(pRbn);
-        __hoitRbTransplant(pRbTree, pRbn, pRbnChild);
+        pRbnConqueror = RB_LEFT_CHILD(pRbn);
+        __hoitRbConquer(pRbTree, pRbn, pRbnConqueror);
     }
+    /* 待删除节点的左孩子为空，则直接移动 (同样适于RC是NIL的情况)
+              |                             |
+            pRbn            =>             RC
+            /  \                          /  \
+           NIL RC  
+    */
     else if (RB_LEFT_CHILD(pRbn) == pRbTree->pRbnGuard)
     {
-        pRbnChild = RB_RIGHT_CHILD(pRbn);
-        __hoitRbTransplant(pRbTree, pRbn, pRbnChild);
+        pRbnConqueror = RB_RIGHT_CHILD(pRbn);
+        __hoitRbConquer(pRbTree, pRbn, pRbnConqueror);
     }
     else
     {
-        pRbnTrailing = __hoitRbMinimum(pRbTree, RB_RIGHT_CHILD(pRbn));        /* 寻找后继元素 */
-        uiTrallingOriginColor = pRbnTrailing->uiColor;
-        pRbnChild = RB_RIGHT_CHILD(pRbnTrailing);
+        pRbnTraverse = __hoitRbMinimum(pRbTree, RB_RIGHT_CHILD(pRbn));        /* 寻找后继元素 */
+        uiTraverseOriginColor = pRbnTraverse->uiColor;                        /* 删除pRbn节点，相当于把pRbn的值与后继节点交换，然后删除后继节点，所以这里更换删除节点的颜色*/
+        pRbnConqueror = RB_RIGHT_CHILD(pRbnTraverse);                             
         
-        if(RB_PARENT(pRbnTrailing) == pRbn){
-            pRbnChild->pRbnParent = pRbnTrailing;
+        if(RB_PARENT(pRbnTraverse) == pRbn){                                  /* https://www.zhihu.com/question/38296405 */
+            pRbnConqueror->pRbnParent = pRbnTraverse;                           /* pRbnConqueror可能为pRbTree.Guard */
         }
         else
         {
-            __hoitRbTransplant(pRbTree, pRbnTrailing, pRbnChild);
-            pRbnTrailing->pRbnRight = RB_RIGHT_CHILD(pRbn);
-            pRbnTrailing->pRbnRight->pRbnParent = pRbnTrailing;
+            /* 待删除节点的左孩子为空，则直接移动 (同样适于LC是NIL的情况)
+                      |                             |                               |
+                    pRbn            =>             pRbn  S          =>              S
+                    /  \                          /  \  /                         /  \
+                   LC  RC                        LC  RC                          LC  RC
+                     ... \                         ... \                           ... \
+                     /                             /                                /
+                    S                             SRC                             SRC
+                  /  \                           /  \                            /  \
+                NIL  SRC
+            */
+            __hoitRbConquer(pRbTree, pRbnTraverse, pRbnConqueror);
+            pRbnTraverse->pRbnRight = RB_RIGHT_CHILD(pRbn);
+            pRbnTraverse->pRbnRight->pRbnParent = pRbnTraverse;
         }
         
-        __hoitRbTransplant(pRbTree, pRbn, pRbnTrailing);
-        pRbnTrailing->pRbnLeft = pRbn->pRbnLeft;
-        pRbnTrailing->pRbnLeft->pRbnParent = pRbnTrailing;
-        pRbnTrailing->uiColor = pRbn->uiColor;
+        __hoitRbConquer(pRbTree, pRbn, pRbnTraverse);
+        pRbnTraverse->pRbnLeft = pRbn->pRbnLeft;
+        pRbnTraverse->pRbnLeft->pRbnParent = pRbnTraverse;
+        pRbnTraverse->uiColor = pRbn->uiColor;                              /* 因为交换，所以把S的颜色换一下 */
     }
-
-    if(uiTrallingOriginColor == RB_BLACK){
-        __hoitRbDeleteFixUp(pRbTree, pRbnChild);
+    
+    if(uiTraverseOriginColor == RB_BLACK){          /* 删除红节点不会影响树的平衡，删除黑节点要影响，这里需要调整 */
+        __hoitRbDeleteFixUp(pRbTree, pRbnConqueror);
     }
+    if(pRbn != LW_NULL)
+        lib_free(pRbn);
+    return LW_TRUE;
 }
 
 /*********************************************************************************************************
@@ -410,7 +535,12 @@ VOID hoitRbTreeTest(){
         pRbn = newHoitRbNode(testArray[i]);
         hoitRbInsertNode(pRbTree, pRbn);
     }
-
+    pRbn = hoitRbSearchNode(pRbTree, 7);
+    
+    printf("[test traverse] \n");
+    __hoitRbTraverse(pRbTree, pRbTree->pRbnRoot);
+    printf("[test delete 7] \n");
+    hoitRbDeleteNode(pRbTree, pRbn);
     __hoitRbTraverse(pRbTree, pRbTree->pRbnRoot);
     
 }
