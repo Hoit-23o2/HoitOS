@@ -28,4 +28,5 @@
 		<pathentry excluding="obj|dep" kind="out" path="Debug"/>
 		<pathentry excluding="obj|dep" kind="out" path="Release"/>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 </cproject>
