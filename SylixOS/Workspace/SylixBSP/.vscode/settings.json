@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "*.sql": "sql",
         "rootfs.h": "c",
         "s3c2440a_lcd.h": "c",
         "k9f1g08.h": "c",
@@ -28,6 +29,8 @@
         "stdlib.h": "c",
         "sstream": "c",
         "nor_cmd.h": "c",
-        "hoitfstreeutil.h": "c"
+        "hoitfstreeutil.h": "c",
+        "hoitfstree.h": "c",
+        "hoitfs.h": "c"
     }
 }

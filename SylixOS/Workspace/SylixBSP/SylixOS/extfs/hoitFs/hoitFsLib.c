@@ -30,7 +30,7 @@
 *********************************************************************************************************/
 #if LW_CFG_MAX_VOLUMES > 0
 #include "hoitFsLib.h"
-
+#ifndef HOITFSLIB_DISABLE
 /*********************************************************************************************************
 ** 函数名称: __hoit_just_open
 ** 功能描述: 打开某个已打开的目录文件下面的一个文件
@@ -52,7 +52,7 @@ PHOIT_INODE_INFO  __hoit_just_open(PHOIT_INODE_INFO  pdir,
     PLW_LIST_LINE plineTemp;
     PHOIT_FULL_DIRENT pfile = pdir->HOITN_dents;
     while (pfile != LW_NULL) {
-        if (pfile->HOITFD_nhash == newHash && lib_strcmp(pfile->HOITFD_name, pcName) == 0) {
+        if (pfile->HOITFD_nhash == newHash && lib_strcmp(pfile->HOITFD_file_name, pcName) == 0) {
             return __hoit_get_full_file(pdir->HOITN_volume, pfile->HOITFD_ino);
         }
         else {
@@ -173,7 +173,7 @@ VOID  __hoit_add_dirent(PHOIT_INODE_INFO  pFatherInode,
     pRawInfo->totlen = pRawDirent->totlen;
 
     __hoit_write_flash(pfs, (PVOID)pRawDirent, sizeof(HOIT_RAW_DIRENT), LW_NULL);
-    __hoit_write_flash(pfs, (PVOID)(pSonDirent->HOITFD_file_name), lib_strlen(pSonDirent->HOITFD_file_name, LW_NULL);
+    __hoit_write_flash(pfs, (PVOID)(pSonDirent->HOITFD_file_name), lib_strlen(pSonDirent->HOITFD_file_name), LW_NULL);
 
     PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pFatherInode->HOITN_ino);
     pRawInfo->next_phys = pInodeCache->HOITC_nodes;
@@ -350,7 +350,7 @@ UINT8 __hoit_del_raw_data(PHOIT_RAW_INFO pRawInfo) {
     read_nor(pRawInfo->phys_addr, buf, pRawInfo->totlen);
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)buf;
-    if (pRawHeader->magic_num != HOIT_MAGIC_NUM || pRawDirent->flag & HOIT_FLAG_OBSOLETE == 0) {
+    if (pRawHeader->magic_num != HOIT_MAGIC_NUM || pRawHeader->flag & HOIT_FLAG_OBSOLETE == 0) {
         printk("Error in hoit_del_raw_data\n");
         return HOIT_ERROR;
     }
@@ -613,7 +613,7 @@ PHOIT_INODE_INFO  __hoit_maken(PHOIT_VOLUME  pfs,
     pFullDirent->HOITFD_file_type = mode;
     pFullDirent->HOITFD_ino = pRawInode->ino;
     pFullDirent->HOITFD_nhash = __hoit_name_hash(pcFileName);
-    pFullDirent->HOITFD_pino = pInodeFather->ino;
+    pFullDirent->HOITFD_pino = pInodeFather->HOITN_ino;
 
     __hoit_add_dirent(pInodeFather, pFullDirent);
 
@@ -914,10 +914,10 @@ INT  __hoit_stat(PHOIT_INODE_INFO pInodeInfo, PHOIT_VOLUME  pfs, struct stat* ps
         pstat->st_uid = pInodeInfo->HOITN_uid;
         pstat->st_gid = pInodeInfo->HOITN_gid;
         pstat->st_rdev = 1;
-        pstat->st_size = (off_t)pInodeInfo->HOITN_stSize;
-        pstat->st_atime = pInodeInfo->HOITN_timeAccess;
-        pstat->st_mtime = pInodeInfo->HOITN_timeChange;
-        pstat->st_ctime = pInodeInfo->HOITN_timeCreate;
+        // pstat->st_size = (off_t)pInodeInfo->HOITN_stSize;
+        // pstat->st_atime = pInodeInfo->HOITN_timeAccess;
+        // pstat->st_mtime = pInodeInfo->HOITN_timeChange;
+        // pstat->st_ctime = pInodeInfo->HOITN_timeCreate;
         pstat->st_blksize = 0;
         pstat->st_blocks = 0;
     }
@@ -971,3 +971,4 @@ INT  __hoit_statfs(PHOIT_VOLUME  pfs, struct statfs* pstatfs) {
     pstatfs->f_namelen = PATH_MAX;
 }
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
+#endif //HOITFSLIB_DISABLE

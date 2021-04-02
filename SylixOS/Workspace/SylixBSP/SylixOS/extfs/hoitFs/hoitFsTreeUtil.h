@@ -60,10 +60,10 @@ typedef HOIT_RB_TREE * PHOIT_RB_TREE;
 
 
 
-PHOIT_RB_TREE     hoitRbInitTree(VOID);                             /* 初始化RB树 */
-PHOIT_RB_NODE     hoitRbInsertNode(PHOIT_RB_TREE, PHOIT_RB_NODE);   /* 插入一个节点 */
-PHOIT_RB_NODE     hoitRbSearchNode(PHOIT_RB_TREE, INT32);           /* 查找一个节点 */
-BOOL              hoitRbDeleteNode(PHOIT_RB_TREE, PHOIT_RB_NODE);   /* 删除一个节点 */
+PHOIT_RB_TREE     hoitRbInitTree(VOID);                                          /* 初始化RB树 */
+PHOIT_RB_NODE     hoitRbInsertNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn);   /* 插入一个节点 */
+PHOIT_RB_NODE     hoitRbSearchNode(PHOIT_RB_TREE pRbTree, INT32 iKey);           /* 查找一个节点 */
+BOOL              hoitRbDeleteNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn);   /* 删除一个节点 */
 
 #ifdef RB_TEST
 VOID hoitRbTreeTest();

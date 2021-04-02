@@ -422,7 +422,7 @@ PHOIT_RB_NODE hoitRbSearchNode(PHOIT_RB_TREE pRbTree, INT32 iKey){
 
 /*********************************************************************************************************
 ** 函数名称: hoitRbDeleteNode
-** 功能描述: 删除一个红黑树节点，注意，会释放该节点的内存，注意保存
+** 功能描述: 删除一个红黑树节点，注意，我们并不会释放内存，这是为了后面着想
 ** 输　入  : pRbTree          红黑树
 **           pRbn             待删除节点              
 ** 输　出  : 成功返回True，失败返回False
@@ -493,8 +493,7 @@ BOOL hoitRbDeleteNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
     if(uiTraverseOriginColor == RB_BLACK){          /* 删除红节点不会影响树的平衡，删除黑节点要影响，这里需要调整 */
         __hoitRbDeleteFixUp(pRbTree, pRbnConqueror);
     }
-    if(pRbn != LW_NULL)
-        lib_free(pRbn);
+
     return LW_TRUE;
 }
 
@@ -540,7 +539,10 @@ VOID hoitRbTreeTest(){
     printf("[test traverse] \n");
     __hoitRbTraverse(pRbTree, pRbTree->pRbnRoot);
     printf("[test delete 7] \n");
+    
     hoitRbDeleteNode(pRbTree, pRbn);
+    lib_free(pRbn);
+    
     __hoitRbTraverse(pRbTree, pRbTree->pRbnRoot);
     
 }

@@ -49,7 +49,8 @@
 #include "driver/sdi/sdInit.h"                                          /*  SD ½Ó¿Ú                     */
 #include "driver/mtd/nor/nor.h"                                         /*  nor flash Çý¶¯              */
 
-#include "extfs/hoitFs/hoitFsTreeUtil.h"                                /*  ºìºÚÊ÷²âÊÔ - PYQ              */
+#include "extfs/hoitFs/hoitFsTreeUtil.h"                                /*  ºìºÚÊ÷²âÊÔ - PYQ             */
+#include "extfs/hoitFs/hoitFsTree.h"                                    /*  FragÊ÷²âÊÔ - PYQ             */
 /*********************************************************************************************************
   ²Ù×÷ÏµÍ³·ûºÅ±í
 *********************************************************************************************************/
@@ -579,7 +580,10 @@ static PVOID  halBootThread (PVOID  pvBootArg)
     scan_nor();
     test_nor();
 
+    pretty_print("[Red / Black Tree Test]", "", DO_CENTRAL);
     hoitRbTreeTest();
+    pretty_print("[Frag Tree Test]", "", DO_CENTRAL);
+    hoitFTTreeTest();
 #else
     nandDevCreateEx("/n");                                              /*  mount nandflash disk(yaffs) */
 #endif

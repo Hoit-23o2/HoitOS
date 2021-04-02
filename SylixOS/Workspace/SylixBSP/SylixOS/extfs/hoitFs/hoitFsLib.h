@@ -18,12 +18,14 @@
 **
 ** 描        述: Hoit文件系统内部函数.
 *********************************************************************************************************/
+#define HOITFSLIB_DISABLE
+#ifndef HOITFSLIB_DISABLE
 
 #ifndef __HOITFSLIB_H
 #define __HOITFSLIB_H
 
 #include "SylixOS.h"                                                    /*  操作系统                    */
-
+#include "hoitFsTree.h"                                                 /*  Tree工具                    */
 /*********************************************************************************************************
   裁剪宏
 *********************************************************************************************************/
@@ -145,7 +147,7 @@ typedef struct {
     PHOIT_INODE_CACHE   HOITN_inode_cache;
     PHOIT_FULL_DIRENT   HOITN_dents;
     PHOIT_FULL_DNODE    HOITN_metadata;
-    PHOIT_FULL_DNODE    HOITN_rbtree;
+    PHOIT_FRAG_TREE     HOITN_rbtree;
     PHOIT_VOLUME        HOITN_volume;
     UINT                HOITN_ino;
 
@@ -169,3 +171,4 @@ typedef HOIT_BLOCK* PHOIT_BLOCK;
 
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0       */
 #endif                                                                  /*  __HOITFSLIB_H                */
+#endif // HOITFSLIB_DISABLE

@@ -18,13 +18,19 @@
 **
 ** 描        述: HoitFs
 *********************************************************************************************************/
+
+
+
+
+
 #define  __SYLIXOS_STDIO
 #define  __SYLIXOS_KERNEL
 #include "../SylixOS/kernel/include/k_kernel.h"
 #include "../SylixOS/system/include/s_system.h"
 #include "../SylixOS/fs/fsCommon/fsCommon.h"
 #include "../SylixOS/fs/include/fs_fs.h"
-#include "HoitFs.h"
+#include "hoitFs.h"
+#ifndef HOITFS_DISABLE
 /*********************************************************************************************************
   内部全局变量
 *********************************************************************************************************/
@@ -108,7 +114,7 @@ INT  API_HoitFsDrvInstall(VOID)
 LW_API
 INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 {
-    PHOIT_SB     pfs;
+    PHOIT_VOLUME     pfs;
 
     if (_G_iHoitFsDrvNum <= 0) {
         _DebugHandle(__ERRORMESSAGE_LEVEL, "hoitfs Driver invalidate.\r\n");
@@ -126,17 +132,17 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
         return  (PX_ERROR);
     }
 
-    pfs = (PHOIT_SB)__SHEAP_ALLOC(sizeof(HOIT_SB));
+    pfs = (PHOIT_VOLUME)__SHEAP_ALLOC(sizeof(HOIT_VOLUME));
     if (pfs == LW_NULL) {
         _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
         _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
         return  (PX_ERROR);
     }
-    lib_bzero(pfs, sizeof(HOIT_SB));                              /*  清空卷控制块                */
+    lib_bzero(pfs, sizeof(HOIT_VOLUME));                              /*  清空卷控制块                */
 
     pfs->HOITFS_bValid = LW_TRUE;
 
-    pfs->HOITFS_hVolLock = API_SemaphoreMCreate("hoit_sb_lock", LW_PRIO_DEF_CEILING,
+    pfs->HOITFS_hVolLock = API_SemaphoreMCreate("hoit_volume_lock", LW_PRIO_DEF_CEILING,
         LW_OPTION_WAIT_PRIORITY | LW_OPTION_DELETE_SAFE |
         LW_OPTION_INHERIT_PRIORITY | LW_OPTION_OBJECT_GLOBAL,
         LW_NULL);
@@ -198,7 +204,7 @@ INT  API_HoitFsDevDelete(PCHAR   pcName)
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-static LONG __hoitFsOpen(PHOIT_SB     pfs,
+static LONG __hoitFsOpen(PHOIT_VOLUME     pfs,
     PCHAR           pcName,
     INT             iFlags,
     INT             iMode)
@@ -248,7 +254,7 @@ static LONG __hoitFsOpen(PHOIT_SB     pfs,
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-static INT  __hoitFsRemove(PHOIT_SB   pfs,
+static INT  __hoitFsRemove(PHOIT_VOLUME   pfs,
     PCHAR         pcName)
 {
     if (pcName == LW_NULL) {
@@ -280,7 +286,7 @@ static INT  __hoitFsRemove(PHOIT_SB   pfs,
 static INT  __hoitFsClose(PLW_FD_ENTRY    pfdentry)
 {
     PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PHOIT_SB      pfs     = (PHOIT_SB)pfdnode->FDNODE_pvFsExtern;
+    PHOIT_VOLUME      pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
 
     if (__HOITFS_SB_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);                                            /*  设备出错                    */
@@ -415,7 +421,7 @@ static ssize_t  __hoitFsPWrite(PLW_FD_ENTRY  pfdentry,
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-static INT  __hoitFsLStat(PHOIT_SB  pfs, PCHAR  pcName, struct stat* pstat)
+static INT  __hoitFsLStat(PHOIT_VOLUME  pfs, PCHAR  pcName, struct stat* pstat)
 {
     BOOL          bRoot;
 
@@ -444,7 +450,7 @@ static INT  __hoitFsLStat(PHOIT_SB  pfs, PCHAR  pcName, struct stat* pstat)
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-static INT  __hoitFsSymlink(PHOIT_SB   pfs,
+static INT  __hoitFsSymlink(PHOIT_VOLUME   pfs,
     PCHAR         pcName,
     CPCHAR        pcLinkDst)
 {
@@ -483,7 +489,7 @@ static INT  __hoitFsSymlink(PHOIT_SB   pfs,
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-static ssize_t __hoitFsReadlink(PHOIT_SB   pfs,
+static ssize_t __hoitFsReadlink(PHOIT_VOLUME   pfs,
     PCHAR         pcName,
     PCHAR         pcLinkDst,
     size_t        stMaxSize)
@@ -521,3 +527,4 @@ static INT  __hoitFsIoctl(PLW_FD_ENTRY  pfdentry,
     return  (ERROR_NONE);
 }
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
+#endif // HOITFS_DISABLE

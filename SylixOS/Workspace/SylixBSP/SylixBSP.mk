@@ -63,11 +63,9 @@ SylixOS/extfs/hoitFs/hoitFs.c \
 SylixOS/extfs/hoitFs/hoitFsLib.c \
 SylixOS/extfs/hoitFs/hoitFsMid.c \
 SylixOS/extfs/hoitFs/hoitFsTree.c \
-<<<<<<< HEAD
-=======
 SylixOS/extfs/hoitFs/hoitFsTreeUtil.c \
->>>>>>> 7ccc85a372fbc2ddc737652313e3a8e8d235cb99
 SylixOS/user/main.c
+
 
 #*********************************************************************************************************
 # Header file search path (eg. LOCAL_INC_PATH := -I"Your header files search path")
