@@ -151,14 +151,14 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 
 基本完成基于Fake Nor的LFS FS，包括了mount、unmount、ls等，**打通SylixOS**构建文件系统的通路；
 ### Week10
-> 本周总结：[第n阶段-内容(yyyy-mm-dd)](./Records/Files/PPT/xxxx.pptx)
+> 本周总结：[第九阶段-HoitFS正式开发-阶段一(2021-03-29)](./Records/Files/PPT/hoitfs-dev-stage1.pptx)
 
 [10-HoitFsDev-Part1](./Records/Docs/10-HoitFsDev-Part1.md)
 
-在这里填写相关内容
+设计HoitFS基本层次；制定里程碑计划；根据SylixOS报告与夏老师的建议，主要需要在开发过程中深挖nand与nor flash的区别，从而对症下药，其次，对于掉电安全部分还需要进行相关调研（主要是**写、修改、删除**）部分；
 [10-HoitFsDev-Part3](./Records/Docs/10-HoitFsDev-Part3.md)
 
-在这里填写相关内容
+完成LFS的read、write、seek、rename等基本功能，彻底打通文件系统与`SylixOS`的I/O交互流程；
 
 
 

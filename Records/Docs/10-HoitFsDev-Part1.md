@@ -51,7 +51,3 @@ HoitFs将首先以Jffs2为原型进行设计，我们采用**Layer Model**进行
 
 根据注释，我们不难发现，JFFS2在写入Flash之前，会先为其分配一个full_dnode，然后再写入，之后连接到**inode或fragment链表中**。根据[JFFS2文件写入流程](./07-SylixOS&Driver&FS-Part2.md)介绍的那样，写入后，会调用`jffs2_add_full_dnode_to_inode`函数将写入的数据实体添加至**红黑树**中，于是，接下来的工作便是去查看`jffs2_add_full_dnode_to_inode`函数。
 
-
-
-### jffs2_add_full_dnode_to_inode
-
