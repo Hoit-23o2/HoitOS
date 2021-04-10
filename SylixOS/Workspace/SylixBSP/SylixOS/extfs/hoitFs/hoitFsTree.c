@@ -1,48 +1,179 @@
 /*********************************************************************************************************
 **
-**                                    ä¸­å›½è½¯ä»¶å¼€æºç»„ç»‡
+**                                    ÖĞ¹úÈí¼ş¿ªÔ´×éÖ¯
 **
-**                                   åµŒå…¥å¼å®æ—¶æ“ä½œç³»ç»Ÿ
+**                                   Ç¶ÈëÊ½ÊµÊ±²Ù×÷ÏµÍ³
 **
 **                                       SylixOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
-**--------------æ–‡ä»¶ä¿¡æ¯--------------------------------------------------------------------------------
+**--------------ÎÄ¼şĞÅÏ¢--------------------------------------------------------------------------------
 **
-** æ–‡   ä»¶   å: hoitFsTree.h
+** ÎÄ   ¼ş   Ãû: hoitFsTree.h
 **
-** åˆ›   å»º   äºº: Pan yanqi (æ½˜å»¶éº’)
+** ´´   ½¨   ÈË: Pan yanqi (ÅËÑÓ÷è)
 **
-** æ–‡ä»¶åˆ›å»ºæ—¥æœŸ: 2021 å¹´ 03 æœˆ 28 æ—¥
+** ÎÄ¼ş´´½¨ÈÕÆÚ: 2021 Äê 03 ÔÂ 28 ÈÕ
 **
-** æ        è¿°: JFFS2-Like fragtreeå®ç°
+** Ãè        Êö: JFFS2-Like fragtreeÊµÏÖ
 *********************************************************************************************************/
 
 #include "hoitFsTree.h"
+#include "hoitFsCache.h"
+
+#ifdef FT_TEST
+PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFDnode, UINT uiOffset, UINT uiSize){
+    PHOIT_FULL_DNODE pFDNode = (PHOIT_FULL_DNODE)lib_malloc(sizeof(HOIT_FULL_DNODE));
+    return pFDNode;
+}
+#endif //FT_TEST
+
+#define FT_GET_KEY(pFTn)            pFTn->pRbn.iKey
+#define FT_LEFT_CHILD(pFTn)         (PHOIT_FRAG_TREE_NODE)pFTnRoot->pRbn.pRbnLeft
+#define FT_RIGHT_CHILD(pFTn)        (PHOIT_FRAG_TREE_NODE)pFTnRoot->pRbn.pRbnRight
+#define RB_GUARD(pFTTree)           pFTTree->pRbTree->pRbnGuard
+
+#define MAX(a, b)                   ((a) > (b) ? (a) : (b))
+#define MIN(a, b)                   ((a) < (b) ? (a) : (b))    
+
+
+PHOIT_FRAG_TREE_NODE __hoitFragTreeGetMinimum(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot){
+    PHOIT_RB_NODE       pRbnTraverse; 
+    pRbnTraverse    =   &pFTnRoot->pRbn;
+    while (pRbnTraverse->pRbnLeft != RB_GUARD(pFTTree))
+    {
+        pRbnTraverse = pRbnTraverse->pRbnLeft;
+    }
+    return (PHOIT_FRAG_TREE_NODE)pRbnTraverse;
+}
+
+PHOIT_FRAG_TREE_NODE __hoitFragTreeGetSuccessor(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot){
+    PHOIT_RB_NODE pRbnTraverse;
+    PHOIT_RB_NODE pRbn;
+
+    pRbn = &pFTnRoot->pRbn;
+    if(pRbn->pRbnRight != RB_GUARD(pFTTree)){
+        return __hoitFragTreeGetMinimum(pFTTree, FT_RIGHT_CHILD(pFTnRoot));
+    }
+
+    pRbnTraverse = pRbn->pRbnParent;
+    while (pRbnTraverse != RB_GUARD(pFTTree) && pRbn == pRbnTraverse->pRbnRight)
+    {
+        pRbn = pRbnTraverse;
+        pRbnTraverse = pRbnTraverse->pRbnParent;
+    }
+    return (PHOIT_FRAG_TREE_NODE)pRbnTraverse;
+}
 
 /*********************************************************************************************************
-** å‡½æ•°åç§°: hoitInitFragTree
-** åŠŸèƒ½æè¿°: åˆå§‹åŒ–FragTree
-** è¾“ã€€å…¥  : None
-** è¾“ã€€å‡º  : è¿”å›FragTree
-** å…¨å±€å˜é‡:
-** è°ƒç”¨æ¨¡å—:
+** º¯ÊıÃû³Æ: __hoitFragTreeCollectRangeHelper
+** ¹¦ÄÜÃèÊö: ÖĞĞò±éÀú£¬ÊÕ¼¯iKeyLowµ½iKeyHighÖ®¼äµÄ½Úµã
+** Êä¡¡Èë  : pFTlistHeader          Á´±íÍ·
+**            pFTTree               FragTree
+**            pFTnRoot              ¸ù½Úµã
+**            iKeyLow
+** Êä¡¡³ö  : ·µ»ØFragTree
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
-PHOIT_FRAG_TREE hoitInitFragTree(VOID){
-    PHOIT_FRAG_TREE pFTTree = (PHOIT_FRAG_TREE)lib_malloc(sizeof(HOIT_FRAG_TREE));
+VOID __hoitFragTreeCollectRangeHelper(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader,
+                                      PHOIT_FRAG_TREE pFTTree, 
+                                      PHOIT_FRAG_TREE_NODE pFTnRoot, 
+                                      INT32 iKeyLow, 
+                                      INT32 iKeyHigh){
+    PHOIT_FRAG_TREE_LIST_NODE   pFTlistNode;
+    PHOIT_FRAG_TREE_NODE        pFTSuccessor;
+    BOOL                        bHasSuccessor = LW_TRUE;
+    BOOL                        bIsInRange = LW_FALSE;
+
+
+    if(&pFTnRoot->pRbn == RB_GUARD(pFTTree)){
+        return;
+    }
+    __hoitFragTreeCollectRangeHelper(pFTlistHeader, 
+                                     pFTTree, 
+                                     FT_LEFT_CHILD(pFTnRoot), 
+                                     iKeyLow,
+                                     iKeyHigh);
+    pFTSuccessor =  __hoitFragTreeGetSuccessor(pFTTree, pFTnRoot);
+    if(&pFTSuccessor->pRbn == RB_GUARD(pFTTree)){
+        bHasSuccessor = LW_FALSE;
+    }
+    /* 
+        Case 1:         [key1    iKeyLow    key2 ...]             ÏÂ½ç£ºkey1
+        Case 2:         [key1    iKeyLow]                         ÏÂ½ç£ºkey1
+    */
+    if((bHasSuccessor && (FT_GET_KEY(pFTnRoot) <= iKeyLow && FT_GET_KEY(pFTSuccessor) > iKeyLow)) ||
+       (!bHasSuccessor && FT_GET_KEY(pFTnRoot) <= iKeyLow)){                                          /* iKey < iKeyLow ÇÒ iKeyµÄºó¼Ì½ÚµãµÄiKey > iKeyLow*/
+        bIsInRange = LW_TRUE;
+        pFTlistHeader->uiLowBound = FT_GET_KEY(pFTnRoot);
+    }
+    /* 
+        Case 3:         [iKeyLow   key1   key2 ...]               ÏÂ½ç£ºkey1
+        --------------------------------------------------------------------
+        Case 1:         [iKeyLow   key1   iKeyHigh]               ÉÏ½ç£ºkey1
+        Case 2:         [iKeyLow   key1   iKeyHigh    key2]       ÉÏ½ç£ºkey2
+        Case 3:         [ikey      iKeyLow   iKeyHigh]            ÉÏ½ç£ºkey1
+    */
+    else if (FT_GET_KEY(pFTnRoot) > iKeyLow && FT_GET_KEY(pFTnRoot) <= iKeyHigh){                     /* iKey > iKeyLow ÇÒ iKey < iKeyHigh */
+        bIsInRange = LW_TRUE;
+        if(pFTlistHeader->uiLowBound == INT_MIN){
+            pFTlistHeader->uiLowBound = FT_GET_KEY(pFTnRoot);
+        }
+        if(bHasSuccessor){
+            if(FT_GET_KEY(pFTSuccessor) > iKeyHigh){
+                pFTlistHeader->uiHighBound =  FT_GET_KEY(pFTnRoot);
+            }
+        }
+        else{
+            pFTlistHeader->uiHighBound = FT_GET_KEY(pFTnRoot);
+        }
+    }
+
+    if(bIsInRange){
+        pFTlistNode = newFragTreeListNode(pFTnRoot);
+        hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNode);
+        pFTlistHeader->uiNCnt++;
+#ifdef FT_DEBUG
+        printf("Collecting Node %d \n", pFTlistNode->pFTn->pRbn.iKey);
+#endif // FT_DEBUG
+    }
+    if (FT_GET_KEY(pFTnRoot) > iKeyHigh)                                                /* ¼ôÖ¦ */
+    {
+        return;
+    }
+    __hoitFragTreeCollectRangeHelper(pFTlistHeader, 
+                                     pFTTree, 
+                                     FT_RIGHT_CHILD(pFTnRoot), 
+                                     iKeyLow,
+                                     iKeyHigh);
+}   
+/*********************************************************************************************************
+** º¯ÊıÃû³Æ: hoitInitFragTree
+** ¹¦ÄÜÃèÊö: ³õÊ¼»¯FragTree
+** Êä¡¡Èë  : None
+** Êä¡¡³ö  : ·µ»ØFragTree
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
+*********************************************************************************************************/
+PHOIT_FRAG_TREE hoitInitFragTree(PHOIT_VOLUME pfs){
+    PHOIT_FRAG_TREE         pFTTree;
+
+    pFTTree = (PHOIT_FRAG_TREE)lib_malloc(sizeof(HOIT_FRAG_TREE));
     pFTTree->pRbTree = hoitRbInitTree();
     pFTTree->uiNCnt = 0;
+    pFTTree->pfs = pfs;
     return pFTTree;
 }
 /*********************************************************************************************************
-** å‡½æ•°åç§°: hoitFragTreeInsertNode
-** åŠŸèƒ½æè¿°: å‘FragTreeä¸­æ’å…¥èŠ‚ç‚¹
-** è¾“ã€€å…¥  : pFTTree            FragTree
-**           pFTn               å¾…æ’å…¥çš„èŠ‚ç‚¹   
-** è¾“ã€€å‡º  : è¿”å›æ’å…¥çš„èŠ‚ç‚¹
-** å…¨å±€å˜é‡:
-** è°ƒç”¨æ¨¡å—:
+** º¯ÊıÃû³Æ: hoitFragTreeInsertNode
+** ¹¦ÄÜÃèÊö: ÏòFragTreeÖĞ²åÈë½Úµã
+** Êä¡¡Èë  : pFTTree            FragTree
+**           pFTn               ´ı²åÈëµÄ½Úµã   
+** Êä¡¡³ö  : ·µ»Ø²åÈëµÄ½Úµã
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 PHOIT_FRAG_TREE_NODE hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn){
     hoitRbInsertNode(pFTTree->pRbTree, &pFTn->pRbn);
@@ -50,66 +181,398 @@ PHOIT_FRAG_TREE_NODE hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_
     return pFTn;
 }
 /*********************************************************************************************************
-** å‡½æ•°åç§°: hoitFragTreeSearchNode
-** åŠŸèƒ½æè¿°: åœ¨FragTreeä¸Šæœç´¢é”®å€¼ä¸ºiKeyçš„èŠ‚ç‚¹
-** è¾“ã€€å…¥  : pFTTree          FragTree
-**           iKey             é”®å€¼
-** è¾“ã€€å‡º  : æ‰¾åˆ°å°±è¿”å›FragTreeèŠ‚ç‚¹ï¼Œå¦åˆ™è¿”å›LW_NULL
-** å…¨å±€å˜é‡:
-** è°ƒç”¨æ¨¡å—:
+** º¯ÊıÃû³Æ: hoitFragTreeSearchNode
+** ¹¦ÄÜÃèÊö: ÔÚFragTreeÉÏËÑË÷¼üÖµÎªiKeyµÄ½Úµã
+** Êä¡¡Èë  : pFTTree          FragTree
+**           iKey             ¼üÖµ
+** Êä¡¡³ö  : ÕÒµ½¾Í·µ»ØFragTree½Úµã£¬·ñÔò·µ»ØLW_NULL
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 PHOIT_FRAG_TREE_NODE hoitFragTreeSearchNode(PHOIT_FRAG_TREE pFTTree, INT32 iKey){
-    PHOIT_RB_NODE pRbn = hoitRbSearchNode(pFTTree->pRbTree, iKey);
-    PHOIT_FRAG_TREE_NODE pFTn = (PHOIT_FRAG_TREE_NODE)(pRbn);  
+    PHOIT_RB_NODE           pRbn; 
+    PHOIT_FRAG_TREE_NODE    pFTn;
+
+    pRbn = hoitRbSearchNode(pFTTree->pRbTree, iKey);
+    pFTn = (PHOIT_FRAG_TREE_NODE)(pRbn);  
     return pFTn;
 }
 /*********************************************************************************************************
-** å‡½æ•°åç§°: hoitFragTreeDeleteNode
-** åŠŸèƒ½æè¿°: åœ¨FragTreeä¸Šåˆ é™¤æŸä¸ªèŠ‚ç‚¹ï¼Œå¹¶é‡Šæ”¾å…¶å†…å­˜ï¼Œæ³¨æ„ä¿å­˜
-** è¾“ã€€å…¥  : pFTTree          FragTree
-**           pFTn             FragTreeä¸Šçš„æŸä¸ªèŠ‚ç‚¹
-** è¾“ã€€å‡º  : åˆ é™¤æˆåŠŸè¿”å›Trueï¼Œå¦åˆ™è¿”å›False
-** å…¨å±€å˜é‡:
-** è°ƒç”¨æ¨¡å—:
+** º¯ÊıÃû³Æ: hoitFragTreeSearchNode
+** ¹¦ÄÜÃèÊö: ÔÚFragTreeÉÏËÑË÷¼üÖµÔÚ·¶Î§[x, y]µÄ½Úµã£¬ÆäÖĞ£¬x <= iKeyLow£¬y >= iKeyHigh£¬·µ»ØÁ´±í
+** Êä¡¡Èë  : pFTTree          FragTree
+**           iKeyLow          µÍ¼üÖµ
+**           iKeyHigh         ¸ß¼üÖµ  
+** Êä¡¡³ö  : ·µ»ØÁ´±íÍ·
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
-BOOL hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn){
+PHOIT_FRAG_TREE_LIST_HEADER hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh){
+    PHOIT_FRAG_TREE_LIST_HEADER     pFTlistHeader;
+    pFTlistHeader = hoitFragTreeListInit();
+    __hoitFragTreeCollectRangeHelper(pFTlistHeader, 
+                                     pFTTree, 
+                                     (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot,
+                                     iKeyLow,
+                                     iKeyHigh);
+    if(pFTlistHeader->uiHighBound == INT_MAX){
+        pFTlistHeader->uiHighBound = pFTlistHeader->uiLowBound;
+    }
+#ifdef FT_DEBUG
+    printf("Collecting Over\n");
+#endif //FT_DEBUG
+    return pFTlistHeader;
+}
+/*********************************************************************************************************
+** º¯ÊıÃû³Æ: hoitFragTreeDeleteNode
+** ¹¦ÄÜÃèÊö: ÔÚFragTreeÉÏÉ¾³ıÄ³¸ö½Úµã£¬²¢É¾³ıÆäÖ¸ÏòµÄFullDnode½Úµã£¬²¢ÊÍ·ÅÆäÄÚ´æ£¬×¢Òâ±£´æ
+** Êä¡¡Èë  : pFTTree          FragTree
+**           pFTn             FragTreeÉÏµÄÄ³¸ö½Úµã
+** Êä¡¡³ö  : É¾³ı³É¹¦·µ»ØTrue£¬·ñÔò·µ»ØFalse
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
+*********************************************************************************************************/
+BOOL hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, BOOL bDoDelete){
+    BOOL        res; 
     if(pFTTree->uiNCnt == 0)
         return LW_FALSE;
-    pFTTree->uiNCnt--;
-    BOOL res = hoitRbDeleteNode(pFTTree->pRbTree, &pFTn->pRbn);
-    lib_free(pFTn);
+    
+    res = hoitRbDeleteNode(pFTTree->pRbTree, &pFTn->pRbn);
+    if(res){
+        pFTTree->uiNCnt--;
+        __hoit_delete_full_dnode(pFTTree->pfs, pFTn->pFDnode, bDoDelete); /* É¾³ıDnodeÖ¸ÏòµÄÄÚ´æ¿Õ¼ä */
+        lib_free(pFTn);                                                   /* É¾³ıpFTnÖ¸ÏòµÄÄÚ´æ¿Õ¼ä */
+    }
+    return res;
+}
+/*********************************************************************************************************
+** º¯ÊıÃû³Æ: hoitFragTreeDeleteNode
+** ¹¦ÄÜÃèÊö: ÔÚFragTreeÉÏÉ¾³ıÄ³·¶Î§ÄÚµÄ½Úµã
+** Êä¡¡Èë  : pFTTree          FragTree
+**           iKeyLow          µÍ¼üÖµ
+**           iKeyHigh         ¸ß¼üÖµ
+** Êä¡¡³ö  : É¾³ı³É¹¦·µ»ØTrue£¬·ñÔò·µ»ØFalse
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
+*********************************************************************************************************/
+BOOL hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh, BOOL bDoDelete){
+    PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader;
+    PHOIT_FRAG_TREE_LIST_NODE   pFTlistNode;
+    BOOL                        res;
+
+    pFTlistHeader = hoitFragTreeCollectRange(pFTTree, iKeyLow, iKeyHigh);
+    pFTlistNode = pFTlistHeader->pFTlistHeader->pFTlistNext;
+    INT count = 0;
+    while (pFTlistNode)
+    {
+        count++;
+#ifdef FT_DEBUG
+        printf("count %d\n", count);
+#endif
+        if(count == 1){
+            pFTlistNode->pFTn->uiOfs;    
+        }
+        if(count == pFTlistHeader->uiNCnt){
+
+        }
+        
+        res = hoitFragTreeDeleteNode(pFTTree, pFTlistNode->pFTn, bDoDelete);
+        
+        pFTlistNode = pFTlistNode->pFTlistNext;
+        if(res == LW_FALSE){
+            break;
+        }
+    }
+    hoitFragTreeListFree(pFTlistHeader);
+    return res;    
+}
+
+/*********************************************************************************************************
+** º¯ÊıÃû³Æ: hoitFragTreeDeleteTree
+** ¹¦ÄÜÃèÊö: É¾³ıÕû¸öFragTree£¬²¢ÇÒÊÍ·ÅpFTTreeµÄÄÚ´æ
+** Êä¡¡Èë  : pFTTree          FragTree
+** Êä¡¡³ö  : É¾³ı³É¹¦·µ»ØTrue£¬·ñÔò·µ»ØFalse
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
+*********************************************************************************************************/
+BOOL hoitFragTreeDeleteTree(PHOIT_FRAG_TREE pFTTree, BOOL bDoDelete){
+    BOOL                          res;
+    res = hoitFragTreeDeleteRange(pFTTree, INT_MIN, INT_MAX, bDoDelete);
+    lib_free(pFTTree->pRbTree->pRbnGuard);
+    lib_free(pFTTree->pRbTree);
+    lib_free(pFTTree);
     return res;
 }
 
 /*********************************************************************************************************
-** å‡½æ•°åç§°: hoitFragTreeTraverse
-** åŠŸèƒ½æè¿°: ä¸­åºéå†FragTree
-** è¾“ã€€å…¥  : pFTTree          FragTree
-**           pFTnRoot         FragTreeå­æ ‘æ ¹
-** è¾“ã€€å‡º  : None
-** å…¨å±€å˜é‡:
-** è°ƒç”¨æ¨¡å—:
+** º¯ÊıÃû³Æ: hoitFragTreeTraverse
+** ¹¦ÄÜÃèÊö: ÖĞĞò±éÀúFragTree
+** Êä¡¡Èë  : pFTTree          FragTree
+**           pFTnRoot         FragTree×ÓÊ÷¸ù
+** Êä¡¡³ö  : None
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 VOID hoitFragTreeTraverse(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot){
-    if(&pFTnRoot->pRbn == pFTTree->pRbTree->pRbnGuard){
+    if(&pFTnRoot->pRbn == RB_GUARD(pFTTree)){
         return;
     }
     else
     {
-        hoitFragTreeTraverse(pFTTree, (PHOIT_FRAG_TREE_NODE) pFTnRoot->pRbn.pRbnLeft);
-        printf("uiOfs: %d, uiSize: %d, iKey: %d \n", pFTnRoot->uiOfs, pFTnRoot->uiSize, pFTnRoot->pRbn.iKey);
-        hoitFragTreeTraverse(pFTTree, (PHOIT_FRAG_TREE_NODE) pFTnRoot->pRbn.pRbnRight);
+        hoitFragTreeTraverse(pFTTree, FT_LEFT_CHILD(pFTnRoot));
+        printf("uiOfs: %d, uiSize: %d, iKey: %d \n", pFTnRoot->uiOfs, pFTnRoot->uiSize, FT_GET_KEY(pFTnRoot));
+        hoitFragTreeTraverse(pFTTree, FT_RIGHT_CHILD(pFTnRoot));
     }
 }
+/*********************************************************************************************************
+** º¯ÊıÃû³Æ: hoitFragTreeRead
+** ¹¦ÄÜÃèÊö: ÖĞĞò±éÀúFragTree
+** Êä¡¡Èë  : pFTTree          FragTree
+**           uiOfs            Ïà¶ÔÎÄ¼şµÄÆ«ÒÆ
+**           uiSize           ³¤¶È
+**           pContent         ¶Á³öÊı¾İÎ»ÖÃ
+** Êä¡¡³ö  : None
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
+*********************************************************************************************************/
+error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, PCHAR pContent){
+    UINT32                      iKeyLow;
+    UINT32                      iKeyHigh;
+    UINT32                      uiBias;
+    PHOIT_FRAG_TREE_LIST_NODE   pFTlist;
+    PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader;
+
+    UINT32                      uiPhyOfs;
+    UINT32                      uiPhySize;
+
+    UINT32                      uiSizeRead;
+    UINT32                      uiSizeRemain;
+
+    UINT32                      uiPerOfs;
+    UINT32                      uiPerSize;
+    PCHAR                       pPerContent;
+
+    uiSizeRead          = 0;
+    uiSizeRemain        = uiSize;
+    iKeyLow             = uiOfs;
+    iKeyHigh            = uiOfs + uiSize;
+
+    pFTlistHeader       = hoitFragTreeCollectRange(pFTTree, iKeyLow, iKeyHigh);
+    uiBias              = uiOfs - pFTlistHeader->uiLowBound; 
+
+    pFTlist             = pFTlistHeader->pFTlistHeader->pFTlistNext;
+    while (pFTlist != LW_NULL)
+    {
+        uiPhyOfs = pFTlist->pFTn->pFDnode->HOITFD_raw_info->phys_addr + sizeof(HOIT_RAW_HEADER);
+        uiPhySize = pFTlist->pFTn->pFDnode->HOITFD_length;
+        /* ¶ÁÊ×¸öÊı¾İÊµÌå
+            |--H-|-uiBias-|
+            |----|--------|-------|
+                 |        |       |
+                 |        |       |
+             uiPhyOfs  uiPerOfs  uiPhyOfs + uiPhySize
+        */
+        if(uiSizeRead == 0){
+            uiPerOfs = uiPhyOfs + uiBias;
+            uiPerSize = uiPhySize - uiBias;
+        }
+        /* ¶Á×îºóÒ»¸öÊı¾İÊµÌå
+                        |--H-|-remain-|  
+                        |----|--------|-------|
+                             |                |
+                             |                |
+                uiPhyOfs(uiPerOfs)  uiPhyOfs + uiPhySize
+        */
+        else if (uiSizeRead + uiPhySize >= uiSize)
+        {
+            uiPerOfs = uiPhySize;
+            uiPerSize = uiSizeRemain;
+        }
+        else                                                                        /* ÆäËûÇé¿ö */
+        {
+            uiPerOfs = uiPhySize;
+            uiPerSize = uiPhySize;
+        }
+
+        pPerContent = (PCHAR)lib_malloc(uiPerSize);                                 /* ¶ÁÈëÊı¾İ */
+        //TODO: ´Ó»º´æÉÏ¶Á 
+        hoitReadFromCache(uiPerOfs, pPerContent, uiPerSize);
+
+        lib_memcpy(pContent + uiSizeRead, pPerContent, uiPerSize);
+        lib_free(pPerContent);
+        
+        pFTlist = pFTlist->pFTlistNext;
+        uiSizeRead += uiPerSize;
+        uiSizeRemain -= uiPerSize;
+    }
+
+    hoitFragTreeListFree(pFTlistHeader);                                             /* ÊÍ·ÅÁ´±í */
+    return ERROR_NONE;
+}
+/*********************************************************************************************************
+** º¯ÊıÃû³Æ: hoitFragTreeOverlayFixUp
+** ¹¦ÄÜÃèÊö: ĞŞ¸´FragTreeÉÏÖØµşµÄ½Úµã
+** Êä¡¡Èë  : pFTTree          FragTree
+** Êä¡¡³ö  : ÓĞĞŞ¸´Êä³öLW_TRUE£¬·ñÔòÊä³öLW_FALSE
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
+*********************************************************************************************************/
+BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
+    PHOIT_FRAG_TREE_LIST_HEADER     pFTlistHeader;
+    PHOIT_FRAG_TREE_LIST_NODE       pFTlistOuter;
+    PHOIT_FRAG_TREE_LIST_NODE       pFTlistInner;
+    PHOIT_FRAG_TREE_LIST_NODE       pFTlistNext;
+
+    PHOIT_FULL_DNODE                pFDNodeNew;
+    PHOIT_FRAG_TREE_NODE            pFTnNew;
+    PHOIT_FRAG_TREE_LIST_NODE       pFTlistNodeNew;
+    
+    UINT32                          uiCurLow;                                 /* Çø¼ä£º[curLow, curHigh) */
+    UINT32                          uiCurHigh;
+
+    UINT32                          uiConquerorLow;
+    UINT32                          uiConquerorHigh;
+    
+    UINT32                          uiLeftRemainSize;
+    UINT32                          uiRightRemainSize;
+    UINT32                          uiRightOffset;
+
+    BOOL                            bIsOverlay;
+
+    pFTlistHeader = hoitFragTreeCollectRange(pFTTree, INT_MIN, INT_MAX);
+    pFTlistOuter = pFTlistHeader->pFTlistHeader->pFTlistNext;
+    
+    while (pFTlistOuter != LW_NULL)                     /* Íâ²ãÎª×ÏÉ«£¬ÄÚ²ãÎª»ÒÉ« */
+    {
+        uiCurLow = pFTlistOuter->pFTn->uiOfs;
+        uiCurHigh = uiCurLow + pFTlistOuter->pFTn->uiSize;
+        //TODO: ´ÓÕâÀï¿ªÊ¼¼ì²âÖØµş 
+        pFTlistInner = pFTlistHeader->pFTlistHeader->pFTlistNext;               /* Ö¸ÏòµÚÒ»¸öÓĞĞ§½Úµã */
+        while (pFTlistInner != LW_NULL)
+        {
+            bIsOverlay = LW_FALSE;
+            if(pFTlistInner == pFTlistOuter)                                    /* ×Ô¼º¾Í²»ºÍ×Ô¼º±È½ÏÁË */
+            {
+                continue;
+            }
+            if(pFTlistInner->pFTn->pFDnode->HOITFD_version                      /* listInner´ú±íÕ÷·şÕß£¬Õ÷·şÕßversion±ØĞë´óÓÚ±»Õ÷·şÕß²ÅÄÜ½øĞĞÕ÷·ş */
+             < pFTlistOuter->pFTn->pFDnode->HOITFD_version){
+                continue;
+            }
+            uiConquerorLow = pFTlistInner->pFTn->uiOfs;
+            uiConquerorHigh = uiConquerorLow + pFTlistInner->pFTn->uiSize;
+            
+            bIsOverlay = MAX(uiCurLow, uiConquerorLow) <= MIN(uiCurHigh, uiConquerorHigh);
+            if(bIsOverlay){                                                               /* Õë¶Ô4ÖÖÇé¿öĞŞ¸´£¬×ÏÉ«Îªcur£¬»ÒÉ«Îªtarget */
+                /* 
+                    |-------|-------------|-------|
+                    ^       ^             ^       ^
+                    Cur  Conqueror       Cur    Conqueror  
+                */
+                if(uiCurLow < uiConquerorLow && uiCurHigh <= uiConquerorHigh){            /* Çé¿ö1 */      
+                    uiLeftRemainSize = uiConquerorLow - uiCurLow;
+                    pFTlistOuter->pFTn->uiSize = uiLeftRemainSize;
+                    pFTlistOuter->pFTn->pFDnode->HOITFD_length = uiLeftRemainSize;
+                    
+                    pFTlistInner = pFTlistInner->pFTlistNext;
+                }
+                /* 
+                    |-------|-------------|-------|
+                    ^       ^             ^       ^
+                    Cur  Conqueror      Conqueror  Cur
+                */
+                else if (uiCurLow < uiConquerorLow && uiCurHigh > uiConquerorHigh)        /* Çé¿ö2 */  
+                {
+                    uiLeftRemainSize = uiCurLow - uiConquerorLow;
+                    uiRightRemainSize = uiConquerorHigh - uiCurHigh;
+                    uiRightOffset = uiConquerorHigh - uiCurLow;
+
+                    pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,                        /* ½Ø¶ÏÓÒ±ß²¿·Ö£¬Éú³ÉĞÂµÄ½Úµã */
+                                                           pFTlistOuter->pFTn->pFDnode,
+                                                           uiRightOffset,
+                                                           uiRightRemainSize);
+
+                    pFTlistOuter->pFTn->uiSize = uiLeftRemainSize;                              /* ĞŞ¸Ä×ó±ß²¿·ÖµÄsize */
+                    pFTlistOuter->pFTn->pFDnode->HOITFD_length = uiLeftRemainSize;
+
+                    pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,        /* ¸ù¾İpFDNodeNewĞÂ½¨FragTreeNode */
+                                                  pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
+
+                    hoitFragTreeInsertNode(pFTTree, pFTnNew);                                   /* ²åÈë½ÚµãÖÁºìºÚÊ÷ */
+                    pFTlistNodeNew = newFragTreeListNode(pFTnNew);
+                    hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNodeNew);                  /* ²åÈë½ÚµãÖÁÁ´±í */
+
+                    pFTlistInner = pFTlistInner->pFTlistNext;
+                }
+                /* 
+                        |-------|-------------|-------|
+                        ^       ^             ^       ^
+                    Conqueror  Cur       Conqueror  Cur
+                */
+                else if (uiCurLow >= uiConquerorLow && uiCurHigh > uiConquerorHigh)       /* Çé¿ö3 */  
+                {
+                    uiRightRemainSize = uiCurHigh - uiConquerorHigh;
+                    uiRightOffset = uiConquerorHigh - uiCurLow;
+                    pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,
+                                                           pFTlistOuter->pFTn->pFDnode,
+                                                           uiRightOffset,
+                                                           uiRightRemainSize);
+                    pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,        /* ¸ù¾İpFDNodeNewĞÂ½¨FragTreeNode */
+                                                  pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
+                    
+                    
+                    hoitFragTreeInsertNode(pFTTree, pFTnNew);
+                    pFTlistNodeNew = newFragTreeListNode(pFTnNew);
+                    hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNodeNew);                  /* ²åÈë½ÚµãÖÁÁ´±í */
+
+
+                    hoitFragTreeDeleteNode(pFTTree, pFTlistOuter->pFTn, LW_TRUE);               /* É¾³ıºìºÚÊ÷½Úµã */
+                    pFTlistNext = pFTlistOuter->pFTlistNext;
+                    hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistOuter);                    /* É¾³ıÁ´±í½Úµã */
+                    lib_free(pFTlistOuter);
+
+                    pFTlistOuter = pFTlistNext;                                                 /* ÖÁµ±Ç°OuterÎªÏÂÒ»¸ö */
+                    pFTlistInner = pFTlistHeader->pFTlistHeader->pFTlistNext;                   /* ÖØÖÃInnerÖ¸Õë£¬ÒòÎªÎÒÃÇµÄOuterÒ²ÖØÖÃÁË */
+                }
+                /* 
+                    |-------|-------------|-------|
+                    ^       ^             ^       ^
+                   Cur  Conqueror     Conqueror  Cur
+                */
+                else if (uiCurLow <= uiConquerorLow && uiCurHigh >= uiConquerorHigh)            /* Çé¿ö4 */  
+                {
+                    hoitFragTreeDeleteNode(pFTTree, pFTlistInner->pFTn, LW_TRUE);               /* É¾³ıµ±Ç°FragTreeÉÏµÄ½Úµã */
+                    pFTlistNext = pFTlistInner->pFTlistNext;
+                    hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistInner);
+                    lib_free(pFTlistInner);
+                    
+                    pFTlistInner = pFTlistNext;                                                 /* É¾³ı½Úµã²»»áÓ°ÏìÆäËû½ÚµãµÄ¸²¸Ç¹ØÏµ£¬Òò´ËÖ±½Ó¼ì²éÏÂÒ»¸ö½Úµã */
+                }
+            }
+            else {
+                pFTlistInner = pFTlistInner->pFTlistNext;
+            }
+        }
+        pFTlistOuter = pFTlistOuter->pFTlistNext;   
+    }
+    hoitFragTreeListFree(pFTlistHeader);
+    return LW_TRUE;
+}
+
 
 #ifdef FT_TEST
 VOID hoitFTTreeTest(){
-    INT i;
-    PHOIT_FRAG_TREE pFTTree;
-    PHOIT_FRAG_TREE_NODE pFTn;
+    INT                                 i;
+    PHOIT_FRAG_TREE                     pFTTree;
+    PHOIT_FRAG_TREE_NODE                pFTn;
+    PHOIT_FRAG_TREE_LIST_HEADER         pFTlistHeader;
+    PHOIT_FRAG_TREE_LIST_NODE           pFTlistNode;
+    BOOL                                res;
+    PHOIT_VOLUME                        pfs;
     INT testArray[10] = {8,11,14,15,1,2,4,5,7, 1};
 
-    pFTTree = hoitInitFragTree();
+    pfs = (PHOIT_VOLUME)lib_malloc(sizeof(HOIT_VOLUME));
+    pFTTree = hoitInitFragTree(pfs);
     
     for (i = 0; i < 10; i++)
     {
@@ -117,15 +580,46 @@ VOID hoitFTTreeTest(){
         hoitFragTreeInsertNode(pFTTree, pFTn);
     }
 
+    /*!  ³öÏÖÎÊÌâÁË£¬°´ÕÕË³ĞòËÑË÷µÄ»°ÓĞÎÊÌâÁË -- SOlVE */
+    // INT randomArray[5] = {2,4,5,7, 8};
+    // for (i = 0; i < 5; i++)
+    // {
+    //     printf("Delete Node %d \n", randomArray[i]);
+    //     pFTn = hoitFragTreeSearchNode(pFTTree, randomArray[i]);
+    //     hoitFragTreeDeleteNode(pFTTree, pFTn);
+    // }
+    // printf("total nodes: %d \n", pFTTree->uiNCnt);
+
     pFTn = hoitFragTreeSearchNode(pFTTree, 7);
     printf("pFTn - uiOfs : %d\n", pFTn->uiOfs);
     printf("pFTn - uiSize: %d\n", pFTn->uiSize);
-    printf("pFTn - iKey  : %d\n", pFTn->pRbn.iKey);
+    printf("pFTn - iKey  : %d\n", FT_GET_KEY(pFTn));
+    
+    printf("\n 1. [test traverse] \n");
+    hoitFragTreeTraverse(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
+    printf("\n 2. [test delete 7] \n");
+    hoitFragTreeDeleteNode(pFTTree, pFTn, LW_FALSE);
+    hoitFragTreeTraverse(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
+    
+    
 
-    printf("[test traverse] \n");
+    printf("\n 3. [test collect range [2, 4] ] \n");
+    pFTlistHeader = hoitFragTreeCollectRange(pFTTree, INT_MIN, INT_MAX);
+    pFTlistNode = pFTlistHeader->pFTlistHeader->pFTlistNext;
+    while (pFTlistNode)
+    {
+        printf("Key: %d\n", FT_GET_KEY(pFTlistNode->pFTn));   
+        pFTlistNode = pFTlistNode->pFTlistNext;
+    }
+    printf("range [%d, %d] \n", pFTlistHeader->uiLowBound, pFTlistHeader->uiHighBound);
+    hoitFragTreeListFree(pFTlistHeader);
+    
+    printf("\n 4. [test delete range] \n");
+    res = hoitFragTreeDeleteRange(pFTTree, 2, 8, LW_FALSE);
     hoitFragTreeTraverse(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
-    printf("[test delete 7] \n");
-    hoitFragTreeDeleteNode(pFTTree, pFTn);
-    hoitFragTreeTraverse(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
+    printf("total nodes: %d\n", pFTTree->uiNCnt);
+
+    printf("\n 5. [test delete FTtree] \n");
+    res = hoitFragTreeDeleteTree(pFTTree, LW_FALSE);
 }
 #endif // DEBUG

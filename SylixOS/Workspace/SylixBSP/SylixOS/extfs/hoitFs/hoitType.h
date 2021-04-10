@@ -1,10 +1,23 @@
-/*
- * hoitType.h
- *
- *  Created on: Mar 26, 2021
- *      Author: Administrator
- */
-
+/*********************************************************************************************************
+**
+**                                    中国软件开源组织
+**
+**                                   嵌入式实时操作系统
+**
+**                                       SylixOS(TM)
+**
+**                               Copyright  All Rights Reserved
+**
+**--------------文件信息--------------------------------------------------------------------------------
+**
+** 文   件   名: hoitType.h
+**
+** 创   建   人: 潘延麒
+**
+** 文件创建日期: 2021 年 03 月 19 日
+**
+** 描        述: 全局类型文件，防止引用循环
+*********************************************************************************************************/
 #ifndef SYLIXOS_EXTFS_HOITFS_HOITTYPE_H_
 #define SYLIXOS_EXTFS_HOITFS_HOITTYPE_H_
 
@@ -21,6 +34,6 @@
 #define CONTAINER_OF(ptr, type, member)                             \
         ((type *)((size_t)ptr - OFFSETOF(type, member)))      \
 
-
+#define HOIT_RAW_DATA_MAX_SIZE      4096    /* 单位为 Byte */
 
 #endif /* SYLIXOS_EXTFS_HOITFS_HOITTYPE_H_ */

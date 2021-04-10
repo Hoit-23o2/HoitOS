@@ -60,6 +60,7 @@ SylixOS/driver/touchscr/touchscr.c \
 SylixOS/driver/tty/samsungtty.c \
 SylixOS/driver/tty/uart.c \
 SylixOS/extfs/hoitFs/hoitFs.c \
+SylixOS/extfs/hoitFs/hoitFsCache.c \
 SylixOS/extfs/hoitFs/hoitFsLib.c \
 SylixOS/extfs/hoitFs/hoitFsMid.c \
 SylixOS/extfs/hoitFs/hoitFsTree.c \

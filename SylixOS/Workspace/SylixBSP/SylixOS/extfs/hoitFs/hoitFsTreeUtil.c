@@ -42,7 +42,7 @@
 PHOIT_RB_NODE __hoitRbMinimum(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnRoot){
     PHOIT_RB_NODE pRbnTraverse;
     pRbnTraverse = pRbnRoot;
-    while (pRbnTraverse != pRbTree->pRbnGuard)
+    while (pRbnTraverse->pRbnLeft != pRbTree->pRbnGuard)
     {
         pRbnTraverse = RB_LEFT_CHILD(pRbnTraverse);   
     }
@@ -60,7 +60,7 @@ PHOIT_RB_NODE __hoitRbMinimum(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnRoot){
 PHOIT_RB_NODE __hoitRbMaximum(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnRoot){
     PHOIT_RB_NODE pRbnTraverse;
     pRbnTraverse = pRbnRoot;
-    while (pRbnTraverse != pRbTree->pRbnGuard)
+    while (pRbnTraverse->pRbnRight != pRbTree->pRbnGuard)
     {
         pRbnTraverse = RB_RIGHT_CHILD(pRbnTraverse);   
     }
@@ -271,6 +271,7 @@ VOID __hoitRbDeleteFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
                 pRbnBrother->uiColor = RB_BLACK;
                 pRbnBrother->pRbnParent->uiColor = RB_RED;
                 __hoitRbLeftRotate(pRbTree, RB_PARENT(pRbn));
+                pRbnBrother = RB_RIGHT_CHILD(RB_PARENT(pRbn));
             }
             if(RB_LEFT_CHILD(pRbnBrother)->uiColor == RB_BLACK 
                && RB_RIGHT_CHILD(pRbnBrother)->uiColor == RB_BLACK){            /* 情况2：待更新节点的兄弟节点的儿子节点均为黑色 */
@@ -290,6 +291,13 @@ VOID __hoitRbDeleteFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
                 __hoitRbLeftRotate(pRbTree, RB_PARENT(pRbn));
                 pRbn = pRbTree->pRbnRoot;
             }
+            else {
+                pRbnBrother->uiColor = RB_PARENT(pRbn)->uiColor;                /* 情况4：待更新节点的兄弟节点的右孩子是红色 */
+                pRbn->pRbnParent->uiColor = RB_BLACK;
+                RB_RIGHT_CHILD(pRbnBrother)->uiColor = RB_BLACK;
+                __hoitRbLeftRotate(pRbTree, RB_PARENT(pRbn));
+                pRbn = pRbTree->pRbnRoot;
+            }
         }
         else
         {
@@ -298,6 +306,7 @@ VOID __hoitRbDeleteFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
                 pRbnBrother->uiColor = RB_BLACK;
                 pRbnBrother->pRbnParent->uiColor = RB_RED;
                 __hoitRbRightRotate(pRbTree, RB_PARENT(pRbn));
+                pRbnBrother = RB_LEFT_CHILD(RB_PARENT(pRbn));
             }
             if(RB_LEFT_CHILD(pRbnBrother)->uiColor == RB_BLACK 
                && RB_RIGHT_CHILD(pRbnBrother)->uiColor == RB_BLACK){
@@ -311,6 +320,13 @@ VOID __hoitRbDeleteFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
                 __hoitRbLeftRotate(pRbTree, pRbnBrother);
                 pRbnBrother = RB_LEFT_CHILD(RB_PARENT(pRbn));
 
+                pRbnBrother->uiColor = RB_PARENT(pRbn)->uiColor;
+                pRbn->pRbnParent->uiColor = RB_BLACK;
+                RB_LEFT_CHILD(pRbnBrother)->uiColor = RB_BLACK;
+                __hoitRbRightRotate(pRbTree, RB_PARENT(pRbn));
+                pRbn = pRbTree->pRbnRoot;
+            }
+            else {
                 pRbnBrother->uiColor = RB_PARENT(pRbn)->uiColor;
                 pRbn->pRbnParent->uiColor = RB_BLACK;
                 RB_LEFT_CHILD(pRbnBrother)->uiColor = RB_BLACK;
@@ -352,7 +368,7 @@ VOID __hoitRbTraverse(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnRoot){
 ** 功能描述: 插入一个红黑树节点
 ** 输　入  : pRbTree          红黑树
 **           pRbn               待插入节点              
-** 输　出  : 成功返回True，失败返回False
+** 输　出  : 返回插入的节点
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
@@ -410,14 +426,14 @@ PHOIT_RB_NODE hoitRbSearchNode(PHOIT_RB_TREE pRbTree, INT32 iKey){
         if(pRbnTraverse->iKey == iKey){
             return pRbnTraverse;
         }
-        else if(pRbnTraverse->iKey < iKey){
+        else if(pRbnTraverse->iKey <= iKey){
             pRbnTraverse = RB_RIGHT_CHILD(pRbnTraverse);
         }
         else{
             pRbnTraverse = RB_LEFT_CHILD(pRbnTraverse);
         }
     }
-    return LW_NULL;
+    return pRbTree->pRbnGuard;
 }
 
 /*********************************************************************************************************
