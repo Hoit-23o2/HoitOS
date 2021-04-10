@@ -19,10 +19,6 @@
 ** 描        述: HoitFs
 *********************************************************************************************************/
 
-
-
-
-
 #define  __SYLIXOS_STDIO
 #define  __SYLIXOS_KERNEL
 #include "../SylixOS/kernel/include/k_kernel.h"
@@ -115,7 +111,6 @@ LW_API
 INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 {
     PHOIT_VOLUME     pfs;
-
     if (_G_iHoitFsDrvNum <= 0) {
         _DebugHandle(__ERRORMESSAGE_LEVEL, "hoitfs Driver invalidate.\r\n");
         _ErrorHandle(ERROR_IO_NO_DRIVER);
@@ -209,7 +204,15 @@ static LONG __hoitFsOpen(PHOIT_VOLUME     pfs,
     INT             iFlags,
     INT             iMode)
 {
-    PLW_FD_NODE pfdnode;
+    PLW_FD_NODE         pfdnode;
+    PHOIT_INODE_INFO    phoitn;
+    PHOIT_INODE_INFO    phoitFather;
+    BOOL                bRoot;
+    BOOL                bLast;
+    BOOL                bIsNew;
+    PCHAR               pcTail;
+    BOOL                bCreate;
+    struct stat         statGet;
 
     if (pcName == LW_NULL) {
         _ErrorHandle(EFAULT);                                           /*  Bad address                 */
@@ -229,16 +232,118 @@ static LONG __hoitFsOpen(PHOIT_VOLUME     pfs,
         }
     }
 
-    if (__HOITFS_SB_LOCK(pfs) != ERROR_NONE) {
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);                                            /*  设备出错                    */
         return  (PX_ERROR);
     }
 
-    //************************************ TODO ************************************
+    /************************************ TODO ************************************/
+    phoitn = __hoit_open(pfs, pcName, &phoitFather, &bRoot, &bLast, &pcTail);
     
+    if (phoitn) {
+        if (!S_ISLNK(phoitn->HOITN_mode)) {
+            if ((iFlags & O_CREAT) && (iFlags & O_EXCL)) {              /*  排他创建文件                */
+                __HOIT_VOLUME_UNLOCK(pfs);
+                _ErrorHandle(EEXIST);                                   /*  已经存在文件                */
+                return  (PX_ERROR);            
+            } else if ((iFlags & O_DIRECTORY) && !S_ISDIR(phoitn->HOITN_mode)) {
+                __HOIT_VOLUME_UNLOCK(pfs);
+                _ErrorHandle(ENOTDIR);
+                return  (PX_ERROR);
+            } else {
+                goto    __file_open_ok;
+            }
+        }
 
-    //************************************ END  ************************************
-    __HOITFS_SB_UNLOCK(pfs);
+    } else if ((iFlags & O_CREAT) && bLast) {                           /*  创建节点                    */
+        phoitn = __hoit_maken(pfs, pcName, phoitFather, iMode, LW_NULL);
+        if (phoitn) {
+            bCreate = LW_TRUE;
+            goto    __file_open_ok;
+        } else {
+            return (PX_ERROR);
+        }
+    }
+
+    if (phoitn) {                                                       /*  符号链接处理                */
+        INT                 iError;
+        PCHAR               pcPrefix;
+        INT                 iFollowLinkType;
+        PHOIT_FULL_DIRENT   pFullDirent = __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino);
+        PCHAR               pcSymfile = pcTail - lib_strlen(pFullDirent->HOITFD_file_name) - 1; 
+                                                                        /* pcSymfile指向pcName中软链接文件名首字母前面的'/' */
+
+        if (*pcSymfile != PX_DIVIDER) {
+            pcSymfile--;
+        }
+        if (pcSymfile == pcName) {
+            pcPrefix = LW_NULL;                                         /*  没有前缀                    */
+        } else {
+            pcPrefix = pcName;
+            *pcSymfile = PX_EOS;
+        }        
+        if (pcTail && lib_strlen(pcTail)) {
+            iFollowLinkType = FOLLOW_LINK_TAIL;                         /*  连接目标内部文件            */
+        } else {
+            iFollowLinkType = FOLLOW_LINK_FILE;                         /*  链接文件本身                */
+        }
+        //TODO PHOIT_INODE_INFO还没有 symbol link
+        /*iError = _PathBuildLink(pcName, MAX_FILENAME_LENGTH, 
+                                        LW_NULL, pcPrefix, , pcTail);*/
+
+        if (iError) {
+            __HOIT_VOLUME_UNLOCK(pfs);
+            return  (PX_ERROR);                                         /*  无法建立被链接目标目录      */
+        } else {
+            __HOIT_VOLUME_UNLOCK(pfs);
+            return  (iFollowLinkType);
+        }                                        
+    } else if (bRoot == LW_FALSE) {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(ENOENT);                                           /*  没有找到文件                */
+        return  (PX_ERROR);
+    }
+
+__file_open_ok:
+    __hoit_stat(phoitn, pfs, &statGet);
+    pfdnode = API_IosFdNodeAdd(&pfs->HOITFS_plineFdNodeHeader,
+                               statGet.st_dev,
+                               (ino64_t)statGet.st_ino,
+                               iFlags,
+                               iMode,
+                               statGet.st_uid,
+                               statGet.st_gid,
+                               statGet.st_size,
+                               (PVOID)phoitn,
+                               &bIsNew);    
+
+    if (pfdnode == LW_NULL) {                                           /*  无法创建 fd_node 节点       */
+        __HOIT_VOLUME_UNLOCK(pfs);
+        if (bCreate) {                                                  /*  删除新建的节点              */
+            //TOOPT hoit_unlink 待整合
+            if (S_ISDIR(phoitn->HOITN_mode)) {
+                __hoit_unlink_dir(phoitFather, 
+                                    __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino));
+            } else { //TODO 尚不能识别普通文件
+                __hoit_unlink_regular(phoitFather,
+                                    __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino));
+            }             
+        }
+        return  (PX_ERROR);
+    }
+
+    pfdnode->FDNODE_pvFsExtern = (PVOID)pfs;                            /*  记录文件系统信息            */
+
+    if ((iFlags & O_TRUNC) && ((iFlags & O_ACCMODE) != O_RDONLY)) {     /*  需要截断                    */
+        if (phoitn) {
+            __hoit_truncate(phoitn, 0);
+            pfdnode->FDNODE_oftSize = 0;
+        }
+    }
+
+    LW_DEV_INC_USE_COUNT(&pfs->HOITFS_devhdrHdr);                     /*  更新计数器                  */
+    /************************************ END  ************************************/
+    __HOIT_VOLUME_UNLOCK(pfs);
 
     return  ((LONG)pfdnode);                                            /*  返回文件节点                */
 }
@@ -257,22 +362,83 @@ static LONG __hoitFsOpen(PHOIT_VOLUME     pfs,
 static INT  __hoitFsRemove(PHOIT_VOLUME   pfs,
     PCHAR         pcName)
 {
+    PHOIT_INODE_INFO    phoitn;
+    PHOIT_INODE_INFO    phoitFather;
+    BOOL                bRoot;
+    PCHAR               pcTail;
+    INT                 iError;
+
     if (pcName == LW_NULL) {
         _ErrorHandle(ERROR_IO_NO_DEVICE_NAME_IN_PATH);
         return  (PX_ERROR);
     }
 
-    if (__HOITFS_SB_LOCK(pfs) != ERROR_NONE) {
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);                                            /*  设备出错                    */
         return  (PX_ERROR);
     }
 
     //************************************ TODO ************************************
+    phoitn = __hoit_open(pfs, pcName, &phoitFather, &bRoot, LW_NULL, &pcTail);
+    if (phoitn) {
+        //TODO 建立软链接部分，PHOIT_INODE_INFO尚缺少pcLink
+        if (S_ISLNK(phoitn->HOITN_mode)) {
+
+        }
 
 
-    //************************************ END  ************************************
-    __HOITFS_SB_UNLOCK(pfs);
-    return 0;
+        //TOOPT hoit_unlink 待整合
+        if (S_ISDIR(phoitn->HOITN_mode)) {
+            __hoit_unlink_dir(phoitFather, 
+                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino));
+        } else { //TODO 尚不能识别普通文件
+            __hoit_unlink_regular(phoitFather,
+                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino));
+        }   
+        __HOIT_VOLUME_UNLOCK(pfs);
+        return (iError);
+    } else if (bRoot) {
+        if (pfs->HOITFS_bValid == LW_FALSE) {
+            __HOIT_VOLUME_UNLOCK(pfs);
+            return (ERROR_NONE);
+        }
+__re_umount_vol:
+        if (LW_DEV_GET_USE_COUNT((LW_DEV_HDR *)pfs)) {
+            if (!pfs->HOITFS_bForceDelete) {
+                __HOIT_VOLUME_UNLOCK(pfs);
+                _ErrorHandle(EBUSY);
+                return  (PX_ERROR);
+            }
+
+            pfs->HOITFS_bValid = LW_FALSE;
+
+            __HOIT_VOLUME_UNLOCK(pfs);
+
+            _DebugHandle(__ERRORMESSAGE_LEVEL, "disk have open file.\r\n");
+            iosDevFileAbnormal(&pfs->HOITFS_devhdrHdr);               /*  将所有相关文件设为异常模式  */
+
+            __HOIT_VOLUME_LOCK(pfs);
+            goto    __re_umount_vol;
+        } else {
+            pfs->HOITFS_bValid = LW_FALSE;
+        }
+
+        iosDevDelete((LW_DEV_HDR *)pfs);                             /*  IO 系统移除设备             */
+        API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);
+         
+        //TODO __hoit_unmount尚未定义
+        //__hoit_unmount(pfs);
+        __SHEAP_FREE(pfs);
+
+        _DebugHandle(__LOGMESSAGE_LEVEL, "hoitfs unmount ok.\r\n");
+
+        return (ERROR_NONE);
+    } else {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(ENOENT);
+        return  (PX_ERROR);       
+    }
+    /************************************ END  ************************************/
 }
 
 /*********************************************************************************************************
@@ -285,17 +451,37 @@ static INT  __hoitFsRemove(PHOIT_VOLUME   pfs,
 *********************************************************************************************************/
 static INT  __hoitFsClose(PLW_FD_ENTRY    pfdentry)
 {
-    PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PHOIT_VOLUME      pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
-
-    if (__HOITFS_SB_LOCK(pfs) != ERROR_NONE) {
+    PLW_FD_NODE         pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn  = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    BOOL                bRemove = LW_FALSE;
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);                                            /*  设备出错                    */
         return  (PX_ERROR);
     }
     
-    LW_DEV_DEC_USE_COUNT(&pfs->HOITFS_devhdrHdr);
+    if (API_IosFdNodeDec(&pfs->HOITFS_plineFdNodeHeader, 
+                         pfdnode, &bRemove) == 0) {
+        if (phoitn) {
+            //TODO __hoit_close还未添加定义
+            //__hoit_close(phoitn, pfdentry->FDENTRY_iFlag);
+        }
+    }
 
-    __HOITFS_SB_UNLOCK(pfs);
+    LW_DEV_DEC_USE_COUNT(&pfs->HOITFS_devhdrHdr);
+    /*
+    if (bRemove && phoitn) { //TODEBUG __hoitFsClose里获取不了父亲节点，无法删除
+        if (S_ISDIR(phoitn->HOITN_mode)) { //TOOPT hoit_unlink 待整合
+            __hoit_unlink_dir(phoitFather, 
+                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino));
+        } else { //TODO 尚不能识别普通文件
+            __hoit_unlink_regular(phoitFather,
+                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino));
+        }
+    }
+    */
+
+    __HOIT_VOLUME_UNLOCK(pfs);
 
     return  (ERROR_NONE);
 }
@@ -313,15 +499,42 @@ static ssize_t  __hoitFsRead(PLW_FD_ENTRY pfdentry,
     PCHAR        pcBuffer,
     size_t       stMaxBytes)
 {
-    PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    
-    ssize_t       sstReadNum = PX_ERROR;
+    PLW_FD_NODE         pfdnode     = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn      = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs         = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    ssize_t             sstReadNum  = PX_ERROR;
 
     if (!pcBuffer) {
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
     }
 
+    if (phoitn == LW_NULL) {
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);   
+    }
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);        
+    }
+
+    if (S_ISDIR(phoitn->HOITN_mode)) {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);        
+    }
+
+    if (stMaxBytes) { //TODO __hoit_read尚未添加定义
+        /*sstReadNum = __hoit_read(phoitn, pcBuffer, stMaxBytes, (size_t)pfdentry->FDENTRY_oftPtr);*/
+        if (sstReadNum > 0) {
+            pfdentry->FDENTRY_oftPtr +=(off_t)sstReadNum;
+        }
+    } else {
+        sstReadNum = 0;
+    }
+
+    __HOIT_VOLUME_UNLOCK(pfs);
     return  (sstReadNum);
 }
 
@@ -341,15 +554,40 @@ static ssize_t  __hoitFsPRead(PLW_FD_ENTRY pfdentry,
     size_t       stMaxBytes,
     off_t        oftPos)
 {
-    PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    
-    ssize_t       sstReadNum = PX_ERROR;
+    PLW_FD_NODE         pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn      = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs         = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    ssize_t             sstReadNum  = PX_ERROR;
 
     if (!pcBuffer || (oftPos < 0)) {
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
     }
 
+    if (phoitn == LW_NULL) {
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);   
+    }
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);        
+    }
+
+    if (S_ISDIR(phoitn->HOITN_mode)) {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);        
+    }
+
+    if (stMaxBytes) {
+        sstReadNum = __hoit_read(phoitn, pcBuffer, stMaxBytes, (size_t)oftPos);
+        /* 相比read操作少了判断修改pfdnode文件指针的步骤 */
+    } else {    
+        sstReadNum = 0;
+    }   
+
+    __HOIT_VOLUME_UNLOCK(pfs);
     return  (sstReadNum);
 }
 
@@ -367,18 +605,48 @@ static ssize_t  __hoitFsWrite(PLW_FD_ENTRY  pfdentry,
     PCHAR         pcBuffer,
     size_t        stNBytes)
 {
-    PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    
-    ssize_t       sstWriteNum = PX_ERROR;
+    PLW_FD_NODE         pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn      = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs         = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    ssize_t             sstWriteNum = PX_ERROR;
 
     if (!pcBuffer) {
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
     }
 
+    if (phoitn == LW_NULL) {
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);       
+    }
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);        
+    }
+
+    if (S_ISDIR(phoitn->HOITN_mode)) {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);        
+    }
+
     if (pfdentry->FDENTRY_iFlag & O_APPEND) {                           /*  追加模式                    */
         pfdentry->FDENTRY_oftPtr = pfdnode->FDNODE_oftSize;             /*  移动读写指针到末尾          */
     }
+
+    if (stNBytes) { //TODO __hoit_write尚未添加定义
+        /* sstWriteNum = __hoit_write(phoitn, pcBuffer, stNBytes, (size_t)pfdentry->FDENTRY_oftPtr);*/
+        if (sstWriteNum > 0) {
+            pfdentry->FDENTRY_oftPtr += (off_t)sstWriteNum;             /*  更新文件指针                */
+            //TODO HOITN_stSize尚未定义
+            /*pfdnode->FDNODE_oftSize   = (off_t)phoitn->HOITN_stSize;*/
+        }
+    } else {
+        sstWriteNum = 0;
+    }
+
+    __HOIT_VOLUME_UNLOCK(pfs);
 
     return  (sstWriteNum);
 }
@@ -400,7 +668,8 @@ static ssize_t  __hoitFsPWrite(PLW_FD_ENTRY  pfdentry,
     off_t         oftPos)
 {
     PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-
+    PHOIT_INODE_INFO    phoitn  = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
     ssize_t       sstWriteNum = PX_ERROR;
 
     if (!pcBuffer || (oftPos < 0)) {
@@ -408,7 +677,280 @@ static ssize_t  __hoitFsPWrite(PLW_FD_ENTRY  pfdentry,
         return  (PX_ERROR);
     }
 
+    if (phoitn == LW_NULL) {
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);        
+    }
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);        
+    }
+
+    if (S_ISDIR(phoitn->HOITN_mode)) {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);        
+    }
+
+    if (stNBytes) { //TODO __hoit_write尚未添加定义
+        /* sstWriteNum = __hoit_write(phoitn, pcBuffer, stNBytes, (size_t)oftPos);*/
+        if (sstWriteNum > 0) {
+            //TODO HOITN_stSize尚未定义
+            /*pfdnode->FDNODE_oftSize   = (off_t)phoitn->HOITN_stSize;*/
+        }
+    } else {
+        sstWriteNum = 0;
+    }
+
+    __HOIT_VOLUME_UNLOCK(pfs);
+
     return  (sstWriteNum);
+}
+
+/*********************************************************************************************************
+** 函数名称: __hoitFsNRead
+** 功能描述: hoitFs nread 操作
+** 输　入  : pfdentry         文件控制块
+**           piNRead          剩余数据量
+** 输　出  : 驱动相关
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static INT  __hoitFsNRead (PLW_FD_ENTRY  pfdentry, INT  *piNRead)
+{
+    PLW_FD_NODE         pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn  = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+
+    if (piNRead == LW_NULL) {
+        _ErrorHandle(EINVAL);
+        return  (PX_ERROR);
+    } 
+
+    if (phoitn == LW_NULL) {
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);        
+    }
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);        
+    }
+
+    if (S_ISDIR(phoitn->HOITN_mode)) {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);        
+    }
+
+    //TODO HOITN_stSize尚未定义
+    /* *piNRead = (INT)(phoitn->HOITN_stSize - (size_t)pfdentry->FDENTRY_oftPtr); */
+
+    __HOIT_VOLUME_UNLOCK(pfs);
+
+    return  (ERROR_NONE);
+}
+
+/*********************************************************************************************************
+** 函数名称: __hoitFsNRead64
+** 功能描述: hoitFs nread 操作
+** 输　入  : pfdentry         文件控制块
+**           poftNRead        剩余数据量
+** 输　出  : 驱动相关
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static INT  __hoitFsNRead64 (PLW_FD_ENTRY  pfdentry, off_t  *poftNRead)
+{
+    PLW_FD_NODE         pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn  = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+
+    if (poftNRead == LW_NULL) {
+        _ErrorHandle(EINVAL);
+        return  (PX_ERROR);
+    } 
+
+    if (phoitn == LW_NULL) {
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);        
+    }
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);        
+    }
+
+    if (S_ISDIR(phoitn->HOITN_mode)) {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);        
+    }   
+    //TODO HOITN_stSize尚未定义
+    /* *poftNRead = (off_t)(phoitn->HOITN_stSize - (size_t)pfdentry->FDENTRY_oftPtr); */
+
+    __HOIT_VOLUME_UNLOCK(pfs);
+
+    return (ERROR_NONE);
+}
+
+/*********************************************************************************************************
+** 函数名称: __ramFsRename
+** 功能描述: ramFs rename 操作
+** 输　入  : pfdentry         文件控制块
+**           pcNewName        新的名称
+** 输　出  : 驱动相关
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static INT  __hoitFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
+{
+    PLW_FD_NODE         pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn  = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    PHOIT_VOLUME        pfsNew;
+    CHAR                cNewPath[PATH_MAX + 1];
+    INT                 iError;
+
+    if (phoitn == LW_NULL) {                                             /*  检查是否为设备文件          */
+        _ErrorHandle(ERROR_IOS_DRIVER_NOT_SUP);                         /*  不支持设备重命名            */
+        return (PX_ERROR);
+    }       
+
+    if (pcNewName == LW_NULL) {
+        _ErrorHandle(EFAULT);                                           /*  Bad address                 */
+        return (PX_ERROR);
+    }
+    
+    if (__STR_IS_ROOT(pcNewName)) {
+        _ErrorHandle(ENOENT);
+        return (PX_ERROR);
+    }    
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);        
+    }
+
+    if (ioFullFileNameGet(pcNewName, 
+                          (LW_DEV_HDR **)&pfsNew, 
+                          cNewPath) != ERROR_NONE) {                    /*  获得新目录路径              */
+        __HOIT_VOLUME_UNLOCK(pfs);
+        return  (PX_ERROR);
+    }
+
+    if (pfsNew != pfs) {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(EXDEV);
+        return  (PX_ERROR);        
+    }
+    //TODEBUG 没法获取父亲节点
+    /* iError = __hoit_move(); */
+
+    __HOIT_VOLUME_UNLOCK(pfs);
+
+    return  (iError);
+}
+
+/*********************************************************************************************************
+** 函数名称: __hoitFsSeek
+** 功能描述: hoitFs seek 操作
+** 输　入  : pfdentry         文件控制块
+**           oftOffset        偏移量
+** 输　出  : 驱动相关
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static INT  __hoitFsSeek (PLW_FD_ENTRY  pfdentry,
+                         off_t         oftOffset)
+{
+    PLW_FD_NODE         pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn  = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+
+    if (oftOffset > (size_t)~0) {
+        _ErrorHandle(EOVERFLOW);
+        return  (PX_ERROR);
+    } 
+
+    if (phoitn == LW_NULL) {
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);        
+    }
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);        
+    }
+
+    if (S_ISDIR(phoitn->HOITN_mode)) {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);        
+    }   
+
+    pfdentry->FDENTRY_oftPtr = oftOffset;
+    //TODO HOITN_stSize尚未定义
+    /*
+    if (phoitn->HOITN_stSize < (size_t)oftOffset) {
+        phoitn->HOITN_stSize = (size_t)oftOffset;
+    }
+    */
+
+   __HOIT_VOLUME_UNLOCK(pfs);
+   return   (ERROR_NONE);
+}                         
+
+/*********************************************************************************************************
+** 函数名称: __hoitFsWhere
+** 功能描述: hoitFs 获得文件当前读写指针位置 (使用参数作为返回值, 与 FIOWHERE 的要求稍有不同)
+** 输　入  : pfdentry            文件控制块
+**           poftPos             读写指针位置
+** 输　出  : < 0 表示错误
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static INT  __hoitFsWhere (PLW_FD_ENTRY  pfdentry, off_t  *poftPos)
+{
+    if (poftPos) {
+        *poftPos = (off_t)pfdentry->FDENTRY_oftPtr;
+        return  (ERROR_NONE);
+    }
+    
+    return  (PX_ERROR);
+}
+
+/*********************************************************************************************************
+** 函数名称: __hoitFsStat
+** 功能描述: hoitFs stat 操作
+** 输　入  : pfdentry         文件控制块
+**           pstat            文件状态
+** 输　出  : < 0 表示错误
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static INT  __hoitFsStat (PLW_FD_ENTRY  pfdentry, struct stat *pstat)
+{/* 通过文件控制块fd获取文件状态 */
+    PLW_FD_NODE         pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn  = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+
+    if (!pstat) {
+        _ErrorHandle(EINVAL);
+        return  (PX_ERROR);
+    }
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);        
+    }
+
+    __hoit_stat(phoitn, pfs, pstat);
+
+    __HOIT_VOLUME_UNLOCK(pfs);
+
+    return  (ERROR_NONE);
 }
 
 /*********************************************************************************************************
@@ -422,23 +964,275 @@ static ssize_t  __hoitFsPWrite(PLW_FD_ENTRY  pfdentry,
 ** 调用模块:
 *********************************************************************************************************/
 static INT  __hoitFsLStat(PHOIT_VOLUME  pfs, PCHAR  pcName, struct stat* pstat)
-{
-    BOOL          bRoot;
+{/* 通过文件名获取文件状态 */
+    BOOL                bRoot;
+    PHOIT_INODE_INFO    phoitn;
+    PHOIT_INODE_INFO    phoitnFather;
 
     if (!pcName || !pstat) {
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
     }
 
-    if (__HOITFS_SB_LOCK(pfs) != ERROR_NONE) {
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
 
-    __HOITFS_SB_UNLOCK(pfs);
+    phoitn = __hoit_open(pfs, pcName, &phoitnFather, &bRoot, LW_NULL, LW_NULL);
+    if (phoitn) {
+        __hoit_stat(phoitn, pfs, pstat);
+    } else if (bRoot) {
+        __hoit_stat(LW_NULL, pfs, pstat);
+    } else {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(ENOENT);
+        return  (PX_ERROR);        
+    }
+
+    __HOIT_VOLUME_UNLOCK(pfs);
 
     return  (ERROR_NONE);
 }
+
+/*********************************************************************************************************
+** 函数名称: __hoitFsStatfs
+** 功能描述: hoitFs statfs 操作
+** 输　入  : pfdentry         文件控制块
+**           pstatfs          文件系统状态
+** 输　出  : < 0 表示错误
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static INT  __hoitFsStatfs (PLW_FD_ENTRY  pfdentry, struct statfs *pstatfs)
+{
+    PLW_FD_NODE         pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn  = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+
+    if (!pstatfs) {
+        _ErrorHandle(EINVAL);
+        return  (PX_ERROR);
+    }    
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);
+    }
+
+    //TODO __hoit_statfs尚未完工
+    /*__hoit_statfs(pfs, pstatfs);*/
+
+    __HOIT_VOLUME_UNLOCK(pfs);
+
+    return  (ERROR_NONE); 
+}
+
+/*********************************************************************************************************
+** 函数名称: __hoitFsReadDir
+** 功能描述: hoitFs 获得指定目录信息
+** 输　入  : pfdentry            文件控制块
+**           dir                 目录结构
+** 输　出  : < 0 表示错误
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static INT  __hoitFsReadDir (PLW_FD_ENTRY  pfdentry, DIR  *dir)
+{
+    PLW_FD_NODE         pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn  = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+
+    INT                 i;
+    LONG                iStart;
+    INT                 iError = ERROR_NONE;  
+
+    if (!dir) {
+        _ErrorHandle(EINVAL);
+        return  (PX_ERROR);
+    }
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);
+    }   
+
+    //TODO 还不知道下层如何遍历目录，暂时保留
+
+
+    __HOIT_VOLUME_UNLOCK(pfs);
+
+    return  (ERROR_NONE);    
+}
+
+/*********************************************************************************************************
+** 函数名称: __hoitFsTimeset
+** 功能描述: hoitfs 设置文件时间
+** 输　入  : pfdentry            文件控制块
+**           utim                utimbuf 结构
+** 输　出  : < 0 表示错误
+** 全局变量: 
+** 调用模块: 
+*********************************************************************************************************/
+static INT  __hoitFsTimeset (PLW_FD_ENTRY  pfdentry, struct utimbuf  *utim)
+{
+    PLW_FD_NODE         pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn  = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+
+    if (!utim) {
+        _ErrorHandle(EINVAL);
+        return  (PX_ERROR);
+    }    
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);
+    } 
+
+    if (phoitn) {
+        //TODO PHOIT_INODE_INFO时间相关变量尚未定义
+
+        /*phoitn->HOITN_timeAccess = utim->actime;
+        phoitn->HOITN_timeChange = utim->modtime;*/
+    } else {
+        pfs->HOITFS_time = utim->modtime;
+    }
+
+    __HOIT_VOLUME_UNLOCK(pfs);
+
+    return  (ERROR_NONE);    
+}
+
+/*********************************************************************************************************
+** 函数名称: __hoitFsTruncate
+** 功能描述: hoitfs 设置文件大小
+** 输　入  : pfdentry            文件控制块
+**           oftSize             文件大小
+** 输　出  : < 0 表示错误
+** 全局变量: 
+** 调用模块: 
+*********************************************************************************************************/
+static INT  __hoitFsTruncate (PLW_FD_ENTRY  pfdentry, off_t  oftSize)
+{
+    PLW_FD_NODE         pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn  = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    size_t              stTru;
+
+    if (phoitn == LW_NULL) {
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);        
+    }    
+
+    if (oftSize < 0) {
+        _ErrorHandle(EINVAL);
+        return  (PX_ERROR);
+    }
+
+    if (oftSize > (size_t)~0) {
+        _ErrorHandle(ENOSPC);
+        return  (PX_ERROR);
+    }
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);
+    }
+
+    if (S_ISDIR(phoitn->HOITN_mode)) {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(EISDIR);
+        return  (PX_ERROR);
+    }  
+
+    stTru = (size_t)oftSize;
+
+    //TODO HOITN_stSize尚未定义，__hoit_increase尚未实现
+    /*if (stTru > phoitn->HOITN_stSize) {
+        __hoit_increase();
+    } else if (stTru < phoitn->HOITN_stSize) {
+        __hoit_truncate(phoitn, stTru);
+    }*/
+
+    __HOIT_VOLUME_UNLOCK(pfs);
+
+    return  (ERROR_NONE); 
+}
+
+/*********************************************************************************************************
+** 函数名称: __hoitFsChmod
+** 功能描述: hoitfs chmod 操作
+** 输　入  : pfdentry            文件控制块
+**           iMode               新的 mode
+** 输　出  : < 0 表示错误
+** 全局变量: 
+** 调用模块: 
+*********************************************************************************************************/
+static INT  __hoitFsChmod (PLW_FD_ENTRY  pfdentry, INT  iMode)
+{
+    PLW_FD_NODE         pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn  = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+
+    iMode |= S_IRUSR;
+    iMode &= ~S_IFMT;/* S_IFMT是文件类型的位掩码，这意味着本函数不允许改变文件类型 */
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);
+    }
+
+    if (phoitn) {
+        phoitn->HOITN_mode &= S_IFMT;
+        phoitn->HOITN_mode |= iMode;
+    } else {
+        pfs->HOITFS_mode &= S_IFMT;
+        pfs->HOITFS_mode |= iMode;
+    }
+
+    __HOIT_VOLUME_UNLOCK(pfs);
+
+    return  (ERROR_NONE);     
+}
+
+/*********************************************************************************************************
+** 函数名称: __hoitFsChown
+** 功能描述: hoitfs chown 操作
+** 输　入  : pfdentry            文件控制块
+**           pusr                新的所属用户
+** 输　出  : < 0 表示错误
+** 全局变量: 
+** 调用模块: 
+*********************************************************************************************************/
+static INT  __hoitFsChown (PLW_FD_ENTRY  pfdentry, LW_IO_USR  *pusr)
+{
+    PLW_FD_NODE         pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_INODE_INFO    phoitn  = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
+    PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+
+    if (!pusr) {
+        _ErrorHandle(EINVAL);
+        return  (PX_ERROR);
+    }
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);
+    }    
+    if (phoitn) {
+        phoitn->HOITN_uid = pusr->IOU_uid;
+        phoitn->HOITN_gid = pusr->IOU_gid;
+    } else {
+        pfs->HOITFS_uid = pusr->IOU_uid;
+        pfs->HOITFS_gid = pusr->IOU_gid;
+    }
+
+    __HOIT_VOLUME_UNLOCK(pfs);
+
+    return  (ERROR_NONE);   
+}
+
 /*********************************************************************************************************
 ** 函数名称: __hoitFsSymlink
 ** 功能描述: hoitFs 创建符号链接文件
@@ -455,7 +1249,9 @@ static INT  __hoitFsSymlink(PHOIT_VOLUME   pfs,
     CPCHAR        pcLinkDst)
 {
 
-    BOOL          bRoot;
+    BOOL                bRoot;
+    PHOIT_INODE_INFO    phoitn;
+    PHOIT_INODE_INFO    phoitnFather;
 
     if (!pcName || !pcLinkDst) {
         _ErrorHandle(EINVAL);
@@ -467,14 +1263,22 @@ static INT  __hoitFsSymlink(PHOIT_VOLUME   pfs,
         return  (PX_ERROR);
     }
 
-    if (__HOITFS_SB_LOCK(pfs) != ERROR_NONE) {
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
 
+    phoitn = __hoit_open(pfs, pcName, &phoitnFather, &bRoot, LW_NULL, LW_NULL);
+    if (phoitn || bRoot) { /* 同名文件存在或为根节点 */
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(EEXIST);
+        return  (PX_ERROR);        
+    }
     
+    //TODO 软链接建立功能尚未实现
+    /*phoitn = __hoit_maken(pfs, pcName, phoitnFather, S_IFLNK | DEFAULT_SYMLINK_PERM, pcLinkDst); */
 
-    __HOITFS_SB_UNLOCK(pfs);
+    __HOIT_VOLUME_UNLOCK(pfs);
 
     return  (ERROR_NONE);
 }
@@ -494,19 +1298,37 @@ static ssize_t __hoitFsReadlink(PHOIT_VOLUME   pfs,
     PCHAR         pcLinkDst,
     size_t        stMaxSize)
 {
+
     size_t      stLen;
+    PHOIT_INODE_INFO    phoitn;
 
     if (!pcName || !pcLinkDst || !stMaxSize) {
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
     }
 
-    if (__HOITFS_SB_LOCK(pfs) != ERROR_NONE) {
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
 
-    __HOITFS_SB_UNLOCK(pfs);
+    phoitn = __hoit_open(pfs, pcName, LW_NULL, LW_NULL, LW_NULL, LW_NULL);
+    if ((phoitn == LW_NULL) || !S_ISLNK(phoitn->HOITN_mode)) {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(ENOENT);
+        return  (PX_ERROR);
+    }
+    
+    //TODO 尚未定义HOITN_pcLink，软链接部分功能也尚未实现
+    /*
+    stLen = lib_strlen(phoitn->HOITN_pcLink);
+    lib_strncpy(pcLinkDst, phoitn->HOITN_pcLink, stMaxSize);
+    */
+
+    if (stLen > stMaxSize) {
+        stLen = stMaxSize;
+    }
+    __HOIT_VOLUME_UNLOCK(pfs);
 
     return  ((ssize_t)stLen);
 }
@@ -524,7 +1346,122 @@ static INT  __hoitFsIoctl(PLW_FD_ENTRY  pfdentry,
     INT           iRequest,
     LONG          lArg)
 {
-    return  (ERROR_NONE);
+    PLW_FD_NODE    pfdnode  = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PHOIT_VOLUME   pfs      = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    off_t         oftTemp;
+    INT           iError;
+
+    switch (iRequest) {
+    case FIOCONTIG:
+    case FIOTRUNC:
+    case FIOLABELSET:
+    case FIOATTRIBSET:
+        if ((pfdentry->FDENTRY_iFlag & O_ACCMODE) == O_RDONLY) {
+            _ErrorHandle(ERROR_IO_WRITE_PROTECTED);
+            return  (PX_ERROR);
+        }
+	}
+    
+	switch (iRequest) {
+	
+	case FIODISKINIT:                                                   /*  磁盘初始化                  */
+        return  (ERROR_NONE);
+        
+    case FIOSEEK:                                                       /*  文件重定位                  */
+        oftTemp = *(off_t *)lArg;
+        return  (__hoitFsSeek(pfdentry, oftTemp));
+
+    case FIOWHERE:                                                      /*  获得文件当前读写指针        */
+        iError = __hoitFsWhere(pfdentry, &oftTemp);
+        if (iError == PX_ERROR) {
+            return  (PX_ERROR);
+        } else {
+            *(off_t *)lArg = oftTemp;
+            return  (ERROR_NONE);
+        }
+        
+    case FIONREAD:                                                      /*  获得文件剩余字节数          */
+        return  (__hoitFsNRead(pfdentry, (INT *)lArg));
+        
+    case FIONREAD64:                                                    /*  获得文件剩余字节数          */
+        iError = __hoitFsNRead64(pfdentry, &oftTemp);
+        if (iError == PX_ERROR) {
+            return  (PX_ERROR);
+        } else {
+            *(off_t *)lArg = oftTemp;
+            return  (ERROR_NONE);
+        }
+
+    case FIORENAME:                                                     /*  文件重命名                  */
+        return  (__hoitFsRename(pfdentry, (PCHAR)lArg));
+    
+    case FIOLABELGET:                                                   /*  获取卷标                    */
+    case FIOLABELSET:                                                   /*  设置卷标                    */
+        _ErrorHandle(ENOSYS);
+        return  (PX_ERROR);
+    
+    case FIOFSTATGET:                                                   /*  获得文件状态                */
+        return  (__hoitFsStat(pfdentry, (struct stat *)lArg));
+    
+    case FIOFSTATFSGET:                                                 /*  获得文件系统状态            */
+        return  (__hoitFsStatfs(pfdentry, (struct statfs *)lArg));
+    
+    case FIOREADDIR:                                                    /*  获取一个目录信息            */
+        return  (__hoitFsReadDir(pfdentry, (DIR *)lArg));
+    
+    case FIOTIMESET:                                                    /*  设置文件时间                */
+        return  (__hoitFsTimeset(pfdentry, (struct utimbuf *)lArg));
+        
+    case FIOTRUNC:                                                      /*  改变文件大小                */
+        oftTemp = *(off_t *)lArg;
+        return  (__hoitFsTruncate(pfdentry, oftTemp));
+    
+    case FIOSYNC:                                                       /*  将文件缓存回写              */
+    case FIOFLUSH:
+    case FIODATASYNC:
+        return  (ERROR_NONE);
+        
+    case FIOCHMOD:
+        return  (__hoitFsChmod(pfdentry, (INT)lArg));                    /*  改变文件访问权限            */
+    
+    case FIOSETFL:                                                      /*  设置新的 flag               */
+        if ((INT)lArg & O_NONBLOCK) {
+            pfdentry->FDENTRY_iFlag |= O_NONBLOCK;
+        } else {
+            pfdentry->FDENTRY_iFlag &= ~O_NONBLOCK;
+        }
+        return  (ERROR_NONE);
+    
+    case FIOCHOWN:                                                      /*  修改文件所属关系            */
+        return  (__hoitFsChown(pfdentry, (LW_IO_USR *)lArg));
+    
+    case FIOFSTYPE:                                                     /*  获得文件系统类型            */
+        *(PCHAR *)lArg = "RAM FileSystem";
+        return  (ERROR_NONE);
+    
+    case FIOGETFORCEDEL:                                                /*  强制卸载设备是否被允许      */
+        *(BOOL *)lArg = pfs->HOITFS_bForceDelete;
+        return  (ERROR_NONE);
+        
+#if LW_CFG_FS_SELECT_EN > 0
+    case FIOSELECT:
+        if (((PLW_SEL_WAKEUPNODE)lArg)->SELWUN_seltypType != SELEXCEPT) {
+            SEL_WAKE_UP((PLW_SEL_WAKEUPNODE)lArg);                      /*  唤醒节点                    */
+        }
+        return  (ERROR_NONE);
+         
+    case FIOUNSELECT:
+        if (((PLW_SEL_WAKEUPNODE)lArg)->SELWUN_seltypType != SELEXCEPT) {
+            LW_SELWUN_SET_READY((PLW_SEL_WAKEUPNODE)lArg);
+        }
+        return  (ERROR_NONE);
+#endif                                                                  /*  LW_CFG_FS_SELECT_EN > 0     */
+        
+    default:
+        _ErrorHandle(ENOSYS);
+        return  (PX_ERROR);
+    }
+
 }
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
 #endif // HOITFS_DISABLE

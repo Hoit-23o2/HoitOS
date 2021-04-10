@@ -18,7 +18,7 @@
 **
 ** ร่        ส๖: HoitFs
 *********************************************************************************************************/
-#define HOITFS_DISABLE
+/* #define HOITFS_DISABLE */
 #ifndef HOITFS_DISABLE
 
 

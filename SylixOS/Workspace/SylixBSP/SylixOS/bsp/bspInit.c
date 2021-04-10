@@ -49,8 +49,8 @@
 #include "driver/sdi/sdInit.h"                                          /*  SD ½Ó¿Ú                     */
 #include "driver/mtd/nor/nor.h"                                         /*  nor flash Çý¶¯              */
 
-#include "extfs/hoitFs/hoitFsTreeUtil.h"                                /*  ºìºÚÊ÷²âÊÔ - PYQ             */
-#include "extfs/hoitFs/hoitFsTree.h"                                    /*  FragÊ÷²âÊÔ - PYQ             */
+#include "../hoitFs/hoitFsTreeUtil.h"                                /*  ºìºÚÊ÷²âÊÔ - PYQ             */
+#include "../hoitFs/hoitFsTree.h"                                    /*  FragÊ÷²âÊÔ - PYQ             */
 /*********************************************************************************************************
   ²Ù×÷ÏµÍ³·ûºÅ±í
 *********************************************************************************************************/

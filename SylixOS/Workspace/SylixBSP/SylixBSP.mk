@@ -59,11 +59,12 @@ SylixOS/driver/touchscr/s3c_onewire.c \
 SylixOS/driver/touchscr/touchscr.c \
 SylixOS/driver/tty/samsungtty.c \
 SylixOS/driver/tty/uart.c \
-SylixOS/extfs/hoitFs/hoitFs.c \
-SylixOS/extfs/hoitFs/hoitFsLib.c \
-SylixOS/extfs/hoitFs/hoitFsMid.c \
-SylixOS/extfs/hoitFs/hoitFsTree.c \
-SylixOS/extfs/hoitFs/hoitFsTreeUtil.c \
+SylixOS/hoitFs/hoitFs.c \
+SylixOS/hoitFs/hoitFsCache.c \
+SylixOS/hoitFs/hoitFsLib.c \
+SylixOS/hoitFs/hoitFsMid.c \
+SylixOS/hoitFs/hoitFsTree.c \
+SylixOS/hoitFs/hoitFsTreeUtil.c \
 SylixOS/user/main.c
 
 

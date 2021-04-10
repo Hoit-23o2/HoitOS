@@ -1,22 +1,22 @@
 /*********************************************************************************************************
 **
-**                                    中国软件开源组织
+**                                    涓浗杞欢寮�婧愮粍缁�
 **
-**                                   嵌入式实时操作系统
+**                                   宓屽叆寮忓疄鏃舵搷浣滅郴缁�
 **
 **                                       SylixOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
-**--------------文件信息--------------------------------------------------------------------------------
+**--------------鏂囦欢淇℃伅--------------------------------------------------------------------------------
 **
-** 文   件   名: hoitFsTree.h
+** 鏂�   浠�   鍚�: hoitFsTree.h
 **
-** 创   建   人: Pan yanqi (潘延麒)
+** 鍒�   寤�   浜�: Pan yanqi (娼樺欢楹�)
 **
-** 文件创建日期: 2021 年 03 月 28 日
+** 鏂囦欢鍒涘缓鏃ユ湡: 2021 骞� 03 鏈� 28 鏃�
 **
-** 描        述: JFFS2-Like fragtree实现
+** 鎻�        杩�: JFFS2-Like fragtree瀹炵幇
 *********************************************************************************************************/
 
 #ifndef SYLIXOS_EXTFS_HOITFS_HOITFSTREE_H_
@@ -29,17 +29,17 @@
 #define FT_TEST
 
 /*********************************************************************************************************
-  供测试
+  渚涙祴璇�
 *********************************************************************************************************/
 #ifdef FT_TEST
-typedef struct {
-
-}HOIT_FULL_DNODE;
-typedef HOIT_FULL_DNODE* PHOIT_FULL_DNODE;
+//typedef struct {
+//    INT     Temp;
+//}HOIT_FULL_DNODE;
+//typedef HOIT_FULL_DNODE* PHOIT_FULL_DNODE;
 #endif // DEBUG
 
 /*********************************************************************************************************
-  INODE_INFO的FragTree的节点
+  INODE_INFO鐨凢ragTree鐨勮妭鐐�
 *********************************************************************************************************/
 typedef struct hoit_frag_tree_node
 {
@@ -61,35 +61,35 @@ static inline PHOIT_FRAG_TREE_NODE newHoitFragTreeNode(PHOIT_FULL_DNODE pFDnode,
     return pFTn;
 }
 /*********************************************************************************************************
-  INODE_INFO指向的FragTree
+  INODE_INFO鎸囧悜鐨凢ragTree
 *********************************************************************************************************/
 typedef struct hoit_frag_tree
 {
     PHOIT_RB_TREE pRbTree;
-    UINT32 uiNCnt;                                  /* 节点数目 */
+    UINT32 uiNCnt;                                  /* 鑺傜偣鏁扮洰 */
 } HOIT_FRAG_TREE;
 typedef HOIT_FRAG_TREE * PHOIT_FRAG_TREE;
 
 
 /*********************************************************************************************************
-  FragTree基本操作
+  FragTree鍩烘湰鎿嶄綔
 *********************************************************************************************************/
-PHOIT_FRAG_TREE            hoitInitFragTree(VOID);                                                              /* 初始化树 */
-PHOIT_FRAG_TREE_NODE       hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn);                       /* 插入一个节点 */
-PHOIT_FRAG_TREE_NODE       hoitFragTreeSearchNode(PHOIT_FRAG_TREE pFTTree, INT32 iKey);                                      /* 查找一个节点 */
-BOOL                       hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn);                       /* 删除一个节点 */
-VOID                       hoitFragTreeTraverse(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot);                         /* 中序遍历FragTree */
+PHOIT_FRAG_TREE            hoitInitFragTree(VOID);                                                              /* 鍒濆鍖栨爲 */
+PHOIT_FRAG_TREE_NODE       hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn);                       /* 鎻掑叆涓�涓妭鐐� */
+PHOIT_FRAG_TREE_NODE       hoitFragTreeSearchNode(PHOIT_FRAG_TREE pFTTree, INT32 iKey);                                      /* 鏌ユ壘涓�涓妭鐐� */
+BOOL                       hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn);                       /* 鍒犻櫎涓�涓妭鐐� */
+VOID                       hoitFragTreeTraverse(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot);                         /* 涓簭閬嶅巻FragTree */
 
 /*********************************************************************************************************
-  FragTree进阶操作 - 与下层实体操作
+  FragTree杩涢樁鎿嶄綔 - 涓庝笅灞傚疄浣撴搷浣�
 *********************************************************************************************************/
-//TODO：读取FragTree，然后向下读取数据实体，基本逻辑为先读Cache，Cache未命中再读flash
+//TODO锛氳鍙朏ragTree锛岀劧鍚庡悜涓嬭鍙栨暟鎹疄浣擄紝鍩烘湰閫昏緫涓哄厛璇籆ache锛孋ache鏈懡涓啀璇籪lash
 error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT uiOfs, UINT32 uiSize, PCHAR pContent);
-//TODO：搜索FragTree，寻找Overlay - 4种情况，然后做出相应修改， 避免掉电，每次构建树后都调用一次FixUp
+//TODO锛氭悳绱ragTree锛屽鎵綩verlay - 4绉嶆儏鍐碉紝鐒跺悗鍋氬嚭鐩稿簲淇敼锛� 閬垮厤鎺夌數锛屾瘡娆℃瀯寤烘爲鍚庨兘璋冪敤涓�娆ixUp
 error_t hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree);
-//TODO：写入FragTree，然后调用搜索FragTree进行重叠检测与修改，然后写入Cache，Cache未命中，先读出再写入，命中直接写入，写满后Flush进flash，这里写入Cache的时候可以做一些备份，例如Trascation或者Log
+//TODO锛氬啓鍏ragTree锛岀劧鍚庤皟鐢ㄦ悳绱ragTree杩涜閲嶅彔妫�娴嬩笌淇敼锛岀劧鍚庡啓鍏ache锛孋ache鏈懡涓紝鍏堣鍑哄啀鍐欏叆锛屽懡涓洿鎺ュ啓鍏ワ紝鍐欐弧鍚嶧lush杩沠lash锛岃繖閲屽啓鍏ache鐨勬椂鍊欏彲浠ュ仛涓�浜涘浠斤紝渚嬪Trascation鎴栬�匧og
 error_t hoitFragTreeWrite(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, PCHAR pContent);
-//(TODO)：搜集FragTree  iKey大于等于某个值的所有节点
+//(TODO)锛氭悳闆咶ragTree  iKey澶т簬绛変簬鏌愪釜鍊肩殑鎵�鏈夎妭鐐�
 
 #ifdef FT_TEST
 VOID hoitFTTreeTest();

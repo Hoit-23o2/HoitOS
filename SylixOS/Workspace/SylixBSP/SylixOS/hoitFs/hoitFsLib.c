@@ -24,7 +24,7 @@
 #include "../SylixOS/kernel/include/k_kernel.h"
 #include "../SylixOS/system/include/s_system.h"
 #include "../SylixOS/fs/include/fs_fs.h"
-#include "../../driver/mtd/nor/nor.h"
+#include "../driver/mtd/nor/nor.h"
 /*********************************************************************************************************
   裁剪宏
 *********************************************************************************************************/
@@ -41,23 +41,21 @@
 ** 调用模块:
 *********************************************************************************************************/
 PHOIT_INODE_INFO  __hoit_just_open(PHOIT_INODE_INFO  pdir,
-    CPCHAR       pcName)
+    PCHAR       pName)
 {
 
     if (pdir == LW_NULL || !S_ISDIR(pdir->HOITN_mode)) {
         printk("Error in hoit_just_open\n");
         return (LW_NULL);
     }
-    UINT newHash = __hoit_name_hash(pcName);
-    PLW_LIST_LINE plineTemp;
+    UINT newHash = __hoit_name_hash(pName);
     PHOIT_FULL_DIRENT pfile = pdir->HOITN_dents;
     while (pfile != LW_NULL) {
-        if (pfile->HOITFD_nhash == newHash && lib_strcmp(pfile->HOITFD_file_name, pcName) == 0) {
+        if (pfile->HOITFD_nhash == newHash && lib_strcmp(pfile->HOITFD_file_name, pName) == 0) {
             return __hoit_get_full_file(pdir->HOITN_volume, pfile->HOITFD_ino);
         }
         else {
-            plineTemp = _list_line_get_next(pfile->HOITFD_next);
-            pfile = _LIST_ENTRY(plineTemp, HOIT_FULL_DIRENT, HOITFD_next);
+            pfile = pfile->HOITFD_next;
         }
     }
 
@@ -72,10 +70,10 @@ PHOIT_INODE_INFO  __hoit_just_open(PHOIT_INODE_INFO  pdir,
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-UINT __hoit_name_hash(PCHAR pname) {
+UINT __hoit_name_hash(CPCHAR pcName) {
     UINT ret = 0;
-    while (*pname != PX_EOS) {
-        ret += *pname;
+    while (*pcName != PX_EOS) {
+        ret += *pcName;
     }
     return ret;
 }
@@ -104,12 +102,11 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
     if (pfs == LW_NULL) {
         printk("Error in hoit_get_full_file\n");
     }
-    PLW_LIST_LINE plineTemp;
+
     PHOIT_INODE_CACHE pcache = pfs->HOITFS_cache_list;
 
     while (pcache && pcache->HOITC_ino != ino) {
-        plineTemp = _list_line_get_next(pcache->HOITC_next);
-        pcache = _LIST_ENTRY(plineTemp, HOIT_INODE_CACHE, HOITC_next);
+        pcache = pcache->HOITC_next;
     }
     //************************************ TODO ************************************
 
@@ -130,12 +127,11 @@ PHOIT_INODE_CACHE __hoit_get_inode_cache(PHOIT_VOLUME pfs, UINT ino) {
     if (pfs == LW_NULL) {
         printk("Error in hoit_get_full_file\n");
     }
-    PLW_LIST_LINE plineTemp;
+
     PHOIT_INODE_CACHE pcache = pfs->HOITFS_cache_list;
 
     while (pcache && pcache->HOITC_ino != ino) {
-        plineTemp = _list_line_get_next(pcache->HOITC_next);
-        pcache = _LIST_ENTRY(plineTemp, HOIT_INODE_CACHE, HOITC_next);
+        pcache = pcache->HOITC_next;
     }
     
     return pcache;
@@ -157,7 +153,7 @@ VOID  __hoit_add_dirent(PHOIT_INODE_INFO  pFatherInode,
     PHOIT_RAW_INFO      pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
     if (pRawDirent == LW_NULL || pRawInfo == LW_NULL || pFatherInode == LW_NULL) {
         _ErrorHandle(ENOMEM);
-        return  (LW_NULL);
+        return;
     }
     PHOIT_VOLUME pfs = pFatherInode->HOITN_volume;
     lib_bzero(pRawDirent, sizeof(HOIT_RAW_DIRENT));
@@ -169,7 +165,7 @@ VOID  __hoit_add_dirent(PHOIT_INODE_INFO  pFatherInode,
     pRawDirent->pino = pSonDirent->HOITFD_pino;
     pRawDirent->totlen = sizeof(HOIT_RAW_DIRENT) + lib_strlen(pSonDirent->HOITFD_file_name);
 
-    pRawInfo->phys_addr = pfs->HOITFS_now_block->HOITB_offset + pfs->HOITFS_now_block->HOITB_addr;
+    pRawInfo->phys_addr = pfs->HOITFS_now_sector->HOITS_offset + pfs->HOITFS_now_sector->HOITS_addr;
     pRawInfo->totlen = pRawDirent->totlen;
 
     __hoit_write_flash(pfs, (PVOID)pRawDirent, sizeof(HOIT_RAW_DIRENT), LW_NULL);
@@ -205,10 +201,10 @@ UINT __hoit_alloc_ino(PHOIT_VOLUME pfs) {
 ** 调用模块:
 *********************************************************************************************************/
 UINT8 __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_addr) {
-    write_nor(pfs->HOITFS_now_block->HOITB_offset + pfs->HOITFS_now_block->HOITB_addr, (PCHAR)(pdata), length, WRITE_KEEP);
-    pfs->HOITFS_now_block->HOITB_offset += length;
+    write_nor(pfs->HOITFS_now_sector->HOITS_offset + pfs->HOITFS_now_sector->HOITS_addr, (PCHAR)(pdata), length, WRITE_KEEP);
+    pfs->HOITFS_now_sector->HOITS_offset += length;
     if (phys_addr != LW_NULL) {
-        *phys_addr = pfs->HOITFS_now_block->HOITB_offset + pfs->HOITFS_now_block->HOITB_addr;
+        *phys_addr = pfs->HOITFS_now_sector->HOITS_offset + pfs->HOITFS_now_sector->HOITS_addr;
     }
     return 0;
 }
@@ -288,7 +284,7 @@ UINT8 __hoit_add_to_dents(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT pFull
 PHOIT_FULL_DIRENT __hoit_search_in_dents(PHOIT_INODE_INFO pInodeFather, UINT ino) {
     if (pInodeFather == LW_NULL) {
         printk("Error in hoit_search_in_dents\n");
-        return HOIT_ERROR;
+        return LW_NULL;
     }
     PHOIT_FULL_DIRENT pDirent = pInodeFather->HOITN_dents;
     while (pDirent && pDirent->HOITFD_ino != ino) {
@@ -350,7 +346,7 @@ UINT8 __hoit_del_raw_data(PHOIT_RAW_INFO pRawInfo) {
     read_nor(pRawInfo->phys_addr, buf, pRawInfo->totlen);
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)buf;
-    if (pRawHeader->magic_num != HOIT_MAGIC_NUM || pRawHeader->flag & HOIT_FLAG_OBSOLETE == 0) {
+    if (pRawHeader->magic_num != HOIT_MAGIC_NUM || (pRawHeader->flag & HOIT_FLAG_OBSOLETE) == 0) {
         printk("Error in hoit_del_raw_data\n");
         return HOIT_ERROR;
     }
@@ -566,7 +562,7 @@ PHOIT_INODE_INFO  __hoit_maken(PHOIT_VOLUME  pfs,
     PHOIT_RAW_INFO     pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
     PHOIT_INODE_CACHE   pInodeCache = (PHOIT_INODE_CACHE)__SHEAP_ALLOC(sizeof(HOIT_INODE_CACHE));
     PHOIT_FULL_DIRENT   pFullDirent = (PHOIT_FULL_DIRENT)__SHEAP_ALLOC(sizeof(HOIT_FULL_DIRENT));
-    PCHAR      pcFileName;
+    CPCHAR      pcFileName;
 
     if (pRawInfo == LW_NULL || pRawInode == LW_NULL || pInodeCache == LW_NULL || pFullDirent == LW_NULL) {
         _ErrorHandle(ENOMEM);
@@ -940,6 +936,7 @@ INT  __hoit_stat(PHOIT_INODE_INFO pInodeInfo, PHOIT_VOLUME  pfs, struct stat* ps
     pstat->st_resv1 = LW_NULL;
     pstat->st_resv2 = LW_NULL;
     pstat->st_resv3 = LW_NULL;
+    return ERROR_NONE;
 }
 /*********************************************************************************************************
 ** 函数名称: __hoit_statfs
@@ -969,6 +966,7 @@ INT  __hoit_statfs(PHOIT_VOLUME  pfs, struct statfs* pstatfs) {
 
     pstatfs->f_flag = 0;
     pstatfs->f_namelen = PATH_MAX;
+    return ERROR_NONE;
 }
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
 #endif //HOITFSLIB_DISABLE
