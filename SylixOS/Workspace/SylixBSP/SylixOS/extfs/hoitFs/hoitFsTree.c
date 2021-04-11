@@ -25,8 +25,19 @@
 #ifdef FT_TEST
 PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFDnode, UINT uiOffset, UINT uiSize){
     PHOIT_FULL_DNODE pFDNode = (PHOIT_FULL_DNODE)lib_malloc(sizeof(HOIT_FULL_DNODE));
+    pFDNode->HOITFD_length = uiSize;
+    pFDNode->HOITFD_offset = uiOffset;
     return pFDNode;
 }
+
+BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFDnode, BOOL bDoDelete){
+    if(!bDoDelete){
+        lib_free(pFDnode);
+    }
+    return LW_TRUE;
+}
+
+
 #endif //FT_TEST
 
 #define FT_GET_KEY(pFTn)            pFTn->pRbn.iKey
@@ -72,8 +83,9 @@ PHOIT_FRAG_TREE_NODE __hoitFragTreeGetSuccessor(PHOIT_FRAG_TREE pFTTree, PHOIT_F
 ** 输　入  : pFTlistHeader          链表头
 **            pFTTree               FragTree
 **            pFTnRoot              根节点
-**            iKeyLow
-** 输　出  : 返回FragTree
+**            iKeyLow               低键值
+**            iKeyHigh              高键值
+** 输　出  : None
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
@@ -149,6 +161,110 @@ VOID __hoitFragTreeCollectRangeHelper(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader,
                                      iKeyLow,
                                      iKeyHigh);
 }   
+/*********************************************************************************************************
+** 函数名称: __hoitFragTreeConquerNode
+** 功能描述: 征服一个节点，并对其进行修改，4种征服模式
+** 输　入  : pFTTree                 FragTree
+**           pFTn                   被征服节点
+**           uiConquerorLow          征服者下界
+**           uiConquerorHigh         征服者上界
+**           pFTnNew                 用于返回新增节点
+**           uiCase                  用于返回Overlay情况
+**           bDoDelete               情况2、3会涉及到删除，是否删除RawInfo，并标记RawNode为过期节点
+** 输　出  : 征服成功返回LW_TRUE，否则返回LW_FALSE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, 
+                               UINT32 uiConquerorLow, UINT32 uiConquerorHigh, PHOIT_FRAG_TREE_NODE *pFTnNew, 
+                               UINT8 * uiCase, BOOL bDoDelete) {
+    PHOIT_FULL_DNODE          pFDNodeNew;
+    PHOIT_FRAG_TREE_LIST_NODE pFTlistNodeNew;
+    
+
+    UINT32                    uiLeftRemainSize;
+    UINT32                    uiRightRemainSize;
+
+    UINT32                    uiCurLow;
+    UINT32                    uiCurHigh;
+
+    BOOL                      bIsOverlay;
+
+    uiCurLow                  = pFTn->uiOfs;
+    uiCurHigh                 = uiCurLow + pFTn->uiSize;
+    bIsOverlay                = MAX(uiCurLow, uiConquerorLow) <= MIN(uiCurHigh, uiConquerorHigh);
+    *uiCase                   = -1;
+    *pFTnNew                  = LW_NULL;
+
+
+
+    if(bIsOverlay){                                                                     /* 开始征服 */
+        /* 
+            |-------|-------------|-------|
+            ^       ^             ^       ^
+            Cur  Conqueror       Cur    Conqueror  
+        */
+        if(uiCurLow < uiConquerorLow && uiCurHigh <= uiConquerorHigh){                  /* 情况1 */      
+            uiLeftRemainSize = uiConquerorLow - uiCurLow;
+            pFTn->uiSize = uiLeftRemainSize;
+            pFTn->pFDnode->HOITFD_length = uiLeftRemainSize;
+            *uiCase = 1;
+        }
+        /* 
+            |-------|-------------|-------|
+            ^       ^             ^       ^
+            Cur  Conqueror      Conqueror  Cur
+        */
+        else if (uiCurLow < uiConquerorLow && uiCurHigh > uiConquerorHigh)              /* 情况2 */  
+        {
+            uiLeftRemainSize = uiCurLow - uiConquerorLow;
+            uiRightRemainSize = uiConquerorHigh - uiCurHigh;
+
+            pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,                       /* 截断右边部分，生成新的节点 */
+                                                    pFTn->pFDnode,
+                                                    uiConquerorHigh - uiCurLow,
+                                                    uiRightRemainSize);
+
+            pFTn->uiSize = uiLeftRemainSize;                                            /* 修改左边部分的size */
+            pFTn->pFDnode->HOITFD_length = uiLeftRemainSize;
+
+            *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 根据pFDNodeNew新建FragTreeNode */
+                                          pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
+
+            hoitFragTreeInsertNode(pFTTree, pFTnNew);                                   /* 插入节点至红黑树 */
+            *uiCase = 2;
+        }
+        /* 
+                |-------|-------------|-------|
+                ^       ^             ^       ^
+            Conqueror  Cur       Conqueror  Cur
+        */
+        else if (uiCurLow >= uiConquerorLow && uiCurHigh > uiConquerorHigh)             /* 情况3 */  
+        {
+            uiRightRemainSize = uiCurHigh - uiConquerorHigh;
+            pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,
+                                                    pFTn->pFDnode,
+                                                    uiConquerorHigh - uiCurLow,
+                                                    uiRightRemainSize);
+            *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 根据pFDNodeNew新建FragTreeNode */
+                                           pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
+            hoitFragTreeInsertNode(pFTTree, pFTnNew);
+            hoitFragTreeDeleteNode(pFTTree, pFTn, bDoDelete);                            /* 删除红黑树节点 */
+            *uiCase = 3;
+        }
+        /* 
+            |-------|-------------|-------|
+            ^       ^             ^       ^
+        Conqueror  Cur           Cur    Conqueror
+        */
+        else if (uiCurLow >= uiConquerorLow && uiCurHigh <= uiConquerorHigh)            /* 情况4 */  
+        {
+            hoitFragTreeDeleteNode(pFTTree, pFTn, bDoDelete);                            /* 删除当前FragTree上的节点 */
+            *uiCase = 4;
+        }
+    }
+    return bIsOverlay;
+}
 /*********************************************************************************************************
 ** 函数名称: hoitInitFragTree
 ** 功能描述: 初始化FragTree
@@ -245,12 +361,16 @@ BOOL hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, 
     }
     return res;
 }
+
+
+
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeDeleteNode
 ** 功能描述: 在FragTree上删除某范围内的节点
 ** 输　入  : pFTTree          FragTree
 **           iKeyLow          低键值
 **           iKeyHigh         高键值
+**           bDoDelete        是否删除RawInfo，并标记RawNode为过期节点
 ** 输　出  : 删除成功返回True，否则返回False
 ** 全局变量:
 ** 调用模块:
@@ -258,33 +378,33 @@ BOOL hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, 
 BOOL hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh, BOOL bDoDelete){
     PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader;
     PHOIT_FRAG_TREE_LIST_NODE   pFTlistNode;
-    BOOL                        res;
+    
+    PHOIT_FRAG_TREE_NODE        pFTnNew;
+
+    BOOL                        bRes = LW_TRUE;
+    UINT                        uiCount = 0;
+    UINT8                       uiCase;
+
+    UINT32                      uiConquerorLow = iKeyLow;
+    UINT32                      uiConquerorHigh = iKeyHigh;
 
     pFTlistHeader = hoitFragTreeCollectRange(pFTTree, iKeyLow, iKeyHigh);
     pFTlistNode = pFTlistHeader->pFTlistHeader->pFTlistNext;
-    INT count = 0;
     while (pFTlistNode)
     {
-        count++;
+        uiCount++;
 #ifdef FT_DEBUG
-        printf("count %d\n", count);
+        printf("count %d\n", uiCount);
 #endif
-        if(count == 1){
-            pFTlistNode->pFTn->uiOfs;    
-        }
-        if(count == pFTlistHeader->uiNCnt){
-
-        }
         
-        res = hoitFragTreeDeleteNode(pFTTree, pFTlistNode->pFTn, bDoDelete);
+        //TODO: 验证逻辑
+        __hoitFragTreeConquerNode(pFTTree, pFTlistNode->pFTn, uiConquerorLow, uiConquerorHigh, 
+                                  &pFTnNew, &uiCase, bDoDelete);
         
         pFTlistNode = pFTlistNode->pFTlistNext;
-        if(res == LW_FALSE){
-            break;
-        }
     }
     hoitFragTreeListFree(pFTlistHeader);
-    return res;    
+    return bRes;    
 }
 
 /*********************************************************************************************************
@@ -409,6 +529,7 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
     hoitFragTreeListFree(pFTlistHeader);                                             /* 释放链表 */
     return ERROR_NONE;
 }
+
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeOverlayFixUp
 ** 功能描述: 修复FragTree上重叠的节点
@@ -419,12 +540,14 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
 *********************************************************************************************************/
 BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
     PHOIT_FRAG_TREE_LIST_HEADER     pFTlistHeader;
-    PHOIT_FRAG_TREE_LIST_NODE       pFTlistOuter;
-    PHOIT_FRAG_TREE_LIST_NODE       pFTlistInner;
+    PHOIT_FRAG_TREE_LIST_NODE       pFTlistCur;
+    PHOIT_FRAG_TREE_LIST_NODE       pFTlistConqueror;
     PHOIT_FRAG_TREE_LIST_NODE       pFTlistNext;
 
-    PHOIT_FULL_DNODE                pFDNodeNew;
+    PHOIT_FRAG_TREE_NODE            pFTnConqueror;
+
     PHOIT_FRAG_TREE_NODE            pFTnNew;
+    PHOIT_FRAG_TREE_NODE            pFTn;
     PHOIT_FRAG_TREE_LIST_NODE       pFTlistNodeNew;
     
     UINT32                          uiCurLow;                                 /* 区间：[curLow, curHigh) */
@@ -432,7 +555,8 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
 
     UINT32                          uiConquerorLow;
     UINT32                          uiConquerorHigh;
-    
+    UINT8                           uiCase;
+
     UINT32                          uiLeftRemainSize;
     UINT32                          uiRightRemainSize;
     UINT32                          uiRightOffset;
@@ -440,120 +564,128 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
     BOOL                            bIsOverlay;
 
     pFTlistHeader = hoitFragTreeCollectRange(pFTTree, INT_MIN, INT_MAX);
-    pFTlistOuter = pFTlistHeader->pFTlistHeader->pFTlistNext;
+    pFTlistCur = pFTlistHeader->pFTlistHeader->pFTlistNext;
     
-    while (pFTlistOuter != LW_NULL)                     /* 外层为紫色，内层为灰色 */
+    while (pFTlistCur != LW_NULL)                     /* 外层为紫色，内层为灰色 */
     {
-        uiCurLow = pFTlistOuter->pFTn->uiOfs;
-        uiCurHigh = uiCurLow + pFTlistOuter->pFTn->uiSize;
-        //TODO: 从这里开始检测重叠 
-        pFTlistInner = pFTlistHeader->pFTlistHeader->pFTlistNext;               /* 指向第一个有效节点 */
-        while (pFTlistInner != LW_NULL)
+        uiCurLow = pFTlistCur->pFTn->uiOfs;
+        uiCurHigh = uiCurLow + pFTlistCur->pFTn->uiSize;
+        //TODO: 从这里开始检测重叠，需要做测试
+        pFTlistConqueror = pFTlistHeader->pFTlistHeader->pFTlistNext;               /* 指向第一个有效节点 */
+        while (pFTlistConqueror != LW_NULL)
         {
             bIsOverlay = LW_FALSE;
-            if(pFTlistInner == pFTlistOuter)                                    /* 自己就不和自己比较了 */
+            if(pFTlistConqueror == pFTlistCur)                                    /* 自己就不和自己比较了 */
             {
                 continue;
             }
-            if(pFTlistInner->pFTn->pFDnode->HOITFD_version                      /* listInner代表征服者，征服者version必须大于被征服者才能进行征服 */
-             < pFTlistOuter->pFTn->pFDnode->HOITFD_version){
+            if(pFTlistConqueror->pFTn->pFDnode->HOITFD_version                      /* listInner代表征服者，征服者version必须大于被征服者才能进行征服 */
+             < pFTlistCur->pFTn->pFDnode->HOITFD_version){
                 continue;
             }
-            uiConquerorLow = pFTlistInner->pFTn->uiOfs;
-            uiConquerorHigh = uiConquerorLow + pFTlistInner->pFTn->uiSize;
+
+            pFTn            = pFTlistCur->pFTn;
+            pFTnConqueror   = pFTlistConqueror->pFTn;
+            uiConquerorLow  = pFTnConqueror->uiOfs;
+            uiConquerorHigh = uiConquerorLow + pFTnConqueror->uiSize;
             
-            bIsOverlay = MAX(uiCurLow, uiConquerorLow) <= MIN(uiCurHigh, uiConquerorHigh);
-            if(bIsOverlay){                                                               /* 针对4种情况修复，紫色为cur，灰色为target */
-                /* 
+            bIsOverlay = __hoitFragTreeConquerNode(pFTTree, pFTn, uiConquerorLow, uiConquerorHigh,
+                                                   &pFTnNew, &uiCase, LW_TRUE);
+            if(bIsOverlay){
+                switch (uiCase)
+                {
+                /*! 征服过程：
+                    1. 减少Cur对应节点的Size，其他不变
+
                     |-------|-------------|-------|
                     ^       ^             ^       ^
                     Cur  Conqueror       Cur    Conqueror  
                 */
-                if(uiCurLow < uiConquerorLow && uiCurHigh <= uiConquerorHigh){            /* 情况1 */      
-                    uiLeftRemainSize = uiConquerorLow - uiCurLow;
-                    pFTlistOuter->pFTn->uiSize = uiLeftRemainSize;
-                    pFTlistOuter->pFTn->pFDnode->HOITFD_length = uiLeftRemainSize;
-                    
-                    pFTlistInner = pFTlistInner->pFTlistNext;
-                }
-                /* 
+                case 1:
+                    pFTlistConqueror = pFTlistConqueror->pFTlistNext;
+                    break;
+                /*! 征服过程：
+                    1. 根据Cur节点，创建新的FragTree节点pFTnNew，其长度为CurHigh - ConquerorHigh，
+                       偏移为ConquerorHigh - CurLow，将其插入FragTree中
+                    2. 减少Cur对应节点的Size为ConquereorLow - CurLow
+                    3. 将新节点插入链表末尾中，做进一步的检查
                     |-------|-------------|-------|
                     ^       ^             ^       ^
                     Cur  Conqueror      Conqueror  Cur
                 */
-                else if (uiCurLow < uiConquerorLow && uiCurHigh > uiConquerorHigh)        /* 情况2 */  
-                {
-                    uiLeftRemainSize = uiCurLow - uiConquerorLow;
-                    uiRightRemainSize = uiConquerorHigh - uiCurHigh;
-                    uiRightOffset = uiConquerorHigh - uiCurLow;
+                case 2:
+                    if(pFTnNew == LW_NULL){
+                        printf("something wrong with [fragtree fixup] CASE 2 when fix overlay of nodes containing %d and %d \n", 
+                                FT_GET_KEY(pFTn), FT_GET_KEY(pFTnConqueror));
+                        return;
+                    }
+                    else {
+                        pFTlistNodeNew = newFragTreeListNode(pFTnNew);
+                        hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNodeNew);                  /* 插入节点至链表 */
 
-                    pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,                        /* 截断右边部分，生成新的节点 */
-                                                           pFTlistOuter->pFTn->pFDnode,
-                                                           uiRightOffset,
-                                                           uiRightRemainSize);
-
-                    pFTlistOuter->pFTn->uiSize = uiLeftRemainSize;                              /* 修改左边部分的size */
-                    pFTlistOuter->pFTn->pFDnode->HOITFD_length = uiLeftRemainSize;
-
-                    pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,        /* 根据pFDNodeNew新建FragTreeNode */
-                                                  pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
-
-                    hoitFragTreeInsertNode(pFTTree, pFTnNew);                                   /* 插入节点至红黑树 */
-                    pFTlistNodeNew = newFragTreeListNode(pFTnNew);
-                    hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNodeNew);                  /* 插入节点至链表 */
-
-                    pFTlistInner = pFTlistInner->pFTlistNext;
-                }
-                /* 
+                        pFTlistConqueror = pFTlistConqueror->pFTlistNext;
+                    }
+                    break;
+                /*! 征服过程：
+                    1. 根据Cur节点，创建新的FragTree节点pFTnNew，其长度为CurHigh - ConquerorHigh，
+                       偏移为ConquerorHigh - CurLow，将其插入FragTree中
+                    2. 删除原来的Cur节点(pFTn)
+                    3. 链表也应该删除pFTn；
+                    4. 链表插入pFTnNew；
+                    5. Cur应该指向下一个（新节点永远插在链表最后，不需要更新Cur到头部）
+                    6. Conqueror应该重头开始，因为Cur变化了
                         |-------|-------------|-------|
                         ^       ^             ^       ^
                     Conqueror  Cur       Conqueror  Cur
                 */
-                else if (uiCurLow >= uiConquerorLow && uiCurHigh > uiConquerorHigh)       /* 情况3 */  
-                {
-                    uiRightRemainSize = uiCurHigh - uiConquerorHigh;
-                    uiRightOffset = uiConquerorHigh - uiCurLow;
-                    pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,
-                                                           pFTlistOuter->pFTn->pFDnode,
-                                                           uiRightOffset,
-                                                           uiRightRemainSize);
-                    pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,        /* 根据pFDNodeNew新建FragTreeNode */
-                                                  pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
-                    
-                    
-                    hoitFragTreeInsertNode(pFTTree, pFTnNew);
-                    pFTlistNodeNew = newFragTreeListNode(pFTnNew);
-                    hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNodeNew);                  /* 插入节点至链表 */
+                case 3:
+                    if(pFTnNew == LW_NULL){
+                        printf("something wrong with [fragtree fixup] CASE 3 when fix overlay of nodes containing %d and %d \n", 
+                                FT_GET_KEY(pFTn), FT_GET_KEY(pFTnConqueror));
+                        return;
+                    }
+                    else {
+                        pFTlistNodeNew = newFragTreeListNode(pFTnNew);
+                        hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNodeNew);                  /* 插入节点至链表 */
+                        
+                        pFTlistNext = pFTlistCur->pFTlistNext;
+                        hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistCur);                    /* 删除链表节点 */
+                        lib_free(pFTlistCur);
 
-
-                    hoitFragTreeDeleteNode(pFTTree, pFTlistOuter->pFTn, LW_TRUE);               /* 删除红黑树节点 */
-                    pFTlistNext = pFTlistOuter->pFTlistNext;
-                    hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistOuter);                    /* 删除链表节点 */
-                    lib_free(pFTlistOuter);
-
-                    pFTlistOuter = pFTlistNext;                                                 /* 至当前Outer为下一个 */
-                    pFTlistInner = pFTlistHeader->pFTlistHeader->pFTlistNext;                   /* 重置Inner指针，因为我们的Outer也重置了 */
-                }
-                /* 
-                    |-------|-------------|-------|
-                    ^       ^             ^       ^
-                   Cur  Conqueror     Conqueror  Cur
+                        pFTlistCur = pFTlistNext;                                                 /* 至当前Outer为下一个 */
+                        pFTlistConqueror = pFTlistHeader->pFTlistHeader;                                /* 重置Inner指针，因为我们的Outer也重置了 */
+                        
+                        pFTlistConqueror = pFTlistConqueror->pFTlistNext;
+                    }
+                    break;
+                /*! 征服过程：
+                    1. 删除Cur
+                    2. 删除其在链表中的位置；
+                    3. 更新Cur为下一个节点；
+                    4. 重置Conqueror，因为Cur变化了；
+                        |-------|-------------|-------|
+                        ^       ^             ^       ^
+                    Conqueror  Cur          Cur  Conqueror
                 */
-                else if (uiCurLow <= uiConquerorLow && uiCurHigh >= uiConquerorHigh)            /* 情况4 */  
-                {
-                    hoitFragTreeDeleteNode(pFTTree, pFTlistInner->pFTn, LW_TRUE);               /* 删除当前FragTree上的节点 */
-                    pFTlistNext = pFTlistInner->pFTlistNext;
-                    hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistInner);
-                    lib_free(pFTlistInner);
+                case 4:
+                    pFTlistNext = pFTlistCur->pFTlistNext;
+                    hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistCur);                        /* 删除链表节点 */
+                    lib_free(pFTlistCur);
+
+                    pFTlistCur = pFTlistNext;                                                     /* 至当前Outer为下一个 */
+                    pFTlistConqueror = pFTlistHeader->pFTlistHeader;                                    /* 重置Inner指针，因为我们的Outer也重置了 */
                     
-                    pFTlistInner = pFTlistNext;                                                 /* 删除节点不会影响其他节点的覆盖关系，因此直接检查下一个节点 */
+                    pFTlistConqueror = pFTlistConqueror->pFTlistNext;
+                    break;
+                default:
+                    break;
                 }
             }
-            else {
-                pFTlistInner = pFTlistInner->pFTlistNext;
+            else{
+                pFTlistConqueror = pFTlistConqueror->pFTlistNext;
             }
         }
-        pFTlistOuter = pFTlistOuter->pFTlistNext;   
+        pFTlistCur = pFTlistCur->pFTlistNext;   
     }
     hoitFragTreeListFree(pFTlistHeader);
     return LW_TRUE;
