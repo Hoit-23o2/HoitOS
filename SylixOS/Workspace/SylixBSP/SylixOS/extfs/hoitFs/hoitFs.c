@@ -21,10 +21,7 @@
 
 #define  __SYLIXOS_STDIO
 #define  __SYLIXOS_KERNEL
-#include "../SylixOS/kernel/include/k_kernel.h"
-#include "../SylixOS/system/include/s_system.h"
-#include "../SylixOS/fs/fsCommon/fsCommon.h"
-#include "../SylixOS/fs/include/fs_fs.h"
+#include "SylixOS.h"
 #include "hoitFs.h"
 #ifndef HOITFS_DISABLE
 /*********************************************************************************************************

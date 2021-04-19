@@ -210,13 +210,16 @@ PHOIT_FRAG_TREE_LIST_HEADER   hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, 
   FragTree杩涢樁鎿嶄綔 - 涓庝笅灞傚疄浣撴搷浣�
 *********************************************************************************************************/
 //TODO：读取FragTree，然后向下读取数据实体，基本逻辑为先读Cache，Cache未命中再读flash
+//!该部分可以移除
 BOOL hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, PCHAR pContent);
+
+
 //TODO：搜索FragTree，寻找Overlay - 4种情况，然后做出相应修改， 避免掉电，每次构建树后都调用一次FixUp
 BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree);
-//TODO：写入FragTree，然后调用搜索FragTree进行重叠检测与修改，然后写入Cache，Cache未命中，先读出再写入，命中直接写入，写满后Flush进flash，这里写入Cache的时候可以做一些备份，例如Trascation或者Log
-//!uiSize < maxSize
-BOOL hoitFragTreeWrite(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, PCHAR pContent);
-//(TODO)：搜集FragTree  iKey大于等于某个值的所有节点
+
+//!该部分移除
+////写入FragTree，然后调用搜索FragTree进行重叠检测与修改，然后写入Cache，Cache未命中，先读出再写入，命中直接写入，写满后Flush进flash，这里写入Cache的时候可以做一些备份，例如Trascation或者Log
+//// BOOL hoitFragTreeWrite(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, PCHAR pContent);
 
 #ifdef FT_TEST
 VOID hoitFTTreeTest();

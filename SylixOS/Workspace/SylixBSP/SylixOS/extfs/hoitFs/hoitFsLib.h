@@ -18,16 +18,20 @@
 **
 ** 描        述: Hoit文件系统内部函数.
 *********************************************************************************************************/
-
-//#ifndef __HOITFSLIB_H
-//#define __HOITFSLIB_H
 #define  __SYLIXOS_STDIO
 #define  __SYLIXOS_KERNEL
-#include "SylixOS.h"                                                    /*  操作系统                    */
 #include "../SylixOS/kernel/include/k_kernel.h"
 #include "../SylixOS/system/include/s_system.h"
 #include "../SylixOS/fs/include/fs_fs.h"
-#include "../SylixOS/system/include/s_class.h"
+#include "hoitFsTree.h"
+
+#ifndef __HOITFSLIB_H
+#define __HOITFSLIB_H
+
+
+
+
+
 /*********************************************************************************************************
   裁剪宏
 *********************************************************************************************************/
@@ -82,11 +86,13 @@ typedef HOIT_FULL_DIRENT* PHOIT_FULL_DIRENT;
 typedef HOIT_INODE_CACHE* PHOIT_INODE_CACHE;
 typedef HOIT_INODE_INFO* PHOIT_INODE_INFO;
 typedef HOIT_SECTOR* PHOIT_SECTOR;
+
+DEV_HDR          HOITFS_devhdrHdr;
 /*********************************************************************************************************
   HoitFs super block类型
 *********************************************************************************************************/
 typedef struct HOIT_VOLUME{
-    LW_DEV_HDR          HOITFS_devhdrHdr;                                /*  HoitFs 文件系统设备头        */
+    DEV_HDR          HOITFS_devhdrHdr;                                /*  HoitFs 文件系统设备头        */
     LW_OBJECT_HANDLE    HOITFS_hVolLock;                                 /*  卷操作锁                    */
     LW_LIST_LINE_HEADER HOITFS_plineFdNodeHeader;                        /*  fd_node 链表                */
     PHOIT_INODE_INFO    HOITFS_pRootDir;                                 /*  根目录文件暂定为一直打开的  */
@@ -129,6 +135,7 @@ struct HOIT_RAW_INODE{
     UINT32              totlen;
     mode_t              file_type;
     UINT                ino;
+    UINT                offset;
 };
 
 
@@ -153,7 +160,11 @@ struct HOIT_RAW_INFO{
 
 
 struct HOIT_FULL_DNODE{
-
+    PHOIT_FULL_DNODE    HOITFD_next;
+    PHOIT_RAW_INFO      HOITFD_raw_info;
+    UINT                HOITFD_offset;                                  /*在文件里的偏移量*/
+    UINT                HOITFD_length;                                  /*有效的数据长度*/
+    mode_t              HOITFD_file_type;                               /*文件的类型*/
 };
 
 
@@ -181,7 +192,7 @@ struct HOIT_INODE_INFO{
     PHOIT_INODE_CACHE   HOITN_inode_cache;
     PHOIT_FULL_DIRENT   HOITN_dents;
     PHOIT_FULL_DNODE    HOITN_metadata;
-    PHOIT_FULL_DNODE    HOITN_rbtree;
+    PHOIT_FRAG_TREE       HOITN_rbtree;
     PHOIT_VOLUME        HOITN_volume;
     UINT                HOITN_ino;
 
@@ -224,7 +235,8 @@ UINT8 __hoit_del_inode_cache(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache);
 
 PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
     CPCHAR       pcName,
-    PHOIT_INODE_INFO* ppinodeFather,
+    PHOIT_INODE_INFO* ppInodeFather,
+    PHOIT_FULL_DIRENT* ppFullDirent,
     BOOL* pbRoot,
     BOOL* pbLast,
     PCHAR* ppcTail);
@@ -241,5 +253,9 @@ INT  __hoit_move_check(PHOIT_INODE_INFO  pInode1, PHOIT_INODE_INFO  pInode2);
 INT  __hoit_move(PHOIT_INODE_INFO pInodeFather, PHOIT_INODE_INFO  pInodeInfo, PCHAR  pcNewName);
 INT  __hoit_stat(PHOIT_INODE_INFO pInodeInfo, PHOIT_VOLUME  pfs, struct stat* pstat);
 INT  __hoit_statfs(PHOIT_VOLUME  pfs, struct statfs* pstatfs);
+
+UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT pDirentList, PHOIT_FULL_DNODE pDnodeList);
+VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag);
+
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0       */
-//#endif                                                                  /*  __HOITFSLIB_H                */
+#endif                                                                  /*  __HOITFSLIB_H                */
