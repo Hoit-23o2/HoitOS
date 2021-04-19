@@ -31,6 +31,10 @@
         "nor_cmd.h": "c",
         "hoitfstreeutil.h": "c",
         "hoitfstree.h": "c",
-        "hoitfs.h": "c"
+        "hoitfs.h": "c",
+        "s_system.h": "c",
+        "math.h": "c",
+        "random": "c",
+        "hoitfscache.h": "c"
     }
 }
