@@ -24,6 +24,7 @@
 #include "../SylixOS/system/include/s_system.h"
 #include "../SylixOS/fs/include/fs_fs.h"
 #include "hoitFsTree.h"
+#include "hoitFsFDLib.h"
 
 #ifndef __HOITFSLIB_H
 #define __HOITFSLIB_H

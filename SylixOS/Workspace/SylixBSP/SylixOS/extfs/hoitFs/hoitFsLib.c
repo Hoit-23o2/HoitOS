@@ -768,16 +768,16 @@ INT  __hoit_unlink_regular(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDi
 
 /*********************************************************************************************************
 ** 函数名称: __hoit_truncate
-** 功能描述: hoitfs 截断一个文件, 注意这个函数只用来截断普通类型文件
+** 功能描述: hoitfs 截断一个文件(直接删除数据), 注意这个函数只用来截断普通类型文件
 ** 输　入  : pInodeInfo       文件节点
 **           offset            截断点
-** 输　出  : 缩短结果
+** 输　出  : 截断结果
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
 VOID  __hoit_truncate(PHOIT_INODE_INFO  pInodeInfo, size_t  offset)
 {
-    
+    hoitFragTreeDeleteRange(pInodeInfo->HOITN_rbtree, offset, INT_MAX, LW_TRUE);
 }
 
 /*********************************************************************************************************
@@ -877,7 +877,9 @@ VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag)
         __SHEAP_FREE(pInodeInfo);
     }
     else {
-        /**************************TODO**********************************/
+        hoitFragTreeDeleteTree(pInodeInfo->HOITN_rbtree, LW_FALSE);
+        if (pInodeInfo->HOITN_metadata != LW_NULL) __SHEAP_FREE(pInodeInfo->HOITN_metadata);
+        __SHEAP_FREE(pInodeInfo);
     }
 }
 /*********************************************************************************************************
@@ -1112,9 +1114,39 @@ INT  __hoit_statfs(PHOIT_VOLUME  pfs, struct statfs* pstatfs) {
 *********************************************************************************************************/
 ssize_t  __hoit_read(PHOIT_INODE_INFO  pInodeInfo, PVOID  pvBuffer, size_t  stSize, size_t  stOft)
 {
-    return 0;
+    hoitFragTreeRead(pInodeInfo->HOITN_rbtree, stOft, stSize, pvBuffer);
+    return stSize;
+}
+/*********************************************************************************************************
+** 函数名称: __hoit_write
+** 功能描述: hoitfs 写入文件内容
+** 输　入  : pInodeInfo            文件节点
+**           pvBuffer         缓冲区
+**           stNBytes         需要读取的大小
+**           stOft            偏移量
+** 输　出  : 读取的字节数
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  stNBytes, size_t  stOft) {
+    PHOIT_FULL_DNODE pFullDnode = __hoit_write_full_dnode(pInodeInfo, stOft, stNBytes, pvBuffer);
+    PHOIT_FRAG_TREE_NODE pTreeNode = newHoitFragTreeNode(pFullDnode, stNBytes, stOft, stOft);
+    hoitFragTreeInsertNode(pInodeInfo->HOITN_rbtree, pTreeNode);
+    hoitFragTreeOverlayFixUp(pInodeInfo->HOITN_rbtree);
 }
 
+/*********************************************************************************************************
+** 函数名称: __hoit_ummount
+** 功能描述: hoitfs 卸载
+** 输　入  : pfs               文件系统
+** 输　出  : NONE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID  __hoit_unmount(PHOIT_VOLUME pfs)
+{
+    /* TODO */
+}
 
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
 #endif //HOITFSLIB_DISABLE

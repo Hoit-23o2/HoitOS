@@ -30,4 +30,10 @@
 #include "hoitFsLib.h"
 #include "../../driver/mtd/nor/nor.h"
 
+BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFullDnode, INT flag);
+BOOL __hoit_update_full_dnode(PHOIT_FULL_DNODE pFullDnode, UINT offset, UINT length);
+PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFullDnode, UINT offset, UINT length);
+PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offset, UINT size, PCHAR pContent);
+PHOIT_FULL_DNODE __hoit_bulid_full_dnode(PHOIT_RAW_INFO pRawInfo);
+
 #endif
