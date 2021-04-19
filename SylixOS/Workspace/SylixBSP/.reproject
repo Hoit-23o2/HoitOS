@@ -6,7 +6,7 @@
 <OutputPath Name="Debug" Path="Debug" TreeNode="Debug"/>
 <OutputPath Name="Release" Path="Release" TreeNode="Release"/>
 </OutputSetting>
-<BuildSetting CoustomCfgMakefile="false" NotScanSourceFile="false"/>
+<BuildSetting CoustomCfgMakefile="false" NeedReBuild="false" NotScanSourceFile="false"/>
 <DeviceSetting DevName="192.168.7.30" WorkDir="/lib"/>
 <BspSetting TemplatePath="/bsp/arm/arm-mini2440"/>
 </SylixOSSetting>
