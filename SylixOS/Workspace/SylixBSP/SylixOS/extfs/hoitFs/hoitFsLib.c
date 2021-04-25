@@ -21,16 +21,19 @@
 
 #define  __SYLIXOS_STDIO
 #define  __SYLIXOS_KERNEL
-#include "../SylixOS/kernel/include/k_kernel.h"
-#include "../SylixOS/system/include/s_system.h"
-#include "../SylixOS/fs/include/fs_fs.h"
-
+//#include "../SylixOS/kernel/include/k_kernel.h"
+//#include "../SylixOS/system/include/s_system.h"
+//#include "../SylixOS/fs/include/fs_fs.h"
+//#include "hoitFsTree.h"
+#include "hoitFsLib.h"
 #include "hoitFsTree.h"
+#include "../../driver/mtd/nor/nor.h"
+
 /*********************************************************************************************************
   裁剪宏
 *********************************************************************************************************/
 #if LW_CFG_MAX_VOLUMES > 0
-#include "hoitFsLib.h"
+
 #ifndef HOITFSLIB_DISABLE
 /*********************************************************************************************************
 ** 函数名称: __hoit_just_open
@@ -598,7 +601,7 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
                 }
                 PHOIT_RAW_INFO pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
                 pRawInfo->phys_addr = sectorOffset + (pNow - pReadBuf);
-                pRawInfo->totlen = pRawInode->totlen;
+                pRawInfo->totlen = pRawDirent->totlen;
                 __hoit_add_to_inode_cache(pInodeCache, pRawInfo);
                 if (pRawDirent->pino == HOIT_ROOT_DIR_INO) {    /* 如果扫描到的是根目录的目录项 */
                     PHOIT_FULL_DIRENT pFullDirent = __hoit_bulid_full_dirent(pRawInfo);
@@ -620,7 +623,7 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
             pNow += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
         }
         else {
-            pNow += 4   /* 每次移动4字节 */
+            pNow += 4;   /* 每次移动4字节 */
         }
     }
 }
@@ -686,7 +689,8 @@ VOID __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo){
     if (!S_ISDIR(pInodeInfo->HOITN_mode)) return;
     PHOIT_VOLUME pfs = pInodeInfo->HOITN_volume;
 
-    for (PHOIT_FULL_DIRENT pTempDirent = pInodeInfo->HOITN_dents; pTempDirent != LW_NULL; pTempDirent = pTempDirent->HOITFD_next) {
+    PHOIT_FULL_DIRENT pTempDirent = pInodeInfo->HOITN_dents;
+    for (; pTempDirent != LW_NULL; pTempDirent = pTempDirent->HOITFD_next) {
         PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pTempDirent->HOITFD_ino);
         if (pInodeCache == LW_NULL) {
             continue;

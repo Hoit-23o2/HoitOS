@@ -1,23 +1,4 @@
-/*********************************************************************************************************
-**
-**                                    涓浗杞欢寮�婧愮粍缁�
-**
-**                                   宓屽叆寮忓疄鏃舵搷浣滅郴缁�
-**
-**                                       SylixOS(TM)
-**
-**                               Copyright  All Rights Reserved
-**
-**--------------鏂囦欢淇℃伅--------------------------------------------------------------------------------
-**
-** 鏂�   浠�   鍚�: hoitFsTree.h
-**
-** 鍒�   寤�   浜�: Pan yanqi (娼樺欢楹�)
-**
-** 鏂囦欢鍒涘缓鏃ユ湡: 2021 骞� 03 鏈� 28 鏃�
-**
-** 鎻�        杩�: JFFS2-Like fragtree瀹炵幇
-*********************************************************************************************************/
+
 
 #ifndef SYLIXOS_EXTFS_HOITFS_HOITFSTREE_H_
 #define SYLIXOS_EXTFS_HOITFS_HOITFSTREE_H_
@@ -30,7 +11,7 @@
 #define FT_DEBUG
 
 /*********************************************************************************************************
-  上层接口 - 供测试
+  �ϲ�ӿ� - ������
 *********************************************************************************************************/
 #ifdef FT_TEST
 typedef struct hoit_raw_header
@@ -53,9 +34,9 @@ typedef HOIT_RAW_INFO * PHOIT_RAW_INFO;
 typedef struct hoit_full_dnode{
     struct hoit_full_dnode *  HOITFD_next;
     PHOIT_RAW_INFO            HOITFD_raw_info;
-    UINT                      HOITFD_offset;                                  /* 在文件里的偏移量 */
-    UINT                      HOITFD_length;                                  /* 有效的数据长度 */
-    UINT                      HOITFD_version;                                 /* 版本号 */
+    UINT                      HOITFD_offset;                                  /* ���ļ����ƫ���� */
+    UINT                      HOITFD_length;                                  /* ��Ч�����ݳ��� */
+    UINT                      HOITFD_version;                                 /* �汾�� */
 } HOIT_FULL_DNODE;
 typedef HOIT_FULL_DNODE* PHOIT_FULL_DNODE;
 
@@ -69,18 +50,7 @@ BOOL             __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFD
 
 #endif // FT_TEST
 
-/*********************************************************************************************************
-  INODE_INFO鐨凢ragTree鐨勮妭鐐�
-*********************************************************************************************************/
-typedef struct hoit_frag_tree_node
-{
-    HOIT_RB_NODE pRbn;
-    PHOIT_FULL_DNODE pFDnode;
-    UINT32 uiSize;
-    UINT32 uiOfs; 
-} HOIT_FRAG_TREE_NODE;
 
-typedef HOIT_FRAG_TREE_NODE *PHOIT_FRAG_TREE_NODE;
 
 static inline PHOIT_FRAG_TREE_NODE newHoitFragTreeNode(PHOIT_FULL_DNODE pFDnode, UINT32 uiSize, UINT32 uiOfs, UINT32 iKey){
     PHOIT_FRAG_TREE_NODE pFTn = (PHOIT_FRAG_TREE_NODE)lib_malloc(sizeof(HOIT_FRAG_TREE_NODE));
@@ -90,39 +60,21 @@ static inline PHOIT_FRAG_TREE_NODE newHoitFragTreeNode(PHOIT_FULL_DNODE pFDnode,
     pFTn->pFDnode = pFDnode;
     return pFTn;
 }
-/*********************************************************************************************************
-  PHOIT_FRAG_TREE_NODE构成的链表，用于收集某个区间的HOIT_FRAG_TREE_NODE
-*********************************************************************************************************/
-typedef struct hoit_frag_tree_list_node
-{
-    PHOIT_FRAG_TREE_NODE pFTn;
-    struct hoit_frag_tree_list_node * pFTlistNext;
-} HOIT_FRAG_TREE_LIST_NODE;
-typedef HOIT_FRAG_TREE_LIST_NODE * PHOIT_FRAG_TREE_LIST_NODE;
+
 
 /*********************************************************************************************************
- PHOIT_FRAG_TREE_LIST_NODE构造函数
+ PHOIT_FRAG_TREE_LIST_NODE���캯��
 *********************************************************************************************************/
 static inline PHOIT_FRAG_TREE_LIST_NODE newFragTreeListNode(PHOIT_FRAG_TREE_NODE pFTn){
-   PHOIT_FRAG_TREE_LIST_NODE pFTlistNode; 
+   PHOIT_FRAG_TREE_LIST_NODE pFTlistNode;
    pFTlistNode = (PHOIT_FRAG_TREE_LIST_NODE)lib_malloc(sizeof(HOIT_FRAG_TREE_LIST_NODE));
    pFTlistNode->pFTn = pFTn;
    pFTlistNode->pFTlistNext = LW_NULL;
    return pFTlistNode;
 }
+
 /*********************************************************************************************************
-  PHOIT_FRAG_TREE_NODE链表头
-*********************************************************************************************************/
-typedef struct hoit_frag_tree_list_header
-{
-    PHOIT_FRAG_TREE_LIST_NODE pFTlistHeader;
-    UINT32 uiLowBound;
-    UINT32 uiHighBound;
-    UINT32 uiNCnt;
-} HOIT_FRAG_TREE_LIST_HEADER;
-typedef HOIT_FRAG_TREE_LIST_HEADER * PHOIT_FRAG_TREE_LIST_HEADER;
-/*********************************************************************************************************
- 初始化节点链表
+ ��ʼ���ڵ�����
 *********************************************************************************************************/
 static inline PHOIT_FRAG_TREE_LIST_HEADER hoitFragTreeListInit(VOID){
     PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader;
@@ -134,26 +86,26 @@ static inline PHOIT_FRAG_TREE_LIST_HEADER hoitFragTreeListInit(VOID){
     return pFTlistHeader;
 }
 /*********************************************************************************************************
- 向链表中插入节点
+ �������в���ڵ�
 *********************************************************************************************************/
 static inline VOID hoitFragTreeListInsertNode(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader, PHOIT_FRAG_TREE_LIST_NODE pTFlistNode){
     PHOIT_FRAG_TREE_LIST_NODE pFTlistTrailling;
-    PHOIT_FRAG_TREE_LIST_NODE pFTlistTraverse = pFTlistHeader->pFTlistHeader; 
+    PHOIT_FRAG_TREE_LIST_NODE pFTlistTraverse = pFTlistHeader->pFTlistHeader;
     while (pFTlistTraverse != LW_NULL)
     {
         pFTlistTrailling = pFTlistTraverse;
         pFTlistTraverse = pFTlistTraverse->pFTlistNext;
     }
     pFTlistTrailling->pFTlistNext = pTFlistNode;
-} 
+}
 /*********************************************************************************************************
- 删除链表中某节点，不释放内存
+ ɾ��������ĳ�ڵ㣬���ͷ��ڴ�
 *********************************************************************************************************/
 static inline VOID hoitFragTreeListDeleteNode(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader, PHOIT_FRAG_TREE_LIST_NODE pTFlistNode){
     PHOIT_FRAG_TREE_LIST_NODE pFTlistTrailling;
     PHOIT_FRAG_TREE_LIST_NODE pFTlistTraverse;
-    
-    pFTlistTraverse = pFTlistHeader->pFTlistHeader; 
+
+    pFTlistTraverse = pFTlistHeader->pFTlistHeader;
     pFTlistTrailling = pFTlistTraverse;
 
     while (pFTlistTraverse != LW_NULL)
@@ -166,9 +118,9 @@ static inline VOID hoitFragTreeListDeleteNode(PHOIT_FRAG_TREE_LIST_HEADER pFTlis
         pFTlistTrailling = pFTlistTraverse;
         pFTlistTraverse = pFTlistTraverse->pFTlistNext;
     }
-} 
+}
 /*********************************************************************************************************
- 删除链表
+ ɾ������
 *********************************************************************************************************/
 static inline VOID hoitFragTreeListFree(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader){
     PHOIT_FRAG_TREE_LIST_NODE pFTlistTraverse;
@@ -183,42 +135,33 @@ static inline VOID hoitFragTreeListFree(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeade
     }
     lib_free(pFTlistHeader);
 }
-/*********************************************************************************************************
-  INODE_INFO指向的FragTree
-*********************************************************************************************************/
-typedef struct hoit_frag_tree
-{
-    PHOIT_RB_TREE pRbTree;
-    UINT32 uiNCnt;                                               /* 该红黑树节点数目 */
-    PHOIT_VOLUME pfs;
-} HOIT_FRAG_TREE;
-typedef HOIT_FRAG_TREE * PHOIT_FRAG_TREE;
+
 
 /*********************************************************************************************************
-  FragTree基本操作 - 线程不安全 - 不同进程同时打开文件，需要做锁操作
+  FragTree�������� - �̲߳���ȫ - ��ͬ����ͬʱ���ļ�����Ҫ��������
 *********************************************************************************************************/
-PHOIT_FRAG_TREE               hoitInitFragTree(PHOIT_VOLUME pfs);                                                                           /* 初始化树 */
-PHOIT_FRAG_TREE_NODE          hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn);                       /* 插入一个节点 */
-PHOIT_FRAG_TREE_NODE          hoitFragTreeSearchNode(PHOIT_FRAG_TREE pFTTree, INT32 iKey);                                      /* 查找一个节点 */
-BOOL                          hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, BOOL bDoDelete);                       /* 删除一个节点 */
+PHOIT_FRAG_TREE               hoitInitFragTree(PHOIT_VOLUME pfs);                                                                           /* ��ʼ���� */
+PHOIT_FRAG_TREE_NODE          hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn);                       /* ����һ���ڵ� */
+PHOIT_FRAG_TREE_NODE          hoitFragTreeSearchNode(PHOIT_FRAG_TREE pFTTree, INT32 iKey);                                      /* ����һ���ڵ� */
+BOOL                          hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, BOOL bDoDelete);                       /* ɾ��һ���ڵ� */
 BOOL                          hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh, BOOL bDoDelete);
 BOOL                          hoitFragTreeDeleteTree(PHOIT_FRAG_TREE pFTTree, BOOL bDoDelete);
-VOID                          hoitFragTreeTraverse(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot);                     /* 中序遍历FragTree */
+VOID                          hoitFragTreeTraverse(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot);                     /* �������FragTree */
 PHOIT_FRAG_TREE_LIST_HEADER   hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh);
 
 /*********************************************************************************************************
-  FragTree杩涢樁鎿嶄綔 - 涓庝笅灞傚疄浣撴搷浣�
+  FragTree
 *********************************************************************************************************/
-//TODO：读取FragTree，然后向下读取数据实体，基本逻辑为先读Cache，Cache未命中再读flash
-//!该部分可以移除
+//TODO����ȡFragTree��Ȼ�����¶�ȡ����ʵ�壬�����߼�Ϊ�ȶ�Cache��Cacheδ�����ٶ�flash
+//!�ò��ֿ����Ƴ�
 BOOL hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, PCHAR pContent);
 
 
-//TODO：搜索FragTree，寻找Overlay - 4种情况，然后做出相应修改， 避免掉电，每次构建树后都调用一次FixUp
+//TODO������FragTree��Ѱ��Overlay - 4�������Ȼ��������Ӧ�޸ģ� ������磬ÿ�ι������󶼵���һ��FixUp
 BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree);
 
-//!该部分移除
-////写入FragTree，然后调用搜索FragTree进行重叠检测与修改，然后写入Cache，Cache未命中，先读出再写入，命中直接写入，写满后Flush进flash，这里写入Cache的时候可以做一些备份，例如Trascation或者Log
+//!�ò����Ƴ�
+////д��FragTree��Ȼ���������FragTree�����ص�������޸ģ�Ȼ��д��Cache��Cacheδ���У��ȶ�����д�룬����ֱ��д�룬д����Flush��flash������д��Cache��ʱ�������һЩ���ݣ�����Trascation����Log
 //// BOOL hoitFragTreeWrite(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, PCHAR pContent);
 
 #ifdef FT_TEST

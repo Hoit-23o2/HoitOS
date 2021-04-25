@@ -23,12 +23,12 @@
 
 #define  __SYLIXOS_STDIO
 #define  __SYLIXOS_KERNEL
-#include "../SylixOS/kernel/include/k_kernel.h"
-#include "../SylixOS/system/include/s_system.h"
-#include "../SylixOS/fs/include/fs_fs.h"
-#include "hoitFsTree.h"
-#include "hoitFsLib.h"
-#include "../../driver/mtd/nor/nor.h"
+//#include "../SylixOS/kernel/include/k_kernel.h"
+//#include "../SylixOS/system/include/s_system.h"
+//#include "../SylixOS/fs/include/fs_fs.h"
+#include "SylixOS.h"
+#include "hoitType.h"
+
 
 BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFullDnode, INT flag);
 BOOL __hoit_update_full_dnode(PHOIT_FULL_DNODE pFullDnode, UINT offset, UINT length);

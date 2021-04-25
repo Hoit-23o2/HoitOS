@@ -61,7 +61,10 @@ SylixOS/driver/tty/samsungtty.c \
 SylixOS/driver/tty/uart.c \
 SylixOS/extfs/hoitFs/hoitFs.c \
 SylixOS/extfs/hoitFs/hoitFsCache.c \
+SylixOS/extfs/hoitFs/hoitFsFDLib.c \
+SylixOS/extfs/hoitFs/hoitFsGC.c \
 SylixOS/extfs/hoitFs/hoitFsLib.c \
+SylixOS/extfs/hoitFs/hoitFsLog.c \
 SylixOS/extfs/hoitFs/hoitFsMid.c \
 SylixOS/extfs/hoitFs/hoitFsTree.c \
 SylixOS/extfs/hoitFs/hoitFsTreeUtil.c \
