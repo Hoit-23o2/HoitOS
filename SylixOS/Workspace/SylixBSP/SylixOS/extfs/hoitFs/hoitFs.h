@@ -18,13 +18,9 @@
 **
 ** ร่        ส๖: HoitFs
 *********************************************************************************************************/
-<<<<<<< HEAD
-/* #define HOITFS_DISABLE */
-=======
 #define  __SYLIXOS_STDIO
 #define  __SYLIXOS_KERNEL
 #define HOITFS_DISABLE
->>>>>>> 026e62dc3df929a2cf3af5c89c581edac6d6d883
 #ifndef HOITFS_DISABLE
 
 
