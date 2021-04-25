@@ -37,9 +37,6 @@ static inline PHOIT_RB_NODE newHoitRbNode(INT32 iKey){
     return pRbn;
 }
 
-
-
-
 PHOIT_RB_TREE     hoitRbInitTree(VOID);                                          /* åˆå?åŒ–RBæ ? */
 PHOIT_RB_NODE     hoitRbInsertNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn);   /* æ’å…¥ä¸?ä¸?Š‚ç‚? */
 PHOIT_RB_NODE     hoitRbSearchNode(PHOIT_RB_TREE pRbTree, INT32 iKey);           /* æŸ¥æ‰¾ä¸?ä¸?Š‚ç‚? */

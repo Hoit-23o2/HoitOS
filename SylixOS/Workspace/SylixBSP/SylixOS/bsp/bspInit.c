@@ -48,7 +48,7 @@
 #include "driver/netif/dm9000x.h"                                       /*  DM9000 网络芯片驱动         */
 #include "driver/sdi/sdInit.h"                                          /*  SD 接口                     */
 #include "driver/mtd/nor/nor.h"                                         /*  nor flash 驱动              */
-
+#include "extfs/hoitFs/hoitFs.h"                                        /*  HoitFS 文件驱动接口 */
 #include "extfs/hoitFs/hoitFsTreeUtil.h"                                /*  红黑树测试 - PYQ             */
 #include "extfs/hoitFs/hoitFsTree.h"                                    /*  Frag树测试 - PYQ             */
 /*********************************************************************************************************
@@ -228,7 +228,8 @@ static VOID  halDrvInit (VOID)
     nfsDrv();                                                           /*  nfs    device driver        */
     yaffsDrv();                                                         /*  yaffs  device driver        */
     canDrv();                                                           /*  CAN    device driver        */
-
+    
+    API_HoitFsDrvInstall();                                             /*  挂载HoitFS文件系统 */
     s3c2440GpioDrv();
 
 #ifdef MINI2440_PACKET

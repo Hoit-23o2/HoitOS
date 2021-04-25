@@ -148,8 +148,10 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_gid = getgid();
     pfs->HOITFS_time = lib_time(LW_NULL);
     pfs->HOITFS_ulCurBlk = 0ul;
+    pfs->HOITFS_now_sector = LW_NULL;
 
     //__ram_mount(pramfs);
+    __hoit_mount(pfs);
 
     if (iosDevAddEx(&pfs->HOITFS_devhdrHdr, pcName, _G_iHoitFsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
@@ -235,7 +237,7 @@ static LONG __hoitFsOpen(PHOIT_VOLUME     pfs,
     }
 
     /************************************ TODO ************************************/
-    phoitn = __hoit_open(pfs, pcName, &phoitFather, &bRoot, &bLast, &pcTail);
+    phoitn = __hoit_open(pfs, pcName, &phoitFather, LW_NULL,&bRoot, &bLast, &pcTail);
     
     if (phoitn) {
         if (!S_ISLNK(phoitn->HOITN_mode)) {
@@ -376,7 +378,7 @@ static INT  __hoitFsRemove(PHOIT_VOLUME   pfs,
     }
 
     //************************************ TODO ************************************
-    phoitn = __hoit_open(pfs, pcName, &phoitFather, &bRoot, LW_NULL, &pcTail);
+    phoitn = __hoit_open(pfs, pcName, &phoitFather, LW_NULL, &bRoot, LW_NULL, &pcTail);
     if (phoitn) {
         //TODO 建立软链接部分，PHOIT_INODE_INFO尚缺少pcLink
         if (S_ISLNK(phoitn->HOITN_mode)) {
@@ -976,7 +978,7 @@ static INT  __hoitFsLStat(PHOIT_VOLUME  pfs, PCHAR  pcName, struct stat* pstat)
         return  (PX_ERROR);
     }
 
-    phoitn = __hoit_open(pfs, pcName, &phoitnFather, &bRoot, LW_NULL, LW_NULL);
+    phoitn = __hoit_open(pfs, pcName, &phoitnFather, LW_NULL, &bRoot, LW_NULL, LW_NULL);
     if (phoitn) {
         __hoit_stat(phoitn, pfs, pstat);
     } else if (bRoot) {
@@ -1265,7 +1267,7 @@ static INT  __hoitFsSymlink(PHOIT_VOLUME   pfs,
         return  (PX_ERROR);
     }
 
-    phoitn = __hoit_open(pfs, pcName, &phoitnFather, &bRoot, LW_NULL, LW_NULL);
+    phoitn = __hoit_open(pfs, pcName, &phoitnFather, LW_NULL, &bRoot, LW_NULL, LW_NULL);
     if (phoitn || bRoot) { /* 同名文件存在或为根节点 */
         __HOIT_VOLUME_UNLOCK(pfs);
         _ErrorHandle(EEXIST);
@@ -1309,7 +1311,7 @@ static ssize_t __hoitFsReadlink(PHOIT_VOLUME   pfs,
         return  (PX_ERROR);
     }
 
-    phoitn = __hoit_open(pfs, pcName, LW_NULL, LW_NULL, LW_NULL, LW_NULL);
+    phoitn = __hoit_open(pfs, pcName, LW_NULL, LW_NULL, LW_NULL, LW_NULL, LW_NULL);
     if ((phoitn == LW_NULL) || !S_ISLNK(phoitn->HOITN_mode)) {
         __HOIT_VOLUME_UNLOCK(pfs);
         _ErrorHandle(ENOENT);

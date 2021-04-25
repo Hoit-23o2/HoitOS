@@ -313,3 +313,24 @@ struct jffs2_eraseblock
 
 ## 联调问题记录
 
+### 编译问题
+
+1. 在`SylixOS/fs/mount/mount.c 133行`处加入：
+
+   ```c
+   if ((lib_strcmp(pcFs, __LW_MOUNT_NFS_FS) == 0) ||
+       (lib_strcmp(pcFs, __LW_MOUNT_RAM_FS) == 0) ||
+       (lib_strcmp(pcFs, __LW_MOUNT_HOIT_FS) == 0)) {                   /*  NFS 或者 RAM FS             */
+       bNeedDelete = LW_FALSE;                                          /*  不需要操作 BLK RAW 设备     */
+   } else {
+       bNeedDelete = LW_TRUE;
+   }
+   ```
+
+   注意自行定义__LW_MOUNT_HOIT_FS：
+
+   ```c
+   #define __LW_MOUNT_HOIT_FS          "hoitfs"                          /*  hoitfs挂载              */
+   ```
+
+   然后重新编译内核、BSP即可。

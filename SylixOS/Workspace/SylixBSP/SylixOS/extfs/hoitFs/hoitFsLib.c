@@ -27,6 +27,7 @@
 //#include "hoitFsTree.h"
 #include "hoitFsLib.h"
 #include "hoitFsTree.h"
+#include "hoitFsFDLib.h"
 #include "../../driver/mtd/nor/nor.h"
 
 /*********************************************************************************************************
@@ -301,7 +302,7 @@ UINT8 __hoit_add_to_cache_list(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache) 
     }
     
     pInodeCache->HOITC_next = pfs->HOITFS_cache_list;
-    pfs->HOITFS_cache_list = pInodeCache->HOITC_next;
+    pfs->HOITFS_cache_list = pInodeCache;
     return 0;
 }
 /*********************************************************************************************************
@@ -471,7 +472,7 @@ UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT pDi
     PHOIT_RAW_INFO pRawInfo = pInodeInfo->HOITC_nodes;
     while (pRawInfo) {
         PCHAR pBuf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);
-        if(pBuf == LW_NULL)
+        
         read_nor(pRawInfo->phys_addr, pBuf, pRawInfo->totlen);
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pBuf;
         if (__HOIT_IS_OBSOLETE(pRawHeader)) {
@@ -536,6 +537,11 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
     pSector->HOITS_addr = sectorOffset;
     pSector->HOITS_offset = 0;
     __hoit_add_to_sector_list(pfs, pSector);
+
+    // ugly now
+    if(pfs->HOITFS_now_sector == LW_NULL){
+        pfs->HOITFS_now_sector = pSector;
+    }
 
     /* 再整个块进行扫描 */
     PCHAR pReadBuf = (PCHAR)__SHEAP_ALLOC(sectorSize);
@@ -626,6 +632,7 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
             pNow += 4;   /* 每次移动4字节 */
         }
     }
+    return LW_TRUE;
 }
 
 /*********************************************************************************************************
@@ -1311,6 +1318,7 @@ ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  st
     PHOIT_FRAG_TREE_NODE pTreeNode = newHoitFragTreeNode(pFullDnode, stNBytes, stOft, stOft);
     hoitFragTreeInsertNode(pInodeInfo->HOITN_rbtree, pTreeNode);
     hoitFragTreeOverlayFixUp(pInodeInfo->HOITN_rbtree);
+    return stNBytes;
 }
 
 /*********************************************************************************************************
@@ -1346,7 +1354,7 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     }
     pfs->HOITFS_highest_ino++;
     pfs->HOITFS_highest_version++;
-                                            
+                               
     if (pfs->HOITFS_highest_ino == 1) {    /* 系统第一次运行, 创建根目录文件 */
         mode_t mode = S_IFDIR;
         PHOIT_INODE_INFO pRootDir = __hoit_new_inode_info(pfs, mode);
