@@ -301,6 +301,8 @@ static LONG __hoitFsOpen(PHOIT_VOLUME     pfs,
         __HOIT_VOLUME_UNLOCK(pfs);
         _ErrorHandle(ENOENT);                                           /*  没有找到文件                */
         return  (PX_ERROR);
+    } else if (bRoot == LW_TRUE){
+        phoitn = pfs->HOITFS_pRootDir;
     }
 
 __file_open_ok:
@@ -1045,7 +1047,7 @@ static INT  __hoitFsReadDir (PLW_FD_ENTRY  pfdentry, DIR  *dir)
     INT                 i;
     LONG                iStart;
     INT                 iError = ERROR_NONE;  
-
+    PHOIT_INODE_INFO    pInodeInfo;
     if (!dir) {
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
@@ -1057,7 +1059,39 @@ static INT  __hoitFsReadDir (PLW_FD_ENTRY  pfdentry, DIR  *dir)
     }   
 
     //TODO 还不知道下层如何遍历目录，暂时保留
+    PHOIT_FULL_DIRENT pFullDirent;
+    if (phoitn == LW_NULL) {
+        pFullDirent = pfs->HOITFS_pRootDir->HOITN_dents;
+    } else {
+        if (!S_ISDIR(phoitn->HOITN_mode)) {
+            __HOIT_VOLUME_UNLOCK(pfs);
+            _ErrorHandle(ENOTDIR);
+            return  (PX_ERROR);
+        }
+        pFullDirent = phoitn->HOITN_dents;
+    }
 
+    iStart = dir->dir_pos;
+
+    for (i = 0;
+         (pFullDirent != LW_NULL) && (i < iStart);
+         (pFullDirent = pFullDirent->HOITFD_next), (i++));         /*  忽略                        */
+
+    if (pFullDirent == LW_NULL) {
+        _ErrorHandle(ENOENT);
+        iError = PX_ERROR;                                              /*  没有多余的节点              */
+
+    } else {
+        pInodeInfo = __hoit_get_full_file(pfs, pFullDirent->HOITFD_ino);
+        dir->dir_pos++;
+
+        lib_strlcpy(dir->dir_dirent.d_name,
+                    pFullDirent->HOITFD_file_name,
+                    sizeof(dir->dir_dirent.d_name));
+
+        dir->dir_dirent.d_type = IFTODT(pInodeInfo->HOITN_mode);
+        dir->dir_dirent.d_shortname[0] = PX_EOS;
+    }
 
     __HOIT_VOLUME_UNLOCK(pfs);
 

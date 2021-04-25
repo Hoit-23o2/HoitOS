@@ -579,7 +579,7 @@ static PVOID  halBootThread (PVOID  pvBootArg)
 
     nor_init(INIT_FAKE_NOR);
     scan_nor();
-    test_nor();
+    //test_nor();
 
     pretty_print("[Red / Black Tree Test]", "", DO_CENTRAL);
     hoitRbTreeTest();

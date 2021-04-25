@@ -89,7 +89,7 @@ ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  st
 VOID  __hoit_unmount(PHOIT_VOLUME pfs);
 VOID  __hoit_mount(PHOIT_VOLUME  pfs);
 
-UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT pDirentList, PHOIT_FULL_DNODE pDnodeList);
+UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT* ppDirentList, PHOIT_FULL_DNODE* ppDnodeList);
 VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag);
 
 
