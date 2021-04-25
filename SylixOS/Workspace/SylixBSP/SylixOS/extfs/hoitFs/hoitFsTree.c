@@ -231,7 +231,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
             *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 根据pFDNodeNew新建FragTreeNode */
                                           pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
 
-            hoitFragTreeInsertNode(pFTTree, pFTnNew);                                   /* 插入节点至红黑树 */
+            hoitFragTreeInsertNode(pFTTree, *pFTnNew);                                   /* 插入节点至红黑树 */
             *uiCase = 2;
         }
         /* 
@@ -248,7 +248,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
                                                     uiRightRemainSize);
             *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 根据pFDNodeNew新建FragTreeNode */
                                            pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
-            hoitFragTreeInsertNode(pFTTree, pFTnNew);
+            hoitFragTreeInsertNode(pFTTree, *pFTnNew);
             hoitFragTreeDeleteNode(pFTTree, pFTn, bDoDelete);                            /* 删除红黑树节点 */
             *uiCase = 3;
         }

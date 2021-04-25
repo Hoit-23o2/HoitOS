@@ -26,7 +26,7 @@
 #include "hoitFsTreeUtil.h"
 #include "hoitFsLib.h"
 
-#define FT_TEST
+//#define FT_TEST
 #define FT_DEBUG
 
 /*********************************************************************************************************
