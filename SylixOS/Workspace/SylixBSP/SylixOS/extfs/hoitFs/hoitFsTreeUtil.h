@@ -29,35 +29,14 @@
 
 #define RB_BLACK    1
 #define RB_RED      0
-/*********************************************************************************************************
-  红黑树节点定�?
-*********************************************************************************************************/
-typedef struct hoit_rb_node
-{
-    UINT32 uiColor;
-    INT32  iKey;
-    struct hoit_rb_node* pRbnLeft;
-    struct hoit_rb_node* pRbnRight;   
-    struct hoit_rb_node* pRbnParent;
-} HOIT_RB_NODE;
 
-typedef HOIT_RB_NODE * PHOIT_RB_NODE;
 
 static inline PHOIT_RB_NODE newHoitRbNode(INT32 iKey){
     PHOIT_RB_NODE pRbn = (PHOIT_RB_NODE)lib_malloc(sizeof(HOIT_RB_NODE));
     pRbn->iKey = iKey;
     return pRbn;
 }
-/*********************************************************************************************************
-  红黑树定�?
-*********************************************************************************************************/
-typedef struct hoit_rb_tree
-{
-    PHOIT_RB_NODE pRbnGuard;            /* 哨兵 */
-    PHOIT_RB_NODE pRbnRoot;             /* 根节�? */
-} HOIT_RB_TREE;
 
-typedef HOIT_RB_TREE * PHOIT_RB_TREE;
 
 
 

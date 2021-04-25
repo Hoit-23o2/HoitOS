@@ -1,39 +1,315 @@
 /*********************************************************************************************************
 **
-**                                    ‰∏≠ÂõΩËΩØ‰ª∂ÂºÄÊ∫êÁªÑÁªá
+**                                    ÷–π˙»Ìº˛ø™‘¥◊È÷Ø
 **
-**                                   ÂµåÂÖ•ÂºèÂÆûÊó∂Êìç‰ΩúÁ≥ªÁªü
+**                                   «∂»Î Ω µ ±≤Ÿ◊˜œµÕ≥
 **
 **                                       SylixOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
-**--------------Êñá‰ª∂‰ø°ÊÅØ--------------------------------------------------------------------------------
+**--------------Œƒº˛–≈œ¢--------------------------------------------------------------------------------
 **
-** Êñá   ‰ª∂   Âêç: hoitType.h
+** Œƒ   º˛   √˚: hoitType.h
 **
-** Âàõ   Âª∫   ‰∫∫: ÊΩòÂª∂È∫í
+** ¥¥   Ω®   »À: ≈À—”˜Ë
 **
-** Êñá‰ª∂ÂàõÂª∫Êó•Êúü: 2021 Âπ¥ 03 Êúà 19 Êó•
+** Œƒº˛¥¥Ω®»’∆⁄: 2021 ƒÍ 03 ‘¬ 19 »’
 **
-** Êèè        Ëø∞: ÂÖ®Â±ÄÁ±ªÂûãÊñá‰ª∂ÔºåÈò≤Ê≠¢ÂºïÁî®Âæ™ÁéØ
+** √Ë         ˆ: »´æ÷¿‡–ÕŒƒº˛£¨∑¿÷π“˝”√—≠ª∑
 *********************************************************************************************************/
 #ifndef SYLIXOS_EXTFS_HOITFS_HOITTYPE_H_
 #define SYLIXOS_EXTFS_HOITFS_HOITTYPE_H_
-
+#define  __SYLIXOS_KERNEL
 #include "stdio.h"
+#include "SylixOS.h"
 
 /*********************************************************************************************************
-  ÂÅèÁßªÈáèËÆ°ÁÆó
+  HoitFs∫Í∂®“Â
+*********************************************************************************************************/
+#define HOIT_MAGIC_NUM      0x05201314
+#define HOIT_FIELD_TYPE     0xE0000000          //«∞3Œª◊˜Œ™TYPE”Ú
+
+#define HOIT_FLAG_TYPE_INODE     0x20000000     //raw_inode¿‡–Õ 001
+#define HOIT_FLAG_TYPE_DIRENT    0x40000000     //raw_dirent¿‡–Õ  010
+#define HOIT_FLAG_OBSOLETE       0x00000001     //Flagµƒ◊Ó∫Û“ªŒª”√¿¥±Ì æ «∑Òπ˝∆⁄£¨1 «√ªπ˝∆⁄£¨0 «π˝∆⁄
+#define HOIT_ERROR          100
+#define HOIT_ROOT_DIR_INO   1   /* HoitFsµƒ∏˘ƒø¬ºµƒinoŒ™1 */
+#define __HOIT_IS_OBSOLETE(pRawHeader)          ((pRawHeader->flag & HOIT_FLAG_OBSOLETE)    == 0)
+#define __HOIT_IS_TYPE_INODE(pRawHeader)        ((pRawHeader->flag & HOIT_FLAG_TYPE_INODE)  != 0)
+#define __HOIT_IS_TYPE_DIRENT(pRawHeader)       ((pRawHeader->flag & HOIT_FLAG_TYPE_DIRENT) != 0)
+
+#define __HOIT_VOLUME_LOCK(pfs)        API_SemaphoreMPend(pfs->HOITFS_hVolLock, \
+                                        LW_OPTION_WAIT_INFINITE)
+#define __HOIT_VOLUME_UNLOCK(pfs)      API_SemaphoreMPost(pfs->HOITFS_hVolLock)
+#define __HOIT_MIN_4_TIMES(value)       ((value+3)/4*4) /* Ω´value¿©’πµΩ4µƒ±∂ ˝ */
+
+/*********************************************************************************************************
+  ºÏ≤‚¬∑æ∂◊÷¥Æ «∑ÒŒ™∏˘ƒø¬ºªÚ’ﬂ÷±Ω”÷∏œÚ…Ë±∏
+*********************************************************************************************************/
+#define __STR_IS_ROOT(pcName)           ((pcName[0] == PX_EOS) || (lib_strcmp(PX_STR_ROOT, pcName) == 0))
+
+
+/*********************************************************************************************************
+  C”Ô—‘Ω·ππÃÂÃ·«∞…˘√˜
+*********************************************************************************************************/
+typedef struct HOIT_VOLUME HOIT_VOLUME;
+typedef struct HOIT_RAW_HEADER HOIT_RAW_HEADER;
+typedef struct HOIT_RAW_INODE HOIT_RAW_INODE;
+typedef struct HOIT_RAW_DIRENT HOIT_RAW_DIRENT;
+typedef struct HOIT_RAW_INFO HOIT_RAW_INFO;
+typedef struct HOIT_FULL_DNODE HOIT_FULL_DNODE;
+typedef struct HOIT_FULL_DIRENT HOIT_FULL_DIRENT;
+typedef struct HOIT_INODE_CACHE HOIT_INODE_CACHE;
+typedef struct HOIT_INODE_INFO HOIT_INODE_INFO;
+typedef struct HOIT_SECTOR HOIT_SECTOR;
+typedef struct hoit_rb_node HOIT_RB_NODE;
+typedef struct hoit_rb_tree HOIT_RB_TREE;
+typedef struct hoit_frag_tree HOIT_FRAG_TREE;
+typedef struct hoit_frag_tree_node HOIT_FRAG_TREE_NODE;
+typedef struct hoit_frag_tree_list_node HOIT_FRAG_TREE_LIST_NODE;
+typedef struct hoit_frag_tree_list_header HOIT_FRAG_TREE_LIST_HEADER;
+
+typedef HOIT_VOLUME* PHOIT_VOLUME;
+typedef HOIT_RAW_HEADER* PHOIT_RAW_HEADER;
+typedef HOIT_RAW_INODE* PHOIT_RAW_INODE;
+typedef HOIT_RAW_DIRENT* PHOIT_RAW_DIRENT;
+typedef HOIT_RAW_INFO* PHOIT_RAW_INFO;
+typedef HOIT_FULL_DNODE* PHOIT_FULL_DNODE;
+typedef HOIT_FULL_DIRENT* PHOIT_FULL_DIRENT;
+typedef HOIT_INODE_CACHE* PHOIT_INODE_CACHE;
+typedef HOIT_INODE_INFO* PHOIT_INODE_INFO;
+typedef HOIT_SECTOR* PHOIT_SECTOR;
+typedef HOIT_RB_NODE * PHOIT_RB_NODE;
+typedef HOIT_RB_TREE * PHOIT_RB_TREE;
+typedef HOIT_FRAG_TREE * PHOIT_FRAG_TREE;
+typedef HOIT_FRAG_TREE_NODE *PHOIT_FRAG_TREE_NODE;
+typedef HOIT_FRAG_TREE_LIST_NODE * PHOIT_FRAG_TREE_LIST_NODE;
+typedef HOIT_FRAG_TREE_LIST_HEADER * PHOIT_FRAG_TREE_LIST_HEADER;
+
+DEV_HDR          HOITFS_devhdrHdr;
+
+
+
+/*********************************************************************************************************
+  HoitFs super block¿‡–Õ
+*********************************************************************************************************/
+typedef struct HOIT_VOLUME{
+    DEV_HDR             HOITFS_devhdrHdr;                                /*  HoitFs Œƒº˛œµÕ≥…Ë±∏Õ∑        */
+    LW_OBJECT_HANDLE    HOITFS_hVolLock;                                 /*  æÌ≤Ÿ◊˜À¯                    */
+    LW_LIST_LINE_HEADER HOITFS_plineFdNodeHeader;                        /*  fd_node ¡¥±Ì                */
+    PHOIT_INODE_INFO    HOITFS_pRootDir;                                 /*  ∏˘ƒø¬ºŒƒº˛‘›∂®Œ™“ª÷±¥Úø™µƒ  */
+    PHOIT_FULL_DIRENT   HOITFS_pTempRootDirent;
+
+    BOOL                HOITFS_bForceDelete;                             /*   «∑Ò‘ –Ì«ø÷∆–∂‘ÿæÌ          */
+    BOOL                HOITFS_bValid;
+
+    uid_t               HOITFS_uid;                                      /*  ”√ªß id                     */
+    gid_t               HOITFS_gid;                                      /*  ◊È   id                     */
+    mode_t              HOITFS_mode;                                     /*  Œƒº˛ mode                   */
+    time_t              HOITFS_time;                                     /*  ¥¥Ω® ±º‰                    */
+    ULONG               HOITFS_ulCurBlk;                                 /*  µ±«∞œ˚∫ƒƒ⁄¥Ê¥Û–°            */
+    ULONG               HOITFS_ulMaxBlk;                                 /*  ◊Ó¥Ûƒ⁄¥Êœ˚∫ƒ¡ø              */
+
+    PHOIT_INODE_CACHE   HOITFS_cache_list;
+    PHOIT_SECTOR        HOITFS_now_sector;
+    UINT                HOITFS_highest_ino;
+    PHOIT_SECTOR        HOITFS_block_list;
+    UINT                HOITFS_highest_version;
+} HOIT_VOLUME;
+
+
+/*********************************************************************************************************
+  HoitFs  ˝æ› µÃÂµƒπ´π≤Header¿‡–Õ
+*********************************************************************************************************/
+struct HOIT_RAW_HEADER{
+    UINT32              magic_num;
+    UINT32              flag;
+    UINT32              totlen;
+    mode_t              file_type;
+    UINT                ino;
+    UINT                version;
+};
+
+
+/*********************************************************************************************************
+  HoitFs raw inode¿‡–Õ
+*********************************************************************************************************/
+struct HOIT_RAW_INODE{
+    UINT32              magic_num;
+    UINT32              flag;
+    UINT32              totlen;     /* ∞¸∫¨Õ∑≤øº∞ ˝æ›≥§∂» */
+    mode_t              file_type;
+    UINT                ino;
+    UINT                version;
+    UINT                offset;
+};
+
+
+/*********************************************************************************************************
+  HoitFs raw dirent¿‡–Õ
+*********************************************************************************************************/
+struct HOIT_RAW_DIRENT{
+    UINT32              magic_num;
+    UINT32              flag;
+    UINT32              totlen;
+    mode_t              file_type;
+    UINT                ino;
+    UINT                version;
+    UINT                pino;
+};
+
+
+struct HOIT_RAW_INFO{
+    UINT                phys_addr;
+    UINT                totlen;
+    PHOIT_RAW_INFO      next_phys;
+};
+
+
+struct HOIT_FULL_DNODE{
+    PHOIT_FULL_DNODE    HOITFD_next;
+    PHOIT_RAW_INFO      HOITFD_raw_info;
+    UINT                HOITFD_offset;                                  /*‘⁄Œƒº˛¿Ôµƒ∆´“∆¡ø*/
+    UINT                HOITFD_length;                                  /*”––ßµƒ ˝æ›≥§∂»*/
+    mode_t              HOITFD_file_type;                               /*Œƒº˛µƒ¿‡–Õ*/
+    UINT                HOITFD_version;
+};
+
+
+struct HOIT_FULL_DIRENT{
+    PHOIT_FULL_DIRENT   HOITFD_next;
+    PHOIT_RAW_INFO      HOITFD_raw_info;
+    UINT                HOITFD_nhash;
+    PCHAR               HOITFD_file_name;
+    UINT                HOITFD_ino;                                     /* ƒø¬ºœÓ÷∏œÚµƒŒƒº˛inode number      */
+    UINT                HOITFD_pino;                                    /* ∏√ƒø¬ºœÓÀ˘ Ùµƒƒø¬ºŒƒº˛inode number*/
+    mode_t              HOITFD_file_type;
+    UINT                HOITFD_version;
+};
+
+
+struct HOIT_INODE_CACHE{
+    UINT                HOITC_ino;
+    PHOIT_INODE_CACHE   HOITC_next;
+    PHOIT_RAW_INFO      HOITC_nodes;
+    UINT                HOITC_nlink;
+};
+
+
+struct HOIT_INODE_INFO{
+    mode_t              HOITN_mode;                                     /*  Œƒº˛ mode                   */
+    PHOIT_INODE_CACHE   HOITN_inode_cache;
+    PHOIT_FULL_DIRENT   HOITN_dents;
+    PHOIT_FULL_DNODE    HOITN_metadata;
+    PHOIT_FRAG_TREE     HOITN_rbtree;
+    PHOIT_VOLUME        HOITN_volume;
+    UINT                HOITN_ino;                                      /*  πÊ∂®∏˘ƒø¬ºµƒinoŒ™1          */
+
+    uid_t               HOITN_uid;                                      /*  ”√ªß id                     */
+    gid_t               HOITN_gid;                                      /*  ◊È   id                     */
+    time_t              RAMN_timeCreate;                                /*  ¥¥Ω® ±º‰                    */
+    time_t              RAMN_timeAccess;                                /*  ◊Ó∫Û∑√Œ  ±º‰                */
+    time_t              RAMN_timeChange;                                /*  ◊Ó∫Û–ﬁ∏ƒ ±º‰                */
+    size_t              RAMN_stSize;                                    /*  µ±«∞Œƒº˛¥Û–° (ø…ƒ‹¥Û”⁄ª∫≥Â) */
+    size_t              RAMN_stVSize;                                   /*  lseek ≥ˆµƒ–Èƒ‚¥Û–°          */
+};
+
+
+
+struct HOIT_SECTOR{
+    PHOIT_SECTOR        HOITS_next;
+    UINT                HOITS_bno;                                      /* øÈ∫≈block number              */
+    UINT                HOITS_addr;
+    UINT                HOITS_length;
+    UINT                HOITS_offset;                                   /* µ±«∞‘⁄–¥ŒÔ¿Ìµÿ÷∑=addr+offset  */
+};
+
+
+/*********************************************************************************************************
+  Á∫¢ÈªëÊ†ëËäÇÁÇπÂÆö‰π?
+*********************************************************************************************************/
+struct hoit_rb_node
+{
+    UINT32 uiColor;
+    INT32  iKey;
+    struct hoit_rb_node* pRbnLeft;
+    struct hoit_rb_node* pRbnRight;
+    struct hoit_rb_node* pRbnParent;
+};
+
+
+
+/*********************************************************************************************************
+  Á∫¢ÈªëÊ†ëÂÆö‰π?
+*********************************************************************************************************/
+struct hoit_rb_tree
+{
+    PHOIT_RB_NODE pRbnGuard;            /* Âì®ÂÖµ */
+    PHOIT_RB_NODE pRbnRoot;             /* Ê†πËäÇÁÇ? */
+};
+
+
+
+/*********************************************************************************************************
+  INODE_INFO÷∏œÚµƒFragTree
+*********************************************************************************************************/
+struct hoit_frag_tree
+{
+    PHOIT_RB_TREE pRbTree;
+    UINT32 uiNCnt;                                               /* ∏√∫Ï∫⁄ ˜Ω⁄µ„ ˝ƒø */
+    PHOIT_VOLUME pfs;
+};
+
+
+/*********************************************************************************************************
+  INODE_INFO
+*********************************************************************************************************/
+struct hoit_frag_tree_node
+{
+    HOIT_RB_NODE pRbn;
+    PHOIT_FULL_DNODE pFDnode;
+    UINT32 uiSize;
+    UINT32 uiOfs;
+};
+
+
+
+/*********************************************************************************************************
+  PHOIT_FRAG_TREE_NODE OIT_FRAG_TREE_NODE
+*********************************************************************************************************/
+struct hoit_frag_tree_list_node
+{
+    PHOIT_FRAG_TREE_NODE pFTn;
+    struct hoit_frag_tree_list_node * pFTlistNext;
+};
+
+
+/*********************************************************************************************************
+  PHOIT_FRAG_TREE_NODE
+*********************************************************************************************************/
+struct hoit_frag_tree_list_header
+{
+    PHOIT_FRAG_TREE_LIST_NODE pFTlistHeader;
+    UINT32 uiLowBound;
+    UINT32 uiHighBound;
+    UINT32 uiNCnt;
+};
+
+
+
+
+/*********************************************************************************************************
+  ∆´“∆¡øº∆À„
 *********************************************************************************************************/
 #define OFFSETOF(type, member)                                      \
         ((size_t)&((type *)0)->member)                              \
 /*********************************************************************************************************
-  ÂæóÂà∞ptrÁöÑÂÆπÂô®ÁªìÊûÑ
+  µ√µΩptrµƒ»›∆˜Ω·ππ
 *********************************************************************************************************/
 #define CONTAINER_OF(ptr, type, member)                             \
         ((type *)((size_t)ptr - OFFSETOF(type, member)))      \
 
-#define HOIT_RAW_DATA_MAX_SIZE      4096    /* Âçï‰Ωç‰∏∫ Byte */
+#define HOIT_RAW_DATA_MAX_SIZE      4096    /* µ•ŒªŒ™ Byte */
 
 #endif /* SYLIXOS_EXTFS_HOITFS_HOITTYPE_H_ */
