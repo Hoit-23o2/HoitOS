@@ -104,6 +104,9 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
     pNewRawInode->ino = pRawInode->ino;
     pNewRawInode->magic_num = pRawInode->magic_num;
     pNewRawInode->totlen = sizeof(struct HOIT_RAW_INODE) + length;
+    pNewRawInode->offset = pFullDnode->HOITFD_offset + offset;
+    pNewRawInode->version = pfs->HOITFS_highest_version++;
+
     lib_memcpy(write_buf + sizeof(struct HOIT_RAW_INODE), read_buf + sizeof(struct HOIT_RAW_INODE) + offset, length);
 
     UINT phys_addr = 0;
@@ -159,6 +162,7 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
     pRawInode->magic_num = HOIT_MAGIC_NUM;
     pRawInode->totlen = sizeof(HOIT_RAW_INODE) + size;
     pRawInode->offset = offset;
+    pRawInode->version = pfs->HOITFS_highest_version++;
 
     UINT phys_addr = 0;
     __hoit_write_flash(pfs, (PVOID)pRawInode, sizeof(HOIT_RAW_INODE), &phys_addr);
@@ -193,9 +197,40 @@ PHOIT_FULL_DNODE __hoit_bulid_full_dnode(PHOIT_RAW_INFO pRawInfo) {
     
     PHOIT_FULL_DNODE pFullDnode = (PHOIT_FULL_DNODE)__SHEAP_ALLOC(sizeof(HOIT_FULL_DNODE));
     pFullDnode->HOITFD_file_type = pRawInode->file_type;
-    pFullDnode->HOITFD_length = pRawInode->totlen;
+    pFullDnode->HOITFD_length = pRawInode->totlen - sizeof(PHOIT_RAW_INODE);
     pFullDnode->HOITFD_offset = pRawInode->offset;
     pFullDnode->HOITFD_raw_info = pRawInfo;
     __SHEAP_FREE(read_buf);
     return pFullDnode;
+}
+
+/*********************************************************************************************************
+** 函数名称: __hoit_bulid_full_dirent
+** 功能描述: 在打开文件时, 根据pRawInfo建立FullDirent
+** 输　入  :
+** 输　出  :
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+PHOIT_FULL_DIRENT __hoit_bulid_full_dirent(PHOIT_RAW_INFO pRawInfo) {
+    PCHAR read_buf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);        /* 注意内存泄露 */
+    read_nor(pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
+    PHOIT_RAW_DIRENT pRawDirent = (PHOIT_RAW_DIRENT)read_buf;
+
+    PHOIT_FULL_DIRENT pFullDirent = (PHOIT_FULL_DIRENT)__SHEAP_ALLOC(sizeof(HOIT_FULL_DIRENT));
+    PCHAR pFileName = read_buf + sizeof(HOIT_RAW_DIRENT);
+    PCHAR pNewFileName = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen - sizeof(HOIT_RAW_INFO));
+    lib_strncpy(pNewFileName, pFileName, pRawInfo->totlen - sizeof(HOIT_RAW_INFO));
+    pFullDirent->HOITFD_file_name = pNewFileName;
+    pFullDirent->HOITFD_file_type = pRawDirent->file_type;
+    pFullDirent->HOITFD_ino = pRawDirent->ino;
+    pFullDirent->HOITFD_next = LW_NULL;
+    pFullDirent->HOITFD_nhash = __hoit_name_hash(pNewFileName);
+    pFullDirent->HOITFD_pino = pRawDirent->pino;
+    pFullDirent->HOITFD_raw_info = pRawInfo;
+    pFullDirent->HOITFD_version = pRawDirent->version;
+    
+
+    __SHEAP_FREE(read_buf);
+    return pFullDirent;
 }

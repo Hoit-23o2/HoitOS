@@ -207,6 +207,8 @@ VOID  __hoit_add_dirent(PHOIT_INODE_INFO  pFatherInode,
     pRawDirent->magic_num = HOIT_MAGIC_NUM;
     pRawDirent->pino = pSonDirent->HOITFD_pino;
     pRawDirent->totlen = sizeof(HOIT_RAW_DIRENT) + lib_strlen(pSonDirent->HOITFD_file_name);
+    pRawDirent->flag = HOIT_FLAG_OBSOLETE | HOIT_FLAG_TYPE_DIRENT;
+    pRawDirent->version = pfs->HOITFS_highest_version++;
 
     pRawInfo->phys_addr = pfs->HOITFS_now_sector->HOITS_offset + pfs->HOITFS_now_sector->HOITS_addr;
     pRawInfo->totlen = pRawDirent->totlen;
@@ -240,7 +242,7 @@ UINT __hoit_alloc_ino(PHOIT_VOLUME pfs) {
 ** 函数名称: __hoit_write_flash
 ** 功能描述: 写入物理设备，不能自己选物理地址
 ** 输　入  :
-** 输　出  : <0代表出错
+** 输　出  : !=0代表出错
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
@@ -500,6 +502,204 @@ UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT pDi
     }
     return ERROR_NONE;
 }
+/*********************************************************************************************************
+** 函数名称: __hoit_add_to_sector_list
+** 功能描述: 添加一个sector到volume
+** 输　入  :
+** 输　出  : 
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_SECTOR pSector) {
+    pSector->HOITS_next = pfs->HOITFS_block_list;
+    pfs->HOITFS_block_list = pSector;
+    return LW_TRUE;
+}
+/*********************************************************************************************************
+** 函数名称: __hoit_scan_single_sector
+** 功能描述: 扫描一个擦除块
+** 输　入  :
+** 输　出  :
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
+    UINT sectorSize = GET_SECTOR_SIZE(sector_no);
+    UINT sectorOffset = GET_SECTOR_OFFSET(sector_no);
+    /* 先创建sector结构体 */
+    PHOIT_SECTOR pSector = (PHOIT_SECTOR)__SHEAP_ALLOC(sizeof(HOIT_SECTOR));
+    pSector->HOITS_bno = sector_no;
+    pSector->HOITS_length = sectorSize;
+    pSector->HOITS_addr = sectorOffset;
+    pSector->HOITS_offset = 0;
+    __hoit_add_to_sector_list(pfs, pSector);
+
+    /* 再整个块进行扫描 */
+    PCHAR pReadBuf = (PCHAR)__SHEAP_ALLOC(sectorSize);
+    lib_bzero(pReadBuf, sectorSize);
+    read_nor(sectorOffset, pReadBuf, sectorSize);
+
+    PCHAR pNow = pReadBuf;
+    while (pNow < pReadBuf + sectorSize) {
+        PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pNow;
+        if (pRawHeader->magic_num == HOIT_MAGIC_NUM && !__HOIT_IS_OBSOLETE(pRawHeader)) {
+            /* TODO:后面这里还需添加CRC校验 */
+            if (__HOIT_IS_TYPE_INODE(pRawHeader)) {
+                PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)pNow;
+                PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pRawInode->ino);
+                if (pInodeCache == LW_NULL) {
+                    pInodeCache = (PHOIT_INODE_CACHE)__SHEAP_ALLOC(sizeof(HOIT_INODE_CACHE));
+                    if (pInodeCache == LW_NULL) {
+                        _ErrorHandle(ENOMEM);
+                        return  (PX_ERROR);
+                    }
+                    pInodeCache->HOITC_ino = pRawInode->ino;
+                    pInodeCache->HOITC_nlink = 0;
+                    __hoit_add_to_cache_list(pfs, pInodeCache);
+                }
+                PHOIT_RAW_INFO pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
+                pRawInfo->phys_addr = sectorOffset + (pNow - pReadBuf);
+                pRawInfo->totlen = pRawInode->totlen;
+                __hoit_add_to_inode_cache(pInodeCache, pRawInfo);
+
+                if (pRawInode->ino == HOIT_ROOT_DIR_INO) {     /* 如果扫描到的是根目录的唯一的RawInode */
+                    PHOIT_FULL_DNODE pFullDnode = __hoit_bulid_full_dnode(pRawInfo);
+                    PHOIT_INODE_INFO pInodeInfo = (PHOIT_INODE_INFO)__SHEAP_ALLOC(sizeof(HOIT_INODE_INFO));
+                    pInodeInfo->HOITN_dents = LW_NULL;
+                    pInodeInfo->HOITN_gid = pfs->HOITFS_gid;
+                    pInodeInfo->HOITN_ino = HOIT_ROOT_DIR_INO;
+                    pInodeInfo->HOITN_inode_cache = pInodeCache;
+                    pInodeInfo->HOITN_metadata = pFullDnode;
+                    pInodeInfo->HOITN_mode = S_IFDIR;
+                    pInodeInfo->HOITN_rbtree = LW_NULL;
+                    pInodeInfo->HOITN_uid = pfs->HOITFS_uid;
+                    pInodeInfo->HOITN_volume = pfs;
+
+                    pfs->HOITFS_pRootDir = pInodeInfo;
+
+                    if (pfs->HOITFS_pTempRootDirent != LW_NULL) {
+                        pInodeInfo->HOITN_dents = pfs->HOITFS_pTempRootDirent;
+                        pfs->HOITFS_pTempRootDirent = LW_NULL;
+                    }
+                }
+            }
+            else if (__HOIT_IS_TYPE_DIRENT(pRawHeader)) {
+                PHOIT_RAW_DIRENT pRawDirent = (PHOIT_RAW_DIRENT)pNow;
+                PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pRawDirent->pino);  /* 这里的pino才是目录文件自己的ino */
+                if (pInodeCache == LW_NULL) {
+                    pInodeCache = (PHOIT_INODE_CACHE)__SHEAP_ALLOC(sizeof(HOIT_INODE_CACHE));
+                    if (pInodeCache == LW_NULL) {
+                        _ErrorHandle(ENOMEM);
+                        return  (PX_ERROR);
+                    }
+                    pInodeCache->HOITC_ino = pRawDirent->pino;  /* 这里的pino才是目录文件自己的ino */
+                    pInodeCache->HOITC_nlink = 0;
+                    __hoit_add_to_cache_list(pfs, pInodeCache);
+                }
+                PHOIT_RAW_INFO pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
+                pRawInfo->phys_addr = sectorOffset + (pNow - pReadBuf);
+                pRawInfo->totlen = pRawInode->totlen;
+                __hoit_add_to_inode_cache(pInodeCache, pRawInfo);
+                if (pRawDirent->pino == HOIT_ROOT_DIR_INO) {    /* 如果扫描到的是根目录的目录项 */
+                    PHOIT_FULL_DIRENT pFullDirent = __hoit_bulid_full_dirent(pRawInfo);
+                    if (pfs->HOITFS_pRootDir == LW_NULL) {      /* 如果根目录的唯一RawInode还未扫描到 */
+                        pFullDirent->HOITFD_next = pfs->HOITFS_pTempRootDirent;
+                        pfs->HOITFS_pTempRootDirent = pFullDirent;
+                    }
+                    else {
+                        __hoit_add_to_dents(pfs->HOITFS_pRootDir, pFullDirent);
+                    }
+                }
+            }
+            
+            if (pRawHeader->ino > pfs->HOITFS_highest_ino)
+                pfs->HOITFS_highest_ino = pRawHeader->ino;
+            if (pRawHeader->version > pfs->HOITFS_highest_version)
+                pfs->HOITFS_highest_version = pRawHeader->version;
+
+            pNow += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
+        }
+        else {
+            pNow += 4   /* 每次移动4字节 */
+        }
+    }
+}
+
+/*********************************************************************************************************
+** 函数名称: __hoit_new_inode_info
+** 功能描述: hoitfs 创建一个新的文件，在Flash里写入一个简单的RawInode
+** 输　入  : 
+** 输　出  : 打开结果
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+PHOIT_INODE_INFO __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode) {
+    PHOIT_RAW_INODE     pRawInode = (PHOIT_RAW_INODE)__SHEAP_ALLOC(sizeof(HOIT_RAW_INODE));
+    PHOIT_RAW_INFO     pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
+    PHOIT_INODE_CACHE   pInodeCache = (PHOIT_INODE_CACHE)__SHEAP_ALLOC(sizeof(HOIT_INODE_CACHE));
+
+
+    if (pRawInfo == LW_NULL || pRawInode == LW_NULL || pInodeCache == LW_NULL) {
+        _ErrorHandle(ENOMEM);
+        return  (LW_NULL);
+    }
+
+    lib_bzero(pRawInode, sizeof(HOIT_RAW_INODE));
+    lib_bzero(pRawInfo, sizeof(HOIT_RAW_INFO));
+    lib_bzero(pInodeCache, sizeof(HOIT_INODE_CACHE));
+
+
+    pRawInode->file_type = mode;
+    pRawInode->ino = __hoit_alloc_ino(pfs);
+    pRawInode->magic_num = HOIT_MAGIC_NUM;
+    pRawInode->totlen = sizeof(HOIT_RAW_INODE);
+    pRawInode->flag = HOIT_FLAG_TYPE_INODE | HOIT_FLAG_OBSOLETE;
+    pRawInode->offset = 0;
+    pRawInode->version = pfs->HOITFS_highest_version++;
+
+    UINT phys_addr;
+    __hoit_write_flash(pfs, (PVOID)pRawInode, sizeof(HOIT_RAW_INODE), &phys_addr);
+
+    pRawInfo->phys_addr = phys_addr;
+    pRawInfo->totlen = sizeof(HOIT_RAW_INODE);
+
+    pInodeCache->HOITC_ino = pRawInode->ino;
+    pInodeCache->HOITC_nlink = 0;
+    __hoit_add_to_inode_cache(pInodeCache, pRawInfo);
+    __hoit_add_to_cache_list(pfs, pInodeCache);
+
+    /*
+    *   已经将新文件配置成了一个已经存在的文件，现在只需调用get_full_file即可
+    */
+    return  __hoit_get_full_file(pfs, pInodeCache->HOITC_ino);
+    
+}
+/*********************************************************************************************************
+** 函数名称: __hoit_get_nlink
+** 功能描述: hoitfs 按照树形结构递归地去统计每个文件的链接数
+** 输　入  :
+** 输　出  : 打开结果
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo){
+    if (!S_ISDIR(pInodeInfo->HOITN_mode)) return;
+    PHOIT_VOLUME pfs = pInodeInfo->HOITN_volume;
+
+    for (PHOIT_FULL_DIRENT pTempDirent = pInodeInfo->HOITN_dents; pTempDirent != LW_NULL; pTempDirent = pTempDirent->HOITFD_next) {
+        PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pTempDirent->HOITFD_ino);
+        if (pInodeCache == LW_NULL) {
+            continue;
+        }
+        pInodeCache->HOITC_nlink++;
+        if (S_ISDIR(pTempDirent->HOITFD_file_type)) {   /* 子文件是目录文件, 则递归下去 */
+            PHOIT_INODE_INFO pTempInode = __hoit_get_full_file(pfs, pInodeCache->HOITC_ino);
+            __hoit_get_nlink(pTempInode);
+            __hoit_close(pTempInode, 0);
+        }
+    }
+}
+
 
 
 /*********************************************************************************************************
@@ -654,20 +854,16 @@ PHOIT_INODE_INFO  __hoit_maken(PHOIT_VOLUME  pfs,
     mode_t       mode,
     CPCHAR       pcLink)
 {
-    PHOIT_RAW_INODE     pRawInode   = (PHOIT_RAW_INODE)__SHEAP_ALLOC(sizeof(HOIT_RAW_INODE));
-    PHOIT_RAW_INFO     pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
-    PHOIT_INODE_CACHE   pInodeCache = (PHOIT_INODE_CACHE)__SHEAP_ALLOC(sizeof(HOIT_INODE_CACHE));
+    PHOIT_INODE_INFO pInodeInfo = __hoit_new_inode_info(pfs, mode);
+
     PHOIT_FULL_DIRENT   pFullDirent = (PHOIT_FULL_DIRENT)__SHEAP_ALLOC(sizeof(HOIT_FULL_DIRENT));
     CPCHAR      pcFileName;
 
-    if (pRawInfo == LW_NULL || pRawInode == LW_NULL || pInodeCache == LW_NULL || pFullDirent == LW_NULL) {
+    if (pFullDirent == LW_NULL) {
         _ErrorHandle(ENOMEM);
         return  (LW_NULL);
     }
 
-    lib_bzero(pRawInode, sizeof(HOIT_RAW_INODE));
-    lib_bzero(pRawInfo, sizeof(HOIT_RAW_INFO));
-    lib_bzero(pInodeCache, sizeof(HOIT_INODE_CACHE));
     lib_bzero(pFullDirent, sizeof(HOIT_FULL_DIRENT));
 
     pcFileName = lib_rindex(pcName, PX_DIVIDER);
@@ -678,24 +874,6 @@ PHOIT_INODE_INFO  __hoit_maken(PHOIT_VOLUME  pfs,
         pcFileName = pcName;
     }
 
-    pRawInode->file_type = mode;
-    pRawInode->ino = __hoit_alloc_ino(pfs);
-    pRawInode->magic_num = HOIT_MAGIC_NUM;
-    pRawInode->totlen = sizeof(HOIT_RAW_INODE);
-    pRawInode->flag = HOIT_FLAG_TYPE_INODE | HOIT_FLAG_OBSOLETE;
-
-    UINT phys_addr;
-    __hoit_write_flash(pfs, (PVOID)pRawInode, sizeof(HOIT_RAW_INODE), &phys_addr);
-   
-    pRawInfo->phys_addr = phys_addr;
-    pRawInfo->totlen = sizeof(HOIT_RAW_INODE);
-
-    pInodeCache->HOITC_ino = pRawInode->ino;
-
-    __hoit_add_to_inode_cache(pInodeCache, pRawInfo);
-    __hoit_add_to_cache_list(pfs, pInodeCache);
-
-
     pFullDirent->HOITFD_file_name = (PCHAR)__SHEAP_ALLOC(lib_strlen(pcFileName) + 1);
     if (pFullDirent->HOITFD_file_name == LW_NULL) {
         _ErrorHandle(ENOMEM);
@@ -703,17 +881,13 @@ PHOIT_INODE_INFO  __hoit_maken(PHOIT_VOLUME  pfs,
     }
     lib_strcpy(pFullDirent->HOITFD_file_name, pcFileName);
     pFullDirent->HOITFD_file_type = mode;
-    pFullDirent->HOITFD_ino = pRawInode->ino;
+    pFullDirent->HOITFD_ino = pInodeInfo->HOITN_ino;
     pFullDirent->HOITFD_nhash = __hoit_name_hash(pcFileName);
     pFullDirent->HOITFD_pino = pInodeFather->HOITN_ino;
 
     __hoit_add_dirent(pInodeFather, pFullDirent);
 
-    __SHEAP_FREE(pRawInode);
-    /*
-    *   已经将新文件配置成了一个已经存在的文件，现在只需调用get_full_file即可
-    */
-    return  __hoit_get_full_file(pfs, pFullDirent->HOITFD_ino);
+    return pInodeInfo;
 }
 /*********************************************************************************************************
 ** 函数名称: __hoit_unlink_regular
@@ -768,16 +942,16 @@ INT  __hoit_unlink_regular(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDi
 
 /*********************************************************************************************************
 ** 函数名称: __hoit_truncate
-** 功能描述: hoitfs 截断一个文件, 注意这个函数只用来截断普通类型文件
+** 功能描述: hoitfs 截断一个文件(直接删除数据), 注意这个函数只用来截断普通类型文件
 ** 输　入  : pInodeInfo       文件节点
 **           offset            截断点
-** 输　出  : 缩短结果
+** 输　出  : 截断结果
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
 VOID  __hoit_truncate(PHOIT_INODE_INFO  pInodeInfo, size_t  offset)
 {
-    
+    hoitFragTreeDeleteRange(pInodeInfo->HOITN_rbtree, offset, INT_MAX, LW_TRUE);
 }
 
 /*********************************************************************************************************
@@ -877,7 +1051,9 @@ VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag)
         __SHEAP_FREE(pInodeInfo);
     }
     else {
-        /**************************TODO**********************************/
+        hoitFragTreeDeleteTree(pInodeInfo->HOITN_rbtree, LW_FALSE);
+        if (pInodeInfo->HOITN_metadata != LW_NULL) __SHEAP_FREE(pInodeInfo->HOITN_metadata);
+        __SHEAP_FREE(pInodeInfo);
     }
 }
 /*********************************************************************************************************
@@ -1112,9 +1288,73 @@ INT  __hoit_statfs(PHOIT_VOLUME  pfs, struct statfs* pstatfs) {
 *********************************************************************************************************/
 ssize_t  __hoit_read(PHOIT_INODE_INFO  pInodeInfo, PVOID  pvBuffer, size_t  stSize, size_t  stOft)
 {
-    return 0;
+    hoitFragTreeRead(pInodeInfo->HOITN_rbtree, stOft, stSize, pvBuffer);
+    return stSize;
+}
+/*********************************************************************************************************
+** 函数名称: __hoit_write
+** 功能描述: hoitfs 写入文件内容
+** 输　入  : pInodeInfo            文件节点
+**           pvBuffer         缓冲区
+**           stNBytes         需要读取的大小
+**           stOft            偏移量
+** 输　出  : 读取的字节数
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  stNBytes, size_t  stOft) {
+    PHOIT_FULL_DNODE pFullDnode = __hoit_write_full_dnode(pInodeInfo, stOft, stNBytes, pvBuffer);
+    PHOIT_FRAG_TREE_NODE pTreeNode = newHoitFragTreeNode(pFullDnode, stNBytes, stOft, stOft);
+    hoitFragTreeInsertNode(pInodeInfo->HOITN_rbtree, pTreeNode);
+    hoitFragTreeOverlayFixUp(pInodeInfo->HOITN_rbtree);
 }
 
+/*********************************************************************************************************
+** 函数名称: __hoit_ummount
+** 功能描述: hoitfs 卸载
+** 输　入  : pfs               文件系统
+** 输　出  : NONE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID  __hoit_unmount(PHOIT_VOLUME pfs)
+{
+    /* TODO */
+}
+/*********************************************************************************************************
+** 函数名称: __hoit_mount
+** 功能描述: hoitfs 挂载
+** 输　入  : pfs           文件系统
+** 输　出  : NONE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID  __hoit_mount(PHOIT_VOLUME  pfs)
+{
+    pfs->HOITFS_highest_ino = 0;
+    pfs->HOITFS_highest_version = 0;
 
+    UINT phys_addr = NOR_FLASH_START_OFFSET;
+    UINT8 sector_no = GET_SECTOR_NO(phys_addr);
+    while (GET_SECTOR_SIZE(sector_no) != -1) {
+        __hoit_scan_single_sector(pfs, sector_no);
+        sector_no++;
+    }
+    pfs->HOITFS_highest_ino++;
+    pfs->HOITFS_highest_version++;
+                                            
+    if (pfs->HOITFS_highest_ino == 1) {    /* 系统第一次运行, 创建根目录文件 */
+        mode_t mode = S_IFDIR;
+        PHOIT_INODE_INFO pRootDir = __hoit_new_inode_info(pfs, mode);
+        pfs->HOITFS_pRootDir = pRootDir;
+    }
+    /* 系统不是第一次运行的话会在扫描时就找到pRootDir */
+
+
+    /* 基本的inode_cache和raw_info构建完毕  */
+    /* 接下来要递归统计所有文件的nlink          */
+    
+    __hoit_get_nlink(pfs->HOITFS_pRootDir);
+}
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
 #endif //HOITFSLIB_DISABLE

@@ -26,7 +26,7 @@
 #include "hoitFsTreeUtil.h"
 #include "hoitFsLib.h"
 
-#define FT_TEST
+//#define FT_TEST
 #define FT_DEBUG
 
 /*********************************************************************************************************
@@ -59,10 +59,10 @@ typedef struct hoit_full_dnode{
 } HOIT_FULL_DNODE;
 typedef HOIT_FULL_DNODE* PHOIT_FULL_DNODE;
 
-typedef struct hoit_volume{
-
-} HOIT_VOLUME;
-typedef HOIT_VOLUME * PHOIT_VOLUME;
+//typedef struct hoit_volume{
+//
+//} HOIT_VOLUME;
+//typedef HOIT_VOLUME * PHOIT_VOLUME;
 
 PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFDnode, UINT uiOffset, UINT uiSize);
 BOOL             __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFDnode, BOOL bDoDelete);

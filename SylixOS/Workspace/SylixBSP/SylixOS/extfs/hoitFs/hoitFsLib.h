@@ -24,6 +24,7 @@
 #include "../SylixOS/system/include/s_system.h"
 #include "../SylixOS/fs/include/fs_fs.h"
 #include "hoitFsTree.h"
+#include "hoitFsFDLib.h"
 
 #ifndef __HOITFSLIB_H
 #define __HOITFSLIB_H
@@ -47,6 +48,7 @@
 #define HOIT_FLAG_TYPE_DIRENT    0x40000000     //raw_dirent类型  010
 #define HOIT_FLAG_OBSOLETE       0x00000001     //Flag的最后一位用来表示是否过期，1是没过期，0是过期
 #define HOIT_ERROR          100
+#define HOIT_ROOT_DIR_INO   1   /* HoitFs的根目录的ino为1 */
 #define __HOIT_IS_OBSOLETE(pRawHeader)          ((pRawHeader->flag & HOIT_FLAG_OBSOLETE)    == 0)
 #define __HOIT_IS_TYPE_INODE(pRawHeader)        ((pRawHeader->flag & HOIT_FLAG_TYPE_INODE)  != 0)
 #define __HOIT_IS_TYPE_DIRENT(pRawHeader)       ((pRawHeader->flag & HOIT_FLAG_TYPE_DIRENT) != 0)
@@ -54,6 +56,7 @@
 #define __HOIT_VOLUME_LOCK(pfs)        API_SemaphoreMPend(pfs->HOITFS_hVolLock, \
                                         LW_OPTION_WAIT_INFINITE)
 #define __HOIT_VOLUME_UNLOCK(pfs)      API_SemaphoreMPost(pfs->HOITFS_hVolLock)
+#define __HOIT_MIN_4_TIMES(value)       ((value+3)/4*4) /* 将value扩展到4的倍数 */
 
 /*********************************************************************************************************
   检测路径字串是否为根目录或者直接指向设备
@@ -92,10 +95,11 @@ DEV_HDR          HOITFS_devhdrHdr;
   HoitFs super block类型
 *********************************************************************************************************/
 typedef struct HOIT_VOLUME{
-    DEV_HDR          HOITFS_devhdrHdr;                                /*  HoitFs 文件系统设备头        */
+    DEV_HDR             HOITFS_devhdrHdr;                                /*  HoitFs 文件系统设备头        */
     LW_OBJECT_HANDLE    HOITFS_hVolLock;                                 /*  卷操作锁                    */
     LW_LIST_LINE_HEADER HOITFS_plineFdNodeHeader;                        /*  fd_node 链表                */
     PHOIT_INODE_INFO    HOITFS_pRootDir;                                 /*  根目录文件暂定为一直打开的  */
+    PHOIT_FULL_DIRENT   HOITFS_pTempRootDirent;
 
     BOOL                HOITFS_bForceDelete;                             /*  是否允许强制卸载卷          */
     BOOL                HOITFS_bValid;
@@ -108,9 +112,10 @@ typedef struct HOIT_VOLUME{
     ULONG               HOITFS_ulMaxBlk;                                 /*  最大内存消耗量              */
 
     PHOIT_INODE_CACHE   HOITFS_cache_list;
-    PHOIT_SECTOR            HOITFS_now_sector;
+    PHOIT_SECTOR        HOITFS_now_sector;
     UINT                HOITFS_highest_ino;
-    PHOIT_SECTOR         HOITFS_block_list;
+    PHOIT_SECTOR        HOITFS_block_list;
+    UINT                HOITFS_highest_version;
 } HOIT_VOLUME;
 
 
@@ -123,6 +128,7 @@ struct HOIT_RAW_HEADER{
     UINT32              totlen;
     mode_t              file_type;
     UINT                ino;
+    UINT                version;
 };
 
 
@@ -132,9 +138,10 @@ struct HOIT_RAW_HEADER{
 struct HOIT_RAW_INODE{
     UINT32              magic_num;
     UINT32              flag;
-    UINT32              totlen;
+    UINT32              totlen;     /* 包含头部及数据长度 */
     mode_t              file_type;
     UINT                ino;
+    UINT                version;
     UINT                offset;
 };
 
@@ -148,6 +155,7 @@ struct HOIT_RAW_DIRENT{
     UINT32              totlen;
     mode_t              file_type;
     UINT                ino;
+    UINT                version;
     UINT                pino;
 };
 
@@ -165,6 +173,7 @@ struct HOIT_FULL_DNODE{
     UINT                HOITFD_offset;                                  /*在文件里的偏移量*/
     UINT                HOITFD_length;                                  /*有效的数据长度*/
     mode_t              HOITFD_file_type;                               /*文件的类型*/
+    UINT                HOITFD_version;
 };
 
 
@@ -176,6 +185,7 @@ struct HOIT_FULL_DIRENT{
     UINT                HOITFD_ino;                                     /* 目录项指向的文件inode number      */
     UINT                HOITFD_pino;                                    /* 该目录项所属的目录文件inode number*/
     mode_t              HOITFD_file_type;
+    UINT                HOITFD_version;
 };
 
 
@@ -192,9 +202,9 @@ struct HOIT_INODE_INFO{
     PHOIT_INODE_CACHE   HOITN_inode_cache;
     PHOIT_FULL_DIRENT   HOITN_dents;
     PHOIT_FULL_DNODE    HOITN_metadata;
-    PHOIT_FRAG_TREE       HOITN_rbtree;
+    PHOIT_FRAG_TREE     HOITN_rbtree;
     PHOIT_VOLUME        HOITN_volume;
-    UINT                HOITN_ino;
+    UINT                HOITN_ino;                                      /*  规定根目录的ino为1          */
 
     uid_t               HOITN_uid;                                      /*  用户 id                     */
     gid_t               HOITN_gid;                                      /*  组   id                     */
@@ -232,6 +242,11 @@ UINT8 __hoit_del_raw_info(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo
 UINT8 __hoit_del_raw_data(PHOIT_RAW_INFO pRawInfo);
 UINT8 __hoit_del_full_dirent(PHOIT_INODE_INFO pInodeInfo, PHOIT_FULL_DIRENT pFullDirent);
 UINT8 __hoit_del_inode_cache(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache);
+BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_SECTOR pSector);
+BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no);
+PHOIT_INODE_INFO __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode);
+VOID __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo);
+
 
 PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
     CPCHAR       pcName,
@@ -253,9 +268,14 @@ INT  __hoit_move_check(PHOIT_INODE_INFO  pInode1, PHOIT_INODE_INFO  pInode2);
 INT  __hoit_move(PHOIT_INODE_INFO pInodeFather, PHOIT_INODE_INFO  pInodeInfo, PCHAR  pcNewName);
 INT  __hoit_stat(PHOIT_INODE_INFO pInodeInfo, PHOIT_VOLUME  pfs, struct stat* pstat);
 INT  __hoit_statfs(PHOIT_VOLUME  pfs, struct statfs* pstatfs);
+ssize_t  __hoit_read(PHOIT_INODE_INFO  pInodeInfo, PVOID  pvBuffer, size_t  stSize, size_t  stOft);
+ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  stNBytes, size_t  stOft);
+VOID  __hoit_unmount(PHOIT_VOLUME pfs);
+VOID  __hoit_mount(PHOIT_VOLUME  pfs);
 
 UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT pDirentList, PHOIT_FULL_DNODE pDnodeList);
 VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag);
+
 
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0       */
 #endif                                                                  /*  __HOITFSLIB_H                */
