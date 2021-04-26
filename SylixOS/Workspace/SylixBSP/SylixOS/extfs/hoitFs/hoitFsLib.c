@@ -283,7 +283,7 @@ UINT8 __hoit_write_flash_thru(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT p
 *********************************************************************************************************/
 UINT8 __hoit_add_to_inode_cache(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo) {
     if (pInodeCache == LW_NULL || pRawInfo == LW_NULL) {
-        printk("Error in hoit_add_to_inode_cache\n");
+        printk("Error in %s\n", __func__);
         return HOIT_ERROR;
     }
     pRawInfo->next_phys = pInodeCache->HOITC_nodes;
@@ -518,9 +518,9 @@ UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT* pp
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_SECTOR pSector) {
-    pSector->HOITS_next = pfs->HOITFS_block_list;
-    pfs->HOITFS_block_list = pSector;
+BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector) {
+    pErasableSector->HOITS_next = pfs->HOITFS_erasableSectorList;
+    pfs->HOITFS_erasableSectorList = pErasableSector;
     return LW_TRUE;
 }
 /*********************************************************************************************************
@@ -532,35 +532,48 @@ BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_SECTOR pSector) {
 ** 调用模块:
 *********************************************************************************************************/
 BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
-    UINT sectorSize = GET_SECTOR_SIZE(sector_no);
-    UINT sectorOffset = GET_SECTOR_OFFSET(sector_no);
+    UINT                    uiSectorSize;         
+    UINT                    uiSectorOffset;
+    UINT                    uiFreeSize;
+    UINT                    uiUsedSize;
+    PHOIT_ERASABLE_SECTOR   pErasableSector;
+
+
+    uiSectorSize            = GET_SECTOR_SIZE(sector_no);
+    uiSectorOffset          = GET_SECTOR_OFFSET(sector_no);
+    uiFreeSize              = uiSectorSize;
+    uiUsedSize              = 0;
+
     /* 先创建sector结构体 */
-    PHOIT_SECTOR pSector = (PHOIT_SECTOR)__SHEAP_ALLOC(sizeof(HOIT_SECTOR));
-    pSector->HOITS_bno = sector_no;
-    pSector->HOITS_length = sectorSize;
-    pSector->HOITS_addr = sectorOffset;
-    pSector->HOITS_offset = 0;
-    __hoit_add_to_sector_list(pfs, pSector);
+    pErasableSector = (PHOIT_ERASABLE_SECTOR)__SHEAP_ALLOC(sizeof(HOIT_ERASABLE_SECTOR));
+    pErasableSector->HOITS_bno              = sector_no;
+    pErasableSector->HOITS_length           = uiSectorSize;
+    pErasableSector->HOITS_addr             = uiSectorOffset;
+    pErasableSector->HOITS_offset           = 0;
+    pErasableSector->HOITS_pRawInfoFirst    = LW_NULL;
+    pErasableSector->HOITS_pRawInfoLast     = LW_NULL;
+    pErasableSector->HOITS_pRawInfoCurGC    = LW_NULL;
 
     // ugly now
     if(pfs->HOITFS_now_sector == LW_NULL){
-        pfs->HOITFS_now_sector = pSector;
+        pfs->HOITFS_now_sector = pErasableSector;
     }
 
     /* 再整个块进行扫描 */
-    PCHAR pReadBuf = (PCHAR)__SHEAP_ALLOC(sectorSize);
-    lib_bzero(pReadBuf, sectorSize);
-    read_nor(sectorOffset, pReadBuf, sectorSize);
+    PCHAR pReadBuf = (PCHAR)__SHEAP_ALLOC(uiSectorSize);
+    lib_bzero(pReadBuf, uiSectorSize);
+    read_nor(uiSectorOffset, pReadBuf, uiSectorSize);
 
     PCHAR pNow = pReadBuf;
-    while (pNow < pReadBuf + sectorSize) {
+    while (pNow < pReadBuf + uiSectorSize) {
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pNow;
         if (pRawHeader->magic_num == HOIT_MAGIC_NUM && !__HOIT_IS_OBSOLETE(pRawHeader)) {
             /* TODO:后面这里还需添加CRC校验 */
+            PHOIT_RAW_INFO pRawInfo = LW_NULL;
             if (__HOIT_IS_TYPE_INODE(pRawHeader)) {
-                PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)pNow;
-                PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pRawInode->ino);
-                if (pInodeCache == LW_NULL) {
+                PHOIT_RAW_INODE     pRawInode   = (PHOIT_RAW_INODE)pNow;
+                PHOIT_INODE_CACHE   pInodeCache = __hoit_get_inode_cache(pfs, pRawInode->ino);
+                if (pInodeCache == LW_NULL) {                  /* 创建一个Inode Cache */
                     pInodeCache = (PHOIT_INODE_CACHE)__SHEAP_ALLOC(sizeof(HOIT_INODE_CACHE));
                     if (pInodeCache == LW_NULL) {
                         _ErrorHandle(ENOMEM);
@@ -570,10 +583,11 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
                     pInodeCache->HOITC_nlink = 0;
                     __hoit_add_to_cache_list(pfs, pInodeCache);
                 }
-                PHOIT_RAW_INFO pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
-                pRawInfo->phys_addr = sectorOffset + (pNow - pReadBuf);
-                pRawInfo->totlen = pRawInode->totlen;
+                pRawInfo                    = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
+                pRawInfo->phys_addr         = uiSectorOffset + (pNow - pReadBuf);
+                pRawInfo->totlen            = pRawInode->totlen;
                 __hoit_add_to_inode_cache(pInodeCache, pRawInfo);
+
 
                 if (pRawInode->ino == HOIT_ROOT_DIR_INO) {     /* 如果扫描到的是根目录的唯一的RawInode */
                     PHOIT_FULL_DNODE pFullDnode = __hoit_bulid_full_dnode(pRawInfo);
@@ -609,9 +623,9 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
                     pInodeCache->HOITC_nlink = 0;
                     __hoit_add_to_cache_list(pfs, pInodeCache);
                 }
-                PHOIT_RAW_INFO pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
-                pRawInfo->phys_addr = sectorOffset + (pNow - pReadBuf);
-                pRawInfo->totlen = pRawDirent->totlen;
+                pRawInfo                = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
+                pRawInfo->phys_addr     = uiSectorOffset + (pNow - pReadBuf);
+                pRawInfo->totlen        = pRawDirent->totlen;
                 __hoit_add_to_inode_cache(pInodeCache, pRawInfo);
                 if (pRawDirent->pino == HOIT_ROOT_DIR_INO) {    /* 如果扫描到的是根目录的目录项 */
                     PHOIT_FULL_DIRENT pFullDirent = __hoit_bulid_full_dirent(pRawInfo);
@@ -629,13 +643,28 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
                 pfs->HOITFS_highest_ino = pRawHeader->ino;
             if (pRawHeader->version > pfs->HOITFS_highest_version)
                 pfs->HOITFS_highest_version = pRawHeader->version;
+            
+            //!初始化pErasableSector的更多信息, Added by PYQ 2021-04-26
+            if (pRawInfo != LW_NULL){
+                uiUsedSize += pRawInfo->totlen;
+                uiFreeSize -= pRawInfo->totlen;
 
+                if(pErasableSector->HOITS_pRawInfoFirst == LW_NULL){
+                    pErasableSector->HOITS_pRawInfoFirst = pErasableSector->HOITS_pRawInfoLast = pRawInfo;
+                }          
+                else {
+                    pErasableSector->HOITS_pRawInfoLast = pRawInfo;  
+                }
+            } 
             pNow += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
         }
         else {
             pNow += 4;   /* 每次移动4字节 */
         }
     }
+    pErasableSector->HOITS_uiFreeSize = uiFreeSize;
+    pErasableSector->HOITS_uiUsedSize = uiUsedSize;
+    __hoit_add_to_sector_list(pfs, pErasableSector);
     return LW_TRUE;
 }
 

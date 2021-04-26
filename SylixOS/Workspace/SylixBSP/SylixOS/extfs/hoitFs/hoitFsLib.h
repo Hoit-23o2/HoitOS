@@ -37,31 +37,27 @@
 *********************************************************************************************************/
 #if LW_CFG_MAX_VOLUMES > 0 //&& LW_CFG_RAMFS_EN > 0
 
-
-
-
-
-PHOIT_INODE_INFO  __hoit_just_open(PHOIT_INODE_INFO pdir, PCHAR pName);
-UINT __hoit_name_hash(CPCHAR pcName);
-UINT __hoit_free_full_dirent(PHOIT_FULL_DIRENT pDirent);
-PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino);
-PHOIT_INODE_CACHE __hoit_get_inode_cache(PHOIT_VOLUME pfs, UINT ino);
-VOID __hoit_add_dirent(PHOIT_INODE_INFO pFatherInode, PHOIT_FULL_DIRENT pSonDirent);
-UINT __hoit_alloc_ino(PHOIT_VOLUME pfs);
-UINT8 __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_addr);
-UINT8 __hoit_write_flash_thru(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT phys_addr);
-UINT8 __hoit_add_to_inode_cache(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo);
-UINT8 __hoit_add_to_cache_list(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache);
-UINT8 __hoit_add_to_dents(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT pFullDirent);
-PHOIT_FULL_DIRENT __hoit_search_in_dents(PHOIT_INODE_INFO pInodeFather, UINT ino);
-UINT8 __hoit_del_raw_info(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo);
-UINT8 __hoit_del_raw_data(PHOIT_RAW_INFO pRawInfo);
-UINT8 __hoit_del_full_dirent(PHOIT_INODE_INFO pInodeInfo, PHOIT_FULL_DIRENT pFullDirent);
-UINT8 __hoit_del_inode_cache(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache);
-BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_SECTOR pSector);
-BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no);
-PHOIT_INODE_INFO __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode);
-VOID __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo);
+PHOIT_INODE_INFO        __hoit_just_open(PHOIT_INODE_INFO pdir, PCHAR pName);
+UINT                    __hoit_name_hash(CPCHAR pcName);
+UINT                    __hoit_free_full_dirent(PHOIT_FULL_DIRENT pDirent);
+PHOIT_INODE_INFO        __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino);
+PHOIT_INODE_CACHE       __hoit_get_inode_cache(PHOIT_VOLUME pfs, UINT ino);
+VOID                    __hoit_add_dirent(PHOIT_INODE_INFO pFatherInode, PHOIT_FULL_DIRENT pSonDirent);
+UINT                    __hoit_alloc_ino(PHOIT_VOLUME pfs);
+UINT8                   __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_addr);
+UINT8                   __hoit_write_flash_thru(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT phys_addr);
+UINT8                   __hoit_add_to_inode_cache(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo);
+UINT8                   __hoit_add_to_cache_list(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache);
+UINT8                   __hoit_add_to_dents(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT pFullDirent);
+PHOIT_FULL_DIRENT       __hoit_search_in_dents(PHOIT_INODE_INFO pInodeFather, UINT ino);
+UINT8                   __hoit_del_raw_info(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo);
+UINT8                   __hoit_del_raw_data(PHOIT_RAW_INFO pRawInfo);
+UINT8                   __hoit_del_full_dirent(PHOIT_INODE_INFO pInodeInfo, PHOIT_FULL_DIRENT pFullDirent);
+UINT8                   __hoit_del_inode_cache(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache);
+BOOL                    __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no);
+PHOIT_INODE_INFO        __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode);
+VOID                    __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo);
+BOOL                    __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector);
 
 
 PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,

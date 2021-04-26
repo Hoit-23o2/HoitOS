@@ -579,12 +579,21 @@ static PVOID  halBootThread (PVOID  pvBootArg)
 
     nor_init(INIT_FAKE_NOR);
     scan_nor();
-    //test_nor();
 
+#ifdef NOR_TEST
+    test_nor();
+#endif // NOR_TEST
+
+#ifdef RB_TEST
     pretty_print("[Red / Black Tree Test]", "", DO_CENTRAL);
     hoitRbTreeTest();
+#endif // RB_TEST
+
+#ifdef FT_TEST
     pretty_print("[Frag Tree Test]", "", DO_CENTRAL);
-    //hoitFTTreeTest();
+    hoitFTTreeTest();
+#endif // FT_TEST
+
 #else
     nandDevCreateEx("/n");                                              /*  mount nandflash disk(yaffs) */
 #endif

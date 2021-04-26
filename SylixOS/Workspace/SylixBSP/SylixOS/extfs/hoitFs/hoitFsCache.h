@@ -1,22 +1,22 @@
 /*********************************************************************************************************
 **
-**                                    ä¸­å›½è½¯ä»¶å¼€æºç»„ç»‡
+**                                    ÖÐ¹úÈí¼þ¿ªÔ´×éÖ¯
 **
-**                                   åµŒå…¥å¼å®žæ—¶æ“ä½œç³»ç»Ÿ
+**                                   Ç¶ÈëÊ½ÊµÊ±²Ù×÷ÏµÍ³
 **
 **                                       SylixOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
-**--------------æ–‡ä»¶ä¿¡æ¯--------------------------------------------------------------------------------
+**--------------ÎÄ¼þÐÅÏ¢--------------------------------------------------------------------------------
 **
-** æ–‡   ä»¶   å: hoitCache.h
+** ÎÄ   ¼þ   Ãû: hoitCache.h
 **
-** åˆ›   å»º   äºº: æ½˜å»¶éº’
+** ´´   ½¨   ÈË: ÅËÑÓ÷è
 **
-** æ–‡ä»¶åˆ›å»ºæ—¥æœŸ: 2021 å¹´ 04 æœˆ 02 æ—¥
+** ÎÄ¼þ´´½¨ÈÕÆÚ: 2021 Äê 04 ÔÂ 02 ÈÕ
 **
-** æ        è¿°: ç¼“å­˜å±‚
+** Ãè        Êö: »º´æ²ã
 *********************************************************************************************************/
 
 #ifndef SYLIXOS_EXTFS_HOITFS_HOITFSCACHE_H_
@@ -25,14 +25,14 @@
 #include "hoitType.h"
 #include "SylixOS.h"
 /*********************************************************************************************************
- * ç»“æž„ä½“
+ * ½á¹¹Ìå
 *********************************************************************************************************/
 
 typedef struct HOIT_CACHE_HDR
 {
-    UINT8               HOITCACHE_blockSize;    /* å•ä¸ªcacheå¤§å° */
-    UINT8               HOITCACHE_blockNums;    /* cacheæœ€å¤§æ•°é‡ */
-    LW_OBJECT_HANDLE    HOITCACHE_hVolLock;     /* cacheè‡ªæ—‹é” */
+    UINT8               HOITCACHE_blockSize;    /* µ¥¸öcache´óÐ¡ */
+    UINT8               HOITCACHE_blockNums;    /* cache×î´óÊýÁ¿ */
+    LW_OBJECT_HANDLE    HOITCACHE_hVolLock;     /* cache×ÔÐýËø */
 }HOIT_CACHE_HDR;
 typedef HOIT_CACHE_HDR * PHOIT_CACHE_HDR;
 
@@ -44,7 +44,7 @@ typedef struct HOIT_CACHE_BLK
 typedef HOIT_CACHE_BLK * PHOIT_CACHE_BLK;
 
 /*********************************************************************************************************
- * å‡½æ•°
+ * º¯Êý
 *********************************************************************************************************/
 BOOL     hoitEnableCache(UINT8 uiCacheBlockSize, UINT8 uiCacheBlockNums);
 BOOL     hoitReadFromCache(UINT32 uiOfs, PCHAR pContent, UINT32 uiSize);
