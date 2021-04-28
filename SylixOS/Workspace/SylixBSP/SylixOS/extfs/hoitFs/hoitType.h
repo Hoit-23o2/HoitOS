@@ -208,11 +208,11 @@ struct HOIT_INODE_INFO{
 
     uid_t               HOITN_uid;                                      /*  用户 id                     */
     gid_t               HOITN_gid;                                      /*  组   id                     */
-    time_t              RAMN_timeCreate;                                /*  创建时间                    */
-    time_t              RAMN_timeAccess;                                /*  最后访问时间                */
-    time_t              RAMN_timeChange;                                /*  最后修改时间                */
-    size_t              RAMN_stSize;                                    /*  当前文件大小 (可能大于缓冲) */
-    size_t              RAMN_stVSize;                                   /*  lseek 出的虚拟大小          */
+    time_t              HOITN_timeCreate;                                /*  创建时间                    */
+    time_t              HOITN_timeAccess;                                /*  最后访问时间                */
+    time_t              HOITN_timeChange;                                /*  最后修改时间                */
+    size_t              HOITN_stSize;                                    /*  当前文件大小 (可能大于缓冲) */
+    size_t              HOITN_stVSize;                                   /*  lseek 出的虚拟大小          */
 };
 
 

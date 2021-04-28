@@ -149,7 +149,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_time = lib_time(LW_NULL);
     pfs->HOITFS_ulCurBlk = 0ul;
     pfs->HOITFS_now_sector = LW_NULL;
-
+    pfs->HOITFS_pRootDir = LW_NULL;
     //__ram_mount(pramfs);
     __hoit_mount(pfs);
 
@@ -256,6 +256,7 @@ static LONG __hoitFsOpen(PHOIT_VOLUME     pfs,
 
     } else if ((iFlags & O_CREAT) && bLast) {                           /*  创建节点                    */
         phoitn = __hoit_maken(pfs, pcName, phoitFather, iMode, LW_NULL);
+        iFlags &= !O_TRUNC;
         if (phoitn) {
             bCreate = LW_TRUE;
             goto    __file_open_ok;
@@ -527,7 +528,7 @@ static ssize_t  __hoitFsRead(PLW_FD_ENTRY pfdentry,
     }
 
     if (stMaxBytes) { //TODO __hoit_read尚未添加定义
-        /*sstReadNum = __hoit_read(phoitn, pcBuffer, stMaxBytes, (size_t)pfdentry->FDENTRY_oftPtr);*/
+        sstReadNum = __hoit_read(phoitn, pcBuffer, stMaxBytes, (size_t)pfdentry->FDENTRY_oftPtr);
         if (sstReadNum > 0) {
             pfdentry->FDENTRY_oftPtr +=(off_t)sstReadNum;
         }
@@ -637,7 +638,7 @@ static ssize_t  __hoitFsWrite(PLW_FD_ENTRY  pfdentry,
     }
 
     if (stNBytes) { //TODO __hoit_write尚未添加定义
-        /* sstWriteNum = __hoit_write(phoitn, pcBuffer, stNBytes, (size_t)pfdentry->FDENTRY_oftPtr);*/
+        sstWriteNum = __hoit_write(phoitn, pcBuffer, stNBytes, (size_t)pfdentry->FDENTRY_oftPtr);
         if (sstWriteNum > 0) {
             pfdentry->FDENTRY_oftPtr += (off_t)sstWriteNum;             /*  更新文件指针                */
             //TODO HOITN_stSize尚未定义
@@ -1095,7 +1096,7 @@ static INT  __hoitFsReadDir (PLW_FD_ENTRY  pfdentry, DIR  *dir)
 
     __HOIT_VOLUME_UNLOCK(pfs);
 
-    return  (ERROR_NONE);    
+    return  iError;
 }
 
 /*********************************************************************************************************

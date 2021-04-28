@@ -110,6 +110,10 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
         return LW_NULL;
     }
 
+    if (ino == 1 && pfs->HOITFS_pRootDir) {
+        return pfs->HOITFS_pRootDir;
+    }
+
     PHOIT_INODE_CACHE pcache = pfs->HOITFS_cache_list;
 
     while (pcache && pcache->HOITC_ino != ino) {
@@ -151,12 +155,24 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
             pTempDnode->HOITFD_next = LW_NULL;
             pTempDnode = pTempNext;
         }
+        hoitFragTreeOverlayFixUp(pNewInode->HOITN_rbtree);
         pNewInode->HOITN_dents = LW_NULL;
         pNewInode->HOITN_ino = ino;
         pNewInode->HOITN_inode_cache = pcache;
         pNewInode->HOITN_metadata = LW_NULL;
         pNewInode->HOITN_mode = (*ppDnodeList)->HOITFD_file_type;
         pNewInode->HOITN_volume = pfs;
+
+        PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader = hoitFragTreeCollectRange(pNewInode->HOITN_rbtree, 0, INT_MAX);
+        PHOIT_FRAG_TREE_LIST_NODE pFTlistNode = pFTlistHeader->pFTlistHeader->pFTlistNext;
+        size_t HOITN_stSize = 0;
+        while (pFTlistNode)
+        {
+           HOITN_stSize = __MAX(HOITN_stSize, pFTlistNode->pFTn->pFDnode->HOITFD_offset + pFTlistNode->pFTn->pFDnode->HOITFD_length);
+           pFTlistNode = pFTlistNode->pFTlistNext;
+        }
+
+        pNewInode->HOITN_stSize = HOITN_stSize;
         return pNewInode;
     }
 
@@ -491,7 +507,7 @@ UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT* pp
                 lib_bzero(pFullDirent->HOITFD_file_name, pRawInfo->totlen - sizeof(HOIT_RAW_DIRENT));
 
                 PCHAR pRawName = ((PCHAR)pRawDirent) + sizeof(HOIT_RAW_DIRENT);
-                lib_strcpy(pFullDirent->HOITFD_file_name, pRawName);
+                lib_memcpy(pFullDirent->HOITFD_file_name, pRawName, pRawInfo->totlen - sizeof(HOIT_RAW_DIRENT));
                 pFullDirent->HOITFD_next = *ppDirentList;
                 *ppDirentList = pFullDirent;
             }
@@ -506,6 +522,7 @@ UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT* pp
                 *ppDnodeList = pFullDnode;
             }
         }
+        __SHEAP_FREE(pBuf);
         pRawInfo = pRawInfo->next_phys;
     }
     return ERROR_NONE;
@@ -1269,7 +1286,7 @@ INT  __hoit_stat(PHOIT_INODE_INFO pInodeInfo, PHOIT_VOLUME  pfs, struct stat* ps
         pstat->st_uid = pInodeInfo->HOITN_uid;
         pstat->st_gid = pInodeInfo->HOITN_gid;
         pstat->st_rdev = 1;
-        pstat->st_size = 100;//(off_t)pInodeInfo->HOITN_stSize;
+        pstat->st_size = (off_t)pInodeInfo->HOITN_stSize;
         // pstat->st_atime = pInodeInfo->HOITN_timeAccess;
         // pstat->st_mtime = pInodeInfo->HOITN_timeChange;
         // pstat->st_ctime = pInodeInfo->HOITN_timeCreate;
@@ -1338,8 +1355,15 @@ INT  __hoit_statfs(PHOIT_VOLUME  pfs, struct statfs* pstatfs) {
 *********************************************************************************************************/
 ssize_t  __hoit_read(PHOIT_INODE_INFO  pInodeInfo, PVOID  pvBuffer, size_t  stSize, size_t  stOft)
 {
+    ssize_t readSize = 0;
+    if (pInodeInfo->HOITN_stSize <= stOft) {                                 /*  已经到文件末尾              */
+        return  (0);
+    }
+
+    readSize = pInodeInfo->HOITN_stSize - stOft;                           /*  计算剩余数据量              */
+    readSize = __MIN(readSize, stSize);
     hoitFragTreeRead(pInodeInfo->HOITN_rbtree, stOft, stSize, pvBuffer);
-    return stSize;
+    return readSize;
 }
 /*********************************************************************************************************
 ** 函数名称: __hoit_write
