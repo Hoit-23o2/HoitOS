@@ -288,8 +288,8 @@ static LONG __hoitFsOpen(PHOIT_VOLUME     pfs,
             iFollowLinkType = FOLLOW_LINK_FILE;                         /*  链接文件本身                */
         }
         //TODO PHOIT_INODE_INFO还没有 symbol link
-        /*iError = _PathBuildLink(pcName, MAX_FILENAME_LENGTH, 
-                                        LW_NULL, pcPrefix, , pcTail);*/
+        iError = _PathBuildLink(pcName, MAX_FILENAME_LENGTH, 
+                                        LW_NULL, pcPrefix, phoitn->HOITN_pcLink, pcTail);
 
         if (iError) {
             __HOIT_VOLUME_UNLOCK(pfs);
@@ -385,16 +385,43 @@ static INT  __hoitFsRemove(PHOIT_VOLUME   pfs,
     if (phoitn) {
         //TODO 建立软链接部分，PHOIT_INODE_INFO尚缺少pcLink
         if (S_ISLNK(phoitn->HOITN_mode)) {
+            size_t  stLenTail = 0;
+            PHOIT_FULL_DIRENT   pFullDirent = __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino);
 
+            if (pcTail) {
+                stLenTail = lib_strlen(pcTail);                         /*  确定 tail 长度              */
+            }
+            if (stLenTail) {                                            /*  指向其他文件                */
+                PCHAR   pcSymfile = pcTail - lib_strlen(pFullDirent->HOITFD_file_name) - 1;
+                PCHAR   pcPrefix;
+
+                if (*pcSymfile != PX_DIVIDER) {
+                    pcSymfile--;
+                }
+                if (pcSymfile == pcName) {
+                    pcPrefix = LW_NULL;                                 /*  没有前缀                    */
+                } else {
+                    pcPrefix = pcName;
+                    *pcSymfile = PX_EOS;
+                }
+                if (_PathBuildLink(pcName, MAX_FILENAME_LENGTH, 
+                                   LW_NULL, pcPrefix, phoitn->HOITN_pcLink, pcTail) < ERROR_NONE) {
+                    __HOIT_VOLUME_UNLOCK(pfs);
+                    return  (PX_ERROR);                                 /*  无法建立被链接目标目录      */
+                } else {
+                    __HOIT_VOLUME_UNLOCK(pfs);
+                    return  (FOLLOW_LINK_TAIL);
+                }
+            }
         }
 
 
         //TOOPT hoit_unlink 待整合
         if (S_ISDIR(phoitn->HOITN_mode)) {
-            __hoit_unlink_dir(phoitFather, 
+            iError = __hoit_unlink_dir(phoitFather, 
                                 __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino));
         } else { //TODO 尚不能识别普通文件
-            __hoit_unlink_regular(phoitFather,
+            iError = __hoit_unlink_regular(phoitFather,
                                 __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino));
         }   
         __HOIT_VOLUME_UNLOCK(pfs);
@@ -815,6 +842,14 @@ static INT  __hoitFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
     CHAR                cNewPath[PATH_MAX + 1];
     INT                 iError;
 
+    
+    PCHAR dirPath = (PCHAR)__SHEAP_ALLOC(lib_strlen(pfdentry->FDENTRY_pcName) + 1);
+    lib_bzero(dirPath, lib_strlen(pfdentry->FDENTRY_pcName) + 1);
+    lib_memcpy(dirPath, pfdentry->FDENTRY_pcName, lib_strlen(pfdentry->FDENTRY_pcName));
+    PCHAR pDivider = lib_rindex(dirPath, PX_DIVIDER);
+    *pDivider = '\0';
+    PHOIT_INODE_INFO pInodeFather = __hoit_open(pfs, dirPath, NULL, NULL, NULL, NULL, NULL);
+
     if (phoitn == LW_NULL) {                                             /*  检查是否为设备文件          */
         _ErrorHandle(ERROR_IOS_DRIVER_NOT_SUP);                         /*  不支持设备重命名            */
         return (PX_ERROR);
@@ -847,8 +882,9 @@ static INT  __hoitFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
         _ErrorHandle(EXDEV);
         return  (PX_ERROR);        
     }
+
     //TODEBUG 没法获取父亲节点
-    /* iError = __hoit_move(); */
+    iError = __hoit_move(pInodeFather, phoitn, pcNewName);
 
     __HOIT_VOLUME_UNLOCK(pfs);
 
@@ -1310,7 +1346,11 @@ static INT  __hoitFsSymlink(PHOIT_VOLUME   pfs,
     }
     
     //TODO 软链接建立功能尚未实现
-    /*phoitn = __hoit_maken(pfs, pcName, phoitnFather, S_IFLNK | DEFAULT_SYMLINK_PERM, pcLinkDst); */
+    phoitn = __hoit_maken(pfs, pcName, phoitnFather, S_IFLNK | DEFAULT_SYMLINK_PERM, pcLinkDst);
+    if (phoitn == LW_NULL) {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        return  (PX_ERROR);
+    }
 
     __HOIT_VOLUME_UNLOCK(pfs);
 
@@ -1354,10 +1394,10 @@ static ssize_t __hoitFsReadlink(PHOIT_VOLUME   pfs,
     }
     
     //TODO 尚未定义HOITN_pcLink，软链接部分功能也尚未实现
-    /*
+    
     stLen = lib_strlen(phoitn->HOITN_pcLink);
     lib_strncpy(pcLinkDst, phoitn->HOITN_pcLink, stMaxSize);
-    */
+    
 
     if (stLen > stMaxSize) {
         stLen = stMaxSize;

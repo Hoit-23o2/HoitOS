@@ -205,6 +205,7 @@ struct HOIT_INODE_INFO{
     PHOIT_FRAG_TREE     HOITN_rbtree;
     PHOIT_VOLUME        HOITN_volume;
     UINT                HOITN_ino;                                      /*  规定根目录的ino为1          */
+    PCHAR               HOITN_pcLink;
 
     uid_t               HOITN_uid;                                      /*  用户 id                     */
     gid_t               HOITN_gid;                                      /*  组   id                     */
