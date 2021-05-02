@@ -517,7 +517,7 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
 
         pPerContent = (PCHAR)lib_malloc(uiPerSize);                                 /* �������� */
         //TODO: �ӻ����϶�
-        hoitReadFromCache(uiPerOfs, pPerContent, uiPerSize);
+        hoitReadFromCache(uiPerOfs, pPerContent, uiPerSize ,pFTTree->pfs);
 
         lib_memcpy(pContent + uiSizeRead, pPerContent, uiPerSize);
         lib_free(pPerContent);

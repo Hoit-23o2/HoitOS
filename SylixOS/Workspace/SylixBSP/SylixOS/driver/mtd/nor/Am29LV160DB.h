@@ -24,11 +24,7 @@
 #ifndef SYLIXOS_DRIVER_MTD_NOR_AM29LV160DB_H_
 #define SYLIXOS_DRIVER_MTD_NOR_AM29LV160DB_H_
 
-<<<<<<< HEAD
-//#define NOR_TEST 
-=======
 //#define NOR_TEST
->>>>>>> 3d721479faf46c7ab9d923e5b31785af351d8932
 //#define NOR_DEBUG
 
 #include <stdio.h>

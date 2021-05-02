@@ -1,28 +1,88 @@
 /*********************************************************************************************************
 **
-**                                    ï¿½Ð¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô´ï¿½ï¿½Ö¯
+**                                    ÖÐ¹úÈí¼þ¿ªÔ´×éÖ¯
 **
-**                                   Ç¶ï¿½ï¿½Ê½ÊµÊ±ï¿½ï¿½ï¿½ï¿½ÏµÍ³
+**                                   Ç¶ÈëÊ½ÊµÊ±²Ù×÷ÏµÍ³
 **
 **                                       SylixOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
-**--------------ï¿½Ä¼ï¿½ï¿½ï¿½Ï¢--------------------------------------------------------------------------------
+**--------------ÎÄ¼þÐÅÏ¢--------------------------------------------------------------------------------
 **
-** ï¿½ï¿½   ï¿½ï¿½   ï¿½ï¿½: hoitCache.c
+** ÎÄ   ¼þ   Ãû: hoitCache.c
 **
-** ï¿½ï¿½   ï¿½ï¿½   ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+** ´´   ½¨   ÈË: ÅËÑÓ÷è
 **
-** ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: 2021 ï¿½ï¿½ 04 ï¿½ï¿½ 02 ï¿½ï¿½
+** ÎÄ¼þ´´½¨ÈÕÆÚ: 2021 Äê 04 ÔÂ 02 ÈÕ
 **
-** ï¿½ï¿½        ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½
+** Ãè        Êö: »º´æ²ã
 *********************************************************************************************************/
 #include "hoitFsCache.h"
-#include "driver/mtd/nor/nor.h"
-BOOL hoitEnableCache(UINT8 uiCacheBlockSize, UINT8 uiCacheBlockNums){
+#include "../../driver/mtd/nor/nor.h"
+/*********************************************************************************************************
+** º¯ÊýÃû³Æ: hoitEnableCache
+** ¹¦ÄÜÃèÊö: ³õÊ¼»¯ hoit cache
+** Êä¡¡Èë  : uiCacheBlockSize       µ¥¸öcache´óÐ¡
+**           uiCacheBlockNums       cache×î´óÊýÁ¿
+** Êä¡¡³ö  : LW_NULL ±íÊ¾Ê§°Ü£¬PHOIT_CACHE_HDRµØÖ· ±íÊ¾³É¹¦
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
+                                           API º¯Êý
+*********************************************************************************************************/
+
+
+#define __HOITFS_CACHE_LOCK(pcacheHdr)          API_SemaphoreMPend(pcacheHdr->HOITCACHE_hLock, \
+                                                LW_OPTION_WAIT_INFINITE)
+#define __HOITFS_CACHE_UNLOCK(pcacheHdr)        API_SemaphoreMPost(pcacheHdr->HOITCACHE_hLock)
+/*    
+** º¯ÊýÃû³Æ:    hoitEnableCache
+** ¹¦ÄÜÃèÊö:    ³õÊ¼»¯ hoit cache
+** Êä¡¡Èë  :    uiCacheBlockSize       µ¥¸öcache´óÐ¡
+**              uiCacheBlockNums       cache×î´óÊýÁ¿
+**              phoitfs                hoitfsÎÄ¼þ¾í½á¹¹Ìå
+** Êä¡¡³ö  : LW_NULL ±íÊ¾Ê§°Ü£¬PHOIT_CACHE_HDRµØÖ· ±íÊ¾³É¹¦
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:    
+*/
+PHOIT_CACHE_HDR hoitEnableCache(UINT32 uiCacheBlockSize, UINT32 uiCacheBlockNums, PHOIT_VOLUME phoitfs){
+    PHOIT_CACHE_HDR pcacheHdr;
+
+    pcacheHdr = (PHOIT_CACHE_HDR)__SHEAP_ALLOC(sizeof(HOIT_CACHE_HDR));
+    if (pcacheHdr == LW_NULL) {
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
+        _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
+        return  (LW_NULL);        
+    }
+
+    lib_bzero(pcacheHdr,sizeof(HOIT_CACHE_HDR));
+
+    pcacheHdr->HOITCACHE_hLock = API_SemaphoreMCreate("hoit_cache_lock", LW_PRIO_DEF_CEILING,
+                                             LW_OPTION_WAIT_PRIORITY | LW_OPTION_DELETE_SAFE | 
+                                             LW_OPTION_INHERIT_PRIORITY | LW_OPTION_OBJECT_GLOBAL,
+                                             LW_NULL);
+
+    if (!pcacheHdr->HOITCACHE_hLock) {
+        __SHEAP_FREE(pcacheHdr);
+        return  (LW_NULL);
+    }
+
+    pcacheHdr->HOITCACHE_cacheLineHdr    = (PHOIT_CACHE_BLK)__SHEAP_ALLOC(sizeof(HOIT_CACHE_BLK));
+    if (pcacheHdr == LW_NULL) {
+        __SHEAP_FREE(pcacheHdr);
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
+        _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
+        return  (LW_NULL);        
+    }
+
+    pcacheHdr->HOITCACHE_hoitfsVol      = phoitfs;
+    pcacheHdr->HOITCACHE_blockNums      = 0;
+    pcacheHdr->HOITCACHE_blockMaxNums   = uiCacheBlockNums;
+    pcacheHdr->HOITCACHE_blockSize      = uiCacheBlockSize;
+    pcacheHdr->HOITCACHE_flashBlkNum    = (NOR_FLASH_SZ - NOR_FLASH_START_OFFSET)/uiCacheBlockSize + 1;
+    pcacheHdr->HOITCACHE_nextBlkToWrite = 0;
     
-    /* é“¾è¡¨å¤´ä¹Ÿæ˜¯ä¸€ä¸ªHOIT_CACHE_BLKï¼Œä¸åŒåœ¨äºŽæœ‰æ•ˆä½ä¸º0ï¼Œä¸”HOITBLK_bufä¸ºç©ºï¼Œä»¥æ­¤ä½œä¸ºåŒºåˆ« */
+    /* Á´±íÍ·Ò²ÊÇÒ»¸öHOIT_CACHE_BLK£¬²»Í¬ÔÚÓÚÓÐÐ§Î»Îª0£¬ÇÒHOITBLK_bufÎª¿Õ£¬ÒÔ´Ë×÷ÎªÇø±ð */
     pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_bType            = HOIT_CACHE_TYPE_INVALID;
     pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext    = pcacheHdr->HOITCACHE_cacheLineHdr;
     pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListPrev    = pcacheHdr->HOITCACHE_cacheLineHdr;
@@ -30,15 +90,22 @@ BOOL hoitEnableCache(UINT8 uiCacheBlockSize, UINT8 uiCacheBlockNums){
 
     return pcacheHdr;
 }
-/*
-    åˆ†é…cache,è¯»å–æ˜ å°„åœ¨flashçš„å†…å®¹ï¼Œè¿”å›žæˆåŠŸåˆ†é…çš„cacheæŒ‡é’ˆ
+/*    
+** º¯ÊýÃû³Æ:    hoitAllocCache
+** ¹¦ÄÜÃèÊö:    ·ÖÅäcache,¶ÁÈ¡Ó³ÉäÔÚflashµÄÄÚÈÝ
+** Êä¡¡Èë  :    pcacheHdr               cacheÍ·½á¹¹
+**              flashBlkNo              ·ÖÅäcacheÓ³ÉäµÄÎïÀí¿éºÅ
+**              cacheType               cacheÖÐµÄÊý¾ÝÀàÐÍ£¬ÔÝÊ±»¹Î´ÓÃµ½
+** Êä¡¡³ö  : LW_NULL ±íÊ¾Ê§°Ü£¬³É¹¦Ê±·µ»Ø·ÖÅäµÄcacheÖ¸Õë
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:    
 */
 PHOIT_CACHE_BLK hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo, UINT32 cacheType) {
     INT             i;
-    PHOIT_CACHE_BLK pcache;/* å½“å‰åˆ›å»ºçš„cacheæŒ‡é’ˆ */
-    PHOIT_CACHE_BLK cacheLineHdr = pcacheHdr->HOITCACHE_cacheLineHdr; /* cacheé“¾è¡¨å¤´æŒ‡é’ˆ */
+    PHOIT_CACHE_BLK pcache;/* µ±Ç°´´½¨µÄcacheÖ¸Õë */
+    PHOIT_CACHE_BLK cacheLineHdr = pcacheHdr->HOITCACHE_cacheLineHdr; /* cacheÁ´±íÍ·Ö¸Õë */
     size_t          cacheBlkSize = pcacheHdr->HOITCACHE_blockSize;
-    BOOL            flag; /* æ¢å—æ ‡è®° */
+    BOOL            flag; /* »»¿é±ê¼Ç */
     UINT32          blkToWrite;
 
     if (!pcacheHdr) {
@@ -46,15 +113,93 @@ PHOIT_CACHE_BLK hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo, UIN
     }
     
     if (pcacheHdr->HOITCACHE_blockNums == pcacheHdr->HOITCACHE_blockMaxNums) { 
-        /* cacheåˆ†é…æ•°é‡å·²æ»¡ï¼Œéœ€è¦æ¢å— */
+        /* cache·ÖÅäÊýÁ¿ÒÑÂú£¬ÐèÒª»»¿é */
         flag = LW_TRUE;
-        //TOOPT æ¢å—ç®—æ³•æš‚æ—¶é‡‡ç”¨FIFO
+        //TOOPT »»¿éËã·¨ÔÝÊ±²ÉÓÃFIFO
         pcache = cacheLineHdr->HOITBLK_cacheListPrev;
 
-BOOL hoitReadFromCache(UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
-    read_nor(uiOfs, pContent, uiSize);
-}
+        /* ´ÓÁ´±íÎ²²¿¶Ï¿ª */
+        cacheLineHdr->HOITBLK_cacheListPrev = pcache->HOITBLK_cacheListPrev;
+        pcache->HOITBLK_cacheListPrev->HOITBLK_cacheListNext = pcache->HOITBLK_cacheListNext;
 
+        /* Ö±½Ó²åÈëÁ´±íÍ·²¿ */
+        pcache->HOITBLK_cacheListPrev   = cacheLineHdr;
+        pcache->HOITBLK_cacheListNext   = cacheLineHdr->HOITBLK_cacheListNext;
+        cacheLineHdr->HOITBLK_cacheListNext->HOITBLK_cacheListPrev  = pcache;
+        cacheLineHdr->HOITBLK_cacheListNext     = pcache;
+    } else {
+        flag = LW_FALSE;
+        pcache = (PHOIT_CACHE_BLK)__SHEAP_ALLOC(sizeof(HOIT_CACHE_BLK));
+        if (pcache == NULL) {
+            _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
+            return i;
+        }
+
+        pcache->HOITBLK_buf = (PCHAR)__SHEAP_ALLOC(cacheBlkSize);
+        if (pcache == NULL) {
+            _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
+            return i;
+        }
+
+        /* ²åÈëÐÂ·ÖÅäµÄcache */
+        pcache->HOITBLK_cacheListPrev   = cacheLineHdr;
+        pcache->HOITBLK_cacheListNext   = cacheLineHdr->HOITBLK_cacheListNext;
+        cacheLineHdr->HOITBLK_cacheListNext->HOITBLK_cacheListPrev  = pcache;
+        cacheLineHdr->HOITBLK_cacheListNext     = pcache;
+
+        pcacheHdr->HOITCACHE_blockNums++;
+    }
+
+    if (flag) { 
+        /* »»ÁË¿éÒªÐ´»Ø */
+        blkToWrite = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA);
+        write_nor(pcache->HOITBLK_blkNo*pcacheHdr->HOITCACHE_blockSize + NOR_FLASH_START_OFFSET,
+                    pcache->HOITBLK_buf, 
+                    pcacheHdr->HOITCACHE_blockSize, 
+                    WRITE_KEEP);
+    }
+
+    lib_bzero(pcache->HOITBLK_buf,cacheBlkSize);
+    read_nor(flashBlkNo * cacheBlkSize + NOR_FLASH_START_OFFSET, pcache->HOITBLK_buf, cacheBlkSize);
+
+    pcache->HOITBLK_bType           = cacheType;
+    pcache->HOITBLK_blkNo           = flashBlkNo;
+
+    return pcache;
+}
+/*    
+** º¯ÊýÃû³Æ:    hoitCheckCacheHit
+** ¹¦ÄÜÃèÊö:    ¼ì²âÏàÓ¦flashBlkNoÊÇ·ñÃüÖÐ
+** Êä¡¡Èë  :    pcacheHdr               cacheÍ·½á¹¹
+**              flashBlkNo              ÎïÀí¿éºÅ
+** Êä¡¡³ö  : LW_NULL ±íÊ¾Ê§°Ü£¬³É¹¦Ê±·µ»ØÄÚ´æÖÐÃüÖÐµÄcacheÖ¸Õë
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:    
+*/
+PHOIT_CACHE_BLK hoitCheckCacheHit(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo) {
+    PHOIT_CACHE_BLK pcacheLineHdr = pcacheHdr->HOITCACHE_cacheLineHdr;
+    PHOIT_CACHE_BLK pcache = pcacheLineHdr->HOITBLK_cacheListNext;
+    
+    while (pcache != pcacheLineHdr){
+        if (pcache->HOITBLK_blkNo == flashBlkNo &&
+            pcache->HOITBLK_bType != HOIT_CACHE_TYPE_INVALID) {
+            return pcache;
+        }
+        pcache = pcache->HOITBLK_cacheListNext;
+    }
+    return LW_NULL;
+}
+/*    
+** º¯ÊýÃû³Æ:    hoitReadFromCache
+** ¹¦ÄÜÃèÊö:    ¶ÁÈ¡flashÊý¾Ý£¬ÓÅÏÈ´ÓÄÚ´æÖÐ¶ÁÈ¡
+** Êä¡¡Èë  :    pcacheHdr               cacheÍ·½á¹¹
+**              uiOfs                   Êý¾Ý¶ÁÈ¡ÆðÊ¼Î»ÖÃ
+**              pContent                Ä¿µÄµØÖ·
+**              uiSize                  ¶ÁÈ¡×Ö½Ú
+** Êä¡¡³ö  : LW_FALSE ±íÊ¾Ê§°Ü£¬LW_TRUE·µ»Ø³É¹¦£¨ÔÝÊ±¶¼ÊÇTRUE£©
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:    
+*/
 BOOL hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
     PCHAR   pucDest         = pContent;
     size_t  cacheBlkSize    = pcacheHdr->HOITCACHE_blockSize;
@@ -72,14 +217,14 @@ BOOL hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, 
             pcache = hoitCheckCacheHit(pcacheHdr, i);
 
             if (!pcache) {
-                /* æœªå‘½ä¸­ */
+                /* Î´ÃüÖÐ */
                 pcache = hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA);
                 if(!pcache) {
-                    /* åˆ†é…å¤±è´¥ */
+                    /* ·ÖÅäÊ§°Ü */
                     read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, uiSize);
                 }
             } else {
-                /* å‘½ä¸­äº† */
+                /* ÃüÖÐÁË */
                 lib_memcpy(pContent, pcache->HOITBLK_buf+stStart, uiSize);
             }
             readBytes   += uiSize;
@@ -88,26 +233,36 @@ BOOL hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, 
             pcache = hoitCheckCacheHit(pcacheHdr, i);
             read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, stBufSize);
             if (!pcache) {
-                /* æœªå‘½ä¸­ */
+                /* Î´ÃüÖÐ */
                 hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA);
                 if(!pcache) {
-                    /* åˆ†é…å¤±è´¥ */
+                    /* ·ÖÅäÊ§°Ü */
                     read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, stBufSize);
                 }                
             } else {
-                /* å‘½ä¸­äº† */
+                /* ÃüÖÐÁË */
                 lib_memcpy(pContent, pcache->HOITBLK_buf+stStart, uiSize);
             }
-            pucDest     += cacheBlkSize;
-            uiSize      -= cacheBlkSize;
-            readBytes   += cacheBlkSize;
+            pucDest     += stBufSize;
+            uiSize      -= stBufSize;
+            readBytes   += stBufSize;
             stStart      = 0;
         }
     }
 
     return LW_TRUE;
 }
-
+/*    
+** º¯ÊýÃû³Æ:    hoitWriteToCache
+** ¹¦ÄÜÃèÊö:    ¶ÁÈ¡flashÊý¾Ý£¬ÓÅÏÈ´ÓÄÚ´æÖÐ¶ÁÈ¡
+** Êä¡¡Èë  :    pcacheHdr               cacheÍ·½á¹¹
+**              uiOfs                   Êý¾ÝÐ´ÈëÆðÊ¼Î»ÖÃ
+**              pContent                Ô­µØÖ·
+**              uiSize                  Ð´Èë×Ö½Ú
+** Êä¡¡³ö  : LW_FALSE ±íÊ¾Ê§°Ü£¬LW_TRUE·µ»Ø³É¹¦£¨ÔÝÊ±¶¼ÊÇTRUE£©
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:    
+*/
 BOOL hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
     PCHAR   pucDest         = pContent;
     size_t  cacheBlkSize    = pcacheHdr->HOITCACHE_blockSize;
@@ -115,7 +270,7 @@ BOOL hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, U
     UINT32  blkNoStart      = uiOfs/cacheBlkSize;
     UINT32  blkNoEnd        = (uiOfs + uiSize) / cacheBlkSize;
     UINT32  writeBytes      = 0;
-    UINT32  blkToWrite      = 0; /* ä¸‹ä¸€å—è¦å†™å…¥çš„flashå— */
+    UINT32  blkToWrite      = 0; /* ÏÂÒ»¿éÒªÐ´ÈëµÄflash¿é */
     UINT32  i;
 
     PHOIT_CACHE_BLK pcache;
@@ -127,14 +282,14 @@ BOOL hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, U
         if (stBufSize > uiSize) {
             //read_nor(stStart + i*cacheBlkSize + NOR_FLASH_START_OFFSET, pucDest, uiSize);
             pcache = hoitCheckCacheHit(pcacheHdr, i);
-            if (pcache == LW_NULL) { /* æœªå‘½ä¸­ */
+            if (pcache == LW_NULL) { /* Î´ÃüÖÐ */
                 pcache = hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA);
-                if (pcache == LW_NULL) { /* æœªæˆåŠŸåˆ†é…cacheï¼Œç›´æŽ¥å†™å…¥flash */
-                    //TODO å°šæœªçŸ¥é“ä¸Šå±‚æ–‡ä»¶ç³»ç»Ÿé€šçŸ¥åœ¨å“ªå†™å…¥å½“å‰cache
+                if (pcache == LW_NULL) { /* Î´³É¹¦·ÖÅäcache£¬Ö±½ÓÐ´Èëflash */
+                    //TODO ÉÐÎ´ÖªµÀÉÏ²ãÎÄ¼þÏµÍ³Í¨ÖªÔÚÄÄÐ´Èëµ±Ç°cache
                     blkToWrite = hoitFindNextToWrite(pcacheHdr, pcache->HOITBLK_bType);
                     write_nor(writeAddr, pContent, uiSize, WRITE_KEEP);
                 }
-                else { /* æˆåŠŸåˆ†é…cacheï¼Œåˆ™å†™å…¥cache */
+                else { /* ³É¹¦·ÖÅäcache£¬ÔòÐ´Èëcache */
                     lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, uiSize);
                 }
             } else {
@@ -145,22 +300,22 @@ BOOL hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, U
         } else {
             //read_nor(stStart + i*cacheBlkSize + NOR_FLASH_START_OFFSET, pucDest, stBufSize);
             pcache = hoitCheckCacheHit(pcacheHdr, i);
-            if (pcache == LW_NULL) { /* æœªå‘½ä¸­ */
+            if (pcache == LW_NULL) { /* Î´ÃüÖÐ */
                 pcache = hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA);
-                if (pcache == LW_NULL) { /* æœªæˆåŠŸåˆ†é…cacheï¼Œç›´æŽ¥å†™å…¥flash */
-                    //TODO å°šæœªçŸ¥é“ä¸Šå±‚æ–‡ä»¶ç³»ç»Ÿé€šçŸ¥åœ¨å“ªå†™å…¥å½“å‰cache
+                if (pcache == LW_NULL) { /* Î´³É¹¦·ÖÅäcache£¬Ö±½ÓÐ´Èëflash */
+                    //TODO ÉÐÎ´ÖªµÀÉÏ²ãÎÄ¼þÏµÍ³Í¨ÖªÔÚÄÄÐ´Èëµ±Ç°cache
                     blkToWrite = hoitFindNextToWrite(pcacheHdr, pcache->HOITBLK_bType);
                     write_nor(writeAddr, pContent, stBufSize, WRITE_KEEP);
                 }
-                else { /* æˆåŠŸåˆ†é…cacheï¼Œåˆ™å†™å…¥cache */
-                    lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, cacheBlkSize);
+                else { /* ³É¹¦·ÖÅäcache£¬ÔòÐ´Èëcache */
+                    lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, stBufSize);
                 }
             } else {
-                lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, cacheBlkSize);
+                lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, stBufSize);
             }
 
-            pucDest += cacheBlkSize;
-            uiSize  -= cacheBlkSize;
+            pucDest += stBufSize;
+            uiSize  -= stBufSize;
             stStart  = 0;
         }
     }
@@ -168,9 +323,13 @@ BOOL hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, U
     return LW_TRUE;   
 }
 
-/* 
-    å°†cacheä¸­çš„æ•°æ®å…¨éƒ¨å†™å›žflash
-    è¿”å›žå†™å›žçš„å—æ•°
+/*    
+** º¯ÊýÃû³Æ:    hoitFlushCache
+** ¹¦ÄÜÃèÊö:    ½«ËùÓÐcacheÊý¾ÝÐ´»Øflash
+** Êä¡¡Èë  :    pcacheHdr               cacheÍ·½á¹¹
+** Êä¡¡³ö  :    Ð´»ØµÄcache¿éÊýÁ¿
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:    
 */
 UINT32 hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr) {
     PHOIT_CACHE_BLK tempCache;
@@ -184,10 +343,10 @@ UINT32 hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr) {
     while (tempCache != pcacheHdr->HOITCACHE_cacheLineHdr) {
         if (tempCache->HOITBLK_bType == HOIT_CACHE_TYPE_INVALID)
             continue;
-        //TODO éœ€è¦èŽ·å–å†™flashçš„ä½ç½®
+        //TODO ÐèÒª»ñÈ¡Ð´flashµÄÎ»ÖÃ
         blkToWrite  = hoitFindNextToWrite(pcacheHdr, tempCache->HOITBLK_bType);
         writeAddr   = tempCache->HOITBLK_blkNo*pcacheHdr->HOITCACHE_blockSize + NOR_FLASH_START_OFFSET;
-        write_nor(writeAddr, 
+        write_nor(  writeAddr, 
                     tempCache->HOITBLK_buf, 
                     pcacheHdr->HOITCACHE_blockSize, 
                     WRITE_KEEP);
@@ -198,8 +357,13 @@ UINT32 hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr) {
 
     return writeCount;
 }
-/*
-    é‡Šæ”¾é™¤é“¾è¡¨å¤´ä»¥å¤–æ‰€æœ‰HOIT_CACHE_BLK
+/*    
+** º¯ÊýÃû³Æ:    hoitReleaseCache
+** ¹¦ÄÜÃèÊö:    ÊÍ·ÅÄÚ´æÖÐµÄcache¿é
+** Êä¡¡Èë  :    pcacheHdr               cacheÍ·½á¹¹
+** Êä¡¡³ö  :    Ð´»ØµÄcache¿éÊýÁ¿
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:    
 */
 BOOL hoitReleaseCache(PHOIT_CACHE_HDR pcacheHdr) {
     PHOIT_CACHE_BLK tempCache, tempCachePre;
@@ -213,11 +377,11 @@ BOOL hoitReleaseCache(PHOIT_CACHE_HDR pcacheHdr) {
         tempCache = tempCache->HOITBLK_cacheListNext;
         __SHEAP_FREE(tempCachePre);
     }
-    return 1;
+    return LW_TRUE;
 }
 
 /*
-    é‡Šæ”¾cacheå¤´
+    ÊÍ·ÅcacheÍ·
 */
 BOOL hoitReleaseCacheHDR(PHOIT_CACHE_HDR pcacheHdr) {
     if (pcacheHdr->HOITCACHE_cacheLineHdr != LW_NULL) {
@@ -226,7 +390,7 @@ BOOL hoitReleaseCacheHDR(PHOIT_CACHE_HDR pcacheHdr) {
     API_SemaphoreMDelete(&pcacheHdr->HOITCACHE_hLock);
 }
 /*
-    è¿”å›žä¸‹ä¸€ä¸ªè¦å†™çš„å—ï¼Œå¹¶æ›´æ–°PHOIT_CACHE_HDRä¸­HOITCACHE_nextBlkToWrite(è¦å†™çš„ä¸‹ä¸€å—)
+    ·µ»ØÏÂÒ»¸öÒªÐ´µÄ¿é£¬²¢¸üÐÂPHOIT_CACHE_HDRÖÐHOITCACHE_nextBlkToWrite(ÒªÐ´µÄÏÂÒ»¿é)
 */
 UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType) {
     switch (cacheType)
@@ -236,10 +400,84 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType) {
     case HOIT_CACHE_TYPE_DATA:
         pcacheHdr->HOITCACHE_nextBlkToWrite ++;
         return pcacheHdr->HOITCACHE_nextBlkToWrite -1;
-    //TODO å°†æ¥æœ‰äº†gcä¹‹åŽå°±ä¸èƒ½å•çº¯çš„å°†ä¸‹ä¸€ä¸ªå†™å…¥å—åŠ ä¸€
+    //TODO ½«À´ÓÐÁËgcÖ®ºó¾Í²»ÄÜµ¥´¿µÄ½«ÏÂÒ»¸öÐ´Èë¿é¼ÓÒ»
     default:
         _ErrorHandle(ENOSYS);
         return  (PX_ERROR);
     }
     
 }
+
+#ifdef HOIT_CACHE_TEST
+/*
+    cache²âÊÔ
+*/
+BOOL test_hoit_cache() {
+    PHOIT_CACHE_HDR pcacheHdr;
+    CHAR            data_write[8] = "1234567\0";
+    CHAR            data_read[8];
+    INT32           i;
+    INT32           j=0;
+    INT32           k=0;
+    lib_memset(data_read,0,sizeof(data_read));
+    printf("======================  hoit cache test   ============================\n");
+    pcacheHdr = hoitEnableCache(64, 8, LW_NULL);
+
+    // printf("1.common write read\n");
+    // hoitWriteToCache(pcacheHdr, 0, data_write, sizeof(data_write));
+    // hoitReadFromCache(pcacheHdr, 4, data_read, sizeof(data_read));
+    // printf("result: %s\n",data_read);
+
+    // printf("2.common flush\n");
+    // hoitFlushCache(pcacheHdr);
+    // lib_memset(data_read,0,sizeof(data_read));
+    // read_nor((pcacheHdr->HOITCACHE_nextBlkToWrite-1)*pcacheHdr->HOITCACHE_blockSize+4+NOR_FLASH_START_OFFSET,data_read,sizeof(data_read));
+    // printf("result: %s\n",data_read);
+
+    printf("3.mutiple blocks write (no flush)\n");
+    for (i=0 ; i < 64 ; i++) {
+        k = i/8 + 1;
+        j = j%8 + 1;
+        data_write[0] = '0' + k;
+        data_write[1] = '0' + j;
+        hoitWriteToCache(pcacheHdr, i*sizeof(data_write), data_write, sizeof(data_write));
+    }
+    printf("current cache number: %d", pcacheHdr->HOITCACHE_blockNums);
+    printf("\nread result:\n");
+    for (i=0 ; i<64 ; i++) {
+        hoitReadFromCache(pcacheHdr, i*sizeof(data_write), data_read, sizeof(data_read));
+        printf("%s\n",data_read);
+    }
+    printf("\ncache data:\n");
+
+    for (i=0 ; i<64 ; i++) {    /* ´Ó0¿é¿ªÊ¼¶Á */
+        read_nor(   0+
+                    i*sizeof(data_write)+
+                    NOR_FLASH_START_OFFSET,
+                    data_read,
+                    sizeof(data_read));
+        printf("%s\n",data_read);
+    }
+    printf("\nflushed cache data:\n");
+    hoitFlushCache(pcacheHdr);
+    for (i=0 ; i<64 ; i++) { /* ´Ó0¿é¿ªÊ¼¶Á */
+        read_nor(   0+
+                    i*sizeof(data_write)+
+                    NOR_FLASH_START_OFFSET,
+                    data_read,
+                    sizeof(data_read));
+        printf("%s\n",data_read);
+    }
+
+    printf("\nswap cache block:\n");
+    data_write[0] = 'e';
+    data_write[1] = 'n';
+    data_write[2] = 'd';
+    hoitWriteToCache(pcacheHdr, 64*sizeof(data_write), data_write, sizeof(data_write));
+    hoitReadFromCache(pcacheHdr, 64*sizeof(data_write), data_read, sizeof(data_read));
+    printf("%s\n",data_read);
+    printf("======================  hoit cache test end  =========================\n");
+
+    return LW_TRUE;
+}
+#endif

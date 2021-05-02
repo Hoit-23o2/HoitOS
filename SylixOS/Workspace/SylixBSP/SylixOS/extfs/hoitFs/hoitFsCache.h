@@ -1,38 +1,28 @@
 /*********************************************************************************************************
 **
 <<<<<<< HEAD
-**                                    ä¸­å›½è½¯ä»¶ï¿½?æºç»„ï¿½?
+**                                    ÖĞ¹úÈí¼ş??Ô´×é??
 **
-**                                   åµŒå…¥å¼å®æ—¶æ“ä½œç³»ï¿½?
+**                                   Ç¶ÈëÊ½ÊµÊ±²Ù×÷Ïµ??
 =======
-**                                    ÖĞ¹úÈí¼ş¿ªÔ´×éÖ¯
+**                                    ?§Û???????????
 **
-**                                   Ç¶ÈëÊ½ÊµÊ±²Ù×÷ÏµÍ³
+**                                   ????????????
 >>>>>>> 3d721479faf46c7ab9d923e5b31785af351d8932
 **
 **                                       SylixOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
-**--------------ÎÄ¼şĞÅÏ¢--------------------------------------------------------------------------------
+**--------------??????--------------------------------------------------------------------------------
 **
-<<<<<<< HEAD
-** ï¿½?   ï¿½?   ï¿½?: hoitCache.h
+** ??   ??   ??: hoitCache.h
 **
-** ï¿½?   ï¿½?   ï¿½?: æ½˜å»¶ï¿½?
+** ??   ??   ??: ??????
 **
-** æ–‡ä»¶åˆ›å»ºæ—¥æœŸ: 2021 ï¿½? 04 ï¿½? 02 ï¿½?
+** ???????????: 2021 ?? 04 ?? 02 ??
 **
-** ï¿½?        ï¿½?: ç¼“å­˜ï¿½?
-=======
-** ÎÄ   ¼ş   Ãû: hoitCache.h
-**
-** ´´   ½¨   ÈË: ÅËÑÓ÷è
-**
-** ÎÄ¼ş´´½¨ÈÕÆÚ: 2021 Äê 04 ÔÂ 02 ÈÕ
-**
-** Ãè        Êö: »º´æ²ã
->>>>>>> 3d721479faf46c7ab9d923e5b31785af351d8932
+** ??        ??: ?????
 *********************************************************************************************************/
 
 #ifndef SYLIXOS_EXTFS_HOITFS_HOITFSCACHE_H_
@@ -50,53 +40,40 @@
 #include "hoitFsLib.h"
 #include "SylixOS.h"
 /*********************************************************************************************************
-<<<<<<< HEAD
- * ç»“æ„
+ * ½á¹¹
 *********************************************************************************************************/
 /* cache Type */
 #define HOIT_CACHE_TYPE_INVALID     0
 #define HOIT_CACHE_TYPE_DATA        1
-=======
- * ½á¹¹Ìå
-*********************************************************************************************************/
-
-typedef struct HOIT_CACHE_HDR
-{
-    UINT8               HOITCACHE_blockSize;    /* µ¥¸öcache´óĞ¡ */
-    UINT8               HOITCACHE_blockNums;    /* cache×î´óÊıÁ¿ */
-    LW_OBJECT_HANDLE    HOITCACHE_hVolLock;     /* cache×ÔĞıËø */
-}HOIT_CACHE_HDR;
-typedef HOIT_CACHE_HDR * PHOIT_CACHE_HDR;
->>>>>>> 3d721479faf46c7ab9d923e5b31785af351d8932
 
 typedef struct HOIT_CACHE_BLK
 {
-    BOOL                        HOITBLK_bType;          /* cacheå—ç±»å‹ï¼Œä¸º0 */
-    UINT32                      HOITBLK_blkNo;          /* cacheå—å· */
-    struct HOIT_CACHE_BLK       *HOITBLK_cacheListPrev;  /* é“¾è¡¨ä¸Šä¸Šä¸€ä¸ªcache */
-    struct HOIT_CACHE_BLK       *HOITBLK_cacheListNext;  /* é“¾è¡¨ä¸Šä¸‹ä¸€ä¸ªcache */
-    PCHAR                       HOITBLK_buf;            /* æ•°æ®ï¿½? */
+    BOOL                        HOITBLK_bType;          /* cache¿éÀàĞÍ£¬Îª0 */
+    UINT32                      HOITBLK_blkNo;          /* cache¿éºÅ */
+    struct HOIT_CACHE_BLK       *HOITBLK_cacheListPrev;  /* Á´±íÉÏÉÏÒ»¸öcache */
+    struct HOIT_CACHE_BLK       *HOITBLK_cacheListNext;  /* Á´±íÉÏÏÂÒ»¸öcache */
+    PCHAR                       HOITBLK_buf;            /* Êı¾İ?? */
 }HOIT_CACHE_BLK;
 typedef HOIT_CACHE_BLK * PHOIT_CACHE_BLK;
 
 typedef struct HOIT_CACHE_HDR
 {
     PHOIT_VOLUME            HOITCACHE_hoitfsVol;
-    size_t                  HOITCACHE_blockSize;    /* å•ä¸ªcacheå¤§å° */
-    UINT32                  HOITCACHE_blockMaxNums; /* cacheæœ€å¤§æ•°é‡ */
-    UINT32                  HOITCACHE_blockNums;    /* å½“å‰cacheæ•°é‡ */
-    LW_OBJECT_HANDLE        HOITCACHE_hLock;        /* cacheè‡ªæ—‹é”? */
-    UINT32                  HOITCACHE_flashBlkNum;  /* å°†flashåˆ†å—åçš„å—æ•° */
-    PHOIT_CACHE_BLK         HOITCACHE_cacheLineHdr;  /* cacheé“¾è¡¨ */
-    UINT32                  HOITCACHE_nextBlkToWrite;/* ä¸‹ä¸€ä¸ªè¦è¾“å‡ºçš„å— */
+    size_t                  HOITCACHE_blockSize;    /* µ¥¸öcache´óĞ¡ */
+    UINT32                  HOITCACHE_blockMaxNums; /* cache×î´óÊıÁ¿ */
+    UINT32                  HOITCACHE_blockNums;    /* µ±Ç°cacheÊıÁ¿ */
+    LW_OBJECT_HANDLE        HOITCACHE_hLock;        /* cache×ÔĞıËø? */
+    UINT32                  HOITCACHE_flashBlkNum;  /* ½«flash·Ö¿éºóµÄ¿éÊı */
+    PHOIT_CACHE_BLK         HOITCACHE_cacheLineHdr;  /* cacheÁ´±í */
+    UINT32                  HOITCACHE_nextBlkToWrite;/* ÏÂÒ»¸öÒªÊä³öµÄ¿é */
 }HOIT_CACHE_HDR;
 typedef HOIT_CACHE_HDR * PHOIT_CACHE_HDR;
 
 /*********************************************************************************************************
- * º¯Êı
+ * ????
 *********************************************************************************************************/
 PHOIT_CACHE_HDR     hoitEnableCache(UINT32 uiCacheBlockSize, UINT32 uiCacheBlockNums, PHOIT_VOLUME phoitfs);
-PHOIT_CACHE_BLK hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo, UINT32 cacheType);
+PHOIT_CACHE_BLK     hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo, UINT32 cacheType);
 PHOIT_CACHE_BLK     hoitCheckCacheHit(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo);
 BOOL    hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize);
 BOOL    hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize);
