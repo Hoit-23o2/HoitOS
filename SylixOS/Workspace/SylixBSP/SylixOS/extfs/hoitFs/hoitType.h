@@ -124,7 +124,9 @@ typedef struct HOIT_VOLUME{
                                                                            /* GC 相关 */
     PHOIT_ERASABLE_SECTOR   HOITFS_erasableSectorList;                     /* 可擦除Sector列表 */
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
-    spinlock_t              HOITFS_GCLock;                                 /*  GC锁 */
+    spinlock_t              HOITFS_GCLock;                                 /* GC锁 */
+    LW_HANDLE               HOITFS_GCMsgQ;                                 /* GC线程*/
+
     PHOIT_CACHE_HDR         HOITFS_cacheHdr;                               /* hoitfs的cache头结构 */
 } HOIT_VOLUME;
 
@@ -238,7 +240,7 @@ struct HOIT_ERASABLE_SECTOR{
     UINT                          HOITS_uiUsedSize;
     UINT                          HOITS_uiFreeSize;
     
-    UINT                          HOITS_uiNTotalRawInfo;                          /* 该可擦除Sector中RawInfo的总数 */
+    ////UINT                          HOITS_uiNTotalRawInfo;                          /* 该可擦除Sector中RawInfo的总数 */
     PHOIT_RAW_INFO                HOITS_pRawInfoFirst;                            /* 指向可擦除Sector中第一个数据实体 */
     PHOIT_RAW_INFO                HOITS_pRawInfoLast;                             /* 指向可擦除Sector中最后一个数据实体，通过next_phys获取下一个数据实体 */
     PHOIT_RAW_INFO                HOITS_pRawInfoCurGC;                            /* 当前即将回收的数据实体，注：一次仅回收一个数据实体 */

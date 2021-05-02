@@ -48,6 +48,9 @@ VOID __hoitFsGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
     PHOIT_RAW_INFO          pRawInfoObselete;
 
 
+    pRawInfoFirst       = LW_NULL;
+    pRawInfoLast        = LW_NULL;
+
     pRawInfoTrailing    = LW_NULL;
     pRawInfoTraverse    = pErasableSector->HOITS_pRawInfoFirst;
     
@@ -102,6 +105,7 @@ PHOIT_ERASABLE_SECTOR __hoitFsGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_G
     UINT                        uiFreeSize;
     UINT                        uiAge;
 
+    pErasableVictimSector       = LW_NULL;
     uiMinVictimSan              = INT_MAX;
 
     pErasableList               = pfs->HOITFS_erasableSectorList;
@@ -110,6 +114,12 @@ PHOIT_ERASABLE_SECTOR __hoitFsGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_G
     while (pErasableListTraverse)
     {
         uiFreeSize  = pErasableListTraverse->HOITS_uiFreeSize;   
+        
+        if(pErasableListTraverse->HOITS_uiUsedSize == 0){
+            pErasableListTraverse   = pErasableListTraverse->HOITS_next;
+            continue;
+        }
+
         switch (gcLevel)
         {
         case GC_BACKGROUND:{
@@ -132,7 +142,6 @@ PHOIT_ERASABLE_SECTOR __hoitFsGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_G
 
         pErasableListTraverse   = pErasableListTraverse->HOITS_next;
     }
-
     return pErasableVictimSector;
 }
 /*********************************************************************************************************
@@ -147,14 +156,8 @@ BOOL __hoitFsGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
     BOOL                    bIsCollectOver;
     
     PHOIT_RAW_INFO          pRawInfoCurGC;
-    PHOIT_RAW_INFO          pRawInfoLast;
     
-    PCHAR                   pContent;
-    
-    PHOIT_RAW_HEADER        pRawHeader;
-
     pRawInfoCurGC   = pErasableSector->HOITS_pRawInfoCurGC;
-    pRawInfoLast    = pErasableSector->HOITS_pRawInfoLast;
     bIsCollectOver  = LW_FALSE;
 
     if(pRawInfoCurGC == LW_NULL){
@@ -162,7 +165,6 @@ BOOL __hoitFsGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
     }
     
     //!把RawInfo及其对应的数据实体搬家
-
     __hoit_move_home(pfs, pRawInfoCurGC);
     pErasableSector->HOITS_uiUsedSize -= pRawInfoCurGC->totlen;
     pErasableSector->HOITS_uiFreeSize += pRawInfoCurGC->totlen;
@@ -182,7 +184,7 @@ BOOL __hoitFsGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID hoitFsGCForgroudForce(PHOIT_VOLUME pfs){
+VOID hoitGCForgroudForce(PHOIT_VOLUME pfs){
     PHOIT_ERASABLE_SECTOR   pErasableSector;
     INTREG                  iregInterLevel;
     BOOL                    bIsCollectOver;
@@ -194,7 +196,7 @@ VOID hoitFsGCForgroudForce(PHOIT_VOLUME pfs){
     {
         if(pErasableSector) {
 #ifdef GC_DEBUG
-        printf("[%s]: find a Sector start at %ld\n", __func__, pErasableSector->HOITS_offset);
+        printf("[%s]: find a Sector start at %d\n", __func__, pErasableSector->HOITS_offset);
 #endif // GC_DEBUG
             LW_SPIN_LOCK_QUICK(&pfs->HOITFS_GCLock, &iregInterLevel);
             __hoitFsGCSectorRawInfoFixUp(pErasableSector);
@@ -204,7 +206,7 @@ VOID hoitFsGCForgroudForce(PHOIT_VOLUME pfs){
                 pfs->HOITFS_curGCSector = LW_NULL;
                 break;
             }
-            LW_SPIN_UNLOCK_QUICK(&pfs->HOITFS_GCLock, &iregInterLevel);
+            LW_SPIN_UNLOCK_QUICK(&pfs->HOITFS_GCLock, iregInterLevel);
         }
         else {
 #ifdef GC_DEBUG
@@ -223,19 +225,29 @@ VOID hoitFsGCForgroudForce(PHOIT_VOLUME pfs){
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID hoitFsGCBackgroundThread(PHOIT_VOLUME pfs){
+VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
     INTREG                iregInterLevel;
     PHOIT_ERASABLE_SECTOR pErasableSector;
     BOOL                  bIsCollectOver;
-    
+    CHAR                  acMsg[MAX_MSG_BYTE_SIZE];
+    size_t                stLen;
+
     while (LW_TRUE)
     {
+        API_MsgQueueReceive(pfs->HOITFS_GCMsgQ, 
+                            acMsg, 
+                            sizeof(acMsg), 
+                            &stLen, 
+                            5);
+        if(lib_strcmp(acMsg, MSG_BG_GC_END)){
+            break;
+        }
         if(pfs->HOITFS_curGCSector == LW_NULL)
             pErasableSector = __hoitFsGCFindErasableSector(pfs, GC_BACKGROUND);
 
         if(pErasableSector) {
 #ifdef GC_DEBUG
-            printf("[%s]: find a Sector start at %ld\n", __func__, pErasableSector->HOITS_offset);
+            printf("[%s]: find a Sector start at %d\n", __func__, pErasableSector->HOITS_offset);
 #endif // GC_DEBUG
             LW_SPIN_LOCK_QUICK(&pfs->HOITFS_GCLock, &iregInterLevel);
             __hoitFsGCSectorRawInfoFixUp(pErasableSector);
@@ -244,25 +256,74 @@ VOID hoitFsGCBackgroundThread(PHOIT_VOLUME pfs){
             if(bIsCollectOver){
                 pfs->HOITFS_curGCSector = LW_NULL;
             }
-            LW_SPIN_UNLOCK_QUICK(&pfs->HOITFS_GCLock, &iregInterLevel);
+            LW_SPIN_UNLOCK_QUICK(&pfs->HOITFS_GCLock, iregInterLevel);
         }
         else {
 #ifdef GC_DEBUG
             printf("[%s]: there's no sector can be GCed\n", __func__);
 #endif // GC_DEBUG
         }
-        sleep(5);   
     }
 }
 
 /*********************************************************************************************************
-** 函数名称: hoitFsGCBackgroundThread
-** 功能描述: HoitFS后台GC线程
+** 函数名称: hoitFsGCThread
+** 功能描述: HoitFS GC线程
 ** 输　入  : pfs        HoitFS文件设备头
+**          uiThreshold GC阈值，参考F2FS
 ** 输　出  : None
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID hoitFsGCThread(PHOIT_VOLUME pfs){
+VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
+    PHOIT_VOLUME                pfs; 
+    UINT                        uiThreshold;
+    UINT                        uiCurUsedSize;
+    //TODO:uiCurUsedSize = pfs->UsedSize > uiThreshold
+    BOOL                        bIsBackgroundThreadStart;
 
+    LW_CLASS_THREADATTR         gcThreadAttr;
+    LW_OBJECT_HANDLE            hGcThreadId;
+
+    bIsBackgroundThreadStart = LW_FALSE;
+    pfs                      = pGCAttr->pfs;
+    uiThreshold              = pGCAttr->uiThreshold;
+
+    printf("\n\n[GC Thread Start...]\n\n");
+    pfs->HOITFS_GCMsgQ = API_MsgQueueCreate("q_gc_thread_msgq", 
+                                            MAX_MSG_COUNTER, 
+                                            MAX_MSG_BYTE_SIZE, 
+                                            LW_OPTION_WAIT_FIFO | LW_OPTION_OBJECT_LOCAL, 
+                                            LW_NULL);
+#ifdef GC_TEST
+    uiCurUsedSize = 60;
+#endif // GC_TEST
+    while (LW_TRUE)
+    {
+        if(uiCurUsedSize > uiThreshold){
+            if(bIsBackgroundThreadStart){
+                API_MsgQueueSend(pfs->HOITFS_GCMsgQ, MSG_BG_GC_END, sizeof(MSG_BG_GC_END));
+                API_ThreadJoin(hGcThreadId, LW_NULL);
+                bIsBackgroundThreadStart = LW_FALSE;
+            }
+            hoitGCForgroudForce(pfs);
+        }
+        else {
+            if(!bIsBackgroundThreadStart){
+                bIsBackgroundThreadStart = LW_TRUE;
+                
+                API_ThreadAttrBuild(&gcThreadAttr, 
+                                    4 * LW_CFG_KB_SIZE, 
+                                    LW_PRIO_NORMAL,
+                                    LW_OPTION_THREAD_STK_CHK, 
+                                    (VOID *)pfs);
+
+                hGcThreadId = API_ThreadCreate("t_gc_background_thread",
+						                       (PTHREAD_START_ROUTINE)hoitGCBackgroundThread,
+        						               &gcThreadAttr,
+		        				               LW_NULL);
+            }
+        }
+        sleep(5);
+    }
 }

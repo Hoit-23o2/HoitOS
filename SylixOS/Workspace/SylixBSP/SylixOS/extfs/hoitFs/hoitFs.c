@@ -23,6 +23,7 @@
 #define  __SYLIXOS_KERNEL
 #include "SylixOS.h"
 #include "hoitFs.h"
+#include "hoitFsGC.h"
 #ifndef HOITFS_DISABLE
 /*********************************************************************************************************
   内部全局变量
@@ -157,6 +158,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_erasableSectorList = LW_NULL;
     //__ram_mount(pramfs);
     __hoit_mount(pfs);
+    hoitStartGCThread(pfs, 50);
     
     if (iosDevAddEx(&pfs->HOITFS_devhdrHdr, pcName, _G_iHoitFsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
