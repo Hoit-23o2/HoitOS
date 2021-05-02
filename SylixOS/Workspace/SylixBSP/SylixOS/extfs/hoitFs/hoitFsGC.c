@@ -24,6 +24,31 @@
 #include "hoitFsLib.h"
 
 /*********************************************************************************************************
+** 函数名称: __hoitFsGCSectorRawInfoFixUp
+** 功能描述: 释放所有pErasableSector中的过期RawInfo，修改next_phys关系
+** 输　入  : pErasableSector        目标擦除块
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID __hoitFsGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
+    PHOIT_RAW_INFO          pRawInfoFirst;
+    PHOIT_RAW_INFO          pRawInfoLast;
+    
+    PHOIT_RAW_INFO          pRawInfoTrail;
+    PHOIT_RAW_INFO          pRawInfoTraverse;
+
+
+    pRawInfoTrail    = LW_NULL;
+    pRawInfoTraverse = pRawInfoFirst = pErasableSector->HOITS_pRawInfoFirst;
+    while (LW_TRUE)
+    {
+        pRawInfoTrail = pRawInfoTraverse;
+        
+        pRawInfoTraverse = pRawInfoTraverse->next_phys;
+    }
+}
+/*********************************************************************************************************
 ** 函数名称: __hoitFsGCFindErasableSector
 ** 功能描述: 根据HoitFS设备头中的信息，寻找一个可擦除数据块，目前寻找FreeSize最小的作为待GC
 ** 输　入  : pfs        HoitFS文件设备头
@@ -57,15 +82,6 @@ PHOIT_ERASABLE_SECTOR __hoitFsGCFindErasableSector(PHOIT_VOLUME pfs){
 
     return pErasableSector;
 }
-
-VOID __hoitFsGCCollectDirent(PHOIT_VOLUME pfs, PHOIT_RAW_DIRENT pRawDirent) {
-
-}
-
-
-VOID __hoitFsGCCollectINode(PHOIT_VOLUME pfs, PHOIT_RAW_INODE pRawInode){
-
-}
 /*********************************************************************************************************
 ** 函数名称: __hoitFSGCCollectSetcorAlive
 ** 功能描述: 从pErasableSector的pRawInfoCurGC处起，获取有效信息，一次获取一个
@@ -82,9 +98,7 @@ BOOL __hoitFSGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
     
     PCHAR                   pContent;
     
-    PHOIT_RAW_HEADER        pRawHeader;        
-    PHOIT_RAW_DIRENT        pRawDirent;
-    PHOIT_RAW_INODE         pRawInode;
+    PHOIT_RAW_HEADER        pRawHeader;
 
     UINT                    uiCurSectorNo;
     UINT                    uiCurSectorOfs;
@@ -106,16 +120,7 @@ BOOL __hoitFSGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
     uiCurSectorOfs  = pfs->HOITFS_now_sector->HOITS_offset;
     
     if(!__HOIT_IS_OBSOLETE(pRawHeader)){
-        if(__HOIT_IS_TYPE_DIRENT(pRawHeader)){
-            pRawDirent = (PHOIT_RAW_INODE)pContent;
-            //TODO:Cache层写的时候会更新now_sector
-            
-        }
-        else if (__HOIT_IS_TYPE_INODE(pRawHeader))
-        {
-            pRawInode = (PHOIT_RAW_INODE)pContent;
-            __hoitFsGCCollectINode(pRawInode);
-        }
+        //TODO: move()
     }
 
     if(pRawInfoCurGC == pErasableSector->HOITS_pRawInfoLast){
