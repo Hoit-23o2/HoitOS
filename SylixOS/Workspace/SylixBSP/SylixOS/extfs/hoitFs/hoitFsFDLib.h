@@ -12,7 +12,7 @@
 **
 ** 文   件   名: HoitFsFDLib.h
 **
-** 创   建   人: Hoit Group
+** 创   建   人: Hu Zhisheng
 **
 ** 文件创建日期: 2021 年 04 月 10 日
 **

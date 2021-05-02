@@ -277,7 +277,7 @@ static LONG __hoitFsOpen(PHOIT_VOLUME     pfs,
         INT                 iError;
         PCHAR               pcPrefix;
         INT                 iFollowLinkType;
-        PHOIT_FULL_DIRENT   pFullDirent = __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino);
+        PHOIT_FULL_DIRENT   pFullDirent = __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pcName);
         PCHAR               pcSymfile = pcTail - lib_strlen(pFullDirent->HOITFD_file_name) - 1; 
                                                                         /* pcSymfile指向pcName中软链接文件名首字母前面的'/' */
 
@@ -333,10 +333,10 @@ __file_open_ok:
             //TOOPT hoit_unlink 待整合
             if (S_ISDIR(phoitn->HOITN_mode)) {
                 __hoit_unlink_dir(phoitFather, 
-                                    __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino));
+                                    __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pcName));
             } else { //TODO 尚不能识别普通文件
                 __hoit_unlink_regular(phoitFather,
-                                    __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino));
+                                    __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pcName));
             }             
         }
         return  (PX_ERROR);
@@ -394,7 +394,7 @@ static INT  __hoitFsRemove(PHOIT_VOLUME   pfs,
         //TODO 建立软链接部分，PHOIT_INODE_INFO尚缺少pcLink
         if (S_ISLNK(phoitn->HOITN_mode)) {
             size_t  stLenTail = 0;
-            PHOIT_FULL_DIRENT   pFullDirent = __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino);
+            PHOIT_FULL_DIRENT   pFullDirent = __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pcName);
 
             if (pcTail) {
                 stLenTail = lib_strlen(pcTail);                         /*  确定 tail 长度              */
@@ -427,10 +427,10 @@ static INT  __hoitFsRemove(PHOIT_VOLUME   pfs,
         //TOOPT hoit_unlink 待整合
         if (S_ISDIR(phoitn->HOITN_mode)) {
             iError = __hoit_unlink_dir(phoitFather, 
-                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino));
+                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pcName));
         } else { //TODO 尚不能识别普通文件
             iError = __hoit_unlink_regular(phoitFather,
-                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino));
+                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pcName));
         }   
         __HOIT_VOLUME_UNLOCK(pfs);
         return (iError);
@@ -492,6 +492,57 @@ static INT  __hoitFsClose(PLW_FD_ENTRY    pfdentry)
     PHOIT_INODE_INFO    phoitn  = (PHOIT_INODE_INFO)pfdnode->FDNODE_pvFile;
     PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
     BOOL                bRemove = LW_FALSE;
+
+    if(phoitn->HOITN_ino == 1){
+        return (ERROR_NONE);
+    }
+    /* 先得到要close的文件在hoitfs文件系统中的相对路径, 相对于hoitfs的根目录 */
+    PLW_DEV_HDR    pdevhdrHdr;
+    CHAR           cFullFileName[MAX_FILENAME_LENGTH] = {0};
+    CHAR           cRealFileName[MAX_FILENAME_LENGTH] = {0};
+//    PCHAR pcFileName = lib_rindex(pfdentry->FDENTRY_pcName, PX_DIVIDER);
+//    if (pcFileName) {
+//        pcFileName++;
+//    }
+//    else {
+//        pcFileName = pfdentry->FDENTRY_pcName;
+//    }
+
+    lib_memcpy(cFullFileName, pfdentry->FDENTRY_pcName, lib_strlen(pfdentry->FDENTRY_pcName));
+    /*
+     *  需要在结尾处理掉多余的 / 符号, 例如: /aaa/bbb/ccc/ 应为 /aaa/bbb/ccc
+     */
+    UINT stFullLen = lib_strlen(cFullFileName);
+    if (stFullLen > 1) {                                                /*  本身就是 "/" 不能略去       */
+        if (cFullFileName[stFullLen - 1] == PX_DIVIDER) {
+            cFullFileName[stFullLen - 1] =  PX_EOS;                     /*  去掉末尾的 /                */
+        }
+        _PathCondense(cFullFileName);                                   /*  去除 ../ ./                 */
+    }
+
+    PCHAR pcTail = LW_NULL;
+    pdevhdrHdr = iosDevFind((cFullFileName), &pcTail);
+    if (pdevhdrHdr == LW_NULL) {
+        _ErrorHandle(ENOENT);
+        return  (PX_ERROR);
+    }
+
+    /*
+     *  如果 ppdevhdr == rootfs dev header 则, pcTail 起始位置没有 '/' 字符,
+     *  此处需要修正由于根文件系统设备名为 "/" 产生的问题.
+     */
+    if (pcTail && ((*pcTail != PX_EOS) && (*pcTail != PX_DIVIDER))) {
+        lib_strlcpy(&cRealFileName[1], pcTail, MAX_FILENAME_LENGTH - 1);
+        cRealFileName[0] = PX_ROOT;
+
+    } else {
+        lib_strlcpy(cRealFileName, pcTail, MAX_FILENAME_LENGTH);
+    }
+    
+
+    PHOIT_INODE_INFO phoitFather;
+    PHOIT_INODE_INFO pTempInode = __hoit_open(pfs, cRealFileName, &phoitFather, LW_NULL, LW_NULL, LW_NULL, LW_NULL);
+
     if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);                                            /*  设备出错                    */
         return  (PX_ERROR);
@@ -500,24 +551,25 @@ static INT  __hoitFsClose(PLW_FD_ENTRY    pfdentry)
     if (API_IosFdNodeDec(&pfs->HOITFS_plineFdNodeHeader, 
                          pfdnode, &bRemove) == 0) {
         if (phoitn) {
-            //TODO __hoit_close还未添加定义
-            //__hoit_close(phoitn, pfdentry->FDENTRY_iFlag);
+            __hoit_close(phoitn, pfdentry->FDENTRY_iFlag);
         }
     }
 
     LW_DEV_DEC_USE_COUNT(&pfs->HOITFS_devhdrHdr);
-    /*
-    if (bRemove && phoitn) { //TODEBUG __hoitFsClose里获取不了父亲节点，无法删除
-        if (S_ISDIR(phoitn->HOITN_mode)) { //TOOPT hoit_unlink 待整合
+
+
+    if (bRemove && phoitn) {
+        if (S_ISDIR(phoitn->HOITN_mode)) {
             __hoit_unlink_dir(phoitFather, 
-                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino));
+                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pfdentry->FDENTRY_pcName));
         } else { //TODO 尚不能识别普通文件
             __hoit_unlink_regular(phoitFather,
-                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino));
+                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pfdentry->FDENTRY_pcName));
         }
     }
-    */
 
+    __hoit_close(phoitFather, 0);
+    __hoit_close(pTempInode, 0);
     __HOIT_VOLUME_UNLOCK(pfs);
 
     return  (ERROR_NONE);
@@ -1545,5 +1597,66 @@ static INT  __hoitFsIoctl(PLW_FD_ENTRY  pfdentry,
     }
 
 }
+
+/*********************************************************************************************************
+** 函数名称: __hoitFsHardlink
+** 功能描述: hoitFs 创建硬链接文件
+** 输　入  : pfs                 hoitfs 文件系统
+**           pcName              链接原始文件名
+**           pcLinkDst           链接目标文件名
+**           stMaxSize           缓冲大小
+** 输　出  : < 0 表示错误
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT  __hoitFsHardlink(PHOIT_VOLUME   pfs,
+    PCHAR         pcName,
+    CPCHAR        pcLinkDst)
+{
+
+    BOOL                bRoot;
+    PHOIT_INODE_INFO    phoitn;
+    PHOIT_INODE_INFO    phoitnFather;
+
+    if (!pcName || !pcLinkDst) {
+        _ErrorHandle(EINVAL);
+        return  (PX_ERROR);
+    }
+
+    if (__fsCheckFileName(pcName)) {
+        _ErrorHandle(EINVAL);
+        return  (PX_ERROR);
+    }
+    PLW_DEV_HDR    pdevhdrHdr;
+    CHAR           cFullFileName[MAX_FILENAME_LENGTH] = { 0 };
+    CHAR           cFullLinkDst[MAX_FILENAME_LENGTH] = { 0 };
+
+    API_IoFullFileNameGet(pcName, &pdevhdrHdr, cFullFileName);
+    API_IoFullFileNameGet(pcLinkDst, &pdevhdrHdr, cFullLinkDst);
+
+    if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
+        _ErrorHandle(ENXIO);
+        return  (PX_ERROR);
+    }
+
+    phoitn = __hoit_open(pfs, cFullFileName, &phoitnFather, LW_NULL, &bRoot, LW_NULL, LW_NULL);
+    if (phoitn || bRoot) { /* 同名文件存在或为根节点 */
+        __HOIT_VOLUME_UNLOCK(pfs);
+        _ErrorHandle(EEXIST);
+        return  (PX_ERROR);
+    }
+
+    //建立硬链接
+    phoitn = __hoit_maken(pfs, cFullFileName, phoitnFather, S_IFSOCK | DEFAULT_SYMLINK_PERM, cFullLinkDst);
+    if (phoitn == LW_NULL) {
+        __HOIT_VOLUME_UNLOCK(pfs);
+        return  (PX_ERROR);
+    }
+
+    __HOIT_VOLUME_UNLOCK(pfs);
+
+    return  (ERROR_NONE);
+}
+
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
 #endif // HOITFS_DISABLE
