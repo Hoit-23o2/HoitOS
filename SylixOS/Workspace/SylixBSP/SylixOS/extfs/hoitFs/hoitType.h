@@ -223,7 +223,7 @@ struct HOIT_INODE_INFO{
 
 struct HOIT_ERASABLE_SECTOR{
     PHOIT_ERASABLE_SECTOR         HOITS_next;                                     /* 链表信息管理 */
-    UINT                          HOITS_bno;                                      /* 块号block number              */
+    UINT                          HOITS_bno;                                      /* Setcor号block number              */
     UINT                          HOITS_addr;
     UINT                          HOITS_length;
     UINT                          HOITS_offset;                                   /* 当前在写物理地址 = addr+offset  */

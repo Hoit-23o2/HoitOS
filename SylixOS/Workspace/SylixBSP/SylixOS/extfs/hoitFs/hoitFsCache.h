@@ -40,28 +40,11 @@
 #define HOIT_CACHE_TYPE_INVALID     0
 #define HOIT_CACHE_TYPE_DATA        1
 
-typedef struct HOIT_CACHE_BLK
-{
-    BOOL                        HOITBLK_bType;          /* cache块类型，为0 */
-    UINT32                      HOITBLK_blkNo;          /* cache块号 */
-    struct HOIT_CACHE_BLK       *HOITBLK_cacheListPrev;  /* 链表上上一个cache */
-    struct HOIT_CACHE_BLK       *HOITBLK_cacheListNext;  /* 链表上下一个cache */
-    PCHAR                       HOITBLK_buf;            /* 数据?? */
-}HOIT_CACHE_BLK;
-typedef HOIT_CACHE_BLK * PHOIT_CACHE_BLK;
 
-typedef struct HOIT_CACHE_HDR
-{
-    PHOIT_VOLUME            HOITCACHE_hoitfsVol;
-    size_t                  HOITCACHE_blockSize;    /* 单个cache大小 */
-    UINT32                  HOITCACHE_blockMaxNums; /* cache最大数量 */
-    UINT32                  HOITCACHE_blockNums;    /* 当前cache数量 */
-    LW_OBJECT_HANDLE        HOITCACHE_hLock;        /* cache自旋锁? */
-    UINT32                  HOITCACHE_flashBlkNum;  /* 将flash分块后的块数 */
-    PHOIT_CACHE_BLK         HOITCACHE_cacheLineHdr;  /* cache链表 */
-    UINT32                  HOITCACHE_nextBlkToWrite;/* 下一个要输出的块 */
-}HOIT_CACHE_HDR;
-typedef HOIT_CACHE_HDR * PHOIT_CACHE_HDR;
+
+
+
+
 
 /*********************************************************************************************************
  * ????
