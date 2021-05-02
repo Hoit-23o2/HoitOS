@@ -1,81 +1,26 @@
 /*********************************************************************************************************
 **
-**                                    中国软件开源组织
+**                                    �й�������Դ��֯
 **
-**                                   嵌入式实时操作系统
+**                                   Ƕ��ʽʵʱ����ϵͳ
 **
 **                                       SylixOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
-**--------------文件信息--------------------------------------------------------------------------------
+**--------------�ļ���Ϣ--------------------------------------------------------------------------------
 **
-** 文   件   名: hoitCache.c
+** ��   ��   ��: hoitCache.c
 **
-** 创   建   人: 潘延麒
+** ��   ��   ��: ������
 **
-** 文件创建日期: 2021 年 04 月 02 日
+** �ļ���������: 2021 �� 04 �� 02 ��
 **
-** 描        述: 缓存层
+** ��        ��: �����
 *********************************************************************************************************/
 #include "hoitFsCache.h"
-#include "../../driver/mtd/nor/nor.h"
-/*********************************************************************************************************
-** 函数名称: hoitEnableCache
-** 功能描述: 初始化 hoit cache
-** 输　入  : uiCacheBlockSize       单个cache大小
-**           uiCacheBlockNums       cache最大数量
-** 输　出  : LW_NULL 表示失败，PHOIT_CACHE_HDR地址 表示成功
-** 全局变量:
-** 调用模块:
-                                           API 函数
-*********************************************************************************************************/
-
-
-#define __HOITFS_CACHE_LOCK(pcacheHdr)          API_SemaphoreMPend(pcacheHdr->HOITCACHE_hLock, \
-                                                LW_OPTION_WAIT_INFINITE)
-#define __HOITFS_CACHE_UNLOCK(pcacheHdr)        API_SemaphoreMPost(pcacheHdr->HOITCACHE_hLock)
-/*
-    uiCacheBlockSize        单块cache大小
-    uiCacheBlockNums        cache数量
-    phoitfs                 hoitfs文件卷结构体
-*/
-PHOIT_CACHE_HDR hoitEnableCache(UINT32 uiCacheBlockSize, UINT32 uiCacheBlockNums, PHOIT_VOLUME phoitfs){
-    PHOIT_CACHE_HDR pcacheHdr;
-
-    pcacheHdr = (PHOIT_CACHE_HDR)__SHEAP_ALLOC(sizeof(HOIT_CACHE_HDR));
-    if (pcacheHdr == LW_NULL) {
-        _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
-        _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
-        return  (LW_NULL);        
-    }
-
-    lib_bzero(pcacheHdr,sizeof(HOIT_CACHE_HDR));
-
-    pcacheHdr->HOITCACHE_hLock = API_SemaphoreMCreate("hoit_cache_lock", LW_PRIO_DEF_CEILING,
-                                             LW_OPTION_WAIT_PRIORITY | LW_OPTION_DELETE_SAFE | 
-                                             LW_OPTION_INHERIT_PRIORITY | LW_OPTION_OBJECT_GLOBAL,
-                                             LW_NULL);
-
-    if (!pcacheHdr->HOITCACHE_hLock) {
-        __SHEAP_FREE(pcacheHdr);
-        return  (LW_NULL);
-    }
-
-    pcacheHdr->HOITCACHE_cacheLineHdr    = (PHOIT_CACHE_BLK)__SHEAP_ALLOC(sizeof(HOIT_CACHE_BLK));
-    if (pcacheHdr == LW_NULL) {
-        __SHEAP_FREE(pcacheHdr);
-        _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
-        _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
-        return  (LW_NULL);        
-    }
-
-    pcacheHdr->HOITCACHE_hoitfsVol      = phoitfs;
-    pcacheHdr->HOITCACHE_blockNums      = 0;
-    pcacheHdr->HOITCACHE_blockMaxNums   = uiCacheBlockNums;
-    pcacheHdr->HOITCACHE_blockSize      = uiCacheBlockSize;
-    pcacheHdr->HOITCACHE_flashBlkNum    = (NOR_FLASH_SZ - NOR_FLASH_START_OFFSET)/uiCacheBlockSize + 1;
-    pcacheHdr->HOITCACHE_nextBlkToWrite = 0;
+#include "driver/mtd/nor/nor.h"
+BOOL hoitEnableCache(UINT8 uiCacheBlockSize, UINT8 uiCacheBlockNums){
     
     /* 链表头也是一个HOIT_CACHE_BLK，不同在于有效位为0，且HOITBLK_buf为空，以此作为区别 */
     pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_bType            = HOIT_CACHE_TYPE_INVALID;
@@ -106,67 +51,8 @@ PHOIT_CACHE_BLK hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo, UIN
         //TOOPT 换块算法暂时采用FIFO
         pcache = cacheLineHdr->HOITBLK_cacheListPrev;
 
-        /* 从链表尾部断开 */
-        cacheLineHdr->HOITBLK_cacheListPrev = pcache->HOITBLK_cacheListPrev;
-        pcache->HOITBLK_cacheListPrev->HOITBLK_cacheListNext = pcache->HOITBLK_cacheListNext;
-
-        /* 直接插入链表头部 */
-        pcache->HOITBLK_cacheListPrev   = cacheLineHdr;
-        pcache->HOITBLK_cacheListNext   = cacheLineHdr->HOITBLK_cacheListNext;
-        cacheLineHdr->HOITBLK_cacheListNext->HOITBLK_cacheListPrev  = pcache;
-        cacheLineHdr->HOITBLK_cacheListNext     = pcache;
-    } else {
-        flag = LW_FALSE;
-        pcache = (PHOIT_CACHE_BLK)__SHEAP_ALLOC(sizeof(HOIT_CACHE_BLK));
-        if (pcache == NULL) {
-            _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
-            return i;
-        }
-
-        pcache->HOITBLK_buf = (PCHAR)__SHEAP_ALLOC(cacheBlkSize);
-        if (pcache == NULL) {
-            _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
-            return i;
-        }
-
-        /* 插入新分配的cache */
-        pcache->HOITBLK_cacheListPrev   = cacheLineHdr;
-        pcache->HOITBLK_cacheListNext   = cacheLineHdr->HOITBLK_cacheListNext;
-        cacheLineHdr->HOITBLK_cacheListNext->HOITBLK_cacheListPrev  = pcache;
-        cacheLineHdr->HOITBLK_cacheListNext     = pcache;
-
-        pcacheHdr->HOITCACHE_blockNums++;
-    }
-
-    if (flag) { 
-        /* 换了块要写回 */
-        blkToWrite = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA);
-        write_nor(blkToWrite*pcacheHdr->HOITCACHE_blockSize + NOR_FLASH_START_OFFSET, 
-                    pcache->HOITBLK_buf, 
-                    pcacheHdr->HOITCACHE_blockSize, 
-                    WRITE_KEEP);
-    }
-
-    lib_bzero(pcache->HOITBLK_buf,cacheBlkSize);
-    read_nor(flashBlkNo * cacheBlkSize + NOR_FLASH_START_OFFSET, pcache->HOITBLK_buf, cacheBlkSize);
-
-    pcache->HOITBLK_bType           = cacheType;
-    pcache->HOITBLK_blkNo           = flashBlkNo;
-
-    return pcache;
-}
-/* 检测相应flashBlkNo是否命中 */
-PHOIT_CACHE_BLK hoitCheckCacheHit(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo) {
-    PHOIT_CACHE_BLK pcacheLineHdr = pcacheHdr->HOITCACHE_cacheLineHdr;
-    PHOIT_CACHE_BLK pcache = pcacheLineHdr->HOITBLK_cacheListNext;
-    
-    while (pcache != pcacheLineHdr){
-        if (pcache->HOITBLK_blkNo == flashBlkNo &&
-            pcache->HOITBLK_bType != HOIT_CACHE_TYPE_INVALID) {
-            return pcache;
-        }
-    }
-    return LW_NULL;
+BOOL hoitReadFromCache(UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
+    read_nor(uiOfs, pContent, uiSize);
 }
 
 BOOL hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
@@ -357,28 +243,3 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType) {
     }
     
 }
-
-#ifdef HOIT_CACHE_TEST
-BOOL test_hoit_cache() {
-    PHOIT_CACHE_HDR pcacheHdr;
-    CHAR            data_write[8] = "2233445\0";
-    CHAR            data_read[8];
-    lib_memset(data_read,0,sizeof(data_read));
-    printf("======================  hoit cache test   ============================\n");
-    
-    printf("1.common write read\n");
-    pcacheHdr = hoitEnableCache(64, 8, LW_NULL);
-    hoitWriteToCache(pcacheHdr, 0, data_write, sizeof(data_write));
-    hoitReadFromCache(pcacheHdr, 4, data_read, sizeof(data_read));
-    printf("result: %s\n",data_read);
-
-    printf("2.common flush\n");
-    hoitFlushCache(pcacheHdr);
-    lib_memset(data_read,0,sizeof(data_read));
-    read_nor((pcacheHdr->HOITCACHE_nextBlkToWrite-1)*pcacheHdr->HOITCACHE_blockSize+4+NOR_FLASH_START_OFFSET,data_read,sizeof(data_read));
-    printf("result: %s\n",data_read);
-
-    printf("======================  hoit cache test end  =========================\n");
-    return LW_TRUE;
-}
-#endif

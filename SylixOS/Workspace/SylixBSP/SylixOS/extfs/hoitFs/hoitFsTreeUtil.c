@@ -1,22 +1,22 @@
 /*********************************************************************************************************
 **
-**                                    中国软件开源组织
+**                                    �й�������Դ��֯
 **
-**                                   嵌入式实时操作系统
+**                                   Ƕ��ʽʵʱ����ϵͳ
 **
 **                                       SylixOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
-**--------------文件信息--------------------------------------------------------------------------------
+**--------------�ļ���Ϣ--------------------------------------------------------------------------------
 **
-** 文   件   名: hoitFsTreeUtil.h
+** ��   ��   ��: hoitFsTreeUtil.c
 **
-** 创   建   人: Pan yanqi (潘延麒)
+** ��   ��   ��: Pan yanqi (������)
 **
-** 文件创建日期: 2021 年 03 月 28 日
+** �ļ���������: 2021 �� 03 �� 28 ��
 **
-** 描        述: JFFS2-Like 红黑树数据结构
+** ��        ��: JFFS2-Like ��������ݽṹ
 *********************************************************************************************************/
 
 #include "hoitFsTreeUtil.h"
@@ -31,13 +31,13 @@
 #define RB_IS_LEFT_CHILD(pRbn)       pRbn == RB_LEFT_CHILD(RB_PARENT(pRbn))
 #define RB_IS_RIGHT_CHILD(pRbn)      pRbn == RB_RIGHT_CHILD(RB_PARENT(pRbn))
 /*********************************************************************************************************
-** 函数名称: __hoitRbMinimum
-** 功能描述: 寻找某个红黑子树中最小的子节点
-** 输　入  : pRbTree          红黑树
-**           pRbnRoot          红黑子树树根             
-** 输　出  : 返回最小子节点
-** 全局变量:
-** 调用模块:
+** ��������: __hoitRbMinimum
+** ��������: Ѱ��ĳ�������������С���ӽڵ�
+** �䡡��  : pRbTree          �����
+**           pRbnRoot          �����������             
+** �䡡��  : ������С�ӽڵ�
+** ȫ�ֱ���:
+** ����ģ��:
 *********************************************************************************************************/
 PHOIT_RB_NODE __hoitRbMinimum(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnRoot){
     PHOIT_RB_NODE pRbnTraverse;
@@ -49,13 +49,13 @@ PHOIT_RB_NODE __hoitRbMinimum(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnRoot){
     return pRbnTraverse;
 }
 /*********************************************************************************************************
-** 函数名称: __hoitRbMaximum
-** 功能描述: 寻找某个红黑子树中最大的子节点
-** 输　入  : pRbTree          红黑树
-**           pRbnRoot          红黑子树树根             
-** 输　出  : 返回最大子节点
-** 全局变量:
-** 调用模块:
+** ��������: __hoitRbMaximum
+** ��������: Ѱ��ĳ����������������ӽڵ�
+** �䡡��  : pRbTree          �����
+**           pRbnRoot          �����������             
+** �䡡��  : ��������ӽڵ�
+** ȫ�ֱ���:
+** ����ģ��:
 *********************************************************************************************************/
 PHOIT_RB_NODE __hoitRbMaximum(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnRoot){
     PHOIT_RB_NODE pRbnTraverse;
@@ -67,14 +67,14 @@ PHOIT_RB_NODE __hoitRbMaximum(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnRoot){
     return pRbnTraverse;
 }
 /*********************************************************************************************************
-** 函数名称: __hoitRbConquer
-** 功能描述: 用征服者节点及其子树替换目标节点
-** 输　入  : pRbTree          红黑树
-**           pRbnTarget       目标节点      
-**           pRbnConqueror    征服者节点        
-** 输　出  : None
-** 全局变量:
-** 调用模块:
+** ��������: __hoitRbConquer
+** ��������: �������߽ڵ㼰�������滻Ŀ��ڵ�
+** �䡡��  : pRbTree          �����
+**           pRbnTarget       Ŀ��ڵ�      
+**           pRbnConqueror    �����߽ڵ�        
+** �䡡��  : None
+** ȫ�ֱ���:
+** ����ģ��:
 *********************************************************************************************************/
 VOID __hoitRbConquer(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnTarget, PHOIT_RB_NODE pRbnConqueror){
     if(RB_PARENT(pRbnTarget) == pRbTree->pRbnGuard){
@@ -89,13 +89,13 @@ VOID __hoitRbConquer(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnTarget, PHOIT_RB_N
     pRbnConqueror->pRbnParent = pRbnTarget->pRbnParent;
 }
 /*********************************************************************************************************
-** 函数名称: __hoitFsLeftRotate
-** 功能描述: 红黑树左旋
-** 输　入  : pRbTree          红黑树
-**           pRbn              红黑树节点
-** 输　出  : 成功返回True，失败返回False
-** 全局变量:
-** 调用模块:
+** ��������: __hoitFsLeftRotate
+** ��������: ���������
+** �䡡��  : pRbTree          �����
+**           pRbn              ������ڵ�
+** �䡡��  : �ɹ�����True��ʧ�ܷ���False
+** ȫ�ֱ���:
+** ����ģ��:
 *********************************************************************************************************/
 BOOL __hoitRbLeftRotate(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
     PHOIT_RB_NODE           pRbnRight;
@@ -107,21 +107,21 @@ BOOL __hoitRbLeftRotate(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
         return FALSE;
     }
     
-    pRbn->pRbnRight = RB_LEFT_CHILD(pRbnRight);         /* 移动当前节点右孩子的左孩子至该节点的右节点之下 */
+    pRbn->pRbnRight = RB_LEFT_CHILD(pRbnRight);         /* �ƶ���ǰ�ڵ��Һ��ӵ��������ýڵ���ҽڵ�֮�� */
     
-    if(pRbnRight->pRbnLeft != pRbTree->pRbnGuard){      /* 设置当前节点右孩子的左孩子节点的父亲节点： 如果该节点是空，则不需设置，否则设置为当前节点*/
+    if(pRbnRight->pRbnLeft != pRbTree->pRbnGuard){      /* ���õ�ǰ�ڵ��Һ��ӵ����ӽڵ�ĸ��׽ڵ㣺 ����ýڵ��ǿգ��������ã���������Ϊ��ǰ�ڵ�*/
         pRbnRight->pRbnLeft->pRbnParent = pRbn;
     }
 
-    pRbnRight->pRbnParent = RB_PARENT(pRbn);            /* 设置当前节点右孩子的父节点 */
+    pRbnRight->pRbnParent = RB_PARENT(pRbn);            /* ���õ�ǰ�ڵ��Һ��ӵĸ��ڵ� */
     
-    if(pRbn->pRbnParent == pRbTree->pRbnGuard){         /* 如果当前节点的父亲为空，则当前节点的右节点为红黑树的根 */
+    if(pRbn->pRbnParent == pRbTree->pRbnGuard){         /* �����ǰ�ڵ�ĸ���Ϊ�գ���ǰ�ڵ���ҽڵ�Ϊ������ĸ� */
         pRbTree->pRbnRoot = pRbnRight;
     }
-    else if(pRbn == pRbn->pRbnParent->pRbnLeft){        /* 当前节点是左孩子 */
+    else if(pRbn == pRbn->pRbnParent->pRbnLeft){        /* ��ǰ�ڵ������� */
         pRbn->pRbnParent->pRbnLeft = pRbnRight;
     }
-    else pRbn->pRbnParent->pRbnRight = pRbnRight;       /* 当前节点是右孩子 */
+    else pRbn->pRbnParent->pRbnRight = pRbnRight;       /* ��ǰ�ڵ����Һ��� */
     
     pRbnRight->pRbnLeft = pRbn;
     pRbn->pRbnParent = pRbnRight;
@@ -129,13 +129,13 @@ BOOL __hoitRbLeftRotate(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
     return TRUE;
 }
 /*********************************************************************************************************
-** 函数名称: __hoitFsRightRotate
-** 功能描述: 红黑树右旋
-** 输　入  : pRbTree          红黑树
-**           pRbn              红黑树节点
-** 输　出  : 成功返回True，失败返回False
-** 全局变量:
-** 调用模块:
+** ��������: __hoitFsRightRotate
+** ��������: ���������
+** �䡡��  : pRbTree          �����
+**           pRbn              ������ڵ�
+** �䡡��  : �ɹ�����True��ʧ�ܷ���False
+** ȫ�ֱ���:
+** ����ģ��:
 *********************************************************************************************************/
 BOOL __hoitRbRightRotate(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
     PHOIT_RB_NODE           pRbnLeft;
@@ -158,10 +158,10 @@ BOOL __hoitRbRightRotate(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
     if(pRbn->pRbnParent == pRbTree->pRbnGuard){         
         pRbTree->pRbnRoot = pRbnLeft;
     }
-    else if(pRbn == pRbn->pRbnParent->pRbnLeft){        /* 当前节点是左孩子 */
+    else if(pRbn == pRbn->pRbnParent->pRbnLeft){        /* ��ǰ�ڵ������� */
         pRbn->pRbnParent->pRbnLeft = pRbnLeft;
     }
-    else pRbn->pRbnParent->pRbnRight = pRbnLeft;       /* 当前节点是右孩子 */
+    else pRbn->pRbnParent->pRbnRight = pRbnLeft;       /* ��ǰ�ڵ����Һ��� */
     
     pRbnLeft->pRbnRight = pRbn;
     pRbn->pRbnParent = pRbnLeft;
@@ -170,26 +170,26 @@ BOOL __hoitRbRightRotate(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
 }
 
 /*********************************************************************************************************
-** 函数名称: __hoitRbInsertFixUp
-** 功能描述: 重绘节点颜色
-** 输　入  : pRbTree          红黑树
-**           pRbn              待插入红黑树节点
-** 输　出  : None
-** 全局变量:
-** 调用模块:
+** ��������: __hoitRbInsertFixUp
+** ��������: �ػ�ڵ���ɫ
+** �䡡��  : pRbTree          �����
+**           pRbn              �����������ڵ�
+** �䡡��  : None
+** ȫ�ֱ���:
+** ����ģ��:
 *********************************************************************************************************/
 VOID __hoitRbInsertFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
     while (RB_PARENT(pRbn)->uiColor == RB_RED)
     {
         if(RB_IS_LEFT_CHILD(RB_PARENT(pRbn))){
-            /* 父亲是左孩子, 叔叔节点为右侧, 且是红色 
+            /* ����������, ����ڵ�Ϊ�Ҳ�, ���Ǻ�ɫ 
                        PP(B)
                       /   \
                    P(R)    uncle(R)         
                    /
                 pRbn(R)
                         
-                        或
+                        ��
 
                         PP(B)
                       /   \
@@ -203,7 +203,7 @@ VOID __hoitRbInsertFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
                 RB_GRAND(pRbn)->uiColor = RB_RED;
                 pRbn = RB_GRAND(pRbn);
             }
-            /* 该节点是右孩子，叔叔是黑色
+            /* �ýڵ����Һ��ӣ������Ǻ�ɫ
                       PP(B)
                       /   \
                    P(R)    uncle(B)
@@ -214,7 +214,7 @@ VOID __hoitRbInsertFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
                 pRbn = RB_PARENT(pRbn);
                 __hoitRbLeftRotate(pRbTree, pRbn);
             }
-            /* 该节点的叔叔是黑色的，且自己是左孩子
+            /* �ýڵ�������Ǻ�ɫ�ģ����Լ�������
                       PP(B)
                       /   \
                    P(R)    uncle(B)
@@ -228,14 +228,14 @@ VOID __hoitRbInsertFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
             }
         }
         else {
-            /* 父亲是右孩子, 叔叔节点为左侧, 且是红色 */
+            /* �������Һ���, ����ڵ�Ϊ���, ���Ǻ�ɫ */
             if(RB_UNCLE_LEFT(pRbn)->uiColor == RB_RED){
                 RB_PARENT(pRbn)->uiColor = RB_BLACK;
                 RB_UNCLE_LEFT(pRbn)->uiColor = RB_BLACK;
                 RB_GRAND(pRbn)->uiColor = RB_RED;
                 pRbn = RB_GRAND(pRbn);
             }
-            /* 该节点是右孩子 */
+            /* �ýڵ����Һ��� */
             else if(RB_IS_LEFT_CHILD(pRbn)){
                 pRbn = RB_PARENT(pRbn);
                 __hoitRbRightRotate(pRbTree, pRbn);
@@ -252,47 +252,47 @@ VOID __hoitRbInsertFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
 }
 
 /*********************************************************************************************************
-** 函数名称: __hoitRbDeleteFixUp
-** 功能描述: 重绘节点颜色
-** 输　入  : pRbTree          红黑树
-**           pRbn             待更新的红黑树节点
-** 输　出  : None
-** 全局变量:
-** 调用模块:
+** ��������: __hoitRbDeleteFixUp
+** ��������: �ػ�ڵ���ɫ
+** �䡡��  : pRbTree          �����
+**           pRbn             �����µĺ�����ڵ�
+** �䡡��  : None
+** ȫ�ֱ���:
+** ����ģ��:
 *********************************************************************************************************/
 VOID __hoitRbDeleteFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
     PHOIT_RB_NODE           pRbnBrother;
 
-    while (pRbn != pRbTree->pRbnRoot && pRbn->uiColor == RB_BLACK)              /* 当待更新节点没有过更新到根节点，且待更新节点为黑色，参考算法导论第三版 P 201 */
+    while (pRbn != pRbTree->pRbnRoot && pRbn->uiColor == RB_BLACK)              /* �������½ڵ�û�й����µ����ڵ㣬�Ҵ����½ڵ�Ϊ��ɫ���ο��㷨���۵����� P 201 */
     {
-        if(RB_IS_LEFT_CHILD(pRbn)){                                             /* 考虑待更新节点是左孩子 */
+        if(RB_IS_LEFT_CHILD(pRbn)){                                             /* ���Ǵ����½ڵ������� */
             pRbnBrother = RB_RIGHT_CHILD(RB_PARENT(pRbn));
-            if(pRbnBrother->uiColor == RB_RED){                                 /* 情况1：待更新节点的兄弟节点为红色，将其转为黑色，变成情况2、3、4 */
+            if(pRbnBrother->uiColor == RB_RED){                                 /* ���1�������½ڵ���ֵܽڵ�Ϊ��ɫ������תΪ��ɫ��������2��3��4 */
                 pRbnBrother->uiColor = RB_BLACK;
                 pRbnBrother->pRbnParent->uiColor = RB_RED;
                 __hoitRbLeftRotate(pRbTree, RB_PARENT(pRbn));
                 pRbnBrother = RB_RIGHT_CHILD(RB_PARENT(pRbn));
             }
             if(RB_LEFT_CHILD(pRbnBrother)->uiColor == RB_BLACK 
-               && RB_RIGHT_CHILD(pRbnBrother)->uiColor == RB_BLACK){            /* 情况2：待更新节点的兄弟节点的儿子节点均为黑色 */
+               && RB_RIGHT_CHILD(pRbnBrother)->uiColor == RB_BLACK){            /* ���2�������½ڵ���ֵܽڵ�Ķ��ӽڵ��Ϊ��ɫ */
                 pRbnBrother->uiColor = RB_RED;
                 pRbn = RB_PARENT(pRbn);
             }
-            else if (RB_RIGHT_CHILD(pRbnBrother)->uiColor == RB_BLACK)          /* 情况3：待更新节点的兄弟节点的右孩子是黑色 */
+            else if (RB_RIGHT_CHILD(pRbnBrother)->uiColor == RB_BLACK)          /* ���3�������½ڵ���ֵܽڵ���Һ����Ǻ�ɫ */
             {
                 pRbnBrother->pRbnLeft->uiColor = RB_BLACK;
                 pRbnBrother->uiColor = RB_RED;
                 __hoitRbRightRotate(pRbTree, pRbnBrother);
                 pRbnBrother = RB_RIGHT_CHILD(RB_PARENT(pRbn));
 
-                pRbnBrother->uiColor = RB_PARENT(pRbn)->uiColor;                /* 情况4：待更新节点的兄弟节点的右孩子是红色 */
+                pRbnBrother->uiColor = RB_PARENT(pRbn)->uiColor;                /* ���4�������½ڵ���ֵܽڵ���Һ����Ǻ�ɫ */
                 pRbn->pRbnParent->uiColor = RB_BLACK;
                 RB_RIGHT_CHILD(pRbnBrother)->uiColor = RB_BLACK;
                 __hoitRbLeftRotate(pRbTree, RB_PARENT(pRbn));
                 pRbn = pRbTree->pRbnRoot;
             }
             else {
-                pRbnBrother->uiColor = RB_PARENT(pRbn)->uiColor;                /* 情况4：待更新节点的兄弟节点的右孩子是红色 */
+                pRbnBrother->uiColor = RB_PARENT(pRbn)->uiColor;                /* ���4�������½ڵ���ֵܽڵ���Һ����Ǻ�ɫ */
                 pRbn->pRbnParent->uiColor = RB_BLACK;
                 RB_RIGHT_CHILD(pRbnBrother)->uiColor = RB_BLACK;
                 __hoitRbLeftRotate(pRbTree, RB_PARENT(pRbn));
@@ -339,13 +339,13 @@ VOID __hoitRbDeleteFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
     pRbn->uiColor = RB_BLACK;
 }
 /*********************************************************************************************************
-** 函数名称: __hoitRbTraverse
-** 功能描述: 中序遍历红黑树
-** 输　入  : pRbTree          红黑树
-**           pRbnRoot          树根
-** 输　出  : None
-** 全局变量:
-** 调用模块:
+** ��������: __hoitRbTraverse
+** ��������: ������������
+** �䡡��  : pRbTree          �����
+**           pRbnRoot          ����
+** �䡡��  : None
+** ȫ�ֱ���:
+** ����ģ��:
 *********************************************************************************************************/
 VOID __hoitRbTraverse(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnRoot){
     if(pRbnRoot == pRbTree->pRbnGuard){
@@ -364,13 +364,13 @@ VOID __hoitRbTraverse(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbnRoot){
 
 
 /*********************************************************************************************************
-** 函数名称: hoitRbInsertNode
-** 功能描述: 插入一个红黑树节点
-** 输　入  : pRbTree          红黑树
-**           pRbn               待插入节点              
-** 输　出  : 返回插入的节点
-** 全局变量:
-** 调用模块:
+** ��������: hoitRbInsertNode
+** ��������: ����һ��������ڵ�
+** �䡡��  : pRbTree          �����
+**           pRbn               ������ڵ�              
+** �䡡��  : ���ز���Ľڵ�
+** ȫ�ֱ���:
+** ����ģ��:
 *********************************************************************************************************/
 PHOIT_RB_NODE hoitRbInsertNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
     PHOIT_RB_NODE       pRbnTrailing;
@@ -408,13 +408,13 @@ PHOIT_RB_NODE hoitRbInsertNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
 
 
 /*********************************************************************************************************
-** 函数名称: hoitRbSearchNode
-** 功能描述: 根据键值查找红黑树节点
-** 输　入  : pRbTree          红黑树
-**           iKey              键值              
-** 输　出  : 成功返回节点指针，否则返回LW_NULL
-** 全局变量:
-** 调用模块:
+** ��������: hoitRbSearchNode
+** ��������: ���ݼ�ֵ���Һ�����ڵ�
+** �䡡��  : pRbTree          �����
+**           iKey              ��ֵ              
+** �䡡��  : �ɹ����ؽڵ�ָ�룬���򷵻�LW_NULL
+** ȫ�ֱ���:
+** ����ģ��:
 *********************************************************************************************************/
 PHOIT_RB_NODE hoitRbSearchNode(PHOIT_RB_TREE pRbTree, INT32 iKey){
     PHOIT_RB_NODE       pRbnTraverse;
@@ -437,22 +437,22 @@ PHOIT_RB_NODE hoitRbSearchNode(PHOIT_RB_TREE pRbTree, INT32 iKey){
 }
 
 /*********************************************************************************************************
-** 函数名称: hoitRbDeleteNode
-** 功能描述: 删除一个红黑树节点，注意，我们并不会释放内存，这是为了后面着想
-** 输　入  : pRbTree          红黑树
-**           pRbn             待删除节点              
-** 输　出  : 成功返回True，失败返回False
-** 全局变量:
-** 调用模块:
+** ��������: hoitRbDeleteNode
+** ��������: ɾ��һ��������ڵ㣬ע�⣬���ǲ������ͷ��ڴ棬����Ϊ�˺�������
+** �䡡��  : pRbTree          �����
+**           pRbn             ��ɾ���ڵ�              
+** �䡡��  : �ɹ�����True��ʧ�ܷ���False
+** ȫ�ֱ���:
+** ����ģ��:
 *********************************************************************************************************/
 BOOL hoitRbDeleteNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
     PHOIT_RB_NODE           pRbnTraverse;
     PHOIT_RB_NODE           pRbnConqueror;
     UINT32                  uiTraverseOriginColor;
 
-    pRbnTraverse = pRbn;                            /* 记录待删除节点颜色 */
+    pRbnTraverse = pRbn;                            /* ��¼��ɾ���ڵ���ɫ */
     uiTraverseOriginColor = pRbnTraverse->uiColor;
-    /* 待删除节点的右孩子为空，则直接移动 (同样适于LC是NIL的情况)
+    /* ��ɾ���ڵ���Һ���Ϊ�գ���ֱ���ƶ� (ͬ������LC��NIL�����)
               |                             |
             pRbn            =>             LC
             /  \                          /  \
@@ -462,7 +462,7 @@ BOOL hoitRbDeleteNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
         pRbnConqueror = RB_LEFT_CHILD(pRbn);
         __hoitRbConquer(pRbTree, pRbn, pRbnConqueror);
     }
-    /* 待删除节点的左孩子为空，则直接移动 (同样适于RC是NIL的情况)
+    /* ��ɾ���ڵ������Ϊ�գ���ֱ���ƶ� (ͬ������RC��NIL�����)
               |                             |
             pRbn            =>             RC
             /  \                          /  \
@@ -475,16 +475,16 @@ BOOL hoitRbDeleteNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
     }
     else
     {
-        pRbnTraverse = __hoitRbMinimum(pRbTree, RB_RIGHT_CHILD(pRbn));        /* 寻找后继元素 */
-        uiTraverseOriginColor = pRbnTraverse->uiColor;                        /* 删除pRbn节点，相当于把pRbn的值与后继节点交换，然后删除后继节点，所以这里更换删除节点的颜色*/
+        pRbnTraverse = __hoitRbMinimum(pRbTree, RB_RIGHT_CHILD(pRbn));        /* Ѱ�Һ��Ԫ�� */
+        uiTraverseOriginColor = pRbnTraverse->uiColor;                        /* ɾ��pRbn�ڵ㣬�൱�ڰ�pRbn��ֵ���̽ڵ㽻����Ȼ��ɾ����̽ڵ㣬�����������ɾ���ڵ����ɫ*/
         pRbnConqueror = RB_RIGHT_CHILD(pRbnTraverse);                             
         
         if(RB_PARENT(pRbnTraverse) == pRbn){                                  /* https://www.zhihu.com/question/38296405 */
-            pRbnConqueror->pRbnParent = pRbnTraverse;                           /* pRbnConqueror可能为pRbTree.Guard */
+            pRbnConqueror->pRbnParent = pRbnTraverse;                           /* pRbnConqueror����ΪpRbTree.Guard */
         }
         else
         {
-            /* 待删除节点的左孩子为空，则直接移动 (同样适于LC是NIL的情况)
+            /* ��ɾ���ڵ������Ϊ�գ���ֱ���ƶ� (ͬ������LC��NIL�����)
                       |                             |                               |
                     pRbn            =>             pRbn  S          =>              S
                     /  \                          /  \  /                         /  \
@@ -503,10 +503,10 @@ BOOL hoitRbDeleteNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
         __hoitRbConquer(pRbTree, pRbn, pRbnTraverse);
         pRbnTraverse->pRbnLeft = pRbn->pRbnLeft;
         pRbnTraverse->pRbnLeft->pRbnParent = pRbnTraverse;
-        pRbnTraverse->uiColor = pRbn->uiColor;                              /* 因为交换，所以把S的颜色换一下 */
+        pRbnTraverse->uiColor = pRbn->uiColor;                              /* ��Ϊ���������԰�S����ɫ��һ�� */
     }
     
-    if(uiTraverseOriginColor == RB_BLACK){          /* 删除红节点不会影响树的平衡，删除黑节点要影响，这里需要调整 */
+    if(uiTraverseOriginColor == RB_BLACK){          /* ɾ����ڵ㲻��Ӱ������ƽ�⣬ɾ���ڽڵ�ҪӰ�죬������Ҫ���� */
         __hoitRbDeleteFixUp(pRbTree, pRbnConqueror);
     }
 
@@ -514,12 +514,12 @@ BOOL hoitRbDeleteNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
 }
 
 /*********************************************************************************************************
-** 函数名称: hoitInitRbTree
-** 功能描述: 红黑树初始化
-** 输　入  : NONE
-** 输　出  : 成功返回True，失败返回False
-** 全局变量:
-** 调用模块:
+** ��������: hoitInitRbTree
+** ��������: �������ʼ��
+** �䡡��  : NONE
+** �䡡��  : �ɹ�����True��ʧ�ܷ���False
+** ȫ�ֱ���:
+** ����ģ��:
 *********************************************************************************************************/
 PHOIT_RB_TREE hoitRbInitTree(){
     PHOIT_RB_TREE           pRbTree; 

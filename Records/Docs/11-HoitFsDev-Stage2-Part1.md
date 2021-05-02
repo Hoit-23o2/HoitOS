@@ -7,6 +7,13 @@
 > 
 >
 > 本周进入项目的联合调试阶段，本阶段的首要任务便是能够让HoitFs成功跑起来。
+>
+> 参考文献：
+>
+> 1. [Linux Flash FS BenchMarks 同文件系统在不同开发板上的对比](https://elinux.org/Flash_Filesystem_Benchmarks_Kernel_Evolution)
+> 2. [文件系统测试约定](https://elinux.org/Flash_Filesystem_Benchmarks_Protocol)
+> 3. [FFS BenchMarks](../Files/ffs-benchmark.pdf)
+> 4. [Linux GC源码](https://code.woboq.org/linux/linux/fs/jffs2/gc.c.html#100)
 
 ## hoitFsTree API DOC（*代表可忽略部分）
 
@@ -312,4 +319,301 @@ struct jffs2_eraseblock
 
 
 ## 联调问题记录
+
+### 编译问题
+
+1. 在`SylixOS/fs/mount/mount.c 133行`处加入：
+
+   ```c
+   if ((lib_strcmp(pcFs, __LW_MOUNT_NFS_FS) == 0) ||
+       (lib_strcmp(pcFs, __LW_MOUNT_RAM_FS) == 0) ||
+       (lib_strcmp(pcFs, __LW_MOUNT_HOIT_FS) == 0)) {                   /*  NFS 或者 RAM FS             */
+       bNeedDelete = LW_FALSE;                                          /*  不需要操作 BLK RAW 设备     */
+   } else {
+       bNeedDelete = LW_TRUE;
+   }
+   ```
+
+   注意自行定义__LW_MOUNT_HOIT_FS：
+
+   ```c
+   #define __LW_MOUNT_HOIT_FS          "hoitfs"                          /*  hoitfs挂载              */
+   ```
+
+   然后重新编译内核、BSP即可。
+   
+   
+
+## 进一步探索
+
+> 需要再寻找一些Solution + Bench Mark，两个目的
+>
+> 1. GC的实现、LOG的实现
+> 2. 如何评估文件系统
+
+### F2FS的Clean
+
+Cleaning is a process to reclaim scattered and invalidated blocks, and secures free segments for further logging. Because cleaning occurs constantly once the underlying storage capacity has been filled up, limiting the costs related with cleaning is extremely important for the sustained performance of F2FS (and any LFS in general). In F2FS, cleaning is done in the unit of a section. F2FS performs cleaning in two distinct manners, foreground and background. Foreground cleaning is triggered only when there are not enough free sections, while a kernel thread wakes up periodically to conduct cleaning in background. A cleaning process takes three steps:
+
+
+
+
+
+**Key:**
+
+1. Foreground cleaning is triggered only when there are not enough free sections;
+
+   对于HoitFS而言，我们需要设置一个阈值α，从底层检测到已占有空间＞α，那么启动强制GC；F2FS设置该阈值为5%；
+
+   Greedy算法：The greedy policy selects a section with the smallest number of valid blocks. 
+
+2. A kernel thread wakes up periodically to conduct cleaning in background;
+
+   对于HoitFS而言，我们有一个间断性线程来帮助后台GC；
+
+   Cost-Benefit算法：This policy selects a victim section not only based on its utilization but also its “age”；
+
+```c
+struct HOIT_SECTOR{
+    PHOIT_SECTOR        HOITS_next;										/* 链表结构					   */
+    UINT                HOITS_sno;                                      /* 块号Sector Number           */
+    UINT                HOITS_addr;
+    UINT                HOITS_length;
+    UINT                HOITS_offset;                                   /* 当前在写物理地址=addr+offset  */
+    
+    /* 				可新添字段				 */
+    UINT				HOITS_age;	
+};
+```
+
+### JFFS2
+
+#### 1. Improve Fault Tolerance
+
+JFFS2 already has a primitive method of dealing with blocks for which errors are returned by the hardware driver it files them on a separate bad list and refuses to use them again until the next time the file system is remounted. This should be developed.
+
+简单而言，坏块处理。—— 目前仅仅将坏块收集起来。
+
+#### 2.  Garbage Collection Space Requirements
+
+减小GC所需的空间至NorFlash中的1个块；
+
+#### 3. **Transaction Support（LOG）
+
+ For storing database information in JFFS2 file systems, it may beyo desirable to expose transactions to user space. It has been argued that user space can implement transactions itself, using only the file system functionality required by POSIX. This is true — but implementing a transaction-based system on top of JFFS2 would be far less efficient than using the existing journalling capability of the file system; for the same reason that emulating a block device and then using a standard journalling file system on top of that was considered inadequate.
+
+1. 用户可利用POSIX提供的函数在JFFS2上实现Transaction。
+
+2. 基于JFFS2的基于Transaction的文件系统效率会低；
+
+3. 在此基础上模拟块设备然后使用标准日志文件系统也被认为是不够的；—— 意味着NorFlash设备最好以LFS结构构建文件系统。
+
+
+**Another Future Work:**
+
+```c
+One oft-requested feature which is currently not
+planned for development in JFFS2 is eXecute In
+Place (XIP) functionality. When programs are run
+from JFFS2, the executable code is copied from the
+flash into RAM before the CPU can execute it. Likewise, even when the mmap() system call is used,
+data are not accessed directly from the flash but
+are copied into RAM when required.
+```
+
+
+
+**Key**
+
+1. *坏块处理;
+2. **日志、事务，以效率换掉电安全；
+3. —— 跳过CPU，直接在NorFlash上执行；
+4. write-behind cache（不能直接写穿）;
+5. 加快Build速率，设置几个块，具有特殊`type`；
+
+### SylixOS线程消息机制
+
+```c
+/*********************************************************************************************************
+**
+**                                    中国软件开源组织
+**
+**                                   嵌入式实时操作系统
+**
+**                                       SylixOS(TM)
+**
+**                               Copyright  All Rights Reserved
+**
+**--------------文件信息--------------------------------------------------------------------------------
+**
+** 文   件   名: ***
+**
+** 创   建   人: ***
+**
+** 文件创建日期: ** 年 ** 月 ** 日
+**
+** 描        述: 私有数据实现线程间通信
+*********************************************************************************************************/
+#include <SylixOS.h>
+#include <stdio.h>
+/*********************************************************************************************************
+  全局变量定义
+*********************************************************************************************************/
+INT   iGlobal = 0;
+/*********************************************************************************************************
+** 函数名称: tTest
+** 功能描述: 线程函数
+** 输　入  : pvArg  传入参数
+** 输　出  : NONE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+PVOID  tTest (PVOID  pvArg)
+{
+    while (1) {
+        fprintf(stdout, "tTest global value: %d\n", iGlobal);
+        sleep(1);
+    }
+
+    return  (LW_NULL);
+}
+/*********************************************************************************************************
+** 函数名称: main
+** 功能描述: 主函数
+** 输　入  : argc，argv
+** 输　出  : ERROR
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+int main (int argc, char *argv[])
+{
+    LW_HANDLE  hId;
+
+    hId = Lw_Thread_Create("t_test", tTest, NULL, NULL);
+    if (hId == LW_HANDLE_INVALID) {
+        return  (PX_ERROR);
+    }
+
+    if (Lw_Thread_VarAdd(hId, (ULONG *)&iGlobal) != 0) {
+		return  (PX_ERROR);
+	}
+    INT i = 0;
+    while (1) {
+        i++;
+        Lw_Thread_VarSet(hId, (ULONG *)&iGlobal, 55 + i);
+        sleep(1);
+    }
+
+    Lw_Thread_Join(hId, NULL);
+
+    return  (ERROR_NONE);
+}
+/*********************************************************************************************************
+  END
+*********************************************************************************************************/
+```
+
+### Evaluation
+
+#### 方式一：针对两种评估场景
+
+> 本部分主要参考自[FFS BenchMarks](../Files/ffs-benchmark.pdf)
+
+1. S1
+
+   > 测试了mount_time，read_time，file_create_time以及unmount_time
+
+   - 准备装有Root FS所有文件及文件夹的文件系统镜像；
+
+   - **挂载镜像；**
+
+   - `LS -R /mnt/mntpoint`；
+
+     > 查看所有文件信息；
+
+   - `LS -R /mnt/mntpoint`；
+
+     > 查看缓存效应
+
+   - **创建一个文件树：**深度5、每个目录的文件数按照norm(4, 1)分布生成、每个目录文件的目录数量按照norm(3, 1)生成、文件的大小按照norm(1024, 64)生成；
+
+   - `unmount`文件系统；
+
+2. S2
+
+   > 分区预热（把他弄脏）后，再测试mount，unmount，find，delete等
+
+   - 擦除镜像上的所有信息；
+
+   - **分区预热：**创建一个文件，随机填充整个flash设备；
+
+   - 删除预热文件；（弄脏了）
+
+   - **创建一个文件树：**深度5、每个目录由多个文件组成、每个文件大小为750B，每个生成的目录文件下有2个目录。
+
+   - `unmount`文件系统；
+
+   - `mount`文件系统；
+
+   - `find NULL /mnt/mntpoint`；
+
+     > 扫描整个目录；
+
+   - 删除文件树;
+
+   - `unmount`文件系统；
+
+#### 方式二：针对主要参数 
+
+> 本部分主要参考自[Wiki —— 文件系统测试约定](https://elinux.org/Flash_Filesystem_Benchmarks_Protocol)
+
+1. `init_time` & `init_cpu_time`;
+
+   > The init test consists of modprobing the filesystem driver.
+   >
+   > In the case of a filesystem on top of UBI, it also consists of modprobing ubi and attaching a device.
+   >
+   > Both time and memory consumption (with inconsitencies explained above) are measured.
+
+   安装文件系统驱动所需要消耗的时间？
+
+2. `init_mem`;
+
+   安装文件系统驱动消耗的内存；
+
+3. `mount_time` & `mount_cpu_time`;
+
+   > This test simply consists of mounting a partition. (In the case of ubifs, attaching occured in the previous test)
+   >
+   > Both time and memory are measured.
+   >
+   > After the mount, a remount (`mount -o remount`) timing test is also performed when applicable (ie. not for read-only filesystems).
+   >
+   > The used space on flash is also measured, using `df`.
+
+   挂载时间；
+
+4. `mount_mem`;
+
+   挂载消耗的内存；
+
+5. `remount_time`;
+
+   重新挂载耗时；
+
+6. `used_space`;
+
+   用`df`指令查看
+
+7. `read_time` & `read_cpu_time`;
+
+8. `write_time` & `write_cpu_time`;
+
+   > The content of a folder - previously mounted in a tmpfs - is copied into the flash partition. When this partition is large, it is done several times until the partition is almost full: (size / 8) times
+
+   先把内容写到tmpfs，再copy到目标文件系统中？
+
+9. `video_write_time` & `video_write_cpu_time`;
+
+   与基础写一致，但改成写入Video；
 

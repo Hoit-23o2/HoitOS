@@ -27,6 +27,7 @@
 //#include "hoitFsTree.h"
 #include "hoitFsLib.h"
 #include "hoitFsTree.h"
+#include "hoitFsFDLib.h"
 #include "../../driver/mtd/nor/nor.h"
 
 /*********************************************************************************************************
@@ -78,6 +79,7 @@ UINT __hoit_name_hash(CPCHAR pcName) {
     UINT ret = 0;
     while (*pcName != PX_EOS) {
         ret += *pcName;
+        pcName++;
     }
     return ret;
 }
@@ -108,6 +110,10 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
         return LW_NULL;
     }
 
+    if (ino == 1 && pfs->HOITFS_pRootDir) {
+        return pfs->HOITFS_pRootDir;
+    }
+
     PHOIT_INODE_CACHE pcache = pfs->HOITFS_cache_list;
 
     while (pcache && pcache->HOITC_ino != ino) {
@@ -116,28 +122,43 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
     if (pcache == LW_NULL) {
         return LW_NULL;
     }
-
     PHOIT_FULL_DIRENT   pDirentList = LW_NULL;
     PHOIT_FULL_DNODE    pDnodeList  = LW_NULL;
-    __hoit_get_inode_nodes(pcache, pDirentList, pDnodeList);
-    if (pDnodeList == LW_NULL) {
+    PHOIT_FULL_DIRENT*  ppDirentList = &pDirentList;
+    PHOIT_FULL_DNODE*   ppDnodeList  = &pDnodeList;
+
+    __hoit_get_inode_nodes(pcache, ppDirentList, ppDnodeList);
+    if (*ppDnodeList == LW_NULL) {
         return LW_NULL;
     }
-    if (S_ISDIR(pDnodeList->HOITFD_file_type)) {
+    if (S_ISDIR((*ppDnodeList)->HOITFD_file_type)) {
         PHOIT_INODE_INFO pNewInode = (PHOIT_INODE_INFO)__SHEAP_ALLOC(sizeof(HOIT_INODE_INFO));
-        pNewInode->HOITN_dents = pDirentList;
-        pNewInode->HOITN_metadata = pDnodeList;
+        pNewInode->HOITN_dents = *ppDirentList;
+        pNewInode->HOITN_metadata = *ppDnodeList;
         pNewInode->HOITN_ino = ino;
         pNewInode->HOITN_inode_cache = pcache;
-        pNewInode->HOITN_mode = pDnodeList->HOITFD_file_type;
+        pNewInode->HOITN_mode = (*ppDnodeList)->HOITFD_file_type;
         pNewInode->HOITN_rbtree = (PVOID)LW_NULL;
         pNewInode->HOITN_volume = pfs;
+        pNewInode->HOITN_pcLink = LW_NULL;
+        return pNewInode;
+    }
+    else if (S_ISLNK((*ppDnodeList)->HOITFD_file_type)) {   /* Á´½ÓÎÄ¼ş */
+        PHOIT_INODE_INFO pNewInode = (PHOIT_INODE_INFO)__SHEAP_ALLOC(sizeof(HOIT_INODE_INFO));
+        pNewInode->HOITN_dents = LW_NULL;
+        pNewInode->HOITN_metadata = *ppDnodeList;
+        pNewInode->HOITN_ino = ino;
+        pNewInode->HOITN_inode_cache = pcache;
+        pNewInode->HOITN_mode = (*ppDnodeList)->HOITFD_file_type;
+        pNewInode->HOITN_rbtree = (PVOID)LW_NULL;
+        pNewInode->HOITN_volume = pfs;
+        pNewInode->HOITN_pcLink = __hoit_get_data_after_raw_inode(pNewInode->HOITN_metadata->HOITFD_raw_info);
         return pNewInode;
     }
     else {
         PHOIT_INODE_INFO pNewInode = (PHOIT_INODE_INFO)__SHEAP_ALLOC(sizeof(HOIT_INODE_INFO));
         pNewInode->HOITN_rbtree = hoitInitFragTree(pfs);
-        PHOIT_FULL_DNODE pTempDnode = pDnodeList;
+        PHOIT_FULL_DNODE pTempDnode = *ppDnodeList;
         PHOIT_FULL_DNODE pTempNext = LW_NULL;
         while (pTempDnode) {
             /*çº¢é»‘æ ‘*/
@@ -147,12 +168,25 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
             pTempDnode->HOITFD_next = LW_NULL;
             pTempDnode = pTempNext;
         }
+        hoitFragTreeOverlayFixUp(pNewInode->HOITN_rbtree);
         pNewInode->HOITN_dents = LW_NULL;
         pNewInode->HOITN_ino = ino;
         pNewInode->HOITN_inode_cache = pcache;
         pNewInode->HOITN_metadata = LW_NULL;
-        pNewInode->HOITN_mode = pDnodeList->HOITFD_file_type;
+        pNewInode->HOITN_mode = (*ppDnodeList)->HOITFD_file_type;
         pNewInode->HOITN_volume = pfs;
+        pNewInode->HOITN_pcLink = LW_NULL;
+
+        PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader = hoitFragTreeCollectRange(pNewInode->HOITN_rbtree, 0, INT_MAX);
+        PHOIT_FRAG_TREE_LIST_NODE pFTlistNode = pFTlistHeader->pFTlistHeader->pFTlistNext;
+        size_t HOITN_stSize = 0;
+        while (pFTlistNode)
+        {
+           HOITN_stSize = __MAX(HOITN_stSize, pFTlistNode->pFTn->pFDnode->HOITFD_offset + pFTlistNode->pFTn->pFDnode->HOITFD_length);
+           pFTlistNode = pFTlistNode->pFTlistNext;
+        }
+
+        pNewInode->HOITN_stSize = HOITN_stSize;
         return pNewInode;
     }
 
@@ -251,10 +285,10 @@ UINT __hoit_alloc_ino(PHOIT_VOLUME pfs) {
 *********************************************************************************************************/
 UINT8 __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_addr) {
     write_nor(pfs->HOITFS_now_sector->HOITS_offset + pfs->HOITFS_now_sector->HOITS_addr, (PCHAR)(pdata), length, WRITE_KEEP);
-    pfs->HOITFS_now_sector->HOITS_offset += length;
     if (phys_addr != LW_NULL) {
         *phys_addr = pfs->HOITFS_now_sector->HOITS_offset + pfs->HOITFS_now_sector->HOITS_addr;
     }
+    pfs->HOITFS_now_sector->HOITS_offset += length;
     return 0;
 }
 /*********************************************************************************************************
@@ -279,7 +313,7 @@ UINT8 __hoit_write_flash_thru(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT p
 *********************************************************************************************************/
 UINT8 __hoit_add_to_inode_cache(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo) {
     if (pInodeCache == LW_NULL || pRawInfo == LW_NULL) {
-        printk("Error in hoit_add_to_inode_cache\n");
+        printk("Error in %s\n", __func__);
         return HOIT_ERROR;
     }
     pRawInfo->next_phys = pInodeCache->HOITC_nodes;
@@ -301,7 +335,7 @@ UINT8 __hoit_add_to_cache_list(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache) 
     }
     
     pInodeCache->HOITC_next = pfs->HOITFS_cache_list;
-    pfs->HOITFS_cache_list = pInodeCache->HOITC_next;
+    pfs->HOITFS_cache_list = pInodeCache;
     return 0;
 }
 /*********************************************************************************************************
@@ -467,14 +501,14 @@ UINT8 __hoit_del_inode_cache(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache) {
 ** å…¨å±€å˜é‡:
 ** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
-UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT pDirentList, PHOIT_FULL_DNODE pDnodeList) {
+UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT* ppDirentList, PHOIT_FULL_DNODE* ppDnodeList) {
     PHOIT_RAW_INFO pRawInfo = pInodeInfo->HOITC_nodes;
     while (pRawInfo) {
         PCHAR pBuf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);
-        if(pBuf == LW_NULL)
+        
         read_nor(pRawInfo->phys_addr, pBuf, pRawInfo->totlen);
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pBuf;
-        if (__HOIT_IS_OBSOLETE(pRawHeader)) {
+        if (!__HOIT_IS_OBSOLETE(pRawHeader)) {
             if (__HOIT_IS_TYPE_DIRENT(pRawHeader)) {
                 PHOIT_RAW_DIRENT pRawDirent = (PHOIT_RAW_DIRENT)pRawHeader;
                 PHOIT_FULL_DIRENT pFullDirent = (PHOIT_FULL_DIRENT)__SHEAP_ALLOC(sizeof(HOIT_FULL_DIRENT));
@@ -483,25 +517,27 @@ UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT pDi
                 pFullDirent->HOITFD_ino = pRawDirent->ino;
                 pFullDirent->HOITFD_pino = pRawDirent->pino;
                 pFullDirent->HOITFD_raw_info = pRawInfo;
-                pFullDirent->HOITFD_file_name = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen - sizeof(HOIT_RAW_DIRENT));
-                lib_bzero(pFullDirent->HOITFD_file_name, pRawInfo->totlen - sizeof(HOIT_RAW_DIRENT));
+                pFullDirent->HOITFD_file_name = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen - sizeof(HOIT_RAW_DIRENT) + 1);   // ÕâÀïÒª¼Ó1Ìí¼Ó'\0', ÒòÎªÔÚflashÖĞ´æ´¢µÄÎÄ¼şÃû'
+                lib_bzero(pFullDirent->HOITFD_file_name, pRawInfo->totlen - sizeof(HOIT_RAW_DIRENT) + 1);
 
                 PCHAR pRawName = ((PCHAR)pRawDirent) + sizeof(HOIT_RAW_DIRENT);
-                lib_strcpy(pFullDirent->HOITFD_file_name, pRawName);
-                pFullDirent->HOITFD_next = pDirentList;
-                pDirentList = pFullDirent;
+                lib_memcpy(pFullDirent->HOITFD_file_name, pRawName, pRawInfo->totlen - sizeof(HOIT_RAW_DIRENT));
+                pFullDirent->HOITFD_next = *ppDirentList;
+                *ppDirentList = pFullDirent;
             }
             else {
                 PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)pRawHeader;
                 PHOIT_FULL_DNODE pFullDnode = (PHOIT_FULL_DNODE)__SHEAP_ALLOC(sizeof(HOIT_FULL_DNODE));
                 pFullDnode->HOITFD_length = pRawInfo->totlen - sizeof(HOIT_RAW_INODE);
-                pFullDnode->HOITFD_offset = pRawInfo->phys_addr;
+                pFullDnode->HOITFD_offset = pRawInode->offset;
                 pFullDnode->HOITFD_raw_info = pRawInfo;
-                pFullDnode->HOITFD_next = pDnodeList;
+                pFullDnode->HOITFD_next = *ppDnodeList;
                 pFullDnode->HOITFD_file_type = pRawInode->file_type;
-                pDnodeList = pFullDnode;
+                *ppDnodeList = pFullDnode;
             }
         }
+        __SHEAP_FREE(pBuf);
+        pRawInfo = pRawInfo->next_phys;
     }
     return ERROR_NONE;
 }
@@ -513,9 +549,9 @@ UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT pDi
 ** å…¨å±€å˜é‡:
 ** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
-BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_SECTOR pSector) {
-    pSector->HOITS_next = pfs->HOITFS_block_list;
-    pfs->HOITFS_block_list = pSector;
+BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector) {
+    pErasableSector->HOITS_next = pfs->HOITFS_erasableSectorList;
+    pfs->HOITFS_erasableSectorList = pErasableSector;
     return LW_TRUE;
 }
 /*********************************************************************************************************
@@ -527,30 +563,48 @@ BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_SECTOR pSector) {
 ** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
-    UINT sectorSize = GET_SECTOR_SIZE(sector_no);
-    UINT sectorOffset = GET_SECTOR_OFFSET(sector_no);
-    /* å…ˆåˆ›å»ºsectorç»“æ„ä½“ */
-    PHOIT_SECTOR pSector = (PHOIT_SECTOR)__SHEAP_ALLOC(sizeof(HOIT_SECTOR));
-    pSector->HOITS_bno = sector_no;
-    pSector->HOITS_length = sectorSize;
-    pSector->HOITS_addr = sectorOffset;
-    pSector->HOITS_offset = 0;
-    __hoit_add_to_sector_list(pfs, pSector);
+    UINT                    uiSectorSize;         
+    UINT                    uiSectorOffset;
+    UINT                    uiFreeSize;
+    UINT                    uiUsedSize;
+    PHOIT_ERASABLE_SECTOR   pErasableSector;
 
-    /* å†æ•´ä¸ªå—è¿›è¡Œæ‰«æ */
-    PCHAR pReadBuf = (PCHAR)__SHEAP_ALLOC(sectorSize);
-    lib_bzero(pReadBuf, sectorSize);
-    read_nor(sectorOffset, pReadBuf, sectorSize);
+
+    uiSectorSize            = GET_SECTOR_SIZE(sector_no);
+    uiSectorOffset          = GET_SECTOR_OFFSET(sector_no);
+    uiFreeSize              = uiSectorSize;
+    uiUsedSize              = 0;
+
+    /* ÏÈ´´½¨sector½á¹¹Ìå */
+    pErasableSector = (PHOIT_ERASABLE_SECTOR)__SHEAP_ALLOC(sizeof(HOIT_ERASABLE_SECTOR));
+    pErasableSector->HOITS_bno              = sector_no;
+    pErasableSector->HOITS_length           = uiSectorSize;
+    pErasableSector->HOITS_addr             = uiSectorOffset;
+    pErasableSector->HOITS_offset           = 0;
+    pErasableSector->HOITS_pRawInfoFirst    = LW_NULL;
+    pErasableSector->HOITS_pRawInfoLast     = LW_NULL;
+    pErasableSector->HOITS_pRawInfoCurGC    = LW_NULL;
+
+    // ugly now
+    if(pfs->HOITFS_now_sector == LW_NULL){
+        pfs->HOITFS_now_sector = pErasableSector;
+    }
+
+    /* ÔÙÕû¸ö¿é½øĞĞÉ¨Ãè */
+    PCHAR pReadBuf = (PCHAR)__SHEAP_ALLOC(uiSectorSize);
+    lib_bzero(pReadBuf, uiSectorSize);
+    read_nor(uiSectorOffset, pReadBuf, uiSectorSize);
 
     PCHAR pNow = pReadBuf;
-    while (pNow < pReadBuf + sectorSize) {
+    while (pNow < pReadBuf + uiSectorSize) {
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pNow;
         if (pRawHeader->magic_num == HOIT_MAGIC_NUM && !__HOIT_IS_OBSOLETE(pRawHeader)) {
-            /* TODO:åé¢è¿™é‡Œè¿˜éœ€æ·»åŠ CRCæ ¡éªŒ */
+            /* TODO:ºóÃæÕâÀï»¹ĞèÌí¼ÓCRCĞ£Ñé */
+            PHOIT_RAW_INFO pRawInfo = LW_NULL;
             if (__HOIT_IS_TYPE_INODE(pRawHeader)) {
-                PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)pNow;
-                PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pRawInode->ino);
-                if (pInodeCache == LW_NULL) {
+                PHOIT_RAW_INODE     pRawInode   = (PHOIT_RAW_INODE)pNow;
+                PHOIT_INODE_CACHE   pInodeCache = __hoit_get_inode_cache(pfs, pRawInode->ino);
+                if (pInodeCache == LW_NULL) {                  /* ´´½¨Ò»¸öInode Cache */
                     pInodeCache = (PHOIT_INODE_CACHE)__SHEAP_ALLOC(sizeof(HOIT_INODE_CACHE));
                     if (pInodeCache == LW_NULL) {
                         _ErrorHandle(ENOMEM);
@@ -560,12 +614,13 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
                     pInodeCache->HOITC_nlink = 0;
                     __hoit_add_to_cache_list(pfs, pInodeCache);
                 }
-                PHOIT_RAW_INFO pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
-                pRawInfo->phys_addr = sectorOffset + (pNow - pReadBuf);
-                pRawInfo->totlen = pRawInode->totlen;
+                pRawInfo                    = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
+                pRawInfo->phys_addr         = uiSectorOffset + (pNow - pReadBuf);
+                pRawInfo->totlen            = pRawInode->totlen;
                 __hoit_add_to_inode_cache(pInodeCache, pRawInfo);
 
-                if (pRawInode->ino == HOIT_ROOT_DIR_INO) {     /* å¦‚æœæ‰«æåˆ°çš„æ˜¯æ ¹ç›®å½•çš„å”¯ä¸€çš„RawInode */
+
+                if (pRawInode->ino == HOIT_ROOT_DIR_INO) {     /* Èç¹ûÉ¨Ãèµ½µÄÊÇ¸ùÄ¿Â¼µÄÎ¨Ò»µÄRawInode */
                     PHOIT_FULL_DNODE pFullDnode = __hoit_bulid_full_dnode(pRawInfo);
                     PHOIT_INODE_INFO pInodeInfo = (PHOIT_INODE_INFO)__SHEAP_ALLOC(sizeof(HOIT_INODE_INFO));
                     pInodeInfo->HOITN_dents = LW_NULL;
@@ -599,9 +654,9 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
                     pInodeCache->HOITC_nlink = 0;
                     __hoit_add_to_cache_list(pfs, pInodeCache);
                 }
-                PHOIT_RAW_INFO pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
-                pRawInfo->phys_addr = sectorOffset + (pNow - pReadBuf);
-                pRawInfo->totlen = pRawDirent->totlen;
+                pRawInfo                = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
+                pRawInfo->phys_addr     = uiSectorOffset + (pNow - pReadBuf);
+                pRawInfo->totlen        = pRawDirent->totlen;
                 __hoit_add_to_inode_cache(pInodeCache, pRawInfo);
                 if (pRawDirent->pino == HOIT_ROOT_DIR_INO) {    /* å¦‚æœæ‰«æåˆ°çš„æ˜¯æ ¹ç›®å½•çš„ç›®å½•é¡¹ */
                     PHOIT_FULL_DIRENT pFullDirent = __hoit_bulid_full_dirent(pRawInfo);
@@ -619,13 +674,29 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
                 pfs->HOITFS_highest_ino = pRawHeader->ino;
             if (pRawHeader->version > pfs->HOITFS_highest_version)
                 pfs->HOITFS_highest_version = pRawHeader->version;
+            
+            //!³õÊ¼»¯pErasableSectorµÄ¸ü¶àĞÅÏ¢, Added by PYQ 2021-04-26
+            if (pRawInfo != LW_NULL){
+                uiUsedSize += pRawInfo->totlen;
+                uiFreeSize -= pRawInfo->totlen;
 
+                if(pErasableSector->HOITS_pRawInfoFirst == LW_NULL){
+                    pErasableSector->HOITS_pRawInfoFirst = pErasableSector->HOITS_pRawInfoLast = pRawInfo;
+                }          
+                else {
+                    pErasableSector->HOITS_pRawInfoLast = pRawInfo;  
+                }
+            } 
             pNow += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
         }
         else {
             pNow += 4;   /* æ¯æ¬¡ç§»åŠ¨4å­—èŠ‚ */
         }
     }
+    pErasableSector->HOITS_uiFreeSize = uiFreeSize;
+    pErasableSector->HOITS_uiUsedSize = uiUsedSize;
+    __hoit_add_to_sector_list(pfs, pErasableSector);
+    return LW_TRUE;
 }
 
 /*********************************************************************************************************
@@ -636,8 +707,17 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
 ** å…¨å±€å˜é‡:
 ** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
-PHOIT_INODE_INFO __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode) {
-    PHOIT_RAW_INODE     pRawInode = (PHOIT_RAW_INODE)__SHEAP_ALLOC(sizeof(HOIT_RAW_INODE));
+PHOIT_INODE_INFO __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode, CPCHAR pcLink) {
+    PHOIT_RAW_INODE     pRawInode = LW_NULL;
+    UINT32 totlen = sizeof(HOIT_RAW_INODE);
+
+    if (S_ISLNK(mode)) {    /* Á´½ÓÎÄ¼ş */
+        pRawInode = (PHOIT_RAW_INODE)__SHEAP_ALLOC(sizeof(HOIT_RAW_INODE) + lib_strlen(pcLink));
+        totlen = sizeof(HOIT_RAW_INODE) + lib_strlen(pcLink);
+    }
+    else {
+        pRawInode = (PHOIT_RAW_INODE)__SHEAP_ALLOC(sizeof(HOIT_RAW_INODE));
+    }
     PHOIT_RAW_INFO     pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
     PHOIT_INODE_CACHE   pInodeCache = (PHOIT_INODE_CACHE)__SHEAP_ALLOC(sizeof(HOIT_INODE_CACHE));
 
@@ -646,8 +726,8 @@ PHOIT_INODE_INFO __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode) {
         _ErrorHandle(ENOMEM);
         return  (LW_NULL);
     }
-
-    lib_bzero(pRawInode, sizeof(HOIT_RAW_INODE));
+    
+    lib_bzero(pRawInode, totlen);
     lib_bzero(pRawInfo, sizeof(HOIT_RAW_INFO));
     lib_bzero(pInodeCache, sizeof(HOIT_INODE_CACHE));
 
@@ -655,16 +735,28 @@ PHOIT_INODE_INFO __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode) {
     pRawInode->file_type = mode;
     pRawInode->ino = __hoit_alloc_ino(pfs);
     pRawInode->magic_num = HOIT_MAGIC_NUM;
-    pRawInode->totlen = sizeof(HOIT_RAW_INODE);
+    pRawInode->totlen = totlen;
     pRawInode->flag = HOIT_FLAG_TYPE_INODE | HOIT_FLAG_OBSOLETE;
     pRawInode->offset = 0;
     pRawInode->version = pfs->HOITFS_highest_version++;
 
+    
+
     UINT phys_addr;
-    __hoit_write_flash(pfs, (PVOID)pRawInode, sizeof(HOIT_RAW_INODE), &phys_addr);
+    if (S_ISLNK(mode)) {
+        PCHAR pLink = ((PCHAR)pRawInode) + sizeof(HOIT_RAW_INODE);
+        lib_memcpy(pLink, pcLink, lib_strlen(pcLink));  /* Á´½ÓÎÄ¼ş */
+        __hoit_write_flash(pfs, (PVOID)pRawInode, sizeof(HOIT_RAW_INODE) + lib_strlen(pcLink), &phys_addr);
+    }
+    else {
+        __hoit_write_flash(pfs, (PVOID)pRawInode, sizeof(HOIT_RAW_INODE), &phys_addr);
+    }
+    
+    
+
 
     pRawInfo->phys_addr = phys_addr;
-    pRawInfo->totlen = sizeof(HOIT_RAW_INODE);
+    pRawInfo->totlen = totlen;
 
     pInodeCache->HOITC_ino = pRawInode->ino;
     pInodeCache->HOITC_nlink = 0;
@@ -674,6 +766,8 @@ PHOIT_INODE_INFO __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode) {
     /*
     *   å·²ç»å°†æ–°æ–‡ä»¶é…ç½®æˆäº†ä¸€ä¸ªå·²ç»å­˜åœ¨çš„æ–‡ä»¶ï¼Œç°åœ¨åªéœ€è°ƒç”¨get_full_fileå³å¯
     */
+    __SHEAP_FREE(pRawInode);
+
     return  __hoit_get_full_file(pfs, pInodeCache->HOITC_ino);
     
 }
@@ -704,7 +798,30 @@ VOID __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo){
     }
 }
 
+/*********************************************************************************************************
+** º¯ÊıÃû³Æ: __hoit_get_data_after_raw_inode
+** ¹¦ÄÜÃèÊö: hoitfs µÃµ½FlashÉÏ½ô¸ú×Åraw_inodeµÄºóÃæµÄÊı¾İ, ×¢ÒâÊı¾İÄ©Î²»áÌí¼Ó'\0'
+** Êä¡¡Èë  :
+** Êä¡¡³ö  : ´ò¿ª½á¹û
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
+*********************************************************************************************************/
+PCHAR __hoit_get_data_after_raw_inode(PHOIT_RAW_INFO pInodeInfo) {
+    if (pInodeInfo == LW_NULL) {
+        return LW_NULL;
+    }
 
+    INT iDataLen = pInodeInfo->totlen - sizeof(HOIT_RAW_INODE);
+    PCHAR pTempBuf = (PCHAR)__SHEAP_ALLOC(pInodeInfo->totlen);
+    read_nor(pInodeInfo->phys_addr, pTempBuf, pInodeInfo->totlen);
+
+    PCHAR pData = (PCHAR)__SHEAP_ALLOC(iDataLen + 1);
+    lib_bzero(pData, iDataLen + 1);
+    PCHAR pTempData = pTempBuf + sizeof(HOIT_RAW_INODE);
+    lib_memcpy(pData, pTempData, iDataLen);
+    __SHEAP_FREE(pTempBuf);
+    return pData;
+}
 
 /*********************************************************************************************************
 ** å‡½æ•°åç§°: __hoit_open
@@ -775,6 +892,7 @@ PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
             pcNext++;                                                   /*  ä¸‹ä¸€å±‚çš„æŒ‡é’ˆ                */
         }
 
+
         for (pDirentTemp = pInode->HOITN_dents;
             pDirentTemp != LW_NULL;
             pDirentTemp = pDirentTemp->HOITFD_next) {
@@ -784,7 +902,8 @@ PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
             }
             if (S_ISLNK(pDirentTemp->HOITFD_file_type)) {                            /*  é“¾æ¥æ–‡ä»¶                    */
                 if (lib_strcmp(pDirentTemp->HOITFD_file_name, pcNode) == 0) {
-                    goto    __find_ok;                                  /*  æ‰¾åˆ°é“¾æ¥                    */
+                    pInode = __hoit_get_full_file(pfs, pDirentTemp->HOITFD_ino);
+                    goto    __find_ok;                                  /*  ÕÒµ½Á´½Ó                    */
                 }
 
             }
@@ -803,7 +922,10 @@ PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
             }
         }
 
-        inodeFatherIno = pDirentTemp->HOITFD_ino;                       /*  ä»å½“å‰èŠ‚ç‚¹å¼€å§‹æœç´¢          */
+        if(pDirentTemp == LW_NULL)
+            goto __find_error;
+
+        inodeFatherIno = pDirentTemp->HOITFD_ino;                       /*  ´Óµ±Ç°½Úµã¿ªÊ¼ËÑË÷          */
         if (pInode != pfs->HOITFS_pRootDir) {
             __hoit_close(pInode, 0);
         }
@@ -828,6 +950,8 @@ __find_ok:
     return  (pInode);
 
 __find_error:
+    if (ppFullDirent) *ppFullDirent = pDirentTemp;
+    if (ppInodeFather) *ppInodeFather = pInode;                            /*  ¸¸Ïµ½Úµã                    */
     if (pbLast) {
         if (pcNext == LW_NULL) {                                        /*  æœ€åä¸€çº§æŸ¥æ‰¾å¤±è´¥            */
             *pbLast = LW_TRUE;
@@ -858,7 +982,7 @@ PHOIT_INODE_INFO  __hoit_maken(PHOIT_VOLUME  pfs,
     mode_t       mode,
     CPCHAR       pcLink)
 {
-    PHOIT_INODE_INFO pInodeInfo = __hoit_new_inode_info(pfs, mode);
+    PHOIT_INODE_INFO pInodeInfo = __hoit_new_inode_info(pfs, mode, pcLink);
 
     PHOIT_FULL_DIRENT   pFullDirent = (PHOIT_FULL_DIRENT)__SHEAP_ALLOC(sizeof(HOIT_FULL_DIRENT));
     CPCHAR      pcFileName;
@@ -879,11 +1003,12 @@ PHOIT_INODE_INFO  __hoit_maken(PHOIT_VOLUME  pfs,
     }
 
     pFullDirent->HOITFD_file_name = (PCHAR)__SHEAP_ALLOC(lib_strlen(pcFileName) + 1);
+    lib_bzero(pFullDirent->HOITFD_file_name, lib_strlen(pcFileName) + 1);
     if (pFullDirent->HOITFD_file_name == LW_NULL) {
         _ErrorHandle(ENOMEM);
         return  (LW_NULL);
     }
-    lib_strcpy(pFullDirent->HOITFD_file_name, pcFileName);
+    lib_memcpy(pFullDirent->HOITFD_file_name, pcFileName, lib_strlen(pcFileName));
     pFullDirent->HOITFD_file_type = mode;
     pFullDirent->HOITFD_ino = pInodeInfo->HOITN_ino;
     pFullDirent->HOITFD_nhash = __hoit_name_hash(pcFileName);
@@ -1143,13 +1268,13 @@ INT  __hoit_move(PHOIT_INODE_INFO pInodeFather, PHOIT_INODE_INFO  pInodeInfo, PC
         pcFileName = pcNewName;
     }
 
-    pcTemp = (PCHAR)__SHEAP_ALLOC(lib_strlen(pcFileName) + 1);          /*  é¢„åˆ†é…åå­—ç¼“å­˜              */
+    pcTemp = (PCHAR)__SHEAP_ALLOC(lib_strlen(pcFileName) + 1);          /*  Ô¤·ÖÅäÃû×Ö»º´æ              */
+    lib_bzero(pcTemp, lib_strlen(pcFileName) + 1);
     if (pcTemp == LW_NULL) {
         _ErrorHandle(ENOMEM);
         return  (PX_ERROR);
     }
-    lib_strcpy(pcTemp, pcFileName);
-
+    lib_memcpy(pcTemp, pcFileName, lib_strlen(pcFileName));
     if (pInodeTemp) {
         if (!S_ISDIR(pInodeInfo->HOITN_mode) && S_ISDIR(pInodeTemp->HOITN_mode)) {
             __SHEAP_FREE(pcTemp);
@@ -1219,11 +1344,11 @@ INT  __hoit_stat(PHOIT_INODE_INFO pInodeInfo, PHOIT_VOLUME  pfs, struct stat* ps
         pstat->st_dev = LW_DEV_MAKE_STDEV(&pfs->HOITFS_devhdrHdr);
         pstat->st_ino = (ino_t)pInodeInfo;
         pstat->st_mode = pInodeInfo->HOITN_mode;
-        pstat->st_nlink = pInodeInfo->HOITN_inode_cache->HOITC_ino;
+        pstat->st_nlink = pInodeInfo->HOITN_inode_cache->HOITC_nlink;
         pstat->st_uid = pInodeInfo->HOITN_uid;
         pstat->st_gid = pInodeInfo->HOITN_gid;
         pstat->st_rdev = 1;
-        // pstat->st_size = (off_t)pInodeInfo->HOITN_stSize;
+        pstat->st_size = (off_t)pInodeInfo->HOITN_stSize;
         // pstat->st_atime = pInodeInfo->HOITN_timeAccess;
         // pstat->st_mtime = pInodeInfo->HOITN_timeChange;
         // pstat->st_ctime = pInodeInfo->HOITN_timeCreate;
@@ -1292,8 +1417,15 @@ INT  __hoit_statfs(PHOIT_VOLUME  pfs, struct statfs* pstatfs) {
 *********************************************************************************************************/
 ssize_t  __hoit_read(PHOIT_INODE_INFO  pInodeInfo, PVOID  pvBuffer, size_t  stSize, size_t  stOft)
 {
+    ssize_t readSize = 0;
+    if (pInodeInfo->HOITN_stSize <= stOft) {                                 /*  ÒÑ¾­µ½ÎÄ¼şÄ©Î²              */
+        return  (0);
+    }
+
+    readSize = pInodeInfo->HOITN_stSize - stOft;                           /*  ¼ÆËãÊ£ÓàÊı¾İÁ¿              */
+    readSize = __MIN(readSize, stSize);
     hoitFragTreeRead(pInodeInfo->HOITN_rbtree, stOft, stSize, pvBuffer);
-    return stSize;
+    return readSize;
 }
 /*********************************************************************************************************
 ** å‡½æ•°åç§°: __hoit_write
@@ -1311,6 +1443,7 @@ ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  st
     PHOIT_FRAG_TREE_NODE pTreeNode = newHoitFragTreeNode(pFullDnode, stNBytes, stOft, stOft);
     hoitFragTreeInsertNode(pInodeInfo->HOITN_rbtree, pTreeNode);
     hoitFragTreeOverlayFixUp(pInodeInfo->HOITN_rbtree);
+    return stNBytes;
 }
 
 /*********************************************************************************************************
@@ -1346,10 +1479,10 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     }
     pfs->HOITFS_highest_ino++;
     pfs->HOITFS_highest_version++;
-                                            
-    if (pfs->HOITFS_highest_ino == 1) {    /* ç³»ç»Ÿç¬¬ä¸€æ¬¡è¿è¡Œ, åˆ›å»ºæ ¹ç›®å½•æ–‡ä»¶ */
+                               
+    if (pfs->HOITFS_highest_ino == 1) {    /* ÏµÍ³µÚÒ»´ÎÔËĞĞ, ´´½¨¸ùÄ¿Â¼ÎÄ¼ş */
         mode_t mode = S_IFDIR;
-        PHOIT_INODE_INFO pRootDir = __hoit_new_inode_info(pfs, mode);
+        PHOIT_INODE_INFO pRootDir = __hoit_new_inode_info(pfs, mode, LW_NULL);
         pfs->HOITFS_pRootDir = pRootDir;
     }
     /* ç³»ç»Ÿä¸æ˜¯ç¬¬ä¸€æ¬¡è¿è¡Œçš„è¯ä¼šåœ¨æ‰«ææ—¶å°±æ‰¾åˆ°pRootDir */

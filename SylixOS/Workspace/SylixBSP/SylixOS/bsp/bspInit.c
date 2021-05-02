@@ -48,9 +48,13 @@
 #include "driver/netif/dm9000x.h"                                       /*  DM9000 网络芯片驱动         */
 #include "driver/sdi/sdInit.h"                                          /*  SD 接口                     */
 #include "driver/mtd/nor/nor.h"                                         /*  nor flash 驱动              */
+<<<<<<< HEAD
 
 #include "extfs/hoitFs/hoitFs.h"
 #include "extfs/hoitFs/hoitFsCache.h"
+=======
+#include "extfs/hoitFs/hoitFs.h"                                        /*  HoitFS 文件驱动接口 */
+>>>>>>> 3d721479faf46c7ab9d923e5b31785af351d8932
 #include "extfs/hoitFs/hoitFsTreeUtil.h"                                /*  红黑树测试 - PYQ             */
 #include "extfs/hoitFs/hoitFsTree.h"                                    /*  Frag树测试 - PYQ             */
 /*********************************************************************************************************
@@ -230,7 +234,12 @@ static VOID  halDrvInit (VOID)
     nfsDrv();                                                           /*  nfs    device driver        */
     yaffsDrv();                                                         /*  yaffs  device driver        */
     canDrv();                                                           /*  CAN    device driver        */
+<<<<<<< HEAD
     API_HoitFsDrvInstall();
+=======
+    
+    API_HoitFsDrvInstall();                                             /*  挂载HoitFS文件系统 */
+>>>>>>> 3d721479faf46c7ab9d923e5b31785af351d8932
     s3c2440GpioDrv();
 
 #ifdef MINI2440_PACKET
@@ -580,6 +589,7 @@ static PVOID  halBootThread (PVOID  pvBootArg)
 
     nor_init(INIT_FAKE_NOR);
     scan_nor();
+<<<<<<< HEAD
 //    #ifdef NOR_TEST
 //    test_nor();
 //    #endif
@@ -588,10 +598,23 @@ static PVOID  halBootThread (PVOID  pvBootArg)
     printf("======================  hoit cache test   ============================\n");
     test_hoit_cache();
 //    #endif
+=======
+
+#ifdef NOR_TEST
+    test_nor();
+#endif // NOR_TEST
+
+#ifdef RB_TEST
+>>>>>>> 3d721479faf46c7ab9d923e5b31785af351d8932
     pretty_print("[Red / Black Tree Test]", "", DO_CENTRAL);
     hoitRbTreeTest();
+#endif // RB_TEST
+
+#ifdef FT_TEST
     pretty_print("[Frag Tree Test]", "", DO_CENTRAL);
-    //hoitFTTreeTest();
+    hoitFTTreeTest();
+#endif // FT_TEST
+
 #else
     nandDevCreateEx("/n");                                              /*  mount nandflash disk(yaffs) */
 #endif

@@ -10,16 +10,17 @@
 **
 **--------------�ļ���Ϣ--------------------------------------------------------------------------------
 **
-** ��   ��   ��: hoitFsTree.h
+** ��   ��   ��: hoitFsTree.c
 **
 ** ��   ��   ��: Pan yanqi (������)
 **
 ** �ļ���������: 2021 �� 03 �� 28 ��
 **
-** ��        ��: JFFS2-Like fragtreeʵ��
+** ��        ��: JFFS2 Like Frag Treeʵ��
 *********************************************************************************************************/
 
 #include "hoitFsTree.h"
+#include "hoitFsFDLib.h"
 #include "hoitFsCache.h"
 
 #ifdef FT_TEST
@@ -79,7 +80,7 @@ PHOIT_FRAG_TREE_NODE __hoitFragTreeGetSuccessor(PHOIT_FRAG_TREE pFTTree, PHOIT_F
 
 /*********************************************************************************************************
 ** ��������: __hoitFragTreeCollectRangeHelper
-** ��������: ����������ռ�iKeyLow��iKeyHigh֮��Ľڵ�
+** ��������: ����������ռ�iKeyLow��iKeyHigh֮��Ľڵ�?
 ** �䡡��  : pFTlistHeader          ����ͷ
 **            pFTTree               FragTree
 **            pFTnRoot              ���ڵ�
@@ -163,14 +164,14 @@ VOID __hoitFragTreeCollectRangeHelper(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader,
 }   
 /*********************************************************************************************************
 ** ��������: __hoitFragTreeConquerNode
-** ��������: ����һ���ڵ㣬����������޸ģ�4������ģʽ
+** ��������: ����һ���ڵ㣬����������޸ģ�?4������ģʽ
 ** �䡡��  : pFTTree                 FragTree
 **           pFTn                   �������ڵ�
 **           uiConquerorLow          �������½�
 **           uiConquerorHigh         �������Ͻ�
 **           pFTnNew                 ���ڷ��������ڵ�
-**           uiCase                  ���ڷ���Overlay���
-**           bDoDelete               ���2��3���漰��ɾ�����Ƿ�ɾ��RawInfo�������RawNodeΪ���ڽڵ�
+**           uiCase                  ���ڷ���Overlay���?
+**           bDoDelete               ���?2��3���漰��ɾ�����Ƿ�ɾ��RawInfo�������RawNodeΪ���ڽڵ�
 ** �䡡��  : �����ɹ�����LW_TRUE�����򷵻�LW_FALSE
 ** ȫ�ֱ���:
 ** ����ģ��:
@@ -191,7 +192,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
     BOOL                      bIsOverlay;
 
     uiCurLow                  = pFTn->uiOfs;
-    uiCurHigh                 = uiCurLow + pFTn->uiSize;
+    uiCurHigh                 = uiCurLow + pFTn->uiSize - 1;
     bIsOverlay                = MAX(uiCurLow, uiConquerorLow) <= MIN(uiCurHigh, uiConquerorHigh);
     *uiCase                   = -1;
     *pFTnNew                  = LW_NULL;
@@ -204,7 +205,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
             ^       ^             ^       ^
             Cur  Conqueror       Cur    Conqueror  
         */
-        if(uiCurLow < uiConquerorLow && uiCurHigh <= uiConquerorHigh){                  /* ���1 */
+        if(uiCurLow < uiConquerorLow && uiCurHigh <= uiConquerorHigh){                  /* ���?1 */
             uiLeftRemainSize = uiConquerorLow - uiCurLow;
             pFTn->uiSize = uiLeftRemainSize;
             pFTn->pFDnode->HOITFD_length = uiLeftRemainSize;
@@ -215,7 +216,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
             ^       ^             ^       ^
             Cur  Conqueror      Conqueror  Cur
         */
-        else if (uiCurLow < uiConquerorLow && uiCurHigh > uiConquerorHigh)              /* ���2 */
+        else if (uiCurLow < uiConquerorLow && uiCurHigh > uiConquerorHigh)              /* ���?2 */
         {
             uiLeftRemainSize = uiCurLow - uiConquerorLow;
             uiRightRemainSize = uiConquerorHigh - uiCurHigh;
@@ -239,7 +240,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
                 ^       ^             ^       ^
             Conqueror  Cur       Conqueror  Cur
         */
-        else if (uiCurLow >= uiConquerorLow && uiCurHigh > uiConquerorHigh)             /* ���3 */
+        else if (uiCurLow >= uiConquerorLow && uiCurHigh > uiConquerorHigh)             /* ���?3 */
         {
             uiRightRemainSize = uiCurHigh - uiConquerorHigh;
             pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,
@@ -249,7 +250,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
             *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* ����pFDNodeNew�½�FragTreeNode */
                                            pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
             hoitFragTreeInsertNode(pFTTree, *pFTnNew);
-            hoitFragTreeDeleteNode(pFTTree, pFTn, bDoDelete);                            /* ɾ��������ڵ� */
+            hoitFragTreeDeleteNode(pFTTree, pFTn, bDoDelete);                            /* ɾ��������ڵ�? */
             *uiCase = 3;
         }
         /* 
@@ -257,7 +258,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
             ^       ^             ^       ^
         Conqueror  Cur           Cur    Conqueror
         */
-        else if (uiCurLow >= uiConquerorLow && uiCurHigh <= uiConquerorHigh)            /* ���4 */
+        else if (uiCurLow >= uiConquerorLow && uiCurHigh <= uiConquerorHigh)            /* ���?4 */
         {
             hoitFragTreeDeleteNode(pFTTree, pFTn, bDoDelete);                            /* ɾ����ǰFragTree�ϵĽڵ� */
             *uiCase = 4;
@@ -341,7 +342,7 @@ PHOIT_FRAG_TREE_LIST_HEADER hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, IN
 }
 /*********************************************************************************************************
 ** ��������: hoitFragTreeDeleteNode
-** ��������: ��FragTree��ɾ��ĳ���ڵ㣬��ɾ����ָ���FullDnode�ڵ㣬���ͷ����ڴ棬ע�Ᵽ��
+** ��������: ��FragTree��ɾ��ĳ���ڵ㣬���ͷ����ڴ棬ע�Ᵽ��
 ** �䡡��  : pFTTree          FragTree
 **           pFTn             FragTree�ϵ�ĳ���ڵ�
 ** �䡡��  : ɾ���ɹ�����True�����򷵻�False
@@ -448,7 +449,7 @@ VOID hoitFragTreeTraverse(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot
 ** ��������: hoitFragTreeRead
 ** ��������: �������FragTree
 ** �䡡��  : pFTTree          FragTree
-**           uiOfs            ����ļ���ƫ��
+**           uiOfs            ����ļ����?���?
 **           uiSize           ����
 **           pContent         ��������λ��
 ** �䡡��  : None
@@ -483,7 +484,7 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
     pFTlist             = pFTlistHeader->pFTlistHeader->pFTlistNext;
     while (pFTlist != LW_NULL)
     {
-        uiPhyOfs = pFTlist->pFTn->pFDnode->HOITFD_raw_info->phys_addr + sizeof(HOIT_RAW_HEADER);
+        uiPhyOfs = pFTlist->pFTn->pFDnode->HOITFD_raw_info->phys_addr + sizeof(HOIT_RAW_INODE);
         uiPhySize = pFTlist->pFTn->pFDnode->HOITFD_length;
         /* ���׸�����ʵ��
             |--H-|-uiBias-|
@@ -496,7 +497,7 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
             uiPerOfs = uiPhyOfs + uiBias;
             uiPerSize = uiPhySize - uiBias;
         }
-        /* �����һ������ʵ��
+        /* �����һ������ʵ��?
                         |--H-|-remain-|  
                         |----|--------|-------|
                              |                |
@@ -505,18 +506,18 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
         */
         else if (uiSizeRead + uiPhySize >= uiSize)
         {
-            uiPerOfs = uiPhySize;
+            uiPerOfs = uiPhyOfs;
             uiPerSize = uiSizeRemain;
         }
-        else                                                                        /* ������� */
+        else                                                                        /* �������? */
         {
-            uiPerOfs = uiPhySize;
+            uiPerOfs = uiPhyOfs;
             uiPerSize = uiPhySize;
         }
 
         pPerContent = (PCHAR)lib_malloc(uiPerSize);                                 /* �������� */
         //TODO: �ӻ����϶�
-        //hoitReadFromCache(uiPerOfs, pPerContent, uiPerSize);
+        hoitReadFromCache(uiPerOfs, pPerContent, uiPerSize);
 
         lib_memcpy(pContent + uiSizeRead, pPerContent, uiPerSize);
         lib_free(pPerContent);
@@ -549,9 +550,6 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
     PHOIT_FRAG_TREE_NODE            pFTnNew;
     PHOIT_FRAG_TREE_NODE            pFTn;
     PHOIT_FRAG_TREE_LIST_NODE       pFTlistNodeNew;
-    
-    UINT32                          uiCurLow;                                 /* ���䣺[curLow, curHigh) */
-    UINT32                          uiCurHigh;
 
     UINT32                          uiConquerorLow;
     UINT32                          uiConquerorHigh;
@@ -566,28 +564,28 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
     pFTlistHeader = hoitFragTreeCollectRange(pFTTree, INT_MIN, INT_MAX);
     pFTlistCur = pFTlistHeader->pFTlistHeader->pFTlistNext;
     
-    while (pFTlistCur != LW_NULL)                     /* ���Ϊ��ɫ���ڲ�Ϊ��ɫ */
+    while (pFTlistCur != LW_NULL)                     /* ����?����?����ڲ��?����? */
     {
-        uiCurLow = pFTlistCur->pFTn->uiOfs;
-        uiCurHigh = uiCurLow + pFTlistCur->pFTn->uiSize;
-        //TODO: �����￪ʼ����ص�����Ҫ������
-        pFTlistConqueror = pFTlistHeader->pFTlistHeader->pFTlistNext;               /* ָ���һ����Ч�ڵ� */
+        //TODO: �����￪ʼ����ص������?�������?
+        pFTlistConqueror = pFTlistHeader->pFTlistHeader->pFTlistNext;               /* ָ���һ����Ч�ڵ�? */
         while (pFTlistConqueror != LW_NULL)
         {
             bIsOverlay = LW_FALSE;
             if(pFTlistConqueror == pFTlistCur)                                    /* �Լ��Ͳ����Լ��Ƚ��� */
             {
+                pFTlistConqueror = pFTlistConqueror->pFTlistNext;
                 continue;
             }
-            if(pFTlistConqueror->pFTn->pFDnode->HOITFD_version                      /* listInner���������ߣ�������version������ڱ������߲��ܽ������� */
+            if(pFTlistConqueror->pFTn->pFDnode->HOITFD_version                      /* listInner���������ߣ�������version������ڱ������߲��ܽ�������? */
              < pFTlistCur->pFTn->pFDnode->HOITFD_version){
+                pFTlistConqueror = pFTlistConqueror->pFTlistNext;
                 continue;
             }
 
             pFTn            = pFTlistCur->pFTn;
             pFTnConqueror   = pFTlistConqueror->pFTn;
             uiConquerorLow  = pFTnConqueror->uiOfs;
-            uiConquerorHigh = uiConquerorLow + pFTnConqueror->uiSize;
+            uiConquerorHigh = uiConquerorLow + pFTnConqueror->uiSize - 1;
             
             bIsOverlay = __hoitFragTreeConquerNode(pFTTree, pFTn, uiConquerorLow, uiConquerorHigh,
                                                    &pFTnNew, &uiCase, LW_TRUE);
@@ -621,7 +619,7 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
                     }
                     else {
                         pFTlistNodeNew = newFragTreeListNode(pFTnNew);
-                        hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNodeNew);                  /* ����ڵ������� */
+                        hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNodeNew);                  /* ����ڵ�������? */
 
                         pFTlistConqueror = pFTlistConqueror->pFTlistNext;
                     }
@@ -632,7 +630,7 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
                     2. ɾ��ԭ����Cur�ڵ�(pFTn)
                     3. ����ҲӦ��ɾ��pFTn��
                     4. �������pFTnNew��
-                    5. CurӦ��ָ����һ�����½ڵ���Զ����������󣬲���Ҫ����Cur��ͷ����
+                    5. CurӦ��ָ����һ�����½ڵ���Զ�����������?����?�����Cur��ͷ����
                     6. ConquerorӦ����ͷ��ʼ����ΪCur�仯��
                         |-------|-------------|-------|
                         ^       ^             ^       ^
@@ -646,10 +644,10 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
                     }
                     else {
                         pFTlistNodeNew = newFragTreeListNode(pFTnNew);
-                        hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNodeNew);                  /* ����ڵ������� */
+                        hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNodeNew);                  /* ����ڵ�������? */
                         
                         pFTlistNext = pFTlistCur->pFTlistNext;
-                        hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistCur);                    /* ɾ������ڵ� */
+                        hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistCur);                    /* ɾ������ڵ�? */
                         lib_free(pFTlistCur);
 
                         pFTlistCur = pFTlistNext;                                                 /* ����ǰOuterΪ��һ�� */
@@ -669,7 +667,7 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
                 */
                 case 4:
                     pFTlistNext = pFTlistCur->pFTlistNext;
-                    hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistCur);                        /* ɾ������ڵ� */
+                    hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistCur);                        /* ɾ������ڵ�? */
                     lib_free(pFTlistCur);
 
                     pFTlistCur = pFTlistNext;                                                     /* ����ǰOuterΪ��һ�� */

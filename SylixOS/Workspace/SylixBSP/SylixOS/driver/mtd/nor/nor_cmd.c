@@ -105,7 +105,13 @@ ENUM_WRITE_OPTIONS parse_write_options(PCHAR ops){
 ** µ÷ÓÃÄ£¿é: 
 *********************************************************************************************************/
 BOOL nor_flash_test_ablility(){
+<<<<<<< HEAD
     //return test_nor();
+=======
+#ifdef NOR_TEST
+    return test_nor();
+#endif // NOR_TEST
+>>>>>>> 3d721479faf46c7ab9d923e5b31785af351d8932
     return LW_TRUE;
 }
 /*********************************************************************************************************

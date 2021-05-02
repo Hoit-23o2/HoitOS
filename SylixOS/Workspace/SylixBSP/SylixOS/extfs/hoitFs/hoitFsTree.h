@@ -1,3 +1,23 @@
+/*********************************************************************************************************
+**
+**                                    中国软件开源组织
+**
+**                                   嵌入式实时操作系统
+**
+**                                       SylixOS(TM)
+**
+**                               Copyright  All Rights Reserved
+**
+**--------------文件信息--------------------------------------------------------------------------------
+**
+** 文   件   名: hoitFsTree.h
+**
+** 创   建   人: Pan yanqi (潘延麒)
+**
+** 文件创建日期: 2021 年 03 月 28 日
+**
+** 描        述: JFFS2 Like Frag Tree实现
+*********************************************************************************************************/
 
 
 #ifndef SYLIXOS_EXTFS_HOITFS_HOITFSTREE_H_
@@ -8,7 +28,7 @@
 #include "hoitFsLib.h"
 
 //#define FT_TEST
-#define FT_DEBUG
+//#define FT_DEBUG
 
 /*********************************************************************************************************
   上层接口 - 供测试
@@ -49,8 +69,6 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
 BOOL             __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFDnode, BOOL bDoDelete);
 
 #endif // FT_TEST
-
-
 
 static inline PHOIT_FRAG_TREE_NODE newHoitFragTreeNode(PHOIT_FULL_DNODE pFDnode, UINT32 uiSize, UINT32 uiOfs, UINT32 iKey){
     PHOIT_FRAG_TREE_NODE pFTn = (PHOIT_FRAG_TREE_NODE)lib_malloc(sizeof(HOIT_FRAG_TREE_NODE));
