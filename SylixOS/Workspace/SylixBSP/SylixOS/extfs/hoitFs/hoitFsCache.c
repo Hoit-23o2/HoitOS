@@ -25,7 +25,7 @@ BOOL hoitEnableCache(UINT8 uiCacheBlockSize, UINT8 uiCacheBlockNums){
 }
 
 BOOL hoitReadFromCache(UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
-
+    
 }
 
 BOOL hoitWriteToCache(UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){

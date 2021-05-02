@@ -22,6 +22,7 @@
 #include "hoitFsTree.h"
 #include "hoitFsFDLib.h"
 #include "hoitFsCache.h"
+#include "driver/mtd/nor/nor.h"
 
 #ifdef FT_TEST
 PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFDnode, UINT uiOffset, UINT uiSize){
@@ -79,16 +80,16 @@ PHOIT_FRAG_TREE_NODE __hoitFragTreeGetSuccessor(PHOIT_FRAG_TREE pFTTree, PHOIT_F
 }
 
 /*********************************************************************************************************
-** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: __hoitFragTreeCollectRangeHelper
-** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õ¼ï¿½iKeyLowï¿½ï¿½iKeyHighÖ®ï¿½ï¿½Ä½Úµï¿?
-** ï¿½ä¡¡ï¿½ï¿½  : pFTlistHeader          ï¿½ï¿½ï¿½ï¿½Í·
-**            pFTTree               FragTree
-**            pFTnRoot              ï¿½ï¿½ï¿½Úµï¿½
-**            iKeyLow               ï¿½Í¼ï¿½Öµ
-**            iKeyHigh              ï¿½ß¼ï¿½Öµ
-** ï¿½ä¡¡ï¿½ï¿½  : None
-** È«ï¿½Ö±ï¿½ï¿½ï¿½:
-** ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½:
+** º¯ÊýÃû³Æ: __hoitFragTreeCollectRangeHelper
+** ¹¦ÄÜÃèÊö: ËÑ¼¯iKeyLowÖÁiKeyHighµÄFragTree½Úµã
+** Êä¡¡Èë  : pFTlistHeader          Á´±íÍ·
+**          pFTTree               FragTree
+**          pFTnRoot              ¸ù½Úµã
+**          iKeyLow               µÍ¼üÖµ
+**          iKeyHigh              ¸ß¼üÖµ
+** Êä¡¡³ö  : None
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 VOID __hoitFragTreeCollectRangeHelper(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader,
                                       PHOIT_FRAG_TREE pFTTree, 
@@ -114,8 +115,8 @@ VOID __hoitFragTreeCollectRangeHelper(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader,
         bHasSuccessor = LW_FALSE;
     }
     /* 
-        Case 1:         [key1    iKeyLow    key2 ...]             ï¿½Â½ç£ºkey1
-        Case 2:         [key1    iKeyLow]                         ï¿½Â½ç£ºkey1
+        Case 1:         [key1    iKeyLow    key2 ...]             ÏÂ½ç£ºkey1
+        Case 2:         [key1    iKeyLow]                         ÏÂ½ç£ºkey1
     */
     if((bHasSuccessor && (FT_GET_KEY(pFTnRoot) <= iKeyLow && FT_GET_KEY(pFTSuccessor) > iKeyLow)) ||
        (!bHasSuccessor && FT_GET_KEY(pFTnRoot) <= iKeyLow)){                                          /* iKey < iKeyLow ï¿½ï¿½ iKeyï¿½Äºï¿½Ì½Úµï¿½ï¿½iKey > iKeyLow*/
@@ -123,11 +124,11 @@ VOID __hoitFragTreeCollectRangeHelper(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader,
         pFTlistHeader->uiLowBound = FT_GET_KEY(pFTnRoot);
     }
     /* 
-        Case 3:         [iKeyLow   key1   key2 ...]               ï¿½Â½ç£ºkey1
+        Case 3:         [iKeyLow   key1   key2 ...]               ÏÂ½ç£ºkey1
         --------------------------------------------------------------------
-        Case 1:         [iKeyLow   key1   iKeyHigh]               ï¿½Ï½ç£ºkey1
-        Case 2:         [iKeyLow   key1   iKeyHigh    key2]       ï¿½Ï½ç£ºkey2
-        Case 3:         [ikey      iKeyLow   iKeyHigh]            ï¿½Ï½ç£ºkey1
+        Case 1:         [iKeyLow   key1   iKeyHigh]               ÏÂ½ç£ºkey1
+        Case 2:         [iKeyLow   key1   iKeyHigh    key2]       ÉÏ½ç£ºkey2
+        Case 3:         [ikey      iKeyLow   iKeyHigh]            ÏÂ½ç£ºkey1
     */
     else if (FT_GET_KEY(pFTnRoot) > iKeyLow && FT_GET_KEY(pFTnRoot) <= iKeyHigh){                     /* iKey > iKeyLow ï¿½ï¿½ iKey < iKeyHigh */
         bIsInRange = LW_TRUE;
@@ -152,7 +153,7 @@ VOID __hoitFragTreeCollectRangeHelper(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader,
         printf("Collecting Node %d \n", pFTlistNode->pFTn->pRbn.iKey);
 #endif // FT_DEBUG
     }
-    if (FT_GET_KEY(pFTnRoot) > iKeyHigh)                                                /* ï¿½ï¿½Ö¦ */
+    if (FT_GET_KEY(pFTnRoot) > iKeyHigh)                                                /* ¼ôÖ¦ */
     {
         return;
     }
@@ -163,18 +164,18 @@ VOID __hoitFragTreeCollectRangeHelper(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader,
                                      iKeyHigh);
 }   
 /*********************************************************************************************************
-** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: __hoitFragTreeConquerNode
-** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Úµã£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Þ¸Ä£ï¿?4ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä£Ê½
-** ï¿½ä¡¡ï¿½ï¿½  : pFTTree                 FragTree
-**           pFTn                   ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Úµï¿½
-**           uiConquerorLow          ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â½ï¿½
-**           uiConquerorHigh         ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï½ï¿½
-**           pFTnNew                 ï¿½ï¿½ï¿½Ú·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Úµï¿½
-**           uiCase                  ï¿½ï¿½ï¿½Ú·ï¿½ï¿½ï¿½Overlayï¿½ï¿½ï¿?
-**           bDoDelete               ï¿½ï¿½ï¿?2ï¿½ï¿½3ï¿½ï¿½ï¿½æ¼°ï¿½ï¿½É¾ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½É¾ï¿½ï¿½RawInfoï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½RawNodeÎªï¿½ï¿½ï¿½Ú½Úµï¿½
-** ï¿½ä¡¡ï¿½ï¿½  : ï¿½ï¿½ï¿½ï¿½ï¿½É¹ï¿½ï¿½ï¿½ï¿½ï¿½LW_TRUEï¿½ï¿½ï¿½ï¿½ï¿½ò·µ»ï¿½LW_FALSE
-** È«ï¿½Ö±ï¿½ï¿½ï¿½:
-** ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½:
+** º¯ÊýÃû³Æ: __hoitFragTreeConquerNode
+** ¹¦ÄÜÃèÊö: ·ÖËÄÖÖÇé¿öÕ÷·þÒ»¸ö½Úµã
+** Êä¡¡Èë  : pFTTree                 FragTree
+**          pFTn                   ´ýÕ÷·þ½Úµã
+**          uiConquerorLow          Õ÷·þÕßÉÏ½ç
+**          uiConquerorHigh         Õ÷·þÕßÏÂ½ç
+**          pFTnNew                 Éú³ÉµÄÐÂ½Úµã
+**          uiCase                  ·µ»ØÕ÷·þµÄÀàÐÍ
+**          bDoDelete               ÊÇ·ñÉ¾³ýRawInfoµÄÄÚÈÝ
+** Êä¡¡³ö  : ÊÇ·ñÄÜ¹»±»Õ÷·þ
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, 
                                UINT32 uiConquerorLow, UINT32 uiConquerorHigh, PHOIT_FRAG_TREE_NODE *pFTnNew, 
@@ -199,13 +200,13 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
 
 
 
-    if(bIsOverlay){                                                                     /* ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ */
+    if(bIsOverlay){                                                                     /* ¼ì²âµ½¸²¸Ç£¬Õþ¸®¿ªÊ¼ */
         /* 
             |-------|-------------|-------|
             ^       ^             ^       ^
             Cur  Conqueror       Cur    Conqueror  
         */
-        if(uiCurLow < uiConquerorLow && uiCurHigh <= uiConquerorHigh){                  /* ï¿½ï¿½ï¿?1 */
+        if(uiCurLow < uiConquerorLow && uiCurHigh <= uiConquerorHigh){                  /* Çé¿ö1 */
             uiLeftRemainSize = uiConquerorLow - uiCurLow;
             pFTn->uiSize = uiLeftRemainSize;
             pFTn->pFDnode->HOITFD_length = uiLeftRemainSize;
@@ -216,12 +217,12 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
             ^       ^             ^       ^
             Cur  Conqueror      Conqueror  Cur
         */
-        else if (uiCurLow < uiConquerorLow && uiCurHigh > uiConquerorHigh)              /* ï¿½ï¿½ï¿?2 */
+        else if (uiCurLow < uiConquerorLow && uiCurHigh > uiConquerorHigh)              /* Çé¿ö2 */
         {
             uiLeftRemainSize = uiCurLow - uiConquerorLow;
             uiRightRemainSize = uiConquerorHigh - uiCurHigh;
 
-            pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,                       /* ï¿½Ø¶ï¿½ï¿½Ò±ß²ï¿½ï¿½Ö£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÂµÄ½Úµï¿½ */
+            pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,                       /* ½ØÈ¡[Cur, ConquerorHigh] */
                                                     pFTn->pFDnode,
                                                     uiConquerorHigh - uiCurLow,
                                                     uiRightRemainSize);
@@ -230,7 +231,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
             pFTn->pFDnode->HOITFD_length = uiLeftRemainSize;
 
             *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* ï¿½ï¿½ï¿½ï¿½pFDNodeNewï¿½Â½ï¿½FragTreeNode */
-                                          pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
+                                           pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
 
             hoitFragTreeInsertNode(pFTTree, *pFTnNew);                                   /* ï¿½ï¿½ï¿½ï¿½Úµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
             *uiCase = 2;
@@ -324,7 +325,7 @@ PHOIT_FRAG_TREE_NODE hoitFragTreeSearchNode(PHOIT_FRAG_TREE pFTTree, INT32 iKey)
 ** È«ï¿½Ö±ï¿½ï¿½ï¿½:
 ** ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½:
 *********************************************************************************************************/
-PHOIT_FRAG_TREE_LIST_HEADER hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh){
+PHOIT_FRAG_TREE_LIST_HEADER  hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh){
     PHOIT_FRAG_TREE_LIST_HEADER     pFTlistHeader;
     pFTlistHeader = hoitFragTreeListInit();
     __hoitFragTreeCollectRangeHelper(pFTlistHeader, 
@@ -484,7 +485,7 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
     pFTlist             = pFTlistHeader->pFTlistHeader->pFTlistNext;
     while (pFTlist != LW_NULL)
     {
-        uiPhyOfs = pFTlist->pFTn->pFDnode->HOITFD_raw_info->phys_addr + sizeof(HOIT_RAW_HEADER);
+        uiPhyOfs = pFTlist->pFTn->pFDnode->HOITFD_raw_info->phys_addr + sizeof(HOIT_RAW_INODE);
         uiPhySize = pFTlist->pFTn->pFDnode->HOITFD_length;
         /* ï¿½ï¿½ï¿½×¸ï¿½ï¿½ï¿½ï¿½ï¿½Êµï¿½ï¿½
             |--H-|-uiBias-|
@@ -517,7 +518,8 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
 
         pPerContent = (PCHAR)lib_malloc(uiPerSize);                                 /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
         //TODO: ï¿½Ó»ï¿½ï¿½ï¿½ï¿½Ï¶ï¿½
-        hoitReadFromCache(uiPerOfs, pPerContent, uiPerSize);
+        //hoitReadFromCache(uiPerOfs, pPerContent, uiPerSize);
+        read_nor(uiPerOfs, pPerContent, uiPerSize);
 
         lib_memcpy(pContent + uiSizeRead, pPerContent, uiPerSize);
         lib_free(pPerContent);
@@ -567,21 +569,23 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
     pFTlistHeader = hoitFragTreeCollectRange(pFTTree, INT_MIN, INT_MAX);
     pFTlistCur = pFTlistHeader->pFTlistHeader->pFTlistNext;
     
-    while (pFTlistCur != LW_NULL)                     /* ï¿½ï¿½ï¿½Î?¿½ï¿½É?¿½ï¿½ï¿½Ú²ï¿½Î?¿½ï¿½É? */
+    while (pFTlistCur != LW_NULL)                                                   /* Ã»×ßµ½Î²°ÍÉÏ */
     {
         uiCurLow = pFTlistCur->pFTn->uiOfs;
         uiCurHigh = uiCurLow + pFTlistCur->pFTn->uiSize;
-        //TODO: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿ªÊ¼ï¿½ï¿½ï¿½ï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½Ò?¿½ï¿½ï¿½ï¿½ï¿½ï¿?
-        pFTlistConqueror = pFTlistHeader->pFTlistHeader->pFTlistNext;               /* Ö¸ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Ð§ï¿½Úµï¿? */
+        //TODO: ÑéÖ¤¿ÉÐÐÐÔ
+        pFTlistConqueror = pFTlistHeader->pFTlistHeader->pFTlistNext;               /* »ñÈ¡Õ÷·þÕß */
         while (pFTlistConqueror != LW_NULL)
         {
             bIsOverlay = LW_FALSE;
-            if(pFTlistConqueror == pFTlistCur)                                    /* ï¿½Ô¼ï¿½ï¿½Í²ï¿½ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½È½ï¿½ï¿½ï¿½ */
+            if(pFTlistConqueror == pFTlistCur)                                      /* ï¿½Ô¼ï¿½ï¿½Í²ï¿½ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½È½ï¿½ï¿½ï¿½ */
             {
+                pFTlistConqueror = pFTlistConqueror->pFTlistNext;
                 continue;
             }
             if(pFTlistConqueror->pFTn->pFDnode->HOITFD_version                      /* listInnerï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½versionï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß²ï¿½ï¿½Ü½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿? */
              < pFTlistCur->pFTn->pFDnode->HOITFD_version){
+                pFTlistConqueror = pFTlistConqueror->pFTlistNext;
                 continue;
             }
 
