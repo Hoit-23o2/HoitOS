@@ -3,6 +3,7 @@
 	<name>SylixBSP</name>
 	<comment></comment>
 	<projects>
+		<project>SylixOS</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
@@ -24,6 +25,10 @@
 				<dictionary>
 					<key>org.eclipse.cdt.make.core.build.command</key>
 					<value>make</value>
+				</dictionary>
+				<dictionary>
+					<key>org.eclipse.cdt.make.core.build.location</key>
+					<value></value>
 				</dictionary>
 				<dictionary>
 					<key>org.eclipse.cdt.make.core.build.target.auto</key>
