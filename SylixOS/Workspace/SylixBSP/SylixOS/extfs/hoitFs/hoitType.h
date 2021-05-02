@@ -69,6 +69,8 @@ typedef struct hoit_frag_tree             HOIT_FRAG_TREE;
 typedef struct hoit_frag_tree_node        HOIT_FRAG_TREE_NODE;
 typedef struct hoit_frag_tree_list_node   HOIT_FRAG_TREE_LIST_NODE;
 typedef struct hoit_frag_tree_list_header HOIT_FRAG_TREE_LIST_HEADER;
+typedef struct HOIT_CACHE_BLK             HOIT_CACHE_BLK;
+typedef struct HOIT_CACHE_HDR             HOIT_CACHE_HDR;
 
 typedef HOIT_VOLUME*                      PHOIT_VOLUME;
 typedef HOIT_RAW_HEADER*                  PHOIT_RAW_HEADER;
@@ -86,7 +88,8 @@ typedef HOIT_FRAG_TREE *                  PHOIT_FRAG_TREE;
 typedef HOIT_FRAG_TREE_NODE *             PHOIT_FRAG_TREE_NODE;
 typedef HOIT_FRAG_TREE_LIST_NODE *        PHOIT_FRAG_TREE_LIST_NODE;
 typedef HOIT_FRAG_TREE_LIST_HEADER *      PHOIT_FRAG_TREE_LIST_HEADER;
-
+typedef HOIT_CACHE_BLK *                  PHOIT_CACHE_BLK;
+typedef HOIT_CACHE_HDR *                  PHOIT_CACHE_HDR;
 DEV_HDR          HOITFS_devhdrHdr;
 
 
@@ -118,6 +121,7 @@ typedef struct HOIT_VOLUME{
     PHOIT_ERASABLE_SECTOR   HOITFS_now_sector;
     PHOIT_ERASABLE_SECTOR   HOITFS_erasableSectorList;                     /* 可擦除Sector列表 */
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
+    PHOIT_CACHE_HDR         HOITFS_cacheHdr;                               /* hoitfs的cache头结构 */
 } HOIT_VOLUME;
 
 
@@ -305,6 +309,35 @@ struct hoit_frag_tree_list_header
     UINT32 uiHighBound;
     UINT32 uiNCnt;
 };
+
+/*********************************************************************************************************
+  HOITFS cache结构
+*********************************************************************************************************/
+typedef struct HOIT_CACHE_BLK
+{
+    BOOL                        HOITBLK_bType;          /* cache块类型，为0 */
+    UINT32                      HOITBLK_blkNo;          /* cache块号 */
+    struct HOIT_CACHE_BLK       *HOITBLK_cacheListPrev;  /* 链表上上一个cache */
+    struct HOIT_CACHE_BLK       *HOITBLK_cacheListNext;  /* 链表上下一个cache */
+    PCHAR                       HOITBLK_buf;            /* 数据?? */
+}HOIT_CACHE_BLK;
+
+/*********************************************************************************************************
+  HOITFS cache 管理头结构
+*********************************************************************************************************/
+typedef struct HOIT_CACHE_HDR
+{
+    PHOIT_VOLUME            HOITCACHE_hoitfsVol;
+    size_t                  HOITCACHE_blockSize;    /* 单个cache大小 */
+    UINT32                  HOITCACHE_blockMaxNums; /* cache最大数量 */
+    UINT32                  HOITCACHE_blockNums;    /* 当前cache数量 */
+    LW_OBJECT_HANDLE        HOITCACHE_hLock;        /* cache自旋锁? */
+    UINT32                  HOITCACHE_flashBlkNum;  /* 将flash分块后的块数 */
+    PHOIT_CACHE_BLK         HOITCACHE_cacheLineHdr;  /* cache链表 */
+    UINT32                  HOITCACHE_nextBlkToWrite;/* 下一个要输出的块 */
+}HOIT_CACHE_HDR;
+
+
 
 /*********************************************************************************************************
   偏移量计算

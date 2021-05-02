@@ -257,7 +257,7 @@ VOID  __hoit_add_dirent(PHOIT_INODE_INFO  pFatherInode,
     UINT phys_addr = 0;
     __hoit_write_flash(pfs, (PVOID)pWriteBuf, totlen, &phys_addr);
 
-    pRawInfo->phys_addr = phys_addr;
+    pRawInfo->phys_addr = phys_addr
     pRawInfo->totlen = pRawDirent->totlen;
     pRawInfo->is_obsolete = 0;
 
@@ -729,7 +729,7 @@ PHOIT_INODE_INFO __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode, CPCHAR pcL
     if (S_ISLNK(mode)) {    /* 链接文件 */
         if (_PathCat(_PathGetDef(), pcLink, cFullPathName) != ERROR_NONE) { /*  获得从根目录开始的路径      */
             _ErrorHandle(ENAMETOOLONG);
-            return  (LW_NULL);
+            return  (PX_ERROR);
         }
 
         pRawInode = (PHOIT_RAW_INODE)__SHEAP_ALLOC(sizeof(HOIT_RAW_INODE) + lib_strlen(cFullPathName));
@@ -886,7 +886,7 @@ VOID __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pReadBuf;
     if (pRawHeader->magic_num != HOIT_MAGIC_NUM || (pRawHeader->flag & HOIT_FLAG_OBSOLETE) == 0) {
         printk("Error in hoit_move_home\n");
-        return;
+        return HOIT_ERROR;
     }
     pRawHeader->flag &= (~HOIT_FLAG_OBSOLETE);      //将obsolete标志变为0，代表过期
     /* 将obsolete标志位清0后写回原地址 */
