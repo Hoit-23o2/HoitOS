@@ -1,22 +1,22 @@
 /*********************************************************************************************************
 **
-**                                    中国软件开源组织
+**                                    锟叫癸拷锟斤拷锟斤拷锟皆达拷锟街?
 **
-**                                   嵌入式实时操作系统
+**                                   嵌锟斤拷式实时锟斤拷锟斤拷系统
 **
 **                                       SylixOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
-**--------------文件信息--------------------------------------------------------------------------------
+**--------------锟侥硷拷锟斤拷息--------------------------------------------------------------------------------
 **
-** 文   件   名: hoitFsTree.c
+** 锟斤拷   锟斤拷   锟斤拷: hoitFsTree.c
 **
-** 创   建   人: Pan yanqi (潘延麒)
+** 锟斤拷   锟斤拷   锟斤拷: Pan yanqi (锟斤拷锟斤拷锟斤拷)
 **
-** 文件创建日期: 2021 年 03 月 28 日
+** 锟侥硷拷锟斤拷锟斤拷锟斤拷锟斤拷: 2021 锟斤拷 03 锟斤拷 28 锟斤拷
 **
-** 描        述: JFFS2 Like Frag Tree实现
+** 锟斤拷        锟斤拷: JFFS2 Like Frag Tree实锟斤拷
 *********************************************************************************************************/
 
 #include "hoitFsTree.h"
@@ -193,7 +193,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
     BOOL                      bIsOverlay;
 
     uiCurLow                  = pFTn->uiOfs;
-    uiCurHigh                 = uiCurLow + pFTn->uiSize;
+    uiCurHigh                 = uiCurLow + pFTn->uiSize - 1;
     bIsOverlay                = MAX(uiCurLow, uiConquerorLow) <= MIN(uiCurHigh, uiConquerorHigh);
     *uiCase                   = -1;
     *pFTnNew                  = LW_NULL;
@@ -219,21 +219,21 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
         */
         else if (uiCurLow < uiConquerorLow && uiCurHigh > uiConquerorHigh)              /* 情况2 */
         {
-            uiLeftRemainSize = uiCurLow - uiConquerorLow;
-            uiRightRemainSize = uiConquerorHigh - uiCurHigh;
+            uiLeftRemainSize = uiConquerorLow - uiCurLow ;
+            uiRightRemainSize = uiCurHigh - uiConquerorHigh;
 
-            pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,                       /* 截取[Cur, ConquerorHigh] */
+            pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,                       /* 截取[ConquerorHigh, CurHigh]的节点，创建新节点 */
                                                     pFTn->pFDnode,
                                                     uiConquerorHigh - uiCurLow,
                                                     uiRightRemainSize);
 
-            pFTn->uiSize = uiLeftRemainSize;                                            /* 锟睫革拷锟斤拷卟锟斤拷值锟絪ize */
-            pFTn->pFDnode->HOITFD_length = uiLeftRemainSize;
+            pFTn->uiSize = uiLeftRemainSize;                                            /* 设置被征服节点的大小 */
+            pFTn->pFDnode->HOITFD_length = uiLeftRemainSize;                            /* 更新FDNode的大小 */
 
-            *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 锟斤拷锟斤拷pFDNodeNew锟铰斤拷FragTreeNode */
+            *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 生成FragTree节点 */
                                            pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
 
-            hoitFragTreeInsertNode(pFTTree, *pFTnNew);                                   /* 锟斤拷锟斤拷诘锟斤拷锟斤拷锟斤拷锟斤拷 */
+            hoitFragTreeInsertNode(pFTTree, *pFTnNew);                                   /* 把该节点放入FragTree中 */
             *uiCase = 2;
         }
         /* 
@@ -241,17 +241,17 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
                 ^       ^             ^       ^
             Conqueror  Cur       Conqueror  Cur
         */
-        else if (uiCurLow >= uiConquerorLow && uiCurHigh > uiConquerorHigh)             /* 锟斤拷锟?3 */
+        else if (uiCurLow >= uiConquerorLow && uiCurHigh > uiConquerorHigh)             /* 情况3 */
         {
             uiRightRemainSize = uiCurHigh - uiConquerorHigh;
             pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,
                                                     pFTn->pFDnode,
                                                     uiConquerorHigh - uiCurLow,
                                                     uiRightRemainSize);
-            *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 锟斤拷锟斤拷pFDNodeNew锟铰斤拷FragTreeNode */
+            *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 根据pFDNodeNew生成新的FragTree节点 */
                                            pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
             hoitFragTreeInsertNode(pFTTree, *pFTnNew);
-            hoitFragTreeDeleteNode(pFTTree, pFTn, bDoDelete);                            /* 删锟斤拷锟斤拷锟斤拷锟斤拷诘锟? */
+            hoitFragTreeDeleteNode(pFTTree, pFTn, bDoDelete);                            /* 删除pFTn节点，因为[CurLow, ConquerorHigh]已经被征服 */
             *uiCase = 3;
         }
         /* 
@@ -259,9 +259,9 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
             ^       ^             ^       ^
         Conqueror  Cur           Cur    Conqueror
         */
-        else if (uiCurLow >= uiConquerorLow && uiCurHigh <= uiConquerorHigh)            /* 锟斤拷锟?4 */
+        else if (uiCurLow >= uiConquerorLow && uiCurHigh <= uiConquerorHigh)            /* 情况4 */
         {
-            hoitFragTreeDeleteNode(pFTTree, pFTn, bDoDelete);                            /* 删锟斤拷锟斤拷前FragTree锟较的节碉拷 */
+            hoitFragTreeDeleteNode(pFTTree, pFTn, bDoDelete);                            /* 直接删除pFTn即可 */
             *uiCase = 4;
         }
     }
@@ -270,8 +270,8 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
 /*********************************************************************************************************
 ** 函数名称: hoitInitFragTree
 ** 功能描述: 初始化FragTree
-** 输　入  : None
-** 输　出  : 返回FragTree
+** 输　入  : pfs    HoitFS设备头
+** 输　出  : FragTree数据结构
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
@@ -284,12 +284,13 @@ PHOIT_FRAG_TREE hoitInitFragTree(PHOIT_VOLUME pfs){
     pFTTree->pfs = pfs;
     return pFTTree;
 }
+
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeInsertNode
-** 功能描述: 向FragTree中插入节点
-** 输　入  : pFTTree            FragTree
-**           pFTn               待插入的节点   
-** 输　出  : 返回插入的节点
+** 功能描述: 初始化FragTree
+** 输　入  : pFTTree    FragTree
+**          pFTn       待插入节点
+** 输　出  : 被插入的节点
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
@@ -298,12 +299,13 @@ PHOIT_FRAG_TREE_NODE hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_
     pFTTree->uiNCnt++;
     return pFTn;
 }
+
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeSearchNode
-** 功能描述: 在FragTree上搜索键值为iKey的节点
-** 输　入  : pFTTree          FragTree
-**           iKey             键值
-** 输　出  : 找到就返回FragTree节点，否则返回LW_NULL
+** 功能描述: 在FragTree中根据键值搜索目标节点，已弃用
+** 输　入  : pFTTree    FragTree
+**          iKey       键值
+** 输　出  : 被插入的节点
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
@@ -316,14 +318,14 @@ PHOIT_FRAG_TREE_NODE hoitFragTreeSearchNode(PHOIT_FRAG_TREE pFTTree, INT32 iKey)
     return pFTn;
 }
 /*********************************************************************************************************
-** 锟斤拷锟斤拷锟斤拷锟斤拷: hoitFragTreeSearchNode
-** 锟斤拷锟斤拷锟斤拷锟斤拷: 锟斤拷FragTree锟斤拷锟斤拷锟斤拷锟斤拷值锟节凤拷围[x, y]锟侥节点，锟斤拷锟叫ｏ拷x <= iKeyLow锟斤拷y >= iKeyHigh锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷
-** 锟戒　锟斤拷  : pFTTree          FragTree
-**           iKeyLow          锟酵硷拷值
-**           iKeyHigh         锟竭硷拷值
-** 锟戒　锟斤拷  : 锟斤拷锟斤拷锟斤拷锟斤拷头
-** 全锟街憋拷锟斤拷:
-** 锟斤拷锟斤拷模锟斤拷:
+** 函数名称: hoitFragTreeCollectRange
+** 功能描述: 在FragTree中搜集[i, j]节点，其中 i <= iKeyLow, j >= iKeyHigh
+** 输　入  : pFTTree    FragTree
+**          iKeyLow       低键值
+**          iKeyHigh      高键值
+** 输　出  : 搜集链表头
+** 全局变量:
+** 调用模块:
 *********************************************************************************************************/
 PHOIT_FRAG_TREE_LIST_HEADER  hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh){
     PHOIT_FRAG_TREE_LIST_HEADER     pFTlistHeader;
@@ -343,10 +345,11 @@ PHOIT_FRAG_TREE_LIST_HEADER  hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, I
 }
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeDeleteNode
-** 功能描述: 在FragTree上删除某个节点，并释放其内存，注意保存
-** 输　入  : pFTTree          FragTree
-**           pFTn             FragTree上的某个节点
-** 输　出  : 删除成功返回True，否则返回False
+** 功能描述: 在FragTree中删除一个节点
+** 输　入  : pFTTree    FragTree
+**          pFTn        待删除节点
+**          bDoDelete   是否删除RawInfo
+** 输　出  : 删除是否成功
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
@@ -358,24 +361,25 @@ BOOL hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, 
     res = hoitRbDeleteNode(pFTTree->pRbTree, &pFTn->pRbn);
     if(res){
         pFTTree->uiNCnt--;
-        __hoit_delete_full_dnode(pFTTree->pfs, pFTn->pFDnode, bDoDelete); /* 删锟斤拷Dnode指锟斤拷锟斤拷诖锟秸硷拷 */
-        lib_free(pFTn);                                                   /* 删锟斤拷pFTn指锟斤拷锟斤拷诖锟秸硷拷 */
+        __hoit_delete_full_dnode(pFTTree->pfs, pFTn->pFDnode, bDoDelete); /* 删除pFDNode */
+        lib_free(pFTn);                                                   /* 删除整个TreeNode */
     }
     return res;
 }
 
 
 
+
 /*********************************************************************************************************
-** 锟斤拷锟斤拷锟斤拷锟斤拷: hoitFragTreeDeleteNode
-** 锟斤拷锟斤拷锟斤拷锟斤拷: 锟斤拷FragTree锟斤拷删锟斤拷某锟斤拷围锟节的节碉拷
-** 锟戒　锟斤拷  : pFTTree          FragTree
-**           iKeyLow          锟酵硷拷值
-**           iKeyHigh         锟竭硷拷值
-**           bDoDelete        锟角凤拷删锟斤拷RawInfo锟斤拷锟斤拷锟斤拷锟絉awNode为锟斤拷锟节节碉拷
-** 锟戒　锟斤拷  : 删锟斤拷锟缴癸拷锟斤拷锟斤拷True锟斤拷锟斤拷锟津返伙拷False
-** 全锟街憋拷锟斤拷:
-** 锟斤拷锟斤拷模锟斤拷:
+** 函数名称: hoitFragTreeDeleteNode
+** 功能描述: 在FragTree中删除[iKeyLow, iKeyHigh]的节点，利用ConquerNode进行，因为有些部分不需要被删除
+** 输　入  : pFTTree    FragTree
+**          iKeyLow    区间低值
+**          iKeyHigh   区间高值
+**          bDoDelete   是否删除RawInfo
+** 输　出  : 删除是否成功
+** 全局变量:
+** 调用模块:
 *********************************************************************************************************/
 BOOL hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh, BOOL bDoDelete){
     PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader;
@@ -399,7 +403,7 @@ BOOL hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyH
         printf("count %d\n", uiCount);
 #endif
         
-        //TODO: 锟斤拷证锟竭硷拷
+        //TODO: 验证可行性
         __hoitFragTreeConquerNode(pFTTree, pFTlistNode->pFTn, uiConquerorLow, uiConquerorHigh, 
                                   &pFTnNew, &uiCase, bDoDelete);
         
@@ -410,12 +414,12 @@ BOOL hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyH
 }
 
 /*********************************************************************************************************
-** 锟斤拷锟斤拷锟斤拷锟斤拷: hoitFragTreeDeleteTree
-** 锟斤拷锟斤拷锟斤拷锟斤拷: 删锟斤拷锟斤拷锟斤拷FragTree锟斤拷锟斤拷锟斤拷锟酵凤拷pFTTree锟斤拷锟节达拷
-** 锟戒　锟斤拷  : pFTTree          FragTree
-** 锟戒　锟斤拷  : 删锟斤拷锟缴癸拷锟斤拷锟斤拷True锟斤拷锟斤拷锟津返伙拷False
-** 全锟街憋拷锟斤拷:
-** 锟斤拷锟斤拷模锟斤拷:
+** 函数名称: hoitFragTreeDeleteTree
+** 功能描述: 删除FragTree结构
+** 输　入  : pFTTree    FragTree
+** 输　出  : 删除是否成功
+** 全局变量:
+** 调用模块:
 *********************************************************************************************************/
 BOOL hoitFragTreeDeleteTree(PHOIT_FRAG_TREE pFTTree, BOOL bDoDelete){
     BOOL                          res;
@@ -428,9 +432,8 @@ BOOL hoitFragTreeDeleteTree(PHOIT_FRAG_TREE pFTTree, BOOL bDoDelete){
 
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeTraverse
-** 功能描述: 中序遍历FragTree
-** 输　入  : pFTTree          FragTree
-**           pFTnRoot         FragTree子树根
+** 功能描述: 遍历FragTree结构
+** 输　入  : pFTTree    FragTree
 ** 输　出  : None
 ** 全局变量:
 ** 调用模块:
@@ -446,16 +449,17 @@ VOID hoitFragTreeTraverse(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot
         hoitFragTreeTraverse(pFTTree, FT_RIGHT_CHILD(pFTnRoot));
     }
 }
+
 /*********************************************************************************************************
-** 锟斤拷锟斤拷锟斤拷锟斤拷: hoitFragTreeRead
-** 锟斤拷锟斤拷锟斤拷锟斤拷: 锟斤拷锟斤拷锟斤拷锟紽ragTree
-** 锟戒　锟斤拷  : pFTTree          FragTree
-**           uiOfs            锟斤拷锟斤拷募锟斤拷锟狡?拷锟?
-**           uiSize           锟斤拷锟斤拷
-**           pContent         锟斤拷锟斤拷锟斤拷锟斤拷位锟斤拷
-** 锟戒　锟斤拷  : None
-** 全锟街憋拷锟斤拷:
-** 锟斤拷锟斤拷模锟斤拷:
+** 函数名称: hoitFragTreeRead
+** 功能描述: 读FragTree的内容
+** 输　入  : pFTTree    FragTree
+**          uiOfs       偏移
+**          uiSize      大小
+**          pContent    读取的内容
+** 输　出  : ERROR_NONE 无错误
+** 全局变量:
+** 调用模块:
 *********************************************************************************************************/
 error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, PCHAR pContent){
     UINT32                      iKeyLow;
@@ -487,7 +491,7 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
     {
         uiPhyOfs = pFTlist->pFTn->pFDnode->HOITFD_raw_info->phys_addr + sizeof(HOIT_RAW_INODE);
         uiPhySize = pFTlist->pFTn->pFDnode->HOITFD_length;
-        /* 锟斤拷锟阶革拷锟斤拷锟斤拷实锟斤拷
+        /* 读第一块
             |--H-|-uiBias-|
             |----|--------|-------|
                  |        |       |
@@ -498,7 +502,7 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
             uiPerOfs = uiPhyOfs + uiBias;
             uiPerSize = uiPhySize - uiBias;
         }
-        /* 锟斤拷锟斤拷锟揭伙拷锟斤拷锟斤拷锟绞碉拷锟?
+        /* 读最后一块
                         |--H-|-remain-|  
                         |----|--------|-------|
                              |                |
@@ -507,19 +511,18 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
         */
         else if (uiSizeRead + uiPhySize >= uiSize)
         {
-            uiPerOfs = uiPhySize;
+            uiPerOfs = uiPhyOfs;
             uiPerSize = uiSizeRemain;
         }
-        else                                                                        /* 锟斤拷锟斤拷锟斤拷锟? */
+        else                                                                        /* 其他情况 */
         {
-            uiPerOfs = uiPhySize;
+            uiPerOfs = uiPhyOfs;
             uiPerSize = uiPhySize;
         }
 
-        pPerContent = (PCHAR)lib_malloc(uiPerSize);                                 /* 锟斤拷锟斤拷锟斤拷锟斤拷 */
-        //TODO: 锟接伙拷锟斤拷锟较讹拷
-        //hoitReadFromCache(uiPerOfs, pPerContent, uiPerSize);
-        read_nor(uiPerOfs, pPerContent, uiPerSize);
+        pPerContent = (PCHAR)lib_malloc(uiPerSize);                                 /* 每一次读取的内容 */
+        //TODO: 待实现
+        hoitReadFromCache(uiPerOfs, pPerContent, uiPerSize);
 
         lib_memcpy(pContent + uiSizeRead, pPerContent, uiPerSize);
         lib_free(pPerContent);
@@ -529,17 +532,17 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
         uiSizeRemain -= uiPerSize;
     }
 
-    hoitFragTreeListFree(pFTlistHeader);                                             /* 锟酵凤拷锟斤拷锟斤拷 */
+    hoitFragTreeListFree(pFTlistHeader);                                             /* 释放收集链表 */
     return ERROR_NONE;
 }
 
 /*********************************************************************************************************
-** 锟斤拷锟斤拷锟斤拷锟斤拷: hoitFragTreeOverlayFixUp
-** 锟斤拷锟斤拷锟斤拷锟斤拷: 锟睫革拷FragTree锟斤拷锟截碉拷锟侥节碉拷
-** 锟戒　锟斤拷  : pFTTree          FragTree
-** 锟戒　锟斤拷  : 锟斤拷锟睫革拷锟斤拷锟絃W_TRUE锟斤拷锟斤拷锟斤拷锟斤拷锟絃W_FALSE
-** 全锟街憋拷锟斤拷:
-** 锟斤拷锟斤拷模锟斤拷:
+** 函数名称: hoitFragTreeOverlayFixUp
+** 功能描述: 修复FragTree上的Overlap
+** 输　入  : pFTTree    FragTree
+** 输　出  : 成功 LW_TRUE，否则LW_FALSE
+** 全局变量:
+** 调用模块:
 *********************************************************************************************************/
 BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
     PHOIT_FRAG_TREE_LIST_HEADER     pFTlistHeader;
@@ -552,9 +555,6 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
     PHOIT_FRAG_TREE_NODE            pFTnNew;
     PHOIT_FRAG_TREE_NODE            pFTn;
     PHOIT_FRAG_TREE_LIST_NODE       pFTlistNodeNew;
-    
-    UINT32                          uiCurLow;                                 /* 锟斤拷锟戒：[curLow, curHigh) */
-    UINT32                          uiCurHigh;
 
     UINT32                          uiConquerorLow;
     UINT32                          uiConquerorHigh;
@@ -571,19 +571,17 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
     
     while (pFTlistCur != LW_NULL)                                                   /* 没走到尾巴上 */
     {
-        uiCurLow = pFTlistCur->pFTn->uiOfs;
-        uiCurHigh = uiCurLow + pFTlistCur->pFTn->uiSize;
-        //TODO: 验证可行性
-        pFTlistConqueror = pFTlistHeader->pFTlistHeader->pFTlistNext;               /* 获取征服者 */
+        //TODO: 验证正确性?
+        pFTlistConqueror = pFTlistHeader->pFTlistHeader->pFTlistNext;               /* 征服者 */
         while (pFTlistConqueror != LW_NULL)
         {
             bIsOverlay = LW_FALSE;
-            if(pFTlistConqueror == pFTlistCur)                                      /* 锟皆硷拷锟酵诧拷锟斤拷锟皆硷拷锟饺斤拷锟斤拷 */
+            if(pFTlistConqueror == pFTlistCur)                                      /* 跳过 */
             {
                 pFTlistConqueror = pFTlistConqueror->pFTlistNext;
                 continue;
             }
-            if(pFTlistConqueror->pFTn->pFDnode->HOITFD_version                      /* listInner锟斤拷锟斤拷锟斤拷锟斤拷锟竭ｏ拷锟斤拷锟斤拷锟斤拷version锟斤拷锟斤拷锟斤拷诒锟斤拷锟斤拷锟斤拷卟锟斤拷芙锟斤拷锟斤拷锟斤拷锟? */
+            if(pFTlistConqueror->pFTn->pFDnode->HOITFD_version                      /* Conqueror的Version必须要比被征服者的Version大 */
              < pFTlistCur->pFTn->pFDnode->HOITFD_version){
                 pFTlistConqueror = pFTlistConqueror->pFTlistNext;
                 continue;
@@ -592,15 +590,15 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
             pFTn            = pFTlistCur->pFTn;
             pFTnConqueror   = pFTlistConqueror->pFTn;
             uiConquerorLow  = pFTnConqueror->uiOfs;
-            uiConquerorHigh = uiConquerorLow + pFTnConqueror->uiSize;
+            uiConquerorHigh = uiConquerorLow + pFTnConqueror->uiSize - 1;
             
             bIsOverlay = __hoitFragTreeConquerNode(pFTTree, pFTn, uiConquerorLow, uiConquerorHigh,
                                                    &pFTnNew, &uiCase, LW_TRUE);
             if(bIsOverlay){
                 switch (uiCase)
                 {
-                /*! 锟斤拷锟斤拷锟斤拷锟教ｏ拷
-                    1. 锟斤拷锟斤拷Cur锟斤拷应锟节碉拷锟絊ize锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷
+                /*! 情况1
+                    1. 仅修改被征服者Cur的Size即可
 
                     |-------|-------------|-------|
                     ^       ^             ^       ^
@@ -609,11 +607,11 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
                 case 1:
                     pFTlistConqueror = pFTlistConqueror->pFTlistNext;
                     break;
-                /*! 锟斤拷锟斤拷锟斤拷锟教ｏ拷
-                    1. 锟斤拷锟斤拷Cur锟节点，锟斤拷锟斤拷锟铰碉拷FragTree锟节碉拷pFTnNew锟斤拷锟戒长锟斤拷为CurHigh - ConquerorHigh锟斤拷
-                       偏锟斤拷为ConquerorHigh - CurLow锟斤拷锟斤拷锟斤拷锟斤拷锟紽ragTree锟斤拷
-                    2. 锟斤拷锟斤拷Cur锟斤拷应锟节碉拷锟絊ize为ConquereorLow - CurLow
-                    3. 锟斤拷锟铰节碉拷锟斤拷锟斤拷锟斤拷锟侥┪诧拷校锟斤拷锟斤拷锟揭伙拷锟斤拷募锟斤拷
+                /*! 情况2
+                    1. 截取被征服节点Cur为pFTnNew，其偏移为ConquerorHigh，大小为CurHigh - ConquerorHigh，
+                       并将其插入FragTree中
+                    2. 修改被征服节点Cur的Size为ConquereorLow - CurLow
+                    3. 将pFTnNew加入检测链表的末尾，以供下一次检测
                     |-------|-------------|-------|
                     ^       ^             ^       ^
                     Cur  Conqueror      Conqueror  Cur
@@ -626,19 +624,19 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
                     }
                     else {
                         pFTlistNodeNew = newFragTreeListNode(pFTnNew);
-                        hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNodeNew);                  /* 锟斤拷锟斤拷诘锟斤拷锟斤拷锟斤拷锟? */
+                        hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNodeNew);                  /* 将pFTnNew插入链表末尾 */
 
                         pFTlistConqueror = pFTlistConqueror->pFTlistNext;
                     }
                     break;
-                /*! 锟斤拷锟斤拷锟斤拷锟教ｏ拷
-                    1. 锟斤拷锟斤拷Cur锟节点，锟斤拷锟斤拷锟铰碉拷FragTree锟节碉拷pFTnNew锟斤拷锟戒长锟斤拷为CurHigh - ConquerorHigh锟斤拷
-                       偏锟斤拷为ConquerorHigh - CurLow锟斤拷锟斤拷锟斤拷锟斤拷锟紽ragTree锟斤拷
-                    2. 删锟斤拷原锟斤拷锟斤拷Cur锟节碉拷(pFTn)
-                    3. 锟斤拷锟斤拷也应锟斤拷删锟斤拷pFTn锟斤拷
-                    4. 锟斤拷锟斤拷锟斤拷锟絧FTnNew锟斤拷
-                    5. Cur应锟斤拷指锟斤拷锟斤拷一锟斤拷锟斤拷锟铰节碉拷锟斤拷远锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷螅?锟斤拷锟揭?拷锟斤拷锟紺ur锟斤拷头锟斤拷锟斤拷
-                    6. Conqueror应锟斤拷锟斤拷头锟斤拷始锟斤拷锟斤拷为Cur锟戒化锟斤拷
+                /*! 情况3
+                    1. 截取被征服节点Cur为pFTnNew，其偏移为ConquerorHigh，大小为CurHigh - ConquerorHigh，
+                       并将其插入FragTree中
+                    2. 从FragTree中删除被征服节点Cur
+                    3. 从链表中删除Cur指针
+                    4. 将pFTnNew插入链表中，表示即将做下一次检查
+                    5. Cur指向下一个节点
+                    6. 因为被征服节点改变，因此Conqueror应该从链表头，代表重新开始征服
                         |-------|-------------|-------|
                         ^       ^             ^       ^
                     Conqueror  Cur       Conqueror  Cur
@@ -651,34 +649,34 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
                     }
                     else {
                         pFTlistNodeNew = newFragTreeListNode(pFTnNew);
-                        hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNodeNew);                  /* 锟斤拷锟斤拷诘锟斤拷锟斤拷锟斤拷锟? */
+                        hoitFragTreeListInsertNode(pFTlistHeader, pFTlistNodeNew);                  /* 将pFTnNew插入链表末尾? */
                         
                         pFTlistNext = pFTlistCur->pFTlistNext;
-                        hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistCur);                    /* 删锟斤拷锟斤拷锟斤拷诘锟? */
+                        hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistCur);                      /* 从链表中删除Cur */
                         lib_free(pFTlistCur);
 
-                        pFTlistCur = pFTlistNext;                                                 /* 锟斤拷锟斤拷前Outer为锟斤拷一锟斤拷 */
-                        pFTlistConqueror = pFTlistHeader->pFTlistHeader;                                /* 锟斤拷锟斤拷Inner指锟诫，锟斤拷为锟斤拷锟角碉拷Outer也锟斤拷锟斤拷锟斤拷 */
+                        pFTlistCur = pFTlistNext;                                                   /* 置当前被征服节点为下一个 */
+                        pFTlistConqueror = pFTlistHeader->pFTlistHeader;                            /* 征服者从头开始征服 */
                         
                         pFTlistConqueror = pFTlistConqueror->pFTlistNext;
                     }
                     break;
-                /*! 锟斤拷锟斤拷锟斤拷锟教ｏ拷
-                    1. 删锟斤拷Cur
-                    2. 删锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟叫碉拷位锟矫ｏ拷
-                    3. 锟斤拷锟斤拷Cur为锟斤拷一锟斤拷锟节点；
-                    4. 锟斤拷锟斤拷Conqueror锟斤拷锟斤拷为Cur锟戒化锟剿ｏ拷
+                /*! 情况4
+                    1. 删除FragTree中的Cur
+                    2. 从链表中删除Cur
+                    3. Cur指向下一个节点
+                    4. 因为被征服节点改变，因此Conqueror应该从链表头，代表重新开始征服
                         |-------|-------------|-------|
                         ^       ^             ^       ^
                     Conqueror  Cur          Cur  Conqueror
                 */
                 case 4:
                     pFTlistNext = pFTlistCur->pFTlistNext;
-                    hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistCur);                        /* 删锟斤拷锟斤拷锟斤拷诘锟? */
+                    hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistCur);                        /* 从链表中删除Cur */
                     lib_free(pFTlistCur);
 
-                    pFTlistCur = pFTlistNext;                                                     /* 锟斤拷锟斤拷前Outer为锟斤拷一锟斤拷 */
-                    pFTlistConqueror = pFTlistHeader->pFTlistHeader;                                    /* 锟斤拷锟斤拷Inner指锟诫，锟斤拷为锟斤拷锟角碉拷Outer也锟斤拷锟斤拷锟斤拷 */
+                    pFTlistCur = pFTlistNext;                                                     /* 置当前被征服节点为下一个 */
+                    pFTlistConqueror = pFTlistHeader->pFTlistHeader;                              /* 征服者从头开始征服 */
                     
                     pFTlistConqueror = pFTlistConqueror->pFTlistNext;
                     break;
