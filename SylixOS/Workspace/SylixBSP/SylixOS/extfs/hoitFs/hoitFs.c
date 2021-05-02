@@ -150,6 +150,11 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_ulCurBlk = 0ul;
     pfs->HOITFS_now_sector = LW_NULL;
     pfs->HOITFS_pRootDir = LW_NULL;
+                                                                        /* GCÏà¹Ø */
+    _SmpSpinInit(&pfs->HOITFS_GCLock);
+    
+    pfs->HOITFS_curGCSector = LW_NULL;
+    pfs->HOITFS_erasableSectorList = LW_NULL;
     //__ram_mount(pramfs);
     __hoit_mount(pfs);
 

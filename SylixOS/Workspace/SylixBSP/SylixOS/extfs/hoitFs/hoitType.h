@@ -62,7 +62,7 @@ typedef struct HOIT_FULL_DNODE            HOIT_FULL_DNODE;
 typedef struct HOIT_FULL_DIRENT           HOIT_FULL_DIRENT;
 typedef struct HOIT_INODE_CACHE           HOIT_INODE_CACHE;
 typedef struct HOIT_INODE_INFO            HOIT_INODE_INFO;
-typedef struct HOIT_ERASABLE_SECTOR                HOIT_ERASABLE_SECTOR;
+typedef struct HOIT_ERASABLE_SECTOR       HOIT_ERASABLE_SECTOR;
 typedef struct hoit_rb_node               HOIT_RB_NODE;
 typedef struct hoit_rb_tree               HOIT_RB_TREE;
 typedef struct hoit_frag_tree             HOIT_FRAG_TREE;
@@ -88,6 +88,7 @@ typedef HOIT_FRAG_TREE *                  PHOIT_FRAG_TREE;
 typedef HOIT_FRAG_TREE_NODE *             PHOIT_FRAG_TREE_NODE;
 typedef HOIT_FRAG_TREE_LIST_NODE *        PHOIT_FRAG_TREE_LIST_NODE;
 typedef HOIT_FRAG_TREE_LIST_HEADER *      PHOIT_FRAG_TREE_LIST_HEADER;
+
 typedef HOIT_CACHE_BLK *                  PHOIT_CACHE_BLK;
 typedef HOIT_CACHE_HDR *                  PHOIT_CACHE_HDR;
 DEV_HDR          HOITFS_devhdrHdr;
@@ -119,8 +120,11 @@ typedef struct HOIT_VOLUME{
     UINT                    HOITFS_highest_version;
 
     PHOIT_ERASABLE_SECTOR   HOITFS_now_sector;
+    
+                                                                           /* GC 相关 */
     PHOIT_ERASABLE_SECTOR   HOITFS_erasableSectorList;                     /* 可擦除Sector列表 */
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
+    spinlock_t              HOITFS_GCLock;                                 /*  GC锁 */
     PHOIT_CACHE_HDR         HOITFS_cacheHdr;                               /* hoitfs的cache头结构 */
 } HOIT_VOLUME;
 
@@ -215,18 +219,18 @@ struct HOIT_INODE_INFO{
 
     uid_t               HOITN_uid;                                      /*  用户 id                     */
     gid_t               HOITN_gid;                                      /*  组   id                     */
-    time_t              HOITN_timeCreate;                                /*  创建时间                    */
-    time_t              HOITN_timeAccess;                                /*  最后访问时间                */
-    time_t              HOITN_timeChange;                                /*  最后修改时间                */
-    size_t              HOITN_stSize;                                    /*  当前文件大小 (可能大于缓冲) */
-    size_t              HOITN_stVSize;                                   /*  lseek 出的虚拟大小          */
+    time_t              HOITN_timeCreate;                               /*  创建时间                    */
+    time_t              HOITN_timeAccess;                               /*  最后访问时间                */
+    time_t              HOITN_timeChange;                               /*  最后修改时间                */
+    size_t              HOITN_stSize;                                   /*  当前文件大小 (可能大于缓冲) */
+    size_t              HOITN_stVSize;                                  /*  lseek 出的虚拟大小          */
 };
 
 
 
 struct HOIT_ERASABLE_SECTOR{
-    PHOIT_ERASABLE_SECTOR         HOITS_next;
-    UINT                          HOITS_bno;                                      /* 块号block number              */
+    PHOIT_ERASABLE_SECTOR         HOITS_next;                                     /* 链表信息管理 */
+    UINT                          HOITS_bno;                                      /* Setcor号block number              */
     UINT                          HOITS_addr;
     UINT                          HOITS_length;
     UINT                          HOITS_offset;                                   /* 当前在写物理地址 = addr+offset  */
@@ -238,7 +242,6 @@ struct HOIT_ERASABLE_SECTOR{
     PHOIT_RAW_INFO                HOITS_pRawInfoFirst;                            /* 指向可擦除Sector中第一个数据实体 */
     PHOIT_RAW_INFO                HOITS_pRawInfoLast;                             /* 指向可擦除Sector中最后一个数据实体，通过next_phys获取下一个数据实体 */
     PHOIT_RAW_INFO                HOITS_pRawInfoCurGC;                            /* 当前即将回收的数据实体，注：一次仅回收一个数据实体 */
-
 };
 
 
@@ -336,8 +339,6 @@ typedef struct HOIT_CACHE_HDR
     PHOIT_CACHE_BLK         HOITCACHE_cacheLineHdr;  /* cache链表 */
     UINT32                  HOITCACHE_nextBlkToWrite;/* 下一个要输出的块 */
 }HOIT_CACHE_HDR;
-
-
 
 /*********************************************************************************************************
   偏移量计算

@@ -522,7 +522,7 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
 
         pPerContent = (PCHAR)lib_malloc(uiPerSize);                                 /* 每一次读取的内容 */
         //TODO: 待实现
-        hoitReadFromCache(uiPerOfs, pPerContent, uiPerSize);
+        hoitReadFromCache(pFTTree->pfs->HOITFS_cacheHdr, uiPerOfs, pPerContent, uiPerSize);
 
         lib_memcpy(pContent + uiSizeRead, pPerContent, uiPerSize);
         lib_free(pPerContent);

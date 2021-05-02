@@ -609,7 +609,7 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
     while (pNow < pReadBuf + uiSectorSize) {
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pNow;
         if (pRawHeader->magic_num == HOIT_MAGIC_NUM && !__HOIT_IS_OBSOLETE(pRawHeader)) {
-            /* TODO:后面这里还需添加CRC校验 */
+            /* //TODO:后面这里还需添加CRC校验 */
             PHOIT_RAW_INFO pRawInfo = LW_NULL;
             if (__HOIT_IS_TYPE_INODE(pRawHeader)) {
                 PHOIT_RAW_INODE     pRawInode   = (PHOIT_RAW_INODE)pNow;
