@@ -88,6 +88,5 @@ VOID                    __hoit_mount(PHOIT_VOLUME  pfs);
 UINT8                   __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT* ppDirentList, PHOIT_FULL_DNODE* ppDnodeList);
 VOID                    __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag);
 
-
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0       */
 #endif                                                                  /*  __HOITFSLIB_H                */
