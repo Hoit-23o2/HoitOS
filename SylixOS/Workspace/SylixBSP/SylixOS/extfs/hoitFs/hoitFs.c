@@ -143,13 +143,14 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
         return  (PX_ERROR);
     }
 
-    pfs->HOITFS_mode = S_IFDIR | DEFAULT_DIR_PERM;
-    pfs->HOITFS_uid = getuid();
-    pfs->HOITFS_gid = getgid();
-    pfs->HOITFS_time = lib_time(LW_NULL);
-    pfs->HOITFS_ulCurBlk = 0ul;
-    pfs->HOITFS_now_sector = LW_NULL;
-    pfs->HOITFS_pRootDir = LW_NULL;
+    pfs->HOITFS_mode            = S_IFDIR | DEFAULT_DIR_PERM;
+    pfs->HOITFS_uid             = getuid();
+    pfs->HOITFS_gid             = getgid();
+    pfs->HOITFS_time            = lib_time(LW_NULL);
+    pfs->HOITFS_ulCurBlk        = 0ul;
+    pfs->HOITFS_now_sector      = LW_NULL;
+    pfs->HOITFS_pRootDir        = LW_NULL;
+    pfs->HOITFS_totalUsedSize   = 0;
                                                                         /* GCÏà¹Ø */
     _SmpSpinInit(&pfs->HOITFS_GCLock);
     

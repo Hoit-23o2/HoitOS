@@ -121,11 +121,13 @@ typedef struct HOIT_VOLUME{
 
     PHOIT_ERASABLE_SECTOR   HOITFS_now_sector;
     
-                                                                           /* GC 相关 */
-    PHOIT_ERASABLE_SECTOR   HOITFS_erasableSectorList;                     /* 可擦除Sector列表 */
-    PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
-    spinlock_t              HOITFS_GCLock;                                 /*  GC锁 */
-    PHOIT_CACHE_HDR         HOITFS_cacheHdr;                               /* hoitfs的cache头结构 */
+                                                                            /* GC 相关 */
+    PHOIT_ERASABLE_SECTOR   HOITFS_erasableSectorList;                      /* 可擦除Sector列表 */
+    PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                             /* 当前正在GC的Sector */
+    spinlock_t              HOITFS_GCLock;                                  /*  GC锁 */
+
+    PHOIT_CACHE_HDR         HOITFS_cacheHdr;                                /* hoitfs的cache头结构 */
+    size_t                  HOITFS_totalUsedSize;                           /* hoitfs总共使用的flash空间大小 */
 } HOIT_VOLUME;
 
 

@@ -1585,16 +1585,5 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     __hoit_get_nlink(pfs->HOITFS_pRootDir);
 }
 
-/*********************************************************************************************************
-** 函数名称: __hoit_mount
-** 功能描述: hoitfs 挂载
-** 输　入  : pfs           文件系统
-** 输　出  : NONE
-** 全局变量:
-** 调用模块:
-*********************************************************************************************************/
-VOID  __hoit_mount(PHOIT_VOLUME  pfs) {
-
-}
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
 #endif //HOITFSLIB_DISABLE

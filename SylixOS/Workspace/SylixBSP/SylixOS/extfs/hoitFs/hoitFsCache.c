@@ -329,7 +329,7 @@ BOOL hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, U
 ** 功能描述:    读取flash数据，优先从内存中读取
 ** 输　入  :    pcacheHdr               cache头结构
 **              pContent                原地址
-**              uiSize                  写入字节
+**              uiSize                  写入字节，最大不能超过一个cache块大小
 ** 输　出  : 成功时返回写入首地址（以NOR_FLASH_START_OFFSET为0地址），
 **          失败返回PX_ERROR
 ** 全局变量:
@@ -372,7 +372,7 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
                 NOR_FLASH_START_OFFSET;
     pcache = hoitCheckCacheHit(pcacheHdr, pSector->HOITS_bno);
     if (pcache == LW_NULL) { /* 未命中 */
-        pcache = hoitAllocCache(pcacheHdr, pSector->HOITS_bno, HOIT_CACHE_TYPE_DATA);
+        pcache = hoitAllocCache(pcacheHdr, pSector->HOITS_bno, HOIT_CACHE_TYPE_DATA, pSector);
         if (pcache == LW_NULL) { /* 未成功分配cache，直接写入flash */                        
             write_nor(writeAddr, pContent, uiSize, WRITE_KEEP);
         }
@@ -393,10 +393,14 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
         }
         pSector = pSector->HOITS_next;
     }
+    pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_totalUsedSize += uiSize;
     return writeAddr - NOR_FLASH_START_OFFSET;
 }
-#endif
 
+#endif
+/*
+
+*/
 VOID hoitCheckCacheList(PHOIT_CACHE_HDR pcacheHdr) {
     UINT32  i = 0;
     printf("======================  hoit cache check   ===========================\n");
@@ -435,7 +439,7 @@ UINT32 hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr) {
     
     tempCache = pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext;
     while (tempCache != pcacheHdr->HOITCACHE_cacheLineHdr) {
-        if (tempCache->HOITBLK_bType == HOIT_CACHE_TYPE_INVALID)
+        if (tempCache->HOITBLK_sector == LW_NULL)
             continue;
         //TODO 需要获取写flash的位置
         blkToWrite  = hoitFindNextToWrite(pcacheHdr, tempCache->HOITBLK_bType);
