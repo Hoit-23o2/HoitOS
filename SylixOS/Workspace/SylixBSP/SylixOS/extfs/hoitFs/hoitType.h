@@ -172,6 +172,8 @@ struct HOIT_RAW_INFO{
     UINT                phys_addr;
     UINT                totlen;
     PHOIT_RAW_INFO      next_phys;
+    PHOIT_RAW_INFO      next_logic;
+    UINT                is_obsolete;
 };
 
 
