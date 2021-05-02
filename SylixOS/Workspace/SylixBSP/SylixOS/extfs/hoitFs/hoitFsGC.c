@@ -21,6 +21,8 @@
 #include "hoitFsGC.h"
 #include "hoitFsCache.h"
 #include "hoitFsFDLib.h"
+#include "hoitFsLib.h"
+
 /*********************************************************************************************************
 ** 函数名称: __hoitFsGCFindErasableSector
 ** 功能描述: 根据HoitFS设备头中的信息，寻找一个可擦除数据块，目前寻找FreeSize最小的作为待GC
@@ -56,10 +58,14 @@ PHOIT_ERASABLE_SECTOR __hoitFsGCFindErasableSector(PHOIT_VOLUME pfs){
     return pErasableSector;
 }
 
-VOID __hoitFsGCCollectDNode(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector){
+VOID __hoitFsGCCollectDirent(PHOIT_VOLUME pfs, PHOIT_RAW_DIRENT pRawDirent) {
 
 }
 
+
+VOID __hoitFsGCCollectINode(PHOIT_VOLUME pfs, PHOIT_RAW_INODE pRawInode){
+
+}
 /*********************************************************************************************************
 ** 函数名称: __hoitFSGCCollectSetcorAlive
 ** 功能描述: 从pErasableSector的pRawInfoCurGC处起，获取有效信息，一次获取一个
@@ -93,7 +99,7 @@ BOOL __hoitFSGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
 
     //TODO:在这里分析
     pContent = (PCHAR)lib_malloc(pRawInfoCurGC->totlen);
-    hoitReadFromCache(pRawInfoCurGC->phys_addr, pContent, pRawInfoCurGC->totlen);
+    hoitReadFromCache(LW_NULL, pRawInfoCurGC->phys_addr, pContent, pRawInfoCurGC->totlen);
     pRawHeader = (PHOIT_RAW_HEADER)pContent;
     
     uiCurSectorNo   = pfs->HOITFS_now_sector->HOITS_bno;
@@ -108,7 +114,7 @@ BOOL __hoitFSGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
         else if (__HOIT_IS_TYPE_INODE(pRawHeader))
         {
             pRawInode = (PHOIT_RAW_INODE)pContent;
-            
+            __hoitFsGCCollectINode(pRawInode);
         }
     }
 
