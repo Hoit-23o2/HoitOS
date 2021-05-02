@@ -30,8 +30,10 @@
 #define HOIT_MAGIC_NUM                      0x05201314
 #define HOIT_FIELD_TYPE                     0xE0000000          //前3位作为TYPE域
 
-#define HOIT_FLAG_TYPE_INODE                0x20000000     //raw_inode类型 001
-#define HOIT_FLAG_TYPE_DIRENT               0x40000000     //raw_dirent类型  010
+#define HOIT_FLAG_TYPE_INODE                0x20000000     //raw_inode类型 0010
+#define HOIT_FLAG_TYPE_DIRENT               0x40000000     //raw_dirent类型  0100
+#define HOIT_FLAG_TYPE_LOG                  0x80000000     //raw_log类型 1000
+
 #define HOIT_FLAG_OBSOLETE                  0x00000001     //Flag的最后一位用来表示是否过期，1是没过期，0是过期
 #define HOIT_ERROR                          100
 #define HOIT_ROOT_DIR_INO                   1   /* HoitFs的根目录的ino为1 */
@@ -89,6 +91,7 @@ typedef HOIT_FRAG_TREE_NODE *             PHOIT_FRAG_TREE_NODE;
 typedef HOIT_FRAG_TREE_LIST_NODE *        PHOIT_FRAG_TREE_LIST_NODE;
 typedef HOIT_FRAG_TREE_LIST_HEADER *      PHOIT_FRAG_TREE_LIST_HEADER;
 
+
 typedef HOIT_CACHE_BLK *                  PHOIT_CACHE_BLK;
 typedef HOIT_CACHE_HDR *                  PHOIT_CACHE_HDR;
 DEV_HDR          HOITFS_devhdrHdr;
@@ -128,6 +131,7 @@ typedef struct HOIT_VOLUME{
     LW_HANDLE               HOITFS_GCMsgQ;                                 /* GC线程*/
 
     PHOIT_CACHE_HDR         HOITFS_cacheHdr;                               /* hoitfs的cache头结构 */
+    size_t                  HOITFS_totalUsedSize;                          /* hoitfs总共使用大小 */
 } HOIT_VOLUME;
 
 
@@ -147,7 +151,7 @@ struct HOIT_RAW_HEADER{
 /*********************************************************************************************************
   HoitFs raw inode类型
 *********************************************************************************************************/
-struct HOIT_RAW_INODE{
+struct HOIT_RAW_INODE {
     UINT32              magic_num;
     UINT32              flag;
     UINT32              totlen;     /* 包含头部及数据长度 */

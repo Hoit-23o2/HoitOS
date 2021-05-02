@@ -24,5 +24,10 @@
 
 #include "hoitType.h"
 
+VOID    hoitLogInit(HOIT_VOLUME pfs, UINT uiLogSize);
+VOID    hoitLogOpen(HOIT_VOLUME pfs);
+VOID    hoitLogRead(HOIT_VOLUME pfs, UINT uiOfs, PCHAR pLog, UINT uiSize);
+VOID    hoitLogAppend(HOIT_VOLUME pfs, PCHAR pLog);
+
 
 #endif /* SYLIXOS_EXTFS_HOITFS_HOITLOG_H_ */

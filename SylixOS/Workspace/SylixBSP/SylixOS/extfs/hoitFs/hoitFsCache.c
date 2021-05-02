@@ -393,7 +393,6 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
         }
         pSector = pSector->HOITS_next;
     }
-    pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_totalUsedSize += uiSize;
     return writeAddr - NOR_FLASH_START_OFFSET;
 }
 

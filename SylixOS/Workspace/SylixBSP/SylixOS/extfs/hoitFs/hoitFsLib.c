@@ -600,7 +600,7 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
     pErasableSector->HOITS_pRawInfoLast     = LW_NULL;
     pErasableSector->HOITS_pRawInfoCurGC    = LW_NULL;
     pErasableSector->HOITS_tBornAge         = API_TimeGet(); 
-    
+
     // ugly now
     if(pfs->HOITFS_now_sector == LW_NULL){
         pfs->HOITFS_now_sector = pErasableSector;

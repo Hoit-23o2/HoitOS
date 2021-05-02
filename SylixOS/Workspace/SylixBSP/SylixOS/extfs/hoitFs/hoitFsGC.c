@@ -54,14 +54,14 @@ VOID __hoitFsGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
     pRawInfoTrailing    = LW_NULL;
     pRawInfoTraverse    = pErasableSector->HOITS_pRawInfoFirst;
     
-    while (!pRawInfoTraverse->is_obsolete)                  /* 寻找第一个非obselete的RawInfo，并释放已过期的RawInfo */
+    while (pRawInfoTraverse->is_obsolete)                               /* 寻找第一个非obselete的RawInfo，并释放已过期的RawInfo */
     {
         pRawInfoObselete = pRawInfoTraverse;
         pRawInfoTraverse = pRawInfoTraverse->next_phys;
         lib_free(pRawInfoObselete);
     }
 
-    pRawInfoFirst    = pRawInfoTraverse;                    /* 设置RawInfo First */
+    pRawInfoFirst    = pRawInfoLast = pRawInfoTraverse;                 /* 设置RawInfo First与RawInfo Last */
     pRawInfoTrailing = pRawInfoTraverse;                    
     pRawInfoTraverse = pRawInfoTraverse->next_phys;
     
@@ -96,7 +96,6 @@ VOID __hoitFsGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
 *********************************************************************************************************/
 PHOIT_ERASABLE_SECTOR __hoitFsGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_GC_LEVEL gcLevel){
     PHOIT_ERASABLE_SECTOR       pErasableVictimSector;
-    PHOIT_ERASABLE_SECTOR       pErasableList;
     PHOIT_ERASABLE_SECTOR       pErasableListTraverse;
     
     UINT                        uiMinVictimSan;            /* 最小受害者San值 */
@@ -108,13 +107,17 @@ PHOIT_ERASABLE_SECTOR __hoitFsGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_G
     pErasableVictimSector       = LW_NULL;
     uiMinVictimSan              = INT_MAX;
 
-    pErasableList               = pfs->HOITFS_erasableSectorList;
-    pErasableListTraverse       = pErasableList;
+    pErasableListTraverse       = pfs->HOITFS_erasableSectorList;
     
     while (pErasableListTraverse)
     {
         uiFreeSize  = pErasableListTraverse->HOITS_uiFreeSize;   
-        
+#ifdef GC_TEST
+        if(pErasableListTraverse->HOITS_next == LW_NULL){
+            pErasableListTraverse->HOITS_uiFreeSize -= 3;
+            pErasableListTraverse->HOITS_uiUsedSize += 3;
+        }
+#endif // GC_TEST
         if(pErasableListTraverse->HOITS_uiUsedSize == 0){
             pErasableListTraverse   = pErasableListTraverse->HOITS_next;
             continue;
@@ -196,7 +199,9 @@ VOID hoitGCForgroudForce(PHOIT_VOLUME pfs){
     {
         if(pErasableSector) {
 #ifdef GC_DEBUG
-        printf("[%s]: find a Sector start at %d\n", __func__, pErasableSector->HOITS_offset);
+        API_ThreadLock();
+        printf("[%s]: find a Sector, which no. is %d\n", __func__, pErasableSector->HOITS_bno);
+        API_ThreadUnlock();
 #endif // GC_DEBUG
             LW_SPIN_LOCK_QUICK(&pfs->HOITFS_GCLock, &iregInterLevel);
             __hoitFsGCSectorRawInfoFixUp(pErasableSector);
@@ -210,7 +215,9 @@ VOID hoitGCForgroudForce(PHOIT_VOLUME pfs){
         }
         else {
 #ifdef GC_DEBUG
+            API_ThreadLock();
             printf("[%s]: there's no sector can be GCed\n", __func__);
+            API_ThreadUnlock();
 #endif // GC_DEBUG
             break;
         }
@@ -247,7 +254,9 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
 
         if(pErasableSector) {
 #ifdef GC_DEBUG
+            API_ThreadLock();
             printf("[%s]: find a Sector start at %d\n", __func__, pErasableSector->HOITS_offset);
+            API_ThreadUnlock();
 #endif // GC_DEBUG
             LW_SPIN_LOCK_QUICK(&pfs->HOITFS_GCLock, &iregInterLevel);
             __hoitFsGCSectorRawInfoFixUp(pErasableSector);
@@ -260,7 +269,9 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
         }
         else {
 #ifdef GC_DEBUG
+            API_ThreadLock();
             printf("[%s]: there's no sector can be GCed\n", __func__);
+            API_ThreadUnlock();
 #endif // GC_DEBUG
         }
     }

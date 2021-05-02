@@ -3,7 +3,6 @@
 	<name>SylixBSP</name>
 	<comment></comment>
 	<projects>
-		<project>SylixOS</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
