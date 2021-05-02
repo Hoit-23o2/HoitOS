@@ -51,6 +51,7 @@
 #include "extfs/hoitFs/hoitFs.h"                                        /*  HoitFS 文件驱动接口 */
 #include "extfs/hoitFs/hoitFsTreeUtil.h"                                /*  红黑树测试 - PYQ             */
 #include "extfs/hoitFs/hoitFsTree.h"                                    /*  Frag树测试 - PYQ             */
+#include "extfs/hoitFs/hoitFsCache.h"                                   /*  Cache测试  - ZN              */
 /*********************************************************************************************************
   操作系统符号表
 *********************************************************************************************************/
@@ -583,6 +584,10 @@ static PVOID  halBootThread (PVOID  pvBootArg)
 #ifdef NOR_TEST
     test_nor();
 #endif // NOR_TEST
+
+#ifdef HOIT_CACHE_TEST
+test_hoit_cache();
+#endif
 
 #ifdef RB_TEST
     pretty_print("[Red / Black Tree Test]", "", DO_CENTRAL);
