@@ -59,6 +59,7 @@ PHOIT_INODE_INFO        __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode, CPC
 VOID                    __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo);
 BOOL                    __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector);
 PCHAR                   __hoit_get_data_after_raw_inode(PHOIT_RAW_INFO pInodeInfo);
+VOID                    __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO pRawInfo);
 
 PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
     CPCHAR       pcName,
@@ -87,7 +88,6 @@ VOID                    __hoit_mount(PHOIT_VOLUME  pfs);
 
 UINT8                   __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT* ppDirentList, PHOIT_FULL_DNODE* ppDnodeList);
 VOID                    __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag);
-
 
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0       */
 #endif                                                                  /*  __HOITFSLIB_H                */

@@ -35,6 +35,7 @@
         "s_system.h": "c",
         "math.h": "c",
         "random": "c",
-        "hoitfscache.h": "c"
+        "hoitfscache.h": "c",
+        "hoitfsgc.h": "c"
     }
 }
