@@ -259,6 +259,8 @@ VOID  __hoit_add_dirent(PHOIT_INODE_INFO  pFatherInode,
 
     pRawInfo->phys_addr = phys_addr;
     pRawInfo->totlen = pRawDirent->totlen;
+    pRawInfo->next_logic = LW_NULL;
+    pRawInfo->next_phys = LW_NULL;
     pRawInfo->is_obsolete = 0;
 
     PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pFatherInode->HOITN_ino);
@@ -267,6 +269,9 @@ VOID  __hoit_add_dirent(PHOIT_INODE_INFO  pFatherInode,
     __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pRawInfo);
     pSonDirent->HOITFD_raw_info = pRawInfo;
     __hoit_add_to_dents(pFatherInode, pSonDirent);
+
+    PHOIT_INODE_CACHE pSonInodeCache = __hoit_get_inode_cache(pfs, pSonDirent->HOITFD_ino);
+    pSonInodeCache->HOITC_nlink++;
 
     __SHEAP_FREE(pWriteBuf);
 }
@@ -628,6 +633,9 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
                 pRawInfo->phys_addr         = uiSectorOffset + (pNow - pReadBuf);
                 pRawInfo->totlen            = pRawInode->totlen;
                 pRawInfo->is_obsolete       = 0;
+                pRawInfo->next_logic = LW_NULL;
+                pRawInfo->next_phys = LW_NULL;
+
                 __hoit_add_to_inode_cache(pInodeCache, pRawInfo);
                 __hoit_add_raw_info_to_sector(pErasableSector, pRawInfo);
 
@@ -669,6 +677,9 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
                 pRawInfo->phys_addr     = uiSectorOffset + (pNow - pReadBuf);
                 pRawInfo->totlen        = pRawDirent->totlen;
                 pRawInfo->is_obsolete   = 0;
+                pRawInfo->next_logic = LW_NULL;
+                pRawInfo->next_phys = LW_NULL;
+
                 __hoit_add_to_inode_cache(pInodeCache, pRawInfo);
                 __hoit_add_raw_info_to_sector(pErasableSector, pRawInfo);
 
@@ -1572,6 +1583,18 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     /* 接下来要递归统计所有文件的nlink          */
     
     __hoit_get_nlink(pfs->HOITFS_pRootDir);
+}
+
+/*********************************************************************************************************
+** 函数名称: __hoit_mount
+** 功能描述: hoitfs 挂载
+** 输　入  : pfs           文件系统
+** 输　出  : NONE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID  __hoit_mount(PHOIT_VOLUME  pfs) {
+
 }
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
 #endif //HOITFSLIB_DISABLE
