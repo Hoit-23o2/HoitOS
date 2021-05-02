@@ -49,6 +49,8 @@
 #include "driver/sdi/sdInit.h"                                          /*  SD ½Ó¿Ú                     */
 #include "driver/mtd/nor/nor.h"                                         /*  nor flash Çý¶¯              */
 
+#include "extfs/hoitFs/hoitFs.h"
+#include "extfs/hoitFs/hoitFsCache.h"
 #include "extfs/hoitFs/hoitFsTreeUtil.h"                                /*  ºìºÚÊ÷²âÊÔ - PYQ             */
 #include "extfs/hoitFs/hoitFsTree.h"                                    /*  FragÊ÷²âÊÔ - PYQ             */
 /*********************************************************************************************************
@@ -228,7 +230,7 @@ static VOID  halDrvInit (VOID)
     nfsDrv();                                                           /*  nfs    device driver        */
     yaffsDrv();                                                         /*  yaffs  device driver        */
     canDrv();                                                           /*  CAN    device driver        */
-
+    API_HoitFsDrvInstall();
     s3c2440GpioDrv();
 
 #ifdef MINI2440_PACKET
@@ -578,8 +580,14 @@ static PVOID  halBootThread (PVOID  pvBootArg)
 
     nor_init(INIT_FAKE_NOR);
     scan_nor();
-    test_nor();
+//    #ifdef NOR_TEST
+//    test_nor();
+//    #endif
 
+//    #ifdef HOIT_CACHE_TEST
+    printf("======================  hoit cache test   ============================\n");
+    test_hoit_cache();
+//    #endif
     pretty_print("[Red / Black Tree Test]", "", DO_CENTRAL);
     hoitRbTreeTest();
     pretty_print("[Frag Tree Test]", "", DO_CENTRAL);

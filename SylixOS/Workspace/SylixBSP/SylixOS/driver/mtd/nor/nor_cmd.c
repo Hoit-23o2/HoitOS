@@ -105,7 +105,8 @@ ENUM_WRITE_OPTIONS parse_write_options(PCHAR ops){
 ** 调用模块: 
 *********************************************************************************************************/
 BOOL nor_flash_test_ablility(){
-    return test_nor();
+    //return test_nor();
+    return LW_TRUE;
 }
 /*********************************************************************************************************
 ** 函数名称: nor_flash_cmd_wrppaer

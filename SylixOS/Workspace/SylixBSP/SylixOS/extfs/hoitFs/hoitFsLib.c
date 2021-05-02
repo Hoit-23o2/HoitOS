@@ -1,22 +1,22 @@
 /*********************************************************************************************************
 **
-**                                    ÖĞ¹úÈí¼ş¿ªÔ´×éÖ¯
+**                                    ä¸­å›½è½¯ä»¶å¼€æºç»„ç»‡
 **
-**                                   Ç¶ÈëÊ½ÊµÊ±²Ù×÷ÏµÍ³
+**                                   åµŒå…¥å¼å®æ—¶æ“ä½œç³»ç»Ÿ
 **
 **                                SylixOS(TM)  LW : long wing
 **
 **                               Copyright All Rights Reserved
 **
-**--------------ÎÄ¼şĞÅÏ¢--------------------------------------------------------------------------------
+**--------------æ–‡ä»¶ä¿¡æ¯--------------------------------------------------------------------------------
 **
-** ÎÄ   ¼ş   Ãû: HoitFsLib.c
+** æ–‡   ä»¶   å: HoitFsLib.c
 **
-** ´´   ½¨   ÈË: Hoit Group
+** åˆ›   å»º   äºº: Hoit Group
 **
-** ÎÄ¼ş´´½¨ÈÕÆÚ: 2021 Äê 03 ÔÂ 20 ÈÕ
+** æ–‡ä»¶åˆ›å»ºæ—¥æœŸ: 2021 å¹´ 03 æœˆ 20 æ—¥
 **
-** Ãè        Êö: HoitÎÄ¼şÏµÍ³ÄÚ²¿º¯Êı.
+** æ        è¿°: Hoitæ–‡ä»¶ç³»ç»Ÿå†…éƒ¨å‡½æ•°.
 *********************************************************************************************************/
 
 #define  __SYLIXOS_STDIO
@@ -30,19 +30,19 @@
 #include "../../driver/mtd/nor/nor.h"
 
 /*********************************************************************************************************
-  ²Ã¼ôºê
+  è£å‰ªå®
 *********************************************************************************************************/
 #if LW_CFG_MAX_VOLUMES > 0
 
 #ifndef HOITFSLIB_DISABLE
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_just_open
-** ¹¦ÄÜÃèÊö: ´ò¿ªÄ³¸öÒÑ´ò¿ªµÄÄ¿Â¼ÎÄ¼şÏÂÃæµÄÒ»¸öÎÄ¼ş
-**           ×¢ÒâpcNameÊÇ¸ÃÄ¿Â¼ÎÄ¼şÏÂµÄÒ»¸öÎÄ¼şÃû(Ïà¶ÔÂ·¾¶)£¬Òª´ò¿ªµÄÎÄ¼ş±ØĞëÊÇÄ¿Â¼ÎÄ¼şpdirµÄÖ±½Ó×ÓÎÄ¼ş£¬·ñÔò·µ»ØNULL
-** Êä¡¡Èë  :
-** Êä¡¡³ö  : ´ò¿ª½á¹û
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_just_open
+** åŠŸèƒ½æè¿°: æ‰“å¼€æŸä¸ªå·²æ‰“å¼€çš„ç›®å½•æ–‡ä»¶ä¸‹é¢çš„ä¸€ä¸ªæ–‡ä»¶
+**           æ³¨æ„pcNameæ˜¯è¯¥ç›®å½•æ–‡ä»¶ä¸‹çš„ä¸€ä¸ªæ–‡ä»¶å(ç›¸å¯¹è·¯å¾„)ï¼Œè¦æ‰“å¼€çš„æ–‡ä»¶å¿…é¡»æ˜¯ç›®å½•æ–‡ä»¶pdirçš„ç›´æ¥å­æ–‡ä»¶ï¼Œå¦åˆ™è¿”å›NULL
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  : æ‰“å¼€ç»“æœ
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 PHOIT_INODE_INFO  __hoit_just_open(PHOIT_INODE_INFO  pdir,
     PCHAR       pName)
@@ -63,16 +63,16 @@ PHOIT_INODE_INFO  __hoit_just_open(PHOIT_INODE_INFO  pdir,
         }
     }
 
-    return  (LW_NULL);                                                  /*  ÎŞ·¨ÕÒµ½½Úµã                */
+    return  (LW_NULL);                                                  /*  æ— æ³•æ‰¾åˆ°èŠ‚ç‚¹                */
 }
 
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_name_hash
-** ¹¦ÄÜÃèÊö: ¸ù¾İÎÄ¼şÃû¼ÆËã³öÆähashÖµ
-** Êä¡¡Èë  :
-** Êä¡¡³ö  :
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_name_hash
+** åŠŸèƒ½æè¿°: æ ¹æ®æ–‡ä»¶åè®¡ç®—å‡ºå…¶hashå€¼
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  :
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 UINT __hoit_name_hash(CPCHAR pcName) {
     UINT ret = 0;
@@ -82,12 +82,12 @@ UINT __hoit_name_hash(CPCHAR pcName) {
     return ret;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_free_full_dirent
-** ¹¦ÄÜÃèÊö: ÊÍ·ÅFullDirent¼°ÆäÎÄ¼şÃû
-** Êä¡¡Èë  :
-** Êä¡¡³ö  :
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_free_full_dirent
+** åŠŸèƒ½æè¿°: é‡Šæ”¾FullDirentåŠå…¶æ–‡ä»¶å
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  :
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 UINT __hoit_free_full_dirent(PHOIT_FULL_DIRENT pDirent) {
     __SHEAP_FREE(pDirent->HOITFD_file_name);
@@ -95,12 +95,12 @@ UINT __hoit_free_full_dirent(PHOIT_FULL_DIRENT pDirent) {
     return 0;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_get_full_file
-** ¹¦ÄÜÃèÊö: ¸ù¾İinode number£¬´´½¨ÏàÓ¦full_xxx½á¹¹Ìå£¨Ä¿Â¼ÎÄ¼ş´´½¨³öÁ´±í£¬ÆÕÍ¨ÎÄ¼ş´´½¨³öºìºÚÊ÷£©
-** Êä¡¡Èë  :
-** Êä¡¡³ö  :
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_get_full_file
+** åŠŸèƒ½æè¿°: æ ¹æ®inode numberï¼Œåˆ›å»ºç›¸åº”full_xxxç»“æ„ä½“ï¼ˆç›®å½•æ–‡ä»¶åˆ›å»ºå‡ºé“¾è¡¨ï¼Œæ™®é€šæ–‡ä»¶åˆ›å»ºå‡ºçº¢é»‘æ ‘ï¼‰
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  :
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
     if (pfs == LW_NULL) {
@@ -140,7 +140,7 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
         PHOIT_FULL_DNODE pTempDnode = pDnodeList;
         PHOIT_FULL_DNODE pTempNext = LW_NULL;
         while (pTempDnode) {
-            /*ºìºÚÊ÷*/
+            /*çº¢é»‘æ ‘*/
             PHOIT_FRAG_TREE_NODE pTreeNode = newHoitFragTreeNode(pTempDnode, pTempDnode->HOITFD_length, pTempDnode->HOITFD_offset, pTempDnode->HOITFD_offset);
             hoitFragTreeInsertNode(pNewInode->HOITN_rbtree, pTreeNode);
             pTempNext = pTempDnode->HOITFD_next;
@@ -161,12 +161,12 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
 }
 
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_get_inode_cache
-** ¹¦ÄÜÃèÊö: ¸ù¾İinode number£¬·µ»Øinode_cache£¬Ã»ÓĞ¾Í·µ»ØNULL
-** Êä¡¡Èë  :
-** Êä¡¡³ö  :
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_get_inode_cache
+** åŠŸèƒ½æè¿°: æ ¹æ®inode numberï¼Œè¿”å›inode_cacheï¼Œæ²¡æœ‰å°±è¿”å›NULL
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  :
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 PHOIT_INODE_CACHE __hoit_get_inode_cache(PHOIT_VOLUME pfs, UINT ino) {
     if (pfs == LW_NULL) {
@@ -184,12 +184,12 @@ PHOIT_INODE_CACHE __hoit_get_inode_cache(PHOIT_VOLUME pfs, UINT ino) {
 }
 
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_add_dirent
-** ¹¦ÄÜÃèÊö: ¸øÄ¿Â¼ÎÄ¼şÖĞÌí¼ÓÒ»¸ödirent£¨Éæ¼°nhash£©
-** Êä¡¡Èë  :
-** Êä¡¡³ö  :
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_add_dirent
+** åŠŸèƒ½æè¿°: ç»™ç›®å½•æ–‡ä»¶ä¸­æ·»åŠ ä¸€ä¸ªdirentï¼ˆæ¶‰åŠnhashï¼‰
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  :
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 VOID  __hoit_add_dirent(PHOIT_INODE_INFO  pFatherInode,
     PHOIT_FULL_DIRENT pSonDirent)
@@ -227,12 +227,12 @@ VOID  __hoit_add_dirent(PHOIT_INODE_INFO  pFatherInode,
     __SHEAP_FREE(pRawDirent);
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_alloc_ino
-** ¹¦ÄÜÃèÊö: ÏòÎÄ¼şÏµÍ³ÉêÇëÒ»¸öĞÂµÄinode number
-** Êä¡¡Èë  :
-** Êä¡¡³ö  :
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_alloc_ino
+** åŠŸèƒ½æè¿°: å‘æ–‡ä»¶ç³»ç»Ÿç”³è¯·ä¸€ä¸ªæ–°çš„inode number
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  :
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 UINT __hoit_alloc_ino(PHOIT_VOLUME pfs) {
     if (pfs == LW_NULL) {
@@ -242,12 +242,12 @@ UINT __hoit_alloc_ino(PHOIT_VOLUME pfs) {
     return pfs->HOITFS_highest_ino++;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_write_flash
-** ¹¦ÄÜÃèÊö: Ğ´ÈëÎïÀíÉè±¸£¬²»ÄÜ×Ô¼ºÑ¡ÎïÀíµØÖ·
-** Êä¡¡Èë  :
-** Êä¡¡³ö  : !=0´ú±í³ö´í
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_write_flash
+** åŠŸèƒ½æè¿°: å†™å…¥ç‰©ç†è®¾å¤‡ï¼Œä¸èƒ½è‡ªå·±é€‰ç‰©ç†åœ°å€
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  : !=0ä»£è¡¨å‡ºé”™
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 UINT8 __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_addr) {
     write_nor(pfs->HOITFS_now_sector->HOITS_offset + pfs->HOITFS_now_sector->HOITS_addr, (PCHAR)(pdata), length, WRITE_KEEP);
@@ -258,24 +258,24 @@ UINT8 __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_
     return 0;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_write_flash_thru
-** ¹¦ÄÜÃèÊö: Ğ´ÈëÎïÀíÉè±¸£¬¿ÉÒÔ×Ô¼ºÑ¡ÎïÀíµØÖ·
-** Êä¡¡Èë  :
-** Êä¡¡³ö  : <0´ú±í³ö´í
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_write_flash_thru
+** åŠŸèƒ½æè¿°: å†™å…¥ç‰©ç†è®¾å¤‡ï¼Œå¯ä»¥è‡ªå·±é€‰ç‰©ç†åœ°å€
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  : <0ä»£è¡¨å‡ºé”™
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 UINT8 __hoit_write_flash_thru(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT phys_addr) {
     write_nor(phys_addr, (PCHAR)(pdata), length, WRITE_KEEP);
     return 0;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_add_to_inode_cache
-** ¹¦ÄÜÃèÊö: ½«Ò»¸öraw_info¼ÓÈëµ½inode_cacheÖĞ
-** Êä¡¡Èë  :
-** Êä¡¡³ö  : !=0 ´ú±í³ö´í
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_add_to_inode_cache
+** åŠŸèƒ½æè¿°: å°†ä¸€ä¸ªraw_infoåŠ å…¥åˆ°inode_cacheä¸­
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  : !=0 ä»£è¡¨å‡ºé”™
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 UINT8 __hoit_add_to_inode_cache(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo) {
     if (pInodeCache == LW_NULL || pRawInfo == LW_NULL) {
@@ -287,12 +287,12 @@ UINT8 __hoit_add_to_inode_cache(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pR
     return 0;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_add_to_cache_list
-** ¹¦ÄÜÃèÊö: ½«Ò»¸öinode cache¼ÓÈëµ½cache_listÖĞ
-** Êä¡¡Èë  :
-** Êä¡¡³ö  : !=0 ´ú±í³ö´í
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_add_to_cache_list
+** åŠŸèƒ½æè¿°: å°†ä¸€ä¸ªinode cacheåŠ å…¥åˆ°cache_listä¸­
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  : !=0 ä»£è¡¨å‡ºé”™
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 UINT8 __hoit_add_to_cache_list(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache) {
     if (pfs == LW_NULL || pInodeCache == LW_NULL) {
@@ -305,12 +305,12 @@ UINT8 __hoit_add_to_cache_list(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache) 
     return 0;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_add_to_dents
-** ¹¦ÄÜÃèÊö: ½«Ò»¸öfull_dirent¼ÓÈëµ½¸¸Ä¿Â¼ÎÄ¼ş¼ĞµÄdentsÖĞ
-** Êä¡¡Èë  :
-** Êä¡¡³ö  : !=0 ´ú±í³ö´í
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_add_to_dents
+** åŠŸèƒ½æè¿°: å°†ä¸€ä¸ªfull_direntåŠ å…¥åˆ°çˆ¶ç›®å½•æ–‡ä»¶å¤¹çš„dentsä¸­
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  : !=0 ä»£è¡¨å‡ºé”™
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 UINT8 __hoit_add_to_dents(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT pFullDirent) {
     if (pInodeFather == LW_NULL || pFullDirent == LW_NULL) {
@@ -323,12 +323,12 @@ UINT8 __hoit_add_to_dents(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT pFull
     return 0;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_search_in_dents
-** ¹¦ÄÜÃèÊö: ÔÚÒ»¸ö¸¸dentsÁ´±íÖĞÓÃ¶ş·Ö·¨ËÑË÷Ò»¸öÖ¸¶¨inoµÄÎÄ¼ş£¬·µ»ØFullDirent
-** Êä¡¡Èë  :
-** Êä¡¡³ö  : !=0 ´ú±í³ö´í
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_search_in_dents
+** åŠŸèƒ½æè¿°: åœ¨ä¸€ä¸ªçˆ¶dentsé“¾è¡¨ä¸­ç”¨äºŒåˆ†æ³•æœç´¢ä¸€ä¸ªæŒ‡å®šinoçš„æ–‡ä»¶ï¼Œè¿”å›FullDirent
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  : !=0 ä»£è¡¨å‡ºé”™
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 PHOIT_FULL_DIRENT __hoit_search_in_dents(PHOIT_INODE_INFO pInodeFather, UINT ino) {
     if (pInodeFather == LW_NULL) {
@@ -344,12 +344,12 @@ PHOIT_FULL_DIRENT __hoit_search_in_dents(PHOIT_INODE_INFO pInodeFather, UINT ino
     return LW_NULL;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_del_raw_info
-** ¹¦ÄÜÃèÊö: ½«Ò»¸öRawInfo´Ó¶ÔÓ¦µÄInodeCacheÁ´±íÖĞÉ¾³ı£¬µ«²»free¶ÔÓ¦ÄÚ´æ¿Õ¼ä
-** Êä¡¡Èë  :
-** Êä¡¡³ö  : !=0 ´ú±í³ö´í
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_del_raw_info
+** åŠŸèƒ½æè¿°: å°†ä¸€ä¸ªRawInfoä»å¯¹åº”çš„InodeCacheé“¾è¡¨ä¸­åˆ é™¤ï¼Œä½†ä¸freeå¯¹åº”å†…å­˜ç©ºé—´
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  : !=0 ä»£è¡¨å‡ºé”™
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 UINT8 __hoit_del_raw_info(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo) {
     if (pInodeCache == LW_NULL || pRawInfo == LW_NULL) {
@@ -377,12 +377,12 @@ UINT8 __hoit_del_raw_info(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo
     return 0;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_del_raw_data
-** ¹¦ÄÜÃèÊö: ½«Ò»¸öRawDirent»òRawInodeÔÚ¶ÔÓ¦µÄ´ÅÅÌÖĞ±ê¼ÇÎª¹ıÆÚ,²¢²»ÊÍ·ÅRawInfoÄÚ´æ
-** Êä¡¡Èë  :
-** Êä¡¡³ö  : !=0 ´ú±í³ö´í
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_del_raw_data
+** åŠŸèƒ½æè¿°: å°†ä¸€ä¸ªRawDirentæˆ–RawInodeåœ¨å¯¹åº”çš„ç£ç›˜ä¸­æ ‡è®°ä¸ºè¿‡æœŸ,å¹¶ä¸é‡Šæ”¾RawInfoå†…å­˜
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  : !=0 ä»£è¡¨å‡ºé”™
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 UINT8 __hoit_del_raw_data(PHOIT_RAW_INFO pRawInfo) {
     if (pRawInfo == LW_NULL) {
@@ -399,19 +399,19 @@ UINT8 __hoit_del_raw_data(PHOIT_RAW_INFO pRawInfo) {
         printk("Error in hoit_del_raw_data\n");
         return HOIT_ERROR;
     }
-    pRawHeader->flag &= (~HOIT_FLAG_OBSOLETE);      //½«obsolete±êÖ¾±äÎª0£¬´ú±í¹ıÆÚ
+    pRawHeader->flag &= (~HOIT_FLAG_OBSOLETE);      //å°†obsoleteæ ‡å¿—å˜ä¸º0ï¼Œä»£è¡¨è¿‡æœŸ
     
     __hoit_write_flash_thru(LW_NULL, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
     __SHEAP_FREE(buf);
     return 0;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_del_full_dirent
-** ¹¦ÄÜÃèÊö: ½«Ò»¸öFullDirent´Ó¶ÔÓ¦µÄInodeInfoµÄdentsÁ´±íÖĞÉ¾³ı£¬µ«²»free¶ÔÓ¦ÄÚ´æ¿Õ¼ä
-** Êä¡¡Èë  :
-** Êä¡¡³ö  : !=0 ´ú±í³ö´í
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_del_full_dirent
+** åŠŸèƒ½æè¿°: å°†ä¸€ä¸ªFullDirentä»å¯¹åº”çš„InodeInfoçš„dentsé“¾è¡¨ä¸­åˆ é™¤ï¼Œä½†ä¸freeå¯¹åº”å†…å­˜ç©ºé—´
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  : !=0 ä»£è¡¨å‡ºé”™
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 UINT8 __hoit_del_full_dirent(PHOIT_INODE_INFO pInodeInfo, PHOIT_FULL_DIRENT pFullDirent) {
     if (pInodeInfo == LW_NULL || pFullDirent == LW_NULL) {
@@ -438,12 +438,12 @@ UINT8 __hoit_del_full_dirent(PHOIT_INODE_INFO pInodeInfo, PHOIT_FULL_DIRENT pFul
     return 0;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_del_inode_cache
-** ¹¦ÄÜÃèÊö: ½«Ò»¸öInodeCache´Ó¹ÒÔØµÄÎÄ¼şÏµÍ³ÖĞÉ¾³ı£¬µ«²»free¶ÔÓ¦ÄÚ´æ¿Õ¼ä
-** Êä¡¡Èë  :
-** Êä¡¡³ö  : !=0 ´ú±í³ö´í
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_del_inode_cache
+** åŠŸèƒ½æè¿°: å°†ä¸€ä¸ªInodeCacheä»æŒ‚è½½çš„æ–‡ä»¶ç³»ç»Ÿä¸­åˆ é™¤ï¼Œä½†ä¸freeå¯¹åº”å†…å­˜ç©ºé—´
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  : !=0 ä»£è¡¨å‡ºé”™
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 UINT8 __hoit_del_inode_cache(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache) {
     PHOIT_INODE_CACHE pTemp = pfs->HOITFS_cache_list;
@@ -459,13 +459,13 @@ UINT8 __hoit_del_inode_cache(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache) {
     return 0;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_get_inode_nodes
-** ¹¦ÄÜÃèÊö: Èç¹ûÊÇÆÕÍ¨ÎÄ¼ş£¬Ôò·µ»ØÒ»¸öFullDnodeµÄÁ´±í£¬»¹Î´×é³ÉºìºÚÊ÷µÄ
-**           Èç¹ûÊÇÄ¿Â¼ÎÄ¼ş£¬Ôò·µ»ØÒ»¸öFullDirentµÄÁ´±í£¬Ò²ÊÇ»¹Î´×é³ÉÕıÊ½½á¹¹µÄ
-** Êä¡¡Èë  :
-** Êä¡¡³ö  : !=0 ´ú±í³ö´í, pDirentListÊÇ·µ»ØµÄFullDirentÁ´±í, pDnodeListÊÇ·µ»ØµÄFullDnodeÁ´±í
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_get_inode_nodes
+** åŠŸèƒ½æè¿°: å¦‚æœæ˜¯æ™®é€šæ–‡ä»¶ï¼Œåˆ™è¿”å›ä¸€ä¸ªFullDnodeçš„é“¾è¡¨ï¼Œè¿˜æœªç»„æˆçº¢é»‘æ ‘çš„
+**           å¦‚æœæ˜¯ç›®å½•æ–‡ä»¶ï¼Œåˆ™è¿”å›ä¸€ä¸ªFullDirentçš„é“¾è¡¨ï¼Œä¹Ÿæ˜¯è¿˜æœªç»„æˆæ­£å¼ç»“æ„çš„
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  : !=0 ä»£è¡¨å‡ºé”™, pDirentListæ˜¯è¿”å›çš„FullDirenté“¾è¡¨, pDnodeListæ˜¯è¿”å›çš„FullDnodeé“¾è¡¨
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT pDirentList, PHOIT_FULL_DNODE pDnodeList) {
     PHOIT_RAW_INFO pRawInfo = pInodeInfo->HOITC_nodes;
@@ -506,12 +506,12 @@ UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT pDi
     return ERROR_NONE;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_add_to_sector_list
-** ¹¦ÄÜÃèÊö: Ìí¼ÓÒ»¸ösectorµ½volume
-** Êä¡¡Èë  :
-** Êä¡¡³ö  : 
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_add_to_sector_list
+** åŠŸèƒ½æè¿°: æ·»åŠ ä¸€ä¸ªsectoråˆ°volume
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  : 
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_SECTOR pSector) {
     pSector->HOITS_next = pfs->HOITFS_block_list;
@@ -519,17 +519,17 @@ BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_SECTOR pSector) {
     return LW_TRUE;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_scan_single_sector
-** ¹¦ÄÜÃèÊö: É¨ÃèÒ»¸ö²Á³ı¿é
-** Êä¡¡Èë  :
-** Êä¡¡³ö  :
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_scan_single_sector
+** åŠŸèƒ½æè¿°: æ‰«æä¸€ä¸ªæ“¦é™¤å—
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  :
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
     UINT sectorSize = GET_SECTOR_SIZE(sector_no);
     UINT sectorOffset = GET_SECTOR_OFFSET(sector_no);
-    /* ÏÈ´´½¨sector½á¹¹Ìå */
+    /* å…ˆåˆ›å»ºsectorç»“æ„ä½“ */
     PHOIT_SECTOR pSector = (PHOIT_SECTOR)__SHEAP_ALLOC(sizeof(HOIT_SECTOR));
     pSector->HOITS_bno = sector_no;
     pSector->HOITS_length = sectorSize;
@@ -537,7 +537,7 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
     pSector->HOITS_offset = 0;
     __hoit_add_to_sector_list(pfs, pSector);
 
-    /* ÔÙÕû¸ö¿é½øĞĞÉ¨Ãè */
+    /* å†æ•´ä¸ªå—è¿›è¡Œæ‰«æ */
     PCHAR pReadBuf = (PCHAR)__SHEAP_ALLOC(sectorSize);
     lib_bzero(pReadBuf, sectorSize);
     read_nor(sectorOffset, pReadBuf, sectorSize);
@@ -546,7 +546,7 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
     while (pNow < pReadBuf + sectorSize) {
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pNow;
         if (pRawHeader->magic_num == HOIT_MAGIC_NUM && !__HOIT_IS_OBSOLETE(pRawHeader)) {
-            /* TODO:ºóÃæÕâÀï»¹ĞèÌí¼ÓCRCĞ£Ñé */
+            /* TODO:åé¢è¿™é‡Œè¿˜éœ€æ·»åŠ CRCæ ¡éªŒ */
             if (__HOIT_IS_TYPE_INODE(pRawHeader)) {
                 PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)pNow;
                 PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pRawInode->ino);
@@ -565,7 +565,7 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
                 pRawInfo->totlen = pRawInode->totlen;
                 __hoit_add_to_inode_cache(pInodeCache, pRawInfo);
 
-                if (pRawInode->ino == HOIT_ROOT_DIR_INO) {     /* Èç¹ûÉ¨Ãèµ½µÄÊÇ¸ùÄ¿Â¼µÄÎ¨Ò»µÄRawInode */
+                if (pRawInode->ino == HOIT_ROOT_DIR_INO) {     /* å¦‚æœæ‰«æåˆ°çš„æ˜¯æ ¹ç›®å½•çš„å”¯ä¸€çš„RawInode */
                     PHOIT_FULL_DNODE pFullDnode = __hoit_bulid_full_dnode(pRawInfo);
                     PHOIT_INODE_INFO pInodeInfo = (PHOIT_INODE_INFO)__SHEAP_ALLOC(sizeof(HOIT_INODE_INFO));
                     pInodeInfo->HOITN_dents = LW_NULL;
@@ -588,14 +588,14 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
             }
             else if (__HOIT_IS_TYPE_DIRENT(pRawHeader)) {
                 PHOIT_RAW_DIRENT pRawDirent = (PHOIT_RAW_DIRENT)pNow;
-                PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pRawDirent->pino);  /* ÕâÀïµÄpino²ÅÊÇÄ¿Â¼ÎÄ¼ş×Ô¼ºµÄino */
+                PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pRawDirent->pino);  /* è¿™é‡Œçš„pinoæ‰æ˜¯ç›®å½•æ–‡ä»¶è‡ªå·±çš„ino */
                 if (pInodeCache == LW_NULL) {
                     pInodeCache = (PHOIT_INODE_CACHE)__SHEAP_ALLOC(sizeof(HOIT_INODE_CACHE));
                     if (pInodeCache == LW_NULL) {
                         _ErrorHandle(ENOMEM);
                         return  (PX_ERROR);
                     }
-                    pInodeCache->HOITC_ino = pRawDirent->pino;  /* ÕâÀïµÄpino²ÅÊÇÄ¿Â¼ÎÄ¼ş×Ô¼ºµÄino */
+                    pInodeCache->HOITC_ino = pRawDirent->pino;  /* è¿™é‡Œçš„pinoæ‰æ˜¯ç›®å½•æ–‡ä»¶è‡ªå·±çš„ino */
                     pInodeCache->HOITC_nlink = 0;
                     __hoit_add_to_cache_list(pfs, pInodeCache);
                 }
@@ -603,9 +603,9 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
                 pRawInfo->phys_addr = sectorOffset + (pNow - pReadBuf);
                 pRawInfo->totlen = pRawDirent->totlen;
                 __hoit_add_to_inode_cache(pInodeCache, pRawInfo);
-                if (pRawDirent->pino == HOIT_ROOT_DIR_INO) {    /* Èç¹ûÉ¨Ãèµ½µÄÊÇ¸ùÄ¿Â¼µÄÄ¿Â¼Ïî */
+                if (pRawDirent->pino == HOIT_ROOT_DIR_INO) {    /* å¦‚æœæ‰«æåˆ°çš„æ˜¯æ ¹ç›®å½•çš„ç›®å½•é¡¹ */
                     PHOIT_FULL_DIRENT pFullDirent = __hoit_bulid_full_dirent(pRawInfo);
-                    if (pfs->HOITFS_pRootDir == LW_NULL) {      /* Èç¹û¸ùÄ¿Â¼µÄÎ¨Ò»RawInode»¹Î´É¨Ãèµ½ */
+                    if (pfs->HOITFS_pRootDir == LW_NULL) {      /* å¦‚æœæ ¹ç›®å½•çš„å”¯ä¸€RawInodeè¿˜æœªæ‰«æåˆ° */
                         pFullDirent->HOITFD_next = pfs->HOITFS_pTempRootDirent;
                         pfs->HOITFS_pTempRootDirent = pFullDirent;
                     }
@@ -623,18 +623,18 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
             pNow += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
         }
         else {
-            pNow += 4;   /* Ã¿´ÎÒÆ¶¯4×Ö½Ú */
+            pNow += 4;   /* æ¯æ¬¡ç§»åŠ¨4å­—èŠ‚ */
         }
     }
 }
 
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_new_inode_info
-** ¹¦ÄÜÃèÊö: hoitfs ´´½¨Ò»¸öĞÂµÄÎÄ¼ş£¬ÔÚFlashÀïĞ´ÈëÒ»¸ö¼òµ¥µÄRawInode
-** Êä¡¡Èë  : 
-** Êä¡¡³ö  : ´ò¿ª½á¹û
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_new_inode_info
+** åŠŸèƒ½æè¿°: hoitfs åˆ›å»ºä¸€ä¸ªæ–°çš„æ–‡ä»¶ï¼Œåœ¨Flashé‡Œå†™å…¥ä¸€ä¸ªç®€å•çš„RawInode
+** è¾“ã€€å…¥  : 
+** è¾“ã€€å‡º  : æ‰“å¼€ç»“æœ
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 PHOIT_INODE_INFO __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode) {
     PHOIT_RAW_INODE     pRawInode = (PHOIT_RAW_INODE)__SHEAP_ALLOC(sizeof(HOIT_RAW_INODE));
@@ -672,18 +672,18 @@ PHOIT_INODE_INFO __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode) {
     __hoit_add_to_cache_list(pfs, pInodeCache);
 
     /*
-    *   ÒÑ¾­½«ĞÂÎÄ¼şÅäÖÃ³ÉÁËÒ»¸öÒÑ¾­´æÔÚµÄÎÄ¼ş£¬ÏÖÔÚÖ»Ğèµ÷ÓÃget_full_file¼´¿É
+    *   å·²ç»å°†æ–°æ–‡ä»¶é…ç½®æˆäº†ä¸€ä¸ªå·²ç»å­˜åœ¨çš„æ–‡ä»¶ï¼Œç°åœ¨åªéœ€è°ƒç”¨get_full_fileå³å¯
     */
     return  __hoit_get_full_file(pfs, pInodeCache->HOITC_ino);
     
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_get_nlink
-** ¹¦ÄÜÃèÊö: hoitfs °´ÕÕÊ÷ĞÎ½á¹¹µİ¹éµØÈ¥Í³¼ÆÃ¿¸öÎÄ¼şµÄÁ´½ÓÊı
-** Êä¡¡Èë  :
-** Êä¡¡³ö  : ´ò¿ª½á¹û
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_get_nlink
+** åŠŸèƒ½æè¿°: hoitfs æŒ‰ç…§æ ‘å½¢ç»“æ„é€’å½’åœ°å»ç»Ÿè®¡æ¯ä¸ªæ–‡ä»¶çš„é“¾æ¥æ•°
+** è¾“ã€€å…¥  :
+** è¾“ã€€å‡º  : æ‰“å¼€ç»“æœ
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 VOID __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo){
     if (!S_ISDIR(pInodeInfo->HOITN_mode)) return;
@@ -696,7 +696,7 @@ VOID __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo){
             continue;
         }
         pInodeCache->HOITC_nlink++;
-        if (S_ISDIR(pTempDirent->HOITFD_file_type)) {   /* ×ÓÎÄ¼şÊÇÄ¿Â¼ÎÄ¼ş, Ôòµİ¹éÏÂÈ¥ */
+        if (S_ISDIR(pTempDirent->HOITFD_file_type)) {   /* å­æ–‡ä»¶æ˜¯ç›®å½•æ–‡ä»¶, åˆ™é€’å½’ä¸‹å» */
             PHOIT_INODE_INFO pTempInode = __hoit_get_full_file(pfs, pInodeCache->HOITC_ino);
             __hoit_get_nlink(pTempInode);
             __hoit_close(pTempInode, 0);
@@ -707,19 +707,19 @@ VOID __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo){
 
 
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_open
-** ¹¦ÄÜÃèÊö: hoitfs ´ò¿ªÒ»¸öÎÄ¼ş
-** Êä¡¡Èë  : pfs              ÎÄ¼şÏµÍ³
-**           pcName           ÎÄ¼şÃû
-**           ppinodeFather     µ±ÎŞ·¨ÕÒµ½½ÚµãÊ±±£´æ×î½Ó½üµÄÒ»¸ö,
-                              µ«Ñ°ÕÒµ½½ÚµãÊ±±£´æ¸¸Ïµ½Úµã.
-                              LW_NULL ±íÊ¾¸ù
-             pbRoot           ÊÇ·ñÎª¸ù½Úµã
-**           pbLast           µ±Æ¥ÅäÊ§°ÜÊ±, ÊÇ·ñÊÇ×îºóÒ»¼¶ÎÄ¼şÆ¥ÅäÊ§°Ü
-**           ppcTail          Èç¹û´æÔÚÁ¬½ÓÎÄ¼ş, Ö¸ÏòÁ¬½ÓÎÄ¼şºóµÄÂ·¾¶
-** Êä¡¡³ö  : ´ò¿ª½á¹û
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_open
+** åŠŸèƒ½æè¿°: hoitfs æ‰“å¼€ä¸€ä¸ªæ–‡ä»¶
+** è¾“ã€€å…¥  : pfs              æ–‡ä»¶ç³»ç»Ÿ
+**           pcName           æ–‡ä»¶å
+**           ppinodeFather     å½“æ— æ³•æ‰¾åˆ°èŠ‚ç‚¹æ—¶ä¿å­˜æœ€æ¥è¿‘çš„ä¸€ä¸ª,
+                              ä½†å¯»æ‰¾åˆ°èŠ‚ç‚¹æ—¶ä¿å­˜çˆ¶ç³»èŠ‚ç‚¹.
+                              LW_NULL è¡¨ç¤ºæ ¹
+             pbRoot           æ˜¯å¦ä¸ºæ ¹èŠ‚ç‚¹
+**           pbLast           å½“åŒ¹é…å¤±è´¥æ—¶, æ˜¯å¦æ˜¯æœ€åä¸€çº§æ–‡ä»¶åŒ¹é…å¤±è´¥
+**           ppcTail          å¦‚æœå­˜åœ¨è¿æ¥æ–‡ä»¶, æŒ‡å‘è¿æ¥æ–‡ä»¶åçš„è·¯å¾„
+** è¾“ã€€å‡º  : æ‰“å¼€ç»“æœ
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
     CPCHAR       pcName,
@@ -736,11 +736,11 @@ PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
     PHOIT_INODE_INFO    pinodeTemp;
 
     if (ppInodeFather == LW_NULL) {
-        ppInodeFather = &pinodeTemp;                                      /*  ÁÙÊ±±äÁ¿                    */
+        ppInodeFather = &pinodeTemp;                                      /*  ä¸´æ—¶å˜é‡                    */
     }
     *ppInodeFather = LW_NULL;
     UINT inodeFatherIno = 0;
-    if (*pcName == PX_ROOT) {                                           /*  ºöÂÔ¸ù·ûºÅ                  */
+    if (*pcName == PX_ROOT) {                                           /*  å¿½ç•¥æ ¹ç¬¦å·                  */
         lib_strlcpy(pcTempName, (pcName + 1), PATH_MAX);
     }
     else {
@@ -749,7 +749,7 @@ PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
 
     if (pcTempName[0] == PX_EOS) {
         if (pbRoot) {
-            *pbRoot = LW_TRUE;                                          /*  pcName Îª¸ù                 */
+            *pbRoot = LW_TRUE;                                          /*  pcName ä¸ºæ ¹                 */
         }
         if (pbLast) {
             *pbLast = LW_FALSE;
@@ -758,99 +758,99 @@ PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
     }
     else {
         if (pbRoot) {
-            *pbRoot = LW_FALSE;                                         /*  pcName ²»Îª¸ù               */
+            *pbRoot = LW_FALSE;                                         /*  pcName ä¸ä¸ºæ ¹               */
         }
     }
     PHOIT_INODE_INFO    pInode;
     PHOIT_FULL_DIRENT   pDirentTemp;
 
     pcNext = pcTempName;
-    pInode = pfs->HOITFS_pRootDir;                               /*  ´Ó¸ùÄ¿Â¼¿ªÊ¼ËÑË÷            */
+    pInode = pfs->HOITFS_pRootDir;                               /*  ä»æ ¹ç›®å½•å¼€å§‹æœç´¢            */
 
     do {
         pcNode = pcNext;
-        pcNext = lib_index(pcNode, PX_DIVIDER);                         /*  ÒÆ¶¯µ½ÏÂ¼¶Ä¿Â¼              */
-        if (pcNext) {                                                   /*  ÊÇ·ñ¿ÉÒÔ½øÈëÏÂÒ»²ã          */
+        pcNext = lib_index(pcNode, PX_DIVIDER);                         /*  ç§»åŠ¨åˆ°ä¸‹çº§ç›®å½•              */
+        if (pcNext) {                                                   /*  æ˜¯å¦å¯ä»¥è¿›å…¥ä¸‹ä¸€å±‚          */
             *pcNext = PX_EOS;
-            pcNext++;                                                   /*  ÏÂÒ»²ãµÄÖ¸Õë                */
+            pcNext++;                                                   /*  ä¸‹ä¸€å±‚çš„æŒ‡é’ˆ                */
         }
 
         for (pDirentTemp = pInode->HOITN_dents;
             pDirentTemp != LW_NULL;
             pDirentTemp = pDirentTemp->HOITFD_next) {
 
-            if (pDirentTemp == LW_NULL) {                                     /*  ÎŞ·¨¼ÌĞøËÑË÷                */
+            if (pDirentTemp == LW_NULL) {                                     /*  æ— æ³•ç»§ç»­æœç´¢                */
                 goto    __find_error;
             }
-            if (S_ISLNK(pDirentTemp->HOITFD_file_type)) {                            /*  Á´½ÓÎÄ¼ş                    */
+            if (S_ISLNK(pDirentTemp->HOITFD_file_type)) {                            /*  é“¾æ¥æ–‡ä»¶                    */
                 if (lib_strcmp(pDirentTemp->HOITFD_file_name, pcNode) == 0) {
-                    goto    __find_ok;                                  /*  ÕÒµ½Á´½Ó                    */
+                    goto    __find_ok;                                  /*  æ‰¾åˆ°é“¾æ¥                    */
                 }
 
             }
             else if (S_ISDIR(pDirentTemp->HOITFD_file_type)) {
-                if (lib_strcmp(pDirentTemp->HOITFD_file_name, pcNode) == 0) {      /*  ÒÑ¾­ÕÒµ½Ò»¼¶Ä¿Â¼            */
+                if (lib_strcmp(pDirentTemp->HOITFD_file_name, pcNode) == 0) {      /*  å·²ç»æ‰¾åˆ°ä¸€çº§ç›®å½•            */
                     break;
                 }
             }
             else {
                 if (lib_strcmp(pDirentTemp->HOITFD_file_name, pcNode) == 0) {
-                    if (pcNext) {                                       /*  »¹´æÔÚÏÂ¼¶, ÕâÀï±ØĞëÎªÄ¿Â¼  */
-                        goto    __find_error;                           /*  ²»ÊÇÄ¿Â¼Ö±½Ó´íÎó            */
+                    if (pcNext) {                                       /*  è¿˜å­˜åœ¨ä¸‹çº§, è¿™é‡Œå¿…é¡»ä¸ºç›®å½•  */
+                        goto    __find_error;                           /*  ä¸æ˜¯ç›®å½•ç›´æ¥é”™è¯¯            */
                     }
                     break;
                 }
             }
         }
 
-        inodeFatherIno = pDirentTemp->HOITFD_ino;                       /*  ´Óµ±Ç°½Úµã¿ªÊ¼ËÑË÷          */
+        inodeFatherIno = pDirentTemp->HOITFD_ino;                       /*  ä»å½“å‰èŠ‚ç‚¹å¼€å§‹æœç´¢          */
         if (pInode != pfs->HOITFS_pRootDir) {
             __hoit_close(pInode, 0);
         }
-        pInode = __hoit_get_full_file(pfs, inodeFatherIno);             /*  ´ÓµÚÒ»¸ö¶ù×Ó¿ªÊ¼            */
-    } while (pcNext);                                                   /*  ²»´æÔÚÏÂ¼¶Ä¿Â¼              */
+        pInode = __hoit_get_full_file(pfs, inodeFatherIno);             /*  ä»ç¬¬ä¸€ä¸ªå„¿å­å¼€å§‹            */
+    } while (pcNext);                                                   /*  ä¸å­˜åœ¨ä¸‹çº§ç›®å½•              */
 
 __find_ok:
     if (ppFullDirent) *ppFullDirent = pDirentTemp;
-    if (ppInodeFather) *ppInodeFather = __hoit_get_full_file(pfs, pDirentTemp->HOITFD_pino);                            /*  ¸¸Ïµ½Úµã                    */
+    if (ppInodeFather) *ppInodeFather = __hoit_get_full_file(pfs, pDirentTemp->HOITFD_pino);                            /*  çˆ¶ç³»èŠ‚ç‚¹                    */
     /*
-     *  ¼ÆËã tail µÄÎ»ÖÃ.
+     *  è®¡ç®— tail çš„ä½ç½®.
      */
     if (ppcTail) {
         if (pcNext) {
             INT   iTail = pcNext - pcTempName;
-            *ppcTail = (PCHAR)pcName + iTail;                           /*  Ö¸ÏòÃ»ÓĞ±»´¦ÀíµÄ / ×Ö·û     */
+            *ppcTail = (PCHAR)pcName + iTail;                           /*  æŒ‡å‘æ²¡æœ‰è¢«å¤„ç†çš„ / å­—ç¬¦     */
         }
         else {
-            *ppcTail = (PCHAR)pcName + lib_strlen(pcName);              /*  Ö¸Ïò×îÄ©Î²                  */
+            *ppcTail = (PCHAR)pcName + lib_strlen(pcName);              /*  æŒ‡å‘æœ€æœ«å°¾                  */
         }
     }
     return  (pInode);
 
 __find_error:
     if (pbLast) {
-        if (pcNext == LW_NULL) {                                        /*  ×îºóÒ»¼¶²éÕÒÊ§°Ü            */
+        if (pcNext == LW_NULL) {                                        /*  æœ€åä¸€çº§æŸ¥æ‰¾å¤±è´¥            */
             *pbLast = LW_TRUE;
         }
         else {
             *pbLast = LW_FALSE;
         }
     }
-    return  (LW_NULL);                                                  /*  ÎŞ·¨ÕÒµ½½Úµã                */
+    return  (LW_NULL);                                                  /*  æ— æ³•æ‰¾åˆ°èŠ‚ç‚¹                */
 }
 
 
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_maken
-** ¹¦ÄÜÃèÊö: HoitFs ´´½¨Ò»¸öÎÄ¼ş
-** Êä¡¡Èë  : pfs              ÎÄ¼şÏµÍ³
-**           pcName           ÎÄ¼şÃû£¬²»ÄÜº¬ÓĞÉÏ¼¶Ä¿Â¼µÄÃû³Æ
-**           pInodeFather     ¸¸Ç×, NULL ±íÊ¾¸ùÄ¿Â¼
+** å‡½æ•°åç§°: __hoit_maken
+** åŠŸèƒ½æè¿°: HoitFs åˆ›å»ºä¸€ä¸ªæ–‡ä»¶
+** è¾“ã€€å…¥  : pfs              æ–‡ä»¶ç³»ç»Ÿ
+**           pcName           æ–‡ä»¶åï¼Œä¸èƒ½å«æœ‰ä¸Šçº§ç›®å½•çš„åç§°
+**           pInodeFather     çˆ¶äº², NULL è¡¨ç¤ºæ ¹ç›®å½•
 **           mode             mode_t
-**           pcLink           Èç¹ûÎªÁ¬½ÓÎÄ¼ş, ÕâÀïÖ¸Ã÷Á¬½ÓÄ¿±ê.
-** Êä¡¡³ö  : ´´½¨½á¹û
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+**           pcLink           å¦‚æœä¸ºè¿æ¥æ–‡ä»¶, è¿™é‡ŒæŒ‡æ˜è¿æ¥ç›®æ ‡.
+** è¾“ã€€å‡º  : åˆ›å»ºç»“æœ
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 PHOIT_INODE_INFO  __hoit_maken(PHOIT_VOLUME  pfs,
     CPCHAR       pcName,
@@ -894,14 +894,14 @@ PHOIT_INODE_INFO  __hoit_maken(PHOIT_VOLUME  pfs,
     return pInodeInfo;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_unlink_regular
-** ¹¦ÄÜÃèÊö: HoitFs ½«ÆÕÍ¨ÎÄ¼şÁ´½ÓÊı¼õ1£¬½«ÏàÓ¦µÄFullDirent±ê¼ÇÎª¹ıÆÚ£¬Èç¹ûÁ´½ÓÊı¼õÖÁÎª0ÔòÎÄ¼şµÄRawInodeÒ²½«±»±ê¼Ç¹ıÆÚ
-**           Ïàµ±ÓÚ±¾º¯ÊıÖ»É¾³ı·ÇÄ¿Â¼ÎÄ¼ş
-**           ×¢Òâ²ÎÊı´«½øÀ´µÄpDirent²»»áÔÚ¸Ãº¯ÊıÄÚ±»ÊÍ·Å£¬Ó¦¸ÃÓÉµ÷ÓÃ¸Ãº¯ÊıµÄÉÏ¼¶º¯Êı¸ºÔğÊÍ·Å
-** Êä¡¡Èë  : pramn            ÎÄ¼ş½Úµã
-** Êä¡¡³ö  : É¾³ı½á¹û
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_unlink_regular
+** åŠŸèƒ½æè¿°: HoitFs å°†æ™®é€šæ–‡ä»¶é“¾æ¥æ•°å‡1ï¼Œå°†ç›¸åº”çš„FullDirentæ ‡è®°ä¸ºè¿‡æœŸï¼Œå¦‚æœé“¾æ¥æ•°å‡è‡³ä¸º0åˆ™æ–‡ä»¶çš„RawInodeä¹Ÿå°†è¢«æ ‡è®°è¿‡æœŸ
+**           ç›¸å½“äºæœ¬å‡½æ•°åªåˆ é™¤éç›®å½•æ–‡ä»¶
+**           æ³¨æ„å‚æ•°ä¼ è¿›æ¥çš„pDirentä¸ä¼šåœ¨è¯¥å‡½æ•°å†…è¢«é‡Šæ”¾ï¼Œåº”è¯¥ç”±è°ƒç”¨è¯¥å‡½æ•°çš„ä¸Šçº§å‡½æ•°è´Ÿè´£é‡Šæ”¾
+** è¾“ã€€å…¥  : pramn            æ–‡ä»¶èŠ‚ç‚¹
+** è¾“ã€€å‡º  : åˆ é™¤ç»“æœ
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 INT  __hoit_unlink_regular(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDirent)
 {
@@ -915,19 +915,19 @@ INT  __hoit_unlink_regular(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDi
 
     PHOIT_INODE_CACHE pFatherInodeCache = __hoit_get_inode_cache(pfs, pInodeFather->HOITN_ino);
     /*
-    *½«±»É¾³ıµÄFullDirent¶ÔÓ¦µÄRawInfoºÍFlashÉÏµÄRawDirentÉ¾³ı
+    *å°†è¢«åˆ é™¤çš„FullDirentå¯¹åº”çš„RawInfoå’ŒFlashä¸Šçš„RawDirentåˆ é™¤
     */
     PHOIT_RAW_INFO pRawInfo = pDirent->HOITFD_raw_info;
-    __hoit_del_raw_info(pFatherInodeCache, pRawInfo);     //½«RawInfo´ÓInodeCacheµÄÁ´±íÖĞÉ¾³ı
+    __hoit_del_raw_info(pFatherInodeCache, pRawInfo);     //å°†RawInfoä»InodeCacheçš„é“¾è¡¨ä¸­åˆ é™¤
     __hoit_del_raw_data(pRawInfo);
     __SHEAP_FREE(pRawInfo);
     /*
-    *½«¸ÃFullDirent´Ó¸¸Ä¿Â¼ÎÄ¼şÖĞµÄdentsÁ´±íÉ¾³ı
+    *å°†è¯¥FullDirentä»çˆ¶ç›®å½•æ–‡ä»¶ä¸­çš„dentsé“¾è¡¨åˆ é™¤
     */
     __hoit_del_full_dirent(pInodeFather, pDirent);
 
     /*
-    *Èç¹ûnlink¼õÎª0£¬Ôò½«¸ÃInodeCache¶ÔÓ¦µÄÎÄ¼şËùÓĞÔÚFlashÉÏµÄÊı¾İ±ê¼ÇÎª¹ıÆÚ²¢ÊÍ·ÅµôÄÚ´æÖĞµÄInodeCache
+    *å¦‚æœnlinkå‡ä¸º0ï¼Œåˆ™å°†è¯¥InodeCacheå¯¹åº”çš„æ–‡ä»¶æ‰€æœ‰åœ¨Flashä¸Šçš„æ•°æ®æ ‡è®°ä¸ºè¿‡æœŸå¹¶é‡Šæ”¾æ‰å†…å­˜ä¸­çš„InodeCache
     */
     if (pInodeCache->HOITC_nlink == 0) {
         PHOIT_RAW_INFO pRawTemp = pInodeCache->HOITC_nodes;
@@ -945,13 +945,13 @@ INT  __hoit_unlink_regular(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDi
 }
 
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_truncate
-** ¹¦ÄÜÃèÊö: hoitfs ½Ø¶ÏÒ»¸öÎÄ¼ş(Ö±½ÓÉ¾³ıÊı¾İ), ×¢ÒâÕâ¸öº¯ÊıÖ»ÓÃÀ´½Ø¶ÏÆÕÍ¨ÀàĞÍÎÄ¼ş
-** Êä¡¡Èë  : pInodeInfo       ÎÄ¼ş½Úµã
-**           offset            ½Ø¶Ïµã
-** Êä¡¡³ö  : ½Ø¶Ï½á¹û
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_truncate
+** åŠŸèƒ½æè¿°: hoitfs æˆªæ–­ä¸€ä¸ªæ–‡ä»¶(ç›´æ¥åˆ é™¤æ•°æ®), æ³¨æ„è¿™ä¸ªå‡½æ•°åªç”¨æ¥æˆªæ–­æ™®é€šç±»å‹æ–‡ä»¶
+** è¾“ã€€å…¥  : pInodeInfo       æ–‡ä»¶èŠ‚ç‚¹
+**           offset            æˆªæ–­ç‚¹
+** è¾“ã€€å‡º  : æˆªæ–­ç»“æœ
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 VOID  __hoit_truncate(PHOIT_INODE_INFO  pInodeInfo, size_t  offset)
 {
@@ -959,14 +959,14 @@ VOID  __hoit_truncate(PHOIT_INODE_INFO  pInodeInfo, size_t  offset)
 }
 
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_unlink_dir
-** ¹¦ÄÜÃèÊö: ½«Ò»¸öÄ¿Â¼ÎÄ¼şÉ¾³ı£¬°üÀ¨¶ÔÆäËùÓĞ×ÓÎÄ¼ş½øĞĞÉ¾³ı£¨ÆÕÍ¨ÎÄ¼şµ÷ÓÃ__hoit_unlink_regular£¬Èç¹ûÓĞ×ÓÎÄ¼şÊÇÄ¿Â¼ÎÄ¼şÔòµİ¹éµ÷ÓÃ__hoit_unlink_dir£©
-**           Ïàµ±ÓÚ±¾º¯ÊıÖ»É¾³ıÄ¿Â¼ÎÄ¼ş£¨Óëramfs²»Í¬£¬±¾º¯Êı¼ÈÉ¾³ıÄ¿Â¼ÎÄ¼şÏÂµÄ×ÓÎÄ¼ş£¬ÓÖÉ¾³ıÄ¿Â¼ÎÄ¼ş±¾Éí£©
-**           ×¢Òâ²ÎÊı´«½øÀ´µÄpDirent²»»áÔÚ¸Ãº¯ÊıÄÚ±»ÊÍ·Å£¬Ó¦¸ÃÓÉµ÷ÓÃ¸Ãº¯ÊıµÄÉÏ¼¶º¯Êı¸ºÔğÊÍ·Å
-** Êä¡¡Èë  : pramn            ÎÄ¼ş½Úµã
-** Êä¡¡³ö  : !=0´ú±í³ö´í
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_unlink_dir
+** åŠŸèƒ½æè¿°: å°†ä¸€ä¸ªç›®å½•æ–‡ä»¶åˆ é™¤ï¼ŒåŒ…æ‹¬å¯¹å…¶æ‰€æœ‰å­æ–‡ä»¶è¿›è¡Œåˆ é™¤ï¼ˆæ™®é€šæ–‡ä»¶è°ƒç”¨__hoit_unlink_regularï¼Œå¦‚æœæœ‰å­æ–‡ä»¶æ˜¯ç›®å½•æ–‡ä»¶åˆ™é€’å½’è°ƒç”¨__hoit_unlink_dirï¼‰
+**           ç›¸å½“äºæœ¬å‡½æ•°åªåˆ é™¤ç›®å½•æ–‡ä»¶ï¼ˆä¸ramfsä¸åŒï¼Œæœ¬å‡½æ•°æ—¢åˆ é™¤ç›®å½•æ–‡ä»¶ä¸‹çš„å­æ–‡ä»¶ï¼Œåˆåˆ é™¤ç›®å½•æ–‡ä»¶æœ¬èº«ï¼‰
+**           æ³¨æ„å‚æ•°ä¼ è¿›æ¥çš„pDirentä¸ä¼šåœ¨è¯¥å‡½æ•°å†…è¢«é‡Šæ”¾ï¼Œåº”è¯¥ç”±è°ƒç”¨è¯¥å‡½æ•°çš„ä¸Šçº§å‡½æ•°è´Ÿè´£é‡Šæ”¾
+** è¾“ã€€å…¥  : pramn            æ–‡ä»¶èŠ‚ç‚¹
+** è¾“ã€€å‡º  : !=0ä»£è¡¨å‡ºé”™
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 INT  __hoit_unlink_dir(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDirent) {
     if (pDirent == LW_NULL || !S_ISDIR(pDirent->HOITFD_file_type)) {
@@ -979,26 +979,26 @@ INT  __hoit_unlink_dir(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDirent
 
     PHOIT_INODE_CACHE pFatherInodeCache = __hoit_get_inode_cache(pfs, pInodeFather->HOITN_ino);
     /*
-    *½«±»É¾³ıµÄFullDirent¶ÔÓ¦µÄRawInfoºÍFlashÉÏµÄRawDirentÉ¾³ı
+    *å°†è¢«åˆ é™¤çš„FullDirentå¯¹åº”çš„RawInfoå’ŒFlashä¸Šçš„RawDirentåˆ é™¤
     */
     PHOIT_RAW_INFO pRawInfo = pDirent->HOITFD_raw_info;
-    __hoit_del_raw_info(pFatherInodeCache, pRawInfo);     //½«RawInfo´ÓInodeCacheµÄÁ´±íÖĞÉ¾³ı
+    __hoit_del_raw_info(pFatherInodeCache, pRawInfo);     //å°†RawInfoä»InodeCacheçš„é“¾è¡¨ä¸­åˆ é™¤
     __hoit_del_raw_data(pRawInfo);
     __SHEAP_FREE(pRawInfo);
     /*
-    *½«¸ÃFullDirent´Ó¸¸Ä¿Â¼ÎÄ¼şÖĞµÄdentsÁ´±íÉ¾³ı£¬½Ó×Å½«FullDirentÄÚ´æÊÍ·Åµô
+    *å°†è¯¥FullDirentä»çˆ¶ç›®å½•æ–‡ä»¶ä¸­çš„dentsé“¾è¡¨åˆ é™¤ï¼Œæ¥ç€å°†FullDirentå†…å­˜é‡Šæ”¾æ‰
     */
     __hoit_del_full_dirent(pInodeFather, pDirent);
 ;
     /*
-    *Ä¿Â¼ÎÄ¼şnlinkÎª1£¬ÔÙ¼õ1¾Í±äÎª0ÁË£¬±ØĞëÏÈ³¢ÊÔunlink×ÓÎÄ¼ş£¬ÔÙÉ¾³ıÄ¿Â¼ÎÄ¼ş±¾ÉíµÄÊı¾İ
+    *ç›®å½•æ–‡ä»¶nlinkä¸º1ï¼Œå†å‡1å°±å˜ä¸º0äº†ï¼Œå¿…é¡»å…ˆå°è¯•unlinkå­æ–‡ä»¶ï¼Œå†åˆ é™¤ç›®å½•æ–‡ä»¶æœ¬èº«çš„æ•°æ®
     */
     if (pInodeCache->HOITC_nlink == 1) {
-        //ÏÈ´ò¿ªÄ¿Â¼ÎÄ¼ş
+        //å…ˆæ‰“å¼€ç›®å½•æ–‡ä»¶
         PHOIT_INODE_INFO pDirFileInode = __hoit_get_full_file(pfs, pInodeCache->HOITC_ino);
         if (!S_ISDIR(pDirFileInode->HOITN_mode)) return HOIT_ERROR;
 
-        //ÔÙÒ»´ÎunlinkÄ¿Â¼ÎÄ¼şÏÂµÄÃ¿¸ö×ÓÎÄ¼ş
+        //å†ä¸€æ¬¡unlinkç›®å½•æ–‡ä»¶ä¸‹çš„æ¯ä¸ªå­æ–‡ä»¶
         PHOIT_FULL_DIRENT pFullDirent = pDirFileInode->HOITN_dents;
         PHOIT_FULL_DIRENT pFullDirentNext = LW_NULL;
         while (pFullDirent) {
@@ -1013,7 +1013,7 @@ INT  __hoit_unlink_dir(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDirent
             pFullDirent = pFullDirentNext;
         }
 
-        //Ã¿¸öÄ¿Â¼ÎÄ¼şÓĞÒ»¸ö×Ô¼ºµÄRawInodeĞèÒªÎÒÃÇ×Ô¼ºÉ¾³ı
+        //æ¯ä¸ªç›®å½•æ–‡ä»¶æœ‰ä¸€ä¸ªè‡ªå·±çš„RawInodeéœ€è¦æˆ‘ä»¬è‡ªå·±åˆ é™¤
         PHOIT_RAW_INFO pRawTemp = pInodeCache->HOITC_nodes;
         PHOIT_RAW_INFO pRawNext = LW_NULL;
         while (pRawTemp) {
@@ -1032,13 +1032,13 @@ INT  __hoit_unlink_dir(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDirent
 }
 
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_close
-** ¹¦ÄÜÃèÊö: hoitfs ¹Ø±ÕÒ»¸öÎÄ¼ş, Çå¿ÕÆäËùÓĞfull_xxx½á¹¹Ìå, ×îºó»áÊÍ·Å´«ÈëµÄInodeInfo
-** Êä¡¡Èë  : pInodeInfo           ÎÄ¼ş½Úµã
-**           iFlag            ´ò¿ªÎÄ¼şÊ±µÄ·½·¨
-** Êä¡¡³ö  : NONE
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_close
+** åŠŸèƒ½æè¿°: hoitfs å…³é—­ä¸€ä¸ªæ–‡ä»¶, æ¸…ç©ºå…¶æ‰€æœ‰full_xxxç»“æ„ä½“, æœ€åä¼šé‡Šæ”¾ä¼ å…¥çš„InodeInfo
+** è¾“ã€€å…¥  : pInodeInfo           æ–‡ä»¶èŠ‚ç‚¹
+**           iFlag            æ‰“å¼€æ–‡ä»¶æ—¶çš„æ–¹æ³•
+** è¾“ã€€å‡º  : NONE
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag)
 {
@@ -1061,13 +1061,13 @@ VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag)
     }
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_move_check
-** ¹¦ÄÜÃèÊö: HoitFs ¼ì²éµÚ¶ş¸ö½ÚµãÊÇ·ñÎªµÚÒ»¸ö½ÚµãµÄ×ÓËï
-** Êä¡¡Èë  : pInode1       µÚÒ»¸ö½Úµã
-**           pInode2       µÚ¶ş¸ö½Úµã
-** Êä¡¡³ö  : ERROR
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_move_check
+** åŠŸèƒ½æè¿°: HoitFs æ£€æŸ¥ç¬¬äºŒä¸ªèŠ‚ç‚¹æ˜¯å¦ä¸ºç¬¬ä¸€ä¸ªèŠ‚ç‚¹çš„å­å­™
+** è¾“ã€€å…¥  : pInode1       ç¬¬ä¸€ä¸ªèŠ‚ç‚¹
+**           pInode2       ç¬¬äºŒä¸ªèŠ‚ç‚¹
+** è¾“ã€€å‡º  : ERROR
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 INT  __hoit_move_check(PHOIT_INODE_INFO  pInode1, PHOIT_INODE_INFO  pInode2)
 {
@@ -1096,14 +1096,14 @@ INT  __hoit_move_check(PHOIT_INODE_INFO  pInode1, PHOIT_INODE_INFO  pInode2)
     return  (ERROR_NONE);
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_move
-** ¹¦ÄÜÃèÊö: HoitFs ÒÆ¶¯»òÕßÖØÃüÃûÒ»¸öÎÄ¼ş
-** Êä¡¡Èë  : pInodeFather     ÎÄ¼şµÄ¸¸Ä¿Â¼½Úµã£¨moveÖ®Ç°µÄ£©
-**           pInodeInfo       ÎÄ¼ş½Úµã
-**           pcNewName        ĞÂµÄÃû×Ö
-** Êä¡¡³ö  : ERROR
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_move
+** åŠŸèƒ½æè¿°: HoitFs ç§»åŠ¨æˆ–è€…é‡å‘½åä¸€ä¸ªæ–‡ä»¶
+** è¾“ã€€å…¥  : pInodeFather     æ–‡ä»¶çš„çˆ¶ç›®å½•èŠ‚ç‚¹ï¼ˆmoveä¹‹å‰çš„ï¼‰
+**           pInodeInfo       æ–‡ä»¶èŠ‚ç‚¹
+**           pcNewName        æ–°çš„åå­—
+** è¾“ã€€å‡º  : ERROR
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 INT  __hoit_move(PHOIT_INODE_INFO pInodeFather, PHOIT_INODE_INFO  pInodeInfo, PCHAR  pcNewName)
 {
@@ -1120,17 +1120,17 @@ INT  __hoit_move(PHOIT_INODE_INFO pInodeFather, PHOIT_INODE_INFO  pInodeInfo, PC
     pfs = pInodeInfo->HOITN_volume;
 
     pInodeTemp = __hoit_open(pfs, pcNewName, &pInodeNewFather, LW_NULL, &bRoot, &bLast, &pcTail);
-    if (!pInodeTemp && (bRoot || (bLast == LW_FALSE))) {                 /*  ĞÂÃû×ÖÖ¸Ïò¸ù»òÕßÃ»ÓĞÄ¿Â¼    */
+    if (!pInodeTemp && (bRoot || (bLast == LW_FALSE))) {                 /*  æ–°åå­—æŒ‡å‘æ ¹æˆ–è€…æ²¡æœ‰ç›®å½•    */
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
     }
 
-    if (pInodeInfo == pInodeTemp) {                                           /*  ÏàÍ¬                        */
+    if (pInodeInfo == pInodeTemp) {                                           /*  ç›¸åŒ                        */
         return  (ERROR_NONE);
     }
 
     if (S_ISDIR(pInodeInfo->HOITN_mode) && pInodeNewFather) {
-        if (__hoit_move_check(pInodeInfo, pInodeNewFather)) {                  /*  ¼ì²éÄ¿Â¼ºÏ·¨ĞÔ              */
+        if (__hoit_move_check(pInodeInfo, pInodeNewFather)) {                  /*  æ£€æŸ¥ç›®å½•åˆæ³•æ€§              */
             _ErrorHandle(EINVAL);
             return  (PX_ERROR);
         }
@@ -1143,7 +1143,7 @@ INT  __hoit_move(PHOIT_INODE_INFO pInodeFather, PHOIT_INODE_INFO  pInodeInfo, PC
         pcFileName = pcNewName;
     }
 
-    pcTemp = (PCHAR)__SHEAP_ALLOC(lib_strlen(pcFileName) + 1);          /*  Ô¤·ÖÅäÃû×Ö»º´æ              */
+    pcTemp = (PCHAR)__SHEAP_ALLOC(lib_strlen(pcFileName) + 1);          /*  é¢„åˆ†é…åå­—ç¼“å­˜              */
     if (pcTemp == LW_NULL) {
         _ErrorHandle(ENOMEM);
         return  (PX_ERROR);
@@ -1169,10 +1169,10 @@ INT  __hoit_move(PHOIT_INODE_INFO pInodeFather, PHOIT_INODE_INFO  pInodeInfo, PC
             return  (PX_ERROR);
         }
         if (S_ISDIR(pInodeTemp->HOITN_mode)) {
-            iRet = __hoit_unlink_dir(pInodeNewFather, pFullDirent);     /*  É¾³ıÄ¿±ê                    */
+            iRet = __hoit_unlink_dir(pInodeNewFather, pFullDirent);     /*  åˆ é™¤ç›®æ ‡                    */
         }
         else {
-            iRet = __hoit_unlink_regular(pInodeNewFather, pFullDirent); /*  É¾³ıÄ¿±ê                    */
+            iRet = __hoit_unlink_regular(pInodeNewFather, pFullDirent); /*  åˆ é™¤ç›®æ ‡                    */
         }
         __hoit_free_full_dirent(pFullDirent);
         
@@ -1183,7 +1183,7 @@ INT  __hoit_move(PHOIT_INODE_INFO pInodeFather, PHOIT_INODE_INFO  pInodeInfo, PC
         }
     }
 
-    if (pInodeFather != pInodeNewFather) {                              /*  Ä¿Â¼·¢Éú¸Ä±ä                */
+    if (pInodeFather != pInodeNewFather) {                              /*  ç›®å½•å‘ç”Ÿæ”¹å˜                */
         PHOIT_FULL_DIRENT pFullDirent = (PHOIT_FULL_DIRENT)__SHEAP_ALLOC(sizeof(HOIT_FULL_DIRENT));
         pFullDirent->HOITFD_file_name = pcTemp;
         pFullDirent->HOITFD_file_type = pInodeInfo->HOITN_mode;
@@ -1207,12 +1207,12 @@ INT  __hoit_move(PHOIT_INODE_INFO pInodeFather, PHOIT_INODE_INFO  pInodeInfo, PC
     return  (ERROR_NONE);
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_stat
-** ¹¦ÄÜÃèÊö: ´ÓÒ»¸ö´ò¿ªµÄÎÄ¼şÖĞ¶ÁÈ¡ÏàÓ¦Êı¾İµ½stat½á¹¹Ìå
-** Êä¡¡Èë  : pInodeInfo       ÎÄ¼ş½Úµã
-** Êä¡¡³ö  : !=0´ú±í³ö´í
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_stat
+** åŠŸèƒ½æè¿°: ä»ä¸€ä¸ªæ‰“å¼€çš„æ–‡ä»¶ä¸­è¯»å–ç›¸åº”æ•°æ®åˆ°statç»“æ„ä½“
+** è¾“ã€€å…¥  : pInodeInfo       æ–‡ä»¶èŠ‚ç‚¹
+** è¾“ã€€å‡º  : !=0ä»£è¡¨å‡ºé”™
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 INT  __hoit_stat(PHOIT_INODE_INFO pInodeInfo, PHOIT_VOLUME  pfs, struct stat* pstat) {
     if (pInodeInfo) {
@@ -1252,15 +1252,15 @@ INT  __hoit_stat(PHOIT_INODE_INFO pInodeInfo, PHOIT_VOLUME  pfs, struct stat* ps
     return ERROR_NONE;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_statfs
-** ¹¦ÄÜÃèÊö: ¶ÁÈ¡ÎÄ¼şÏµÍ³Ïà¹ØĞÅÏ¢µ½pstatfs
-** Êä¡¡Èë  : pInodeInfo       ÎÄ¼ş½Úµã
-** Êä¡¡³ö  : !=0´ú±í³ö´í
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_statfs
+** åŠŸèƒ½æè¿°: è¯»å–æ–‡ä»¶ç³»ç»Ÿç›¸å…³ä¿¡æ¯åˆ°pstatfs
+** è¾“ã€€å…¥  : pInodeInfo       æ–‡ä»¶èŠ‚ç‚¹
+** è¾“ã€€å‡º  : !=0ä»£è¡¨å‡ºé”™
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 INT  __hoit_statfs(PHOIT_VOLUME  pfs, struct statfs* pstatfs) {
-    pstatfs->f_type = TMPFS_MAGIC;  //ĞèÒªĞŞ¸Ä
+    pstatfs->f_type = TMPFS_MAGIC;  //éœ€è¦ä¿®æ”¹
     pstatfs->f_bsize = 0;
     pstatfs->f_blocks = 0;
     pstatfs->f_bfree = 0;
@@ -1283,12 +1283,12 @@ INT  __hoit_statfs(PHOIT_VOLUME  pfs, struct statfs* pstatfs) {
 }
 
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_read
-** ¹¦ÄÜÃèÊö: hoitfs ¶ÁÈ¡ÎÄ¼şÄÚÈİ
-** Êä¡¡Èë  : 
-** Êä¡¡³ö  : ¶ÁÈ¡µÄ×Ö½ÚÊı
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_read
+** åŠŸèƒ½æè¿°: hoitfs è¯»å–æ–‡ä»¶å†…å®¹
+** è¾“ã€€å…¥  : 
+** è¾“ã€€å‡º  : è¯»å–çš„å­—èŠ‚æ•°
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 ssize_t  __hoit_read(PHOIT_INODE_INFO  pInodeInfo, PVOID  pvBuffer, size_t  stSize, size_t  stOft)
 {
@@ -1296,15 +1296,15 @@ ssize_t  __hoit_read(PHOIT_INODE_INFO  pInodeInfo, PVOID  pvBuffer, size_t  stSi
     return stSize;
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_write
-** ¹¦ÄÜÃèÊö: hoitfs Ğ´ÈëÎÄ¼şÄÚÈİ
-** Êä¡¡Èë  : pInodeInfo            ÎÄ¼ş½Úµã
-**           pvBuffer         »º³åÇø
-**           stNBytes         ĞèÒª¶ÁÈ¡µÄ´óĞ¡
-**           stOft            Æ«ÒÆÁ¿
-** Êä¡¡³ö  : ¶ÁÈ¡µÄ×Ö½ÚÊı
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_write
+** åŠŸèƒ½æè¿°: hoitfs å†™å…¥æ–‡ä»¶å†…å®¹
+** è¾“ã€€å…¥  : pInodeInfo            æ–‡ä»¶èŠ‚ç‚¹
+**           pvBuffer         ç¼“å†²åŒº
+**           stNBytes         éœ€è¦è¯»å–çš„å¤§å°
+**           stOft            åç§»é‡
+** è¾“ã€€å‡º  : è¯»å–çš„å­—èŠ‚æ•°
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  stNBytes, size_t  stOft) {
     PHOIT_FULL_DNODE pFullDnode = __hoit_write_full_dnode(pInodeInfo, stOft, stNBytes, pvBuffer);
@@ -1314,24 +1314,24 @@ ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  st
 }
 
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_ummount
-** ¹¦ÄÜÃèÊö: hoitfs Ğ¶ÔØ
-** Êä¡¡Èë  : pfs               ÎÄ¼şÏµÍ³
-** Êä¡¡³ö  : NONE
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_ummount
+** åŠŸèƒ½æè¿°: hoitfs å¸è½½
+** è¾“ã€€å…¥  : pfs               æ–‡ä»¶ç³»ç»Ÿ
+** è¾“ã€€å‡º  : NONE
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 VOID  __hoit_unmount(PHOIT_VOLUME pfs)
 {
     /* TODO */
 }
 /*********************************************************************************************************
-** º¯ÊıÃû³Æ: __hoit_mount
-** ¹¦ÄÜÃèÊö: hoitfs ¹ÒÔØ
-** Êä¡¡Èë  : pfs           ÎÄ¼şÏµÍ³
-** Êä¡¡³ö  : NONE
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** å‡½æ•°åç§°: __hoit_mount
+** åŠŸèƒ½æè¿°: hoitfs æŒ‚è½½
+** è¾“ã€€å…¥  : pfs           æ–‡ä»¶ç³»ç»Ÿ
+** è¾“ã€€å‡º  : NONE
+** å…¨å±€å˜é‡:
+** è°ƒç”¨æ¨¡å—:
 *********************************************************************************************************/
 VOID  __hoit_mount(PHOIT_VOLUME  pfs)
 {
@@ -1347,16 +1347,16 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     pfs->HOITFS_highest_ino++;
     pfs->HOITFS_highest_version++;
                                             
-    if (pfs->HOITFS_highest_ino == 1) {    /* ÏµÍ³µÚÒ»´ÎÔËĞĞ, ´´½¨¸ùÄ¿Â¼ÎÄ¼ş */
+    if (pfs->HOITFS_highest_ino == 1) {    /* ç³»ç»Ÿç¬¬ä¸€æ¬¡è¿è¡Œ, åˆ›å»ºæ ¹ç›®å½•æ–‡ä»¶ */
         mode_t mode = S_IFDIR;
         PHOIT_INODE_INFO pRootDir = __hoit_new_inode_info(pfs, mode);
         pfs->HOITFS_pRootDir = pRootDir;
     }
-    /* ÏµÍ³²»ÊÇµÚÒ»´ÎÔËĞĞµÄ»°»áÔÚÉ¨ÃèÊ±¾ÍÕÒµ½pRootDir */
+    /* ç³»ç»Ÿä¸æ˜¯ç¬¬ä¸€æ¬¡è¿è¡Œçš„è¯ä¼šåœ¨æ‰«ææ—¶å°±æ‰¾åˆ°pRootDir */
 
 
-    /* »ù±¾µÄinode_cacheºÍraw_info¹¹½¨Íê±Ï  */
-    /* ½ÓÏÂÀ´Òªµİ¹éÍ³¼ÆËùÓĞÎÄ¼şµÄnlink          */
+    /* åŸºæœ¬çš„inode_cacheå’Œraw_infoæ„å»ºå®Œæ¯•  */
+    /* æ¥ä¸‹æ¥è¦é€’å½’ç»Ÿè®¡æ‰€æœ‰æ–‡ä»¶çš„nlink          */
     
     __hoit_get_nlink(pfs->HOITFS_pRootDir);
 }
