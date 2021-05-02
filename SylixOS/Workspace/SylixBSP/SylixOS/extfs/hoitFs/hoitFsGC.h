@@ -28,6 +28,7 @@
 //TODO:注意 当删除RawInfo的时候，一定要记得调整它属于的GC_Sector的属性内容
 
 VOID    hoitFsGCBackgroundThread(PHOIT_VOLUME pfs);
-VOID    hoitFSGCForgroudForce(PHOIT_VOLUME pfs);
+VOID    hoitFsGCForgroudForce(PHOIT_VOLUME pfs);
+VOID    hoitFsGCThread(PHOIT_VOLUME pfs);
 
 #endif /* SYLIXOS_EXTFS_HOITFS_HOITGC_H_ */

@@ -242,6 +242,8 @@ struct HOIT_ERASABLE_SECTOR{
     PHOIT_RAW_INFO                HOITS_pRawInfoFirst;                            /* 指向可擦除Sector中第一个数据实体 */
     PHOIT_RAW_INFO                HOITS_pRawInfoLast;                             /* 指向可擦除Sector中最后一个数据实体，通过next_phys获取下一个数据实体 */
     PHOIT_RAW_INFO                HOITS_pRawInfoCurGC;                            /* 当前即将回收的数据实体，注：一次仅回收一个数据实体 */
+    
+    ULONG                         HOITS_tBornAge;                                 /* 当前Sector的出生时间 */                        
 };
 
 
