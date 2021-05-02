@@ -23,11 +23,49 @@
 
 #include "hoitType.h"
 
+#define MAX_MSG_COUNTER     2
+#define MAX_MSG_BYTE_SIZE   40
+
+#define MSG_BG_GC_START         "msg_gc_background_start"
+#define MSG_BG_GC_END           "msg_gc_background_end"
+
 #define GC_DEBUG
+#define GC_TEST
+
+typedef struct hoitGCAttr
+{
+    PHOIT_VOLUME pfs; 
+    UINT uiThreshold;
+} HOIT_GC_ATTR;
+
+typedef HOIT_GC_ATTR * PHOIT_GC_ATTR;
 
 //TODO:注意 当删除RawInfo的时候，一定要记得调整它属于的GC_Sector的属性内容
 
-VOID    hoitFsGCBackgroundThread(PHOIT_VOLUME pfs);
-VOID    hoitFSGCForgroudForce(PHOIT_VOLUME pfs);
+
+VOID    hoitGCBackgroundThread(PHOIT_VOLUME pfs);
+VOID    hoitGCForgroudForce(PHOIT_VOLUME pfs);
+VOID    hoitGCThread(PHOIT_GC_ATTR pGCAttr);
+
+
+static inline VOID hoitStartGCThread(PHOIT_VOLUME pfs, UINT uiThreshold){
+    LW_CLASS_THREADATTR     gcThreadAttr;
+    PHOIT_GC_ATTR            pGCAttr;
+
+    pGCAttr                 = (PHOIT_GC_ATTR)lib_malloc(sizeof(HOIT_GC_ATTR));
+    pGCAttr->pfs            = pfs;
+    pGCAttr->uiThreshold    = uiThreshold;
+    
+    API_ThreadAttrBuild(&gcThreadAttr,
+                        4 * LW_CFG_KB_SIZE, 
+                        LW_PRIO_NORMAL,
+                        LW_OPTION_THREAD_STK_CHK, 
+                        (VOID *)pGCAttr);
+
+    API_ThreadCreate("t_hoit_gc_thread",
+                     (PTHREAD_START_ROUTINE)hoitGCThread,
+                     &gcThreadAttr,
+                     LW_NULL);
+}
 
 #endif /* SYLIXOS_EXTFS_HOITFS_HOITGC_H_ */
