@@ -341,6 +341,6 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
 		        				               LW_NULL);
             }
         }
-        sleep(5);
+        sleep(10);
     }
 }

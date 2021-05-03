@@ -321,8 +321,11 @@ UINT8 __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_
     pfs->HOITFS_now_sector->HOITS_offset += length;
     */
     
-    *phys_addr = hoitWriteToCache(pfs->HOITFS_cacheHdr, pdata, length);
-    if (*phys_addr == PX_ERROR) {
+    UINT temp_addr = hoitWriteToCache(pfs->HOITFS_cacheHdr, pdata, length);
+    if(phys_addr){
+        *phys_addr = temp_addr;
+    }
+    if (temp_addr == PX_ERROR) {
         printf("Error in write flash\n");
         return PX_ERROR;
     }
@@ -491,7 +494,7 @@ UINT8 __hoit_del_raw_data(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     }
     pRawHeader->flag &= (~HOIT_FLAG_OBSOLETE);      //将obsolete标志变为0，代表过期
     
-    __hoit_write_flash_thru(LW_NULL, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
+    __hoit_write_flash_thru(pfs, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
     __SHEAP_FREE(buf);
     return 0;
 }
@@ -934,12 +937,12 @@ VOID __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pReadBuf;
     if (pRawHeader->magic_num != HOIT_MAGIC_NUM || (pRawHeader->flag & HOIT_FLAG_OBSOLETE) == 0) {
-        printk("Error in hoit_move_home\n");
+        //printk("Error in hoit_move_home\n");
         return;
     }
     pRawHeader->flag &= (~HOIT_FLAG_OBSOLETE);      //将obsolete标志变为0，代表过期
     /* 将obsolete标志位清0后写回原地址 */
-    __hoit_write_flash_thru(LW_NULL, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
+    __hoit_write_flash_thru(pfs, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
     
     /* 将obsolete标志位恢复后写到新地址 */
     pRawHeader->flag |= HOIT_FLAG_OBSOLETE;         //将obsolete标志变为1，代表未过期
@@ -1051,7 +1054,9 @@ PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
 
         if(pDirentTemp == LW_NULL)
             goto __find_error;
-
+        if(S_ISDIR(pDirentTemp->HOITFD_file_type) && pcNext == NULL){
+            goto    __find_ok;
+        }
         inodeFatherIno = pDirentTemp->HOITFD_ino;                       /*  从当前节点开始搜索          */
         if (pInode != pfs->HOITFS_pRootDir) {
             __hoit_close(pInode, 0);
@@ -1208,9 +1213,9 @@ INT  __hoit_unlink_regular(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDi
             pRawTemp = pRawNext;
         }
         __hoit_del_inode_cache(pfs, pInodeCache);
+        __SHEAP_FREE(pInodeCache);
     }
 
-    __SHEAP_FREE(pInodeCache);
     return  (ERROR_NONE);
 }
 
@@ -1225,7 +1230,7 @@ INT  __hoit_unlink_regular(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDi
 *********************************************************************************************************/
 VOID  __hoit_truncate(PHOIT_INODE_INFO  pInodeInfo, size_t  offset)
 {
-    hoitFragTreeDeleteRange(pInodeInfo->HOITN_rbtree, offset, INT_MAX, LW_TRUE);
+    hoitFragTreeDeleteRange(pInodeInfo->HOITN_rbtree, offset, UINT_MAX, LW_TRUE);
 }
 
 /*********************************************************************************************************

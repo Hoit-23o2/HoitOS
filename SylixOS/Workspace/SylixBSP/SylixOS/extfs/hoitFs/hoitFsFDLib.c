@@ -123,9 +123,13 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
     }
     pNewRawInfo->phys_addr = phys_addr;
     pNewRawInfo->totlen = sizeof(struct HOIT_RAW_INODE) + length;
+    pNewRawInfo->next_logic = LW_NULL;
+    pNewRawInfo->next_phys = LW_NULL;
+    pNewRawInfo->is_obsolete = 0;
 
     PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pRawInode->ino);
     __hoit_add_to_inode_cache(pInodeCache, pNewRawInfo);
+    __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pNewRawInfo);
 
     PHOIT_FULL_DNODE pNewFullDnode = (PHOIT_FULL_DNODE)__SHEAP_ALLOC(sizeof(struct HOIT_FULL_DNODE));  /* ×¢Òâ±ÜÃâÄÚ´æÐ¹Â¶ */
     if (!pNewFullDnode) {
@@ -174,8 +178,12 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
     PHOIT_RAW_INFO pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
     pRawInfo->phys_addr = phys_addr;
     pRawInfo->totlen = sizeof(HOIT_RAW_INODE) + size;
-    
+    pRawInfo->next_phys = LW_NULL;
+    pRawInfo->next_logic = LW_NULL;
+    pRawInfo->is_obsolete = 0;
+
     __hoit_add_to_inode_cache(pInodeInfo->HOITN_inode_cache, pRawInfo);
+    __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pRawInfo);
     PHOIT_FULL_DNODE pFullDnode = (PHOIT_FULL_DNODE)__SHEAP_ALLOC(sizeof(HOIT_FULL_DNODE));
     pFullDnode->HOITFD_file_type = pInodeInfo->HOITN_mode;
     pFullDnode->HOITFD_length = size;

@@ -53,14 +53,7 @@
 static inline UINT8 hoitGetSectorNo(UINT32 offset){
     UINT i;
     offset += NOR_FLASH_START_OFFSET;
-    for (i = 0; i < NOR_FLASH_NSECTOR; i++)                             
-    {                                                                       
-        if(_G_am29LV160DB_sector_infos[i].sector_start_offset <= offset &&  
-            _G_am29LV160DB_sector_infos[i].sector_end_offset >= offset){    
-            return i-GET_SECTOR_NO(NOR_FLASH_START_OFFSET);                                                         
-        }                                                                   
-    }
-    return -1;
+    return GET_SECTOR_NO(offset) - GET_SECTOR_NO(NOR_FLASH_START_OFFSET);
 }
 /*
     ¸ù¾ÝÐéÄâ¿éºÅ»ñÈ¡ÐéÄâÆ«ÒÆ£¬Æ«ÒÆÁãµØÖ·ÎªNOR_FLASH_START_OFFSET
@@ -141,13 +134,9 @@ BOOL        hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr,
                                   UINT32 uiOfs, 
                                   PCHAR pContent, 
                                   UINT32 uiSize);
-
-UINT32                  hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, 
-                                  PCHAR pContent, 
-                                  UINT32 uiSize);
-
-PHOIT_ERASABLE_SECTOR   hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, 
-                                       UINT32 sector_no); 
+UINT32      hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize);
+PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, 
+                                    UINT32 sector_no);                    
 #ifdef HOIT_CACHE_TEST
 BOOL    test_hoit_cache();
 #endif
