@@ -321,7 +321,7 @@ struct hoit_frag_tree_list_header
 typedef struct HOIT_CACHE_BLK
 {
     BOOL                        HOITBLK_bType;
-    PHOIT_ERASABLE_SECTOR       HOITBLK_sector;           /* cache映射的Sector */
+    PHOIT_ERASABLE_SECTOR       HOITBLK_sector;           /* cache映射的Sector，用于获取信息 */
     UINT32                      HOITBLK_blkNo;            /* cache块号 */
     struct HOIT_CACHE_BLK       *HOITBLK_cacheListPrev;   /* 链表上上一个cache */
     struct HOIT_CACHE_BLK       *HOITBLK_cacheListNext;   /* 链表上下一个cache */
