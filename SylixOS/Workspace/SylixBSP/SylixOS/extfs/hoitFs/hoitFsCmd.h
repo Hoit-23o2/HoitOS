@@ -19,8 +19,10 @@
 ** 描        述: Hoit文件系统注册硬链接shell命令
 *********************************************************************************************************/
 
-#ifndef HOIT_CMD_H_
-#define HOIT_CMD_H_
+#ifndef __HOITFSCMD_H
+#define __HOITFSCMD_H
 #include "hoitType.h"
-VOID register_hln_cmd(PHOIT_VOLUME pfs);
+
+VOID register_hoitfs_cmd(PHOIT_VOLUME pfs);
+
 #endif

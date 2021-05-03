@@ -362,7 +362,7 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
         pSector = pSector->HOITS_next;
     }
 
-    if (pSector == LW_NULL) {/* flash空间整体不足 */
+    if (pSector == LW_NULL) {                                   /* flash空间整体不足 */
         return PX_ERROR;
     }
 
@@ -371,12 +371,12 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
                 pSector->HOITS_offset + 
                 NOR_FLASH_START_OFFSET;
     pcache = hoitCheckCacheHit(pcacheHdr, pSector->HOITS_bno);
-    if (pcache == LW_NULL) { /* 未命中 */
+    if (pcache == LW_NULL) {                                    /* 未命中 */
         pcache = hoitAllocCache(pcacheHdr, pSector->HOITS_bno, HOIT_CACHE_TYPE_DATA, pSector);
-        if (pcache == LW_NULL) { /* 未成功分配cache，直接写入flash */                        
+        if (pcache == LW_NULL) {                                /* 未成功分配cache，直接写入flash */                        
             write_nor(writeAddr, pContent, uiSize, WRITE_KEEP);
         }
-        else { /* 成功分配cache，则写入cache */
+        else {                                                  /* 成功分配cache，则写入cache */
             lib_memcpy(pcache->HOITBLK_buf + pSector->HOITS_offset, pucDest, uiSize);
         }
     } else {
@@ -393,6 +393,7 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
         }
         pSector = pSector->HOITS_next;
     }
+    pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_totalUsedSize += uiSize;
     return writeAddr - NOR_FLASH_START_OFFSET;
 }
 

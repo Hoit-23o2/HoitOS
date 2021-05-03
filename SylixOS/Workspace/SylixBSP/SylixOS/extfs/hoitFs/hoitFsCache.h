@@ -64,13 +64,13 @@ BOOL                hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr,
                                         PCHAR pContent, 
                                         UINT32 uiSize);
 
-UINT32  hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr);
-UINT32  hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType);
+UINT32      hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr);
+UINT32      hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType);
 #ifdef HOIT_CACHE_TEST
 BOOL    test_hoit_cache();
 BOOL    hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize);
 #else
-UINT32    hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize);
+UINT32      hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize);
 #endif
 
 #endif /* SYLIXOS_EXTFS_HOITFS_HOITFSCACHE_H_ */

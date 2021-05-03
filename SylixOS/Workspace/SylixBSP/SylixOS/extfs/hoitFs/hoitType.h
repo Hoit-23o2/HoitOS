@@ -65,14 +65,17 @@ typedef struct HOIT_FULL_DIRENT           HOIT_FULL_DIRENT;
 typedef struct HOIT_INODE_CACHE           HOIT_INODE_CACHE;
 typedef struct HOIT_INODE_INFO            HOIT_INODE_INFO;
 typedef struct HOIT_ERASABLE_SECTOR       HOIT_ERASABLE_SECTOR;
+typedef struct HOIT_LOG_SECTOR            HOIT_LOG_SECTOR;
 typedef struct hoit_rb_node               HOIT_RB_NODE;
 typedef struct hoit_rb_tree               HOIT_RB_TREE;
 typedef struct hoit_frag_tree             HOIT_FRAG_TREE;
 typedef struct hoit_frag_tree_node        HOIT_FRAG_TREE_NODE;
 typedef struct hoit_frag_tree_list_node   HOIT_FRAG_TREE_LIST_NODE;
 typedef struct hoit_frag_tree_list_header HOIT_FRAG_TREE_LIST_HEADER;
+
 typedef struct HOIT_CACHE_BLK             HOIT_CACHE_BLK;
 typedef struct HOIT_CACHE_HDR             HOIT_CACHE_HDR;
+typedef struct HOIT_LOG_INFO              HOIT_LOG_INFO;
 
 typedef HOIT_VOLUME*                      PHOIT_VOLUME;
 typedef HOIT_RAW_HEADER*                  PHOIT_RAW_HEADER;
@@ -84,6 +87,7 @@ typedef HOIT_FULL_DIRENT*                 PHOIT_FULL_DIRENT;
 typedef HOIT_INODE_CACHE*                 PHOIT_INODE_CACHE;
 typedef HOIT_INODE_INFO*                  PHOIT_INODE_INFO;
 typedef HOIT_ERASABLE_SECTOR*             PHOIT_ERASABLE_SECTOR;
+typedef HOIT_LOG_SECTOR*                  PHOIT_LOG_SECTOR;
 typedef HOIT_RB_NODE *                    PHOIT_RB_NODE;
 typedef HOIT_RB_TREE *                    PHOIT_RB_TREE;
 typedef HOIT_FRAG_TREE *                  PHOIT_FRAG_TREE;
@@ -94,6 +98,9 @@ typedef HOIT_FRAG_TREE_LIST_HEADER *      PHOIT_FRAG_TREE_LIST_HEADER;
 
 typedef HOIT_CACHE_BLK *                  PHOIT_CACHE_BLK;
 typedef HOIT_CACHE_HDR *                  PHOIT_CACHE_HDR;
+
+typedef HOIT_LOG_INFO *                   PHOIT_LOG_INFO;
+
 DEV_HDR          HOITFS_devhdrHdr;
 
 
@@ -124,14 +131,19 @@ typedef struct HOIT_VOLUME{
 
     PHOIT_ERASABLE_SECTOR   HOITFS_now_sector;
     
-                                                                           /* GC 相关 */
+                                                                           /*! GC 相关 */
     PHOIT_ERASABLE_SECTOR   HOITFS_erasableSectorList;                     /* 可擦除Sector列表 */
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
     spinlock_t              HOITFS_GCLock;                                 /* GC锁 */
     LW_HANDLE               HOITFS_GCMsgQ;                                 /* GC线程*/
-
+    size_t                  HOITFS_totalUsedSize;                          /* hoitfs已使用Flash大小 */
+    size_t                  HOITFS_totalSize;                              /* 总Flash大小 */
+    
+                                                                           /*! Cache */
     PHOIT_CACHE_HDR         HOITFS_cacheHdr;                               /* hoitfs的cache头结构 */
-    size_t                  HOITFS_totalUsedSize;                          /* hoitfs总共使用大小 */
+
+                                                                           /*! Log相关 */
+    PHOIT_LOG_INFO          HOITFS_logInfo;
 } HOIT_VOLUME;
 
 
@@ -252,7 +264,10 @@ struct HOIT_ERASABLE_SECTOR{
     ULONG                         HOITS_tBornAge;                                 /* 当前Sector的出生时间 */                        
 };
 
-
+struct HOIT_LOG_SECTOR{
+    PHOIT_LOG_SECTOR     pErasableNextLogSector;
+    HOIT_ERASABLE_SECTOR ErasableSetcor;
+};
 /*********************************************************************************************************
   红黑树节点
 *********************************************************************************************************/
@@ -348,6 +363,16 @@ typedef struct HOIT_CACHE_HDR
     PHOIT_CACHE_BLK         HOITCACHE_cacheLineHdr;  /* cache链表 */
     UINT32                  HOITCACHE_nextBlkToWrite;/* 下一个要输出的块 */
 }HOIT_CACHE_HDR;
+
+
+
+/*********************************************************************************************************
+  HOITFS log 文件信息
+*********************************************************************************************************/
+struct HOIT_LOG_INFO
+{
+    PHOIT_LOG_SECTOR pLogSector;
+};
 
 /*********************************************************************************************************
   偏移量计算

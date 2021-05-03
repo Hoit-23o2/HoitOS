@@ -18,7 +18,7 @@
 **
 ** 描        述: Hoit文件系统注册硬链接shell命令
 *********************************************************************************************************/
-#include "hoitCmd.h"
+#include "hoitFsCmd.h"
 #include "hoitFs.h"
 /*********************************************************************************************************
 ** 函数名称: hln_cmd_wrppaer
@@ -29,18 +29,19 @@
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-PHOIT_VOLUME forTest;
+static PHOIT_VOLUME _G_Volumn;
+
 INT hln_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     PCHAR pLinkDstName1 = *(ppcArgV + 1);       /* 目标链接文件 */
     PCHAR pLinkSrcName2 = *(ppcArgV + 2);
     
-    __hoitFsHardlink(forTest, pLinkSrcName2, pLinkDstName1);
+    __hoitFsHardlink(_G_Volumn, pLinkSrcName2, pLinkDstName1);
     return 0;
 }
 
 
 
-VOID register_hln_cmd(PHOIT_VOLUME pfs) {
-    forTest = pfs;
+VOID register_hoitfs_cmd(PHOIT_VOLUME pfs) {
+    _G_Volumn = pfs;
     API_TShellKeywordAdd("hln", hln_cmd_wrapper);
 }
