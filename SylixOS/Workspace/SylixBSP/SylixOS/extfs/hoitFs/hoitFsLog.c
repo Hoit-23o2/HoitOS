@@ -198,6 +198,7 @@ UINT __hoitScanLogSector(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog, UINT * puiEnti
             pcCurSectorPos += 4;   /* 每次移动4字节 */
         }
     }
+    lib_free(pcLogSector);
     return uiOfs;
 }
 /*********************************************************************************************************
@@ -379,9 +380,8 @@ PCHAR hoitLogEntityGet(PHOIT_VOLUME pfs, UINT uiEntityNum){
     PHOIT_RAW_INFO          pRawInfoTraverse;
 
     UINT                    uiEntityIndex;
-    PCHAR                   pcEntityTraverse;
-    PHOIT_RAW_HEADER        pEntityRawHeader;
-
+    PCHAR                   pcEntity;
+    
     if(uiEntityNum > pfs->HOITFS_logInfo->uiLogEntityCnt){
 #ifdef LOG_DEBUG
         printf("[%s] uiEntityNum start from 0, Log has no enough entities to get\n",__func__);
@@ -402,10 +402,11 @@ PCHAR hoitLogEntityGet(PHOIT_VOLUME pfs, UINT uiEntityNum){
         pRawInfoTraverse = pRawInfoTraverse->next_phys;
     }
 
+    pcEntity = (PCHAR)lib_malloc(pRawInfoTraverse->totlen - sizeof(HOIT_RAW_LOG));
+    hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfoTraverse->phys_addr + sizeof(HOIT_RAW_LOG), 
+                      pcEntity, pRawInfoTraverse->totlen - sizeof(HOIT_RAW_LOG));  /* 目标 Entity 所在RawInfo */
     
-    pcEntityTraverse = pRawInfoTraverse + sizeof(HOIT_RAW_LOG); /* 目标 Entity 所在RawInfo */
-    pEntityRawHeader = (PHOIT_RAW_HEADER)pcEntityTraverse;
-    return pEntityRawHeader;
+    return pcEntity;
 }
 
 

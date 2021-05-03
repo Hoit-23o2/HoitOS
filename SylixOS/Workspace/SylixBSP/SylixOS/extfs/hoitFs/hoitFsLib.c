@@ -30,6 +30,7 @@
 #include "hoitFsFDLib.h"
 #include "hoitFsCache.h"
 #include "hoitFsCmd.h"
+#include "hoitFsLog.h"
 #include "../../driver/mtd/nor/nor.h"
 
 /*********************************************************************************************************
@@ -112,7 +113,7 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
         return LW_NULL;
     }
 
-    if (ino == 1 && pfs->HOITFS_pRootDir) {
+    if (ino == HOIT_ROOT_DIR_INO && pfs->HOITFS_pRootDir) {
         return pfs->HOITFS_pRootDir;
     }
 
@@ -321,6 +322,7 @@ UINT8 __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_
     pfs->HOITFS_now_sector->HOITS_offset += length;
     */
     
+    hoitLogAppend(pfs, pdata, length);
     UINT temp_addr = hoitWriteToCache(pfs->HOITFS_cacheHdr, pdata, length);
     if(phys_addr){
         *phys_addr = temp_addr;
@@ -621,7 +623,7 @@ BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasable
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
+BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no, INT* hasLog) {
     UINT                    uiSectorSize;         
     UINT                    uiSectorOffset;
     UINT                    uiFreeSize;
@@ -740,6 +742,13 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
                     }
                 }
             }
+            else if (__HOIT_IS_TYPE_LOG(pRawHeader)) {
+                *hasLog = 1;
+                PHOIT_RAW_LOG pRawLog = (PHOIT_RAW_LOG)pRawHeader;
+                if (pRawLog->uiLogFirstAddr != -1) {    /* LOG HDR */
+                    hoitLogOpen(pfs, pRawLog);
+                }
+            }
             
             if (pRawHeader->ino > pfs->HOITFS_highest_ino)
                 pfs->HOITFS_highest_ino = pRawHeader->ino;
@@ -759,7 +768,12 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
     }
     pErasableSector->HOITS_uiFreeSize = uiFreeSize;
     pErasableSector->HOITS_uiUsedSize = uiUsedSize;
+
+    
+
     __hoit_add_to_sector_list(pfs, pErasableSector);
+
+    __SHEAP_FREE(pReadBuf);
     return LW_TRUE;
 }
 
@@ -1317,7 +1331,7 @@ INT  __hoit_unlink_dir(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDirent
 *********************************************************************************************************/
 VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag)
 {
-    if(pInodeInfo->HOITN_ino == 1){ /* 不close根目录 */
+    if(pInodeInfo->HOITN_ino == HOIT_ROOT_DIR_INO || pInodeInfo == LW_NULL){ /* 不close根目录 */
         return;
     }
     if (S_ISDIR(pInodeInfo->HOITN_mode)) {
@@ -1629,16 +1643,23 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     pfs->HOITFS_highest_ino = 0;
     pfs->HOITFS_highest_version = 0;
 
-    UINT phys_addr = 0;
+    INT     hasLog = 0;
+    UINT    phys_addr = 0;
     UINT8 sector_no = hoitGetSectorNo(phys_addr);
     while (hoitGetSectorSize(sector_no) != -1) {
-        __hoit_scan_single_sector(pfs, sector_no);
+        __hoit_scan_single_sector(pfs, sector_no, &hasLog);
         sector_no++;
     }
     pfs->HOITFS_highest_ino++;
     pfs->HOITFS_highest_version++;
-                               
-    if (pfs->HOITFS_highest_ino == 1) {    /* 系统第一次运行, 创建根目录文件 */
+
+    if (!hasLog) {
+        hoitLogInit(pfs, hoitGetSectorSize(8), 1);
+    }
+
+    __hoit_redo_log(pfs);
+
+    if (pfs->HOITFS_highest_ino == 2) {    /* 系统第一次运行, 创建根目录文件 */
         mode_t mode = S_IFDIR;
         PHOIT_INODE_INFO pRootDir = __hoit_new_inode_info(pfs, mode, LW_NULL);
         pfs->HOITFS_pRootDir = pRootDir;
@@ -1646,11 +1667,68 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     /* 系统不是第一次运行的话会在扫描时就找到pRootDir */
 
 
+
     /* 基本的inode_cache和raw_info构建完毕  */
     /* 接下来要递归统计所有文件的nlink          */
     
     __hoit_get_nlink(pfs->HOITFS_pRootDir);
     register_hoitfs_cmd(pfs);
+
+
 }
+
+/*********************************************************************************************************
+** 函数名称: __hoit_redo_log
+** 功能描述: hoitfs 恢复log
+** 输　入  :
+** 输　出  : 打开结果
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID  __hoit_redo_log(PHOIT_VOLUME  pfs) {
+    PHOIT_LOG_INFO pLogInfo = pfs->HOITFS_logInfo;
+    UINT i;
+    for (i = 0; i < pLogInfo->uiLogEntityCnt; i++) {
+        PCHAR p = hoitLogEntityGet(pfs, i);
+        PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)p;
+        if (__HOIT_IS_TYPE_INODE(pRawHeader)) {
+            PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)pRawHeader;
+            PCHAR pData = p + sizeof(HOIT_RAW_INODE);
+            PHOIT_INODE_INFO pInodeInfo = __hoit_get_full_file(pfs, pRawInode->ino);
+
+            __hoit_write(pInodeInfo, pData, pRawInode->totlen - sizeof(HOIT_RAW_INODE), pRawInode->offset);
+
+            __hoit_close(pInodeInfo, 0);
+        }
+        else if (__HOIT_IS_TYPE_DIRENT(pRawHeader)) {
+            PHOIT_RAW_DIRENT pRawDirent = (PHOIT_RAW_DIRENT)pRawHeader;
+            PCHAR pFileName = p + sizeof(HOIT_RAW_DIRENT);
+            UINT uiNameLength = pRawDirent->totlen - sizeof(HOIT_RAW_DIRENT);
+            PHOIT_FULL_DIRENT pFullDirent = (PHOIT_FULL_DIRENT)__SHEAP_ALLOC(sizeof(HOIT_FULL_DIRENT));
+            pFullDirent->HOITFD_file_name = (PCHAR)__SHEAP_ALLOC(uiNameLength + 1);
+
+            lib_bzero(pFullDirent->HOITFD_file_name, uiNameLength + 1);
+            if (pFullDirent->HOITFD_file_name == LW_NULL) {
+                _ErrorHandle(ENOMEM);
+                return  (LW_NULL);
+            }
+            lib_memcpy(pFullDirent->HOITFD_file_name, pFileName, uiNameLength);
+
+            pFullDirent->HOITFD_file_type = pRawDirent->file_type;
+            pFullDirent->HOITFD_ino = pRawDirent->ino;
+            pFullDirent->HOITFD_nhash = __hoit_name_hash(pFullDirent->HOITFD_file_name);
+            pFullDirent->HOITFD_pino = pRawDirent->pino;
+      
+            PHOIT_INODE_INFO pInodeFather = __hoit_get_full_file(pfs, pRawDirent->pino);
+
+            __hoit_add_dirent(pInodeFather, pFullDirent);
+
+            __hoit_close(pInodeFather, 0);
+        }
+
+        __SHEAP_FREE(p);
+    }
+}
+
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
 #endif //HOITFSLIB_DISABLE

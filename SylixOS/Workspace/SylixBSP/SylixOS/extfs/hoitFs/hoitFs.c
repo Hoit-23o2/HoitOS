@@ -499,7 +499,7 @@ static INT  __hoitFsClose(PLW_FD_ENTRY    pfdentry)
     PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
     BOOL                bRemove = LW_FALSE;
 
-    if(phoitn->HOITN_ino == 1){
+    if(phoitn->HOITN_ino == HOIT_ROOT_DIR_INO){
         return (ERROR_NONE);
     }
     /* 先得到要close的文件在hoitfs文件系统中的相对路径, 相对于hoitfs的根目录 */
