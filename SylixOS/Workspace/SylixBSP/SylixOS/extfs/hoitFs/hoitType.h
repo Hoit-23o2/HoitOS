@@ -40,6 +40,7 @@
 #define __HOIT_IS_OBSOLETE(pRawHeader)      ((pRawHeader->flag & HOIT_FLAG_OBSOLETE)    == 0)
 #define __HOIT_IS_TYPE_INODE(pRawHeader)    ((pRawHeader->flag & HOIT_FLAG_TYPE_INODE)  != 0)
 #define __HOIT_IS_TYPE_DIRENT(pRawHeader)   ((pRawHeader->flag & HOIT_FLAG_TYPE_DIRENT) != 0)
+#define __HOIT_IS_TYPE_LOG(pRawHeader)      ((pRawHeader->flag & HOIT_FLAG_TYPE_LOG)    != 0)      
 
 #define __HOIT_VOLUME_LOCK(pfs)             API_SemaphoreMPend(pfs->HOITFS_hVolLock, \
                                             LW_OPTION_WAIT_INFINITE)
@@ -256,7 +257,7 @@ struct HOIT_ERASABLE_SECTOR{
     UINT                          HOITS_uiUsedSize;
     UINT                          HOITS_uiFreeSize;
     
-    ////UINT                          HOITS_uiNTotalRawInfo;                          /* 该可擦除Sector中RawInfo的总数 */
+    ////UINT                      HOITS_uiNTotalRawInfo;                          /* 该可擦除Sector中RawInfo的总数 */
     PHOIT_RAW_INFO                HOITS_pRawInfoFirst;                            /* 指向可擦除Sector中第一个数据实体 */
     PHOIT_RAW_INFO                HOITS_pRawInfoLast;                             /* 指向可擦除Sector中最后一个数据实体，通过next_phys获取下一个数据实体 */
     PHOIT_RAW_INFO                HOITS_pRawInfoCurGC;                            /* 当前即将回收的数据实体，注：一次仅回收一个数据实体 */
@@ -265,8 +266,9 @@ struct HOIT_ERASABLE_SECTOR{
 };
 
 struct HOIT_LOG_SECTOR{
-    PHOIT_LOG_SECTOR     pErasableNextLogSector;
-    HOIT_ERASABLE_SECTOR ErasableSetcor;
+    PHOIT_LOG_SECTOR        pErasableNextLogSector;
+    
+    HOIT_ERASABLE_SECTOR    ErasableSetcor;    
 };
 /*********************************************************************************************************
   红黑树节点
@@ -367,11 +369,15 @@ typedef struct HOIT_CACHE_HDR
 
 
 /*********************************************************************************************************
-  HOITFS log 文件信息
+  HOITFS log 文件头
 *********************************************************************************************************/
 struct HOIT_LOG_INFO
 {
-    PHOIT_LOG_SECTOR pLogSectorList;
+    PHOIT_LOG_SECTOR pLogSectorList;              /* LOG Sector链表管理 */
+    UINT             uiLogCurAddr;
+    UINT             uiLogCurOfs;
+    UINT             uiLogSize;
+    UINT             uiLogEntityCnt;              
 };
 
 /*********************************************************************************************************

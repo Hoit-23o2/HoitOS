@@ -151,8 +151,11 @@ BOOL __hoitFsGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
     BOOL                    bIsCollectOver;
     
     PHOIT_RAW_INFO          pRawInfoCurGC;
+    PHOIT_RAW_INFO          pRawInfoNextGC;
     
     pRawInfoCurGC   = pErasableSector->HOITS_pRawInfoCurGC;
+    pRawInfoNextGC  = pRawInfoCurGC->next_phys;
+
     bIsCollectOver  = LW_FALSE;
 
     if(pRawInfoCurGC == LW_NULL){
@@ -167,6 +170,8 @@ BOOL __hoitFsGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
     if(pRawInfoCurGC == pErasableSector->HOITS_pRawInfoLast){
         bIsCollectOver = LW_TRUE;
     }
+
+    pErasableSector->HOITS_pRawInfoCurGC = pRawInfoNextGC;
     return bIsCollectOver;
 }
 
@@ -181,8 +186,10 @@ BOOL __hoitFsGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
 *********************************************************************************************************/
 VOID hoitGCForgroudForce(PHOIT_VOLUME pfs){
     PHOIT_ERASABLE_SECTOR   pErasableSector;
+    PHOIT_RAW_INFO          pNextGCRawInfo;
     INTREG                  iregInterLevel;
     BOOL                    bIsCollectOver;
+
     
     if(pfs->HOITFS_curGCSector == LW_NULL)
         pErasableSector = __hoitFsGCFindErasableSector(pfs, GC_FOREGROUND);

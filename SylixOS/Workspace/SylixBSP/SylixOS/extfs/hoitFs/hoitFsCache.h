@@ -141,16 +141,9 @@ BOOL        hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr,
                                   UINT32 uiOfs, 
                                   PCHAR pContent, 
                                   UINT32 uiSize);
-UINT32    hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, 
-<<<<<<< HEAD
-                        PCHAR pContent, 
-                        UINT32 uiSize);
-PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, 
-                                    UINT32 sector_no);                    
-=======
-                           PCHAR pContent, 
-                           UINT32 uiSize);
->>>>>>> d574d7fd1944e59554d33fc3093b32589387163c
+UINT32      hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, 
+                                  PCHAR pContent, 
+                                  UINT32 uiSize);
 #ifdef HOIT_CACHE_TEST
 BOOL    test_hoit_cache();
 #endif
