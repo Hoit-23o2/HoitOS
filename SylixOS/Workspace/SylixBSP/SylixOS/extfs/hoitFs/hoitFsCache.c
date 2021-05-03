@@ -88,6 +88,7 @@ PHOIT_CACHE_HDR hoitEnableCache(UINT32 uiCacheBlockSize, UINT32 uiCacheBlockNums
     pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListPrev    = pcacheHdr->HOITCACHE_cacheLineHdr;
     pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_buf              = LW_NULL;
 
+    phoitfs->HOITFS_cacheHdr = pcacheHdr;
     return pcacheHdr;
 }
 /*    
