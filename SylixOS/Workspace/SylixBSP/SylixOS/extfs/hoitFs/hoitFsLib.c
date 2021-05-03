@@ -12,7 +12,7 @@
 **
 ** 文   件   名: HoitFsLib.c
 **
-** 创   建   人: Hoit Group
+** 创   建   人: Hu Zhisheng
 **
 ** 文件创建日期: 2021 年 03 月 20 日
 **
@@ -28,6 +28,8 @@
 #include "hoitFsLib.h"
 #include "hoitFsTree.h"
 #include "hoitFsFDLib.h"
+
+#include "hoitCmd.h"
 #include "../../driver/mtd/nor/nor.h"
 
 /*********************************************************************************************************
@@ -379,13 +381,29 @@ UINT8 __hoit_add_to_dents(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT pFull
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-PHOIT_FULL_DIRENT __hoit_search_in_dents(PHOIT_INODE_INFO pInodeFather, UINT ino) {
+PHOIT_FULL_DIRENT __hoit_search_in_dents(PHOIT_INODE_INFO pInodeFather, UINT ino, PCHAR pName) {
     if (pInodeFather == LW_NULL) {
         printk("Error in hoit_search_in_dents\n");
         return LW_NULL;
     }
+
+    PCHAR pcFileName = lib_rindex(pName, PX_DIVIDER);
+    if (pcFileName) {
+        pcFileName++;
+    }
+    else {
+        pcFileName = pName;
+    }
+
+    UINT nHash = __hoit_name_hash(pcFileName);
     PHOIT_FULL_DIRENT pDirent = pInodeFather->HOITN_dents;
-    while (pDirent && pDirent->HOITFD_ino != ino) {
+    while (pDirent) {
+        if (pDirent->HOITFD_ino == ino) {
+            UINT nTempHash = __hoit_name_hash(pDirent->HOITFD_file_name);
+            if (nTempHash == nHash) {
+                break;
+            }
+        }
         pDirent = pDirent->HOITFD_next;
     }
     if (pDirent) 
@@ -599,6 +617,7 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
     pErasableSector->HOITS_pRawInfoFirst    = LW_NULL;
     pErasableSector->HOITS_pRawInfoLast     = LW_NULL;
     pErasableSector->HOITS_pRawInfoCurGC    = LW_NULL;
+    pErasableSector->HOITS_tBornAge         = API_TimeGet(); 
 
     // ugly now
     if(pfs->HOITFS_now_sector == LW_NULL){
@@ -704,13 +723,6 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
             if (pRawInfo != LW_NULL){
                 uiUsedSize += pRawInfo->totlen;
                 uiFreeSize -= pRawInfo->totlen;
-
-                if(pErasableSector->HOITS_pRawInfoFirst == LW_NULL){
-                    pErasableSector->HOITS_pRawInfoFirst = pErasableSector->HOITS_pRawInfoLast = pRawInfo;
-                }          
-                else {
-                    pErasableSector->HOITS_pRawInfoLast = pRawInfo;  
-                }
             } 
             pNow += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
         }
@@ -992,7 +1004,6 @@ PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
             }
             if (S_ISLNK(pDirentTemp->HOITFD_file_type)) {                            /*  链接文件                    */
                 if (lib_strcmp(pDirentTemp->HOITFD_file_name, pcNode) == 0) {
-                    pInode = __hoit_get_full_file(pfs, pDirentTemp->HOITFD_ino);
                     goto    __find_ok;                                  /*  找到链接                    */
                 }
 
@@ -1007,7 +1018,7 @@ PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
                     if (pcNext) {                                       /*  还存在下级, 这里必须为目录  */
                         goto    __find_error;                           /*  不是目录直接错误            */
                     }
-                    break;
+                    goto    __find_ok;
                 }
             }
         }
@@ -1024,7 +1035,7 @@ PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
 
 __find_ok:
     if (ppFullDirent) *ppFullDirent = pDirentTemp;
-    if (ppInodeFather) *ppInodeFather = __hoit_get_full_file(pfs, pDirentTemp->HOITFD_pino);                            /*  父系节点                    */
+    if (ppInodeFather) *ppInodeFather = pInode;                            /*  父系节点                    */
     /*
      *  计算 tail 的位置.
      */
@@ -1037,7 +1048,7 @@ __find_ok:
             *ppcTail = (PCHAR)pcName + lib_strlen(pcName);              /*  指向最末尾                  */
         }
     }
-    return  (pInode);
+    return  __hoit_get_full_file(pfs, pDirentTemp->HOITFD_ino);
 
 __find_error:
     if (ppFullDirent) *ppFullDirent = pDirentTemp;
@@ -1071,8 +1082,17 @@ PHOIT_INODE_INFO  __hoit_maken(PHOIT_VOLUME  pfs,
     PHOIT_INODE_INFO    pInodeFather,
     mode_t       mode,
     CPCHAR       pcLink)
-{
-    PHOIT_INODE_INFO pInodeInfo = __hoit_new_inode_info(pfs, mode, pcLink);
+{   
+    PHOIT_INODE_INFO pInodeInfo = LW_NULL;
+
+    // 暂用socket代表硬链接文件
+    if (S_ISSOCK(mode)) {
+        pInodeInfo = __hoit_open(pfs, pcLink, LW_NULL, LW_NULL, LW_NULL, LW_NULL, LW_NULL);
+    }
+    else {
+        pInodeInfo = __hoit_new_inode_info(pfs, mode, pcLink);
+    }
+    
 
     PHOIT_FULL_DIRENT   pFullDirent = (PHOIT_FULL_DIRENT)__SHEAP_ALLOC(sizeof(HOIT_FULL_DIRENT));
     CPCHAR      pcFileName;
@@ -1099,7 +1119,14 @@ PHOIT_INODE_INFO  __hoit_maken(PHOIT_VOLUME  pfs,
         return  (LW_NULL);
     }
     lib_memcpy(pFullDirent->HOITFD_file_name, pcFileName, lib_strlen(pcFileName));
-    pFullDirent->HOITFD_file_type = mode;
+
+    // 暂用socket代表硬链接文件
+    if (S_ISSOCK(mode)) {
+        pFullDirent->HOITFD_file_type = pInodeInfo->HOITN_mode;
+    }
+    else {
+        pFullDirent->HOITFD_file_type = mode;
+    }
     pFullDirent->HOITFD_ino = pInodeInfo->HOITN_ino;
     pFullDirent->HOITFD_nhash = __hoit_name_hash(pcFileName);
     pFullDirent->HOITFD_pino = pInodeFather->HOITN_ino;
@@ -1154,8 +1181,9 @@ INT  __hoit_unlink_regular(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDi
             pRawTemp->is_obsolete = 1;
             pRawTemp = pRawNext;
         }
+        __hoit_del_inode_cache(pfs, pInodeCache);
     }
-    __hoit_del_inode_cache(pfs, pInodeCache);
+
     __SHEAP_FREE(pInodeCache);
     return  (ERROR_NONE);
 }
@@ -1258,6 +1286,9 @@ INT  __hoit_unlink_dir(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDirent
 *********************************************************************************************************/
 VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag)
 {
+    if(pInodeInfo->HOITN_ino == 1){ /* 不close根目录 */
+        return;
+    }
     if (S_ISDIR(pInodeInfo->HOITN_mode)) {
         PHOIT_FULL_DIRENT pFullDirent = pInodeInfo->HOITN_dents;
         PHOIT_FULL_DIRENT pFullNext = LW_NULL;
@@ -1267,6 +1298,10 @@ VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag)
             __SHEAP_FREE(pFullDirent);
             pFullDirent = pFullNext;
         }
+        if (pInodeInfo->HOITN_metadata != LW_NULL) __SHEAP_FREE(pInodeInfo->HOITN_metadata);
+        __SHEAP_FREE(pInodeInfo);
+    }
+    else if(S_ISLNK(pInodeInfo->HOITN_mode)){
         if (pInodeInfo->HOITN_metadata != LW_NULL) __SHEAP_FREE(pInodeInfo->HOITN_metadata);
         __SHEAP_FREE(pInodeInfo);
     }
@@ -1336,6 +1371,7 @@ INT  __hoit_move(PHOIT_INODE_INFO pInodeFather, PHOIT_INODE_INFO  pInodeInfo, PC
     pfs = pInodeInfo->HOITN_volume;
 
     pInodeTemp = __hoit_open(pfs, pcNewName, &pInodeNewFather, LW_NULL, &bRoot, &bLast, &pcTail);
+
     if (!pInodeTemp && (bRoot || (bLast == LW_FALSE))) {                 /*  新名字指向根或者没有目录    */
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
@@ -1378,7 +1414,7 @@ INT  __hoit_move(PHOIT_INODE_INFO pInodeFather, PHOIT_INODE_INFO  pInodeInfo, PC
             return  (PX_ERROR);
         }
 
-        PHOIT_FULL_DIRENT pFullDirent = __hoit_search_in_dents(pInodeNewFather, pInodeTemp->HOITN_ino);
+        PHOIT_FULL_DIRENT pFullDirent = __hoit_search_in_dents(pInodeNewFather, pInodeTemp->HOITN_ino, pcTemp);
         if (pFullDirent == LW_NULL) {
             __SHEAP_FREE(pcTemp);
             _ErrorHandle(ENOTDIR);
@@ -1408,11 +1444,11 @@ INT  __hoit_move(PHOIT_INODE_INFO pInodeFather, PHOIT_INODE_INFO  pInodeInfo, PC
         pFullDirent->HOITFD_pino = pInodeNewFather->HOITN_ino;
         __hoit_add_dirent(pInodeNewFather, pFullDirent);
 
-        PHOIT_FULL_DIRENT pOldDirent = __hoit_search_in_dents(pInodeFather, pInodeInfo->HOITN_ino);
+        PHOIT_FULL_DIRENT pOldDirent = __hoit_search_in_dents(pInodeFather, pInodeInfo->HOITN_ino, pcTemp);
         __hoit_del_full_dirent(pInodeFather, pOldDirent);
     }
     else {
-        PHOIT_FULL_DIRENT pOldDirent = __hoit_search_in_dents(pInodeFather, pInodeInfo->HOITN_ino);
+        PHOIT_FULL_DIRENT pOldDirent = __hoit_search_in_dents(pInodeFather, pInodeInfo->HOITN_ino, pcTemp);
         __hoit_del_full_dirent(pInodeFather, pOldDirent);
 
         __SHEAP_FREE(pOldDirent->HOITFD_file_name);
@@ -1583,7 +1619,7 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     /* 接下来要递归统计所有文件的nlink          */
     
     __hoit_get_nlink(pfs->HOITFS_pRootDir);
+    register_hln_cmd(pfs);
 }
-
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
 #endif //HOITFSLIB_DISABLE

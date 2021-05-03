@@ -36,6 +36,7 @@
         "math.h": "c",
         "random": "c",
         "hoitfscache.h": "c",
-        "hoitfsgc.h": "c"
+        "hoitfsgc.h": "c",
+        "hoitfslib.h": "c"
     }
 }

@@ -12,7 +12,7 @@
 **
 ** 文   件   名: HoitFsLib.h
 **
-** 创   建   人: Hoit Group
+** 创   建   人: Hu Zhisheng
 **
 ** 文件创建日期: 2021 年 03 月 20 日
 **
@@ -49,7 +49,7 @@ UINT8                   __hoit_write_flash_thru(PHOIT_VOLUME pfs, PVOID pdata, U
 UINT8                   __hoit_add_to_inode_cache(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo);
 UINT8                   __hoit_add_to_cache_list(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache);
 UINT8                   __hoit_add_to_dents(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT pFullDirent);
-PHOIT_FULL_DIRENT       __hoit_search_in_dents(PHOIT_INODE_INFO pInodeFather, UINT ino);
+PHOIT_FULL_DIRENT __hoit_search_in_dents(PHOIT_INODE_INFO pInodeFather, UINT ino, PCHAR pName);
 UINT8                   __hoit_del_raw_info(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo);
 UINT8                   __hoit_del_raw_data(PHOIT_RAW_INFO pRawInfo);
 UINT8                   __hoit_del_full_dirent(PHOIT_INODE_INFO pInodeInfo, PHOIT_FULL_DIRENT pFullDirent);
@@ -60,20 +60,22 @@ VOID                    __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo);
 BOOL                    __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector);
 PCHAR                   __hoit_get_data_after_raw_inode(PHOIT_RAW_INFO pInodeInfo);
 VOID                    __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO pRawInfo);
+VOID                    __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo);
 
-PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
-    CPCHAR       pcName,
-    PHOIT_INODE_INFO* ppInodeFather,
-    PHOIT_FULL_DIRENT* ppFullDirent,
-    BOOL* pbRoot,
-    BOOL* pbLast,
-    PCHAR* ppcTail);
+PHOIT_INODE_INFO        __hoit_open(PHOIT_VOLUME  pfs,
+                                    CPCHAR       pcName,
+                                    PHOIT_INODE_INFO* ppInodeFather,
+                                    PHOIT_FULL_DIRENT* ppFullDirent,
+                                    BOOL* pbRoot,
+                                    BOOL* pbLast,
+                                    PCHAR* ppcTail);
 
-PHOIT_INODE_INFO  __hoit_maken(PHOIT_VOLUME  pfs,
-    CPCHAR       pcName,
-    PHOIT_INODE_INFO    pInodeFather,
-    mode_t       mode,
-    CPCHAR       pcLink);
+PHOIT_INODE_INFO        __hoit_maken(PHOIT_VOLUME  pfs,
+                                     CPCHAR       pcName,
+                                     PHOIT_INODE_INFO    pInodeFather,
+                                     mode_t       mode,
+                                     CPCHAR       pcLink);
+                                     
 INT                     __hoit_unlink_regular(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDirent);
 VOID                    __hoit_truncate(PHOIT_INODE_INFO  pInodeInfo, size_t  offset);
 INT                     __hoit_unlink_dir(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDirent);
