@@ -28,7 +28,7 @@
 #include "hoitFsLib.h"
 #include "hoitFsTree.h"
 #include "hoitFsFDLib.h"
-
+#include "hoitFsCache.h"
 #include "hoitFsCmd.h"
 #include "../../driver/mtd/nor/nor.h"
 
@@ -129,7 +129,7 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
     PHOIT_FULL_DIRENT*  ppDirentList = &pDirentList;
     PHOIT_FULL_DNODE*   ppDnodeList  = &pDnodeList;
 
-    __hoit_get_inode_nodes(pcache, ppDirentList, ppDnodeList);
+    __hoit_get_inode_nodes(pfs, pcache, ppDirentList, ppDnodeList);
     if (*ppDnodeList == LW_NULL) {
         return LW_NULL;
     }
@@ -154,7 +154,7 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
         pNewInode->HOITN_mode = (*ppDnodeList)->HOITFD_file_type;
         pNewInode->HOITN_rbtree = (PVOID)LW_NULL;
         pNewInode->HOITN_volume = pfs;
-        pNewInode->HOITN_pcLink = __hoit_get_data_after_raw_inode(pNewInode->HOITN_metadata->HOITFD_raw_info);
+        pNewInode->HOITN_pcLink = __hoit_get_data_after_raw_inode(pfs, pNewInode->HOITN_metadata->HOITFD_raw_info);
         return pNewInode;
     }
     else {
@@ -293,6 +293,18 @@ UINT __hoit_alloc_ino(PHOIT_VOLUME pfs) {
     return pfs->HOITFS_highest_ino++;
 }
 /*********************************************************************************************************
+** 函数名称: __hoit_read_flash
+** 功能描述: 读取物理设备
+** 输　入  :
+** 输　出  : !=0代表出错
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+UINT8 __hoit_read_flash(PHOIT_VOLUME pfs, UINT phys_addr, PVOID pdata, UINT length) {
+    hoitReadFromCache(pfs->HOITFS_cacheHdr, phys_addr, pdata, length);
+}
+
+/*********************************************************************************************************
 ** 函数名称: __hoit_write_flash
 ** 功能描述: 写入物理设备，不能自己选物理地址
 ** 输　入  :
@@ -301,11 +313,20 @@ UINT __hoit_alloc_ino(PHOIT_VOLUME pfs) {
 ** 调用模块:
 *********************************************************************************************************/
 UINT8 __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_addr) {
+    /*
     write_nor(pfs->HOITFS_now_sector->HOITS_offset + pfs->HOITFS_now_sector->HOITS_addr, (PCHAR)(pdata), length, WRITE_KEEP);
     if (phys_addr != LW_NULL) {
         *phys_addr = pfs->HOITFS_now_sector->HOITS_offset + pfs->HOITFS_now_sector->HOITS_addr;
     }
     pfs->HOITFS_now_sector->HOITS_offset += length;
+    */
+    
+    *phys_addr = hoitWriteToCache(pfs->HOITFS_cacheHdr, pdata, length);
+    if (*phys_addr == PX_ERROR) {
+        printf("Error in write flash\n");
+        return PX_ERROR;
+    }
+
     return 0;
 }
 /*********************************************************************************************************
@@ -317,7 +338,8 @@ UINT8 __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_
 ** 调用模块:
 *********************************************************************************************************/
 UINT8 __hoit_write_flash_thru(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT phys_addr) {
-    write_nor(phys_addr, (PCHAR)(pdata), length, WRITE_KEEP);
+    //write_nor(phys_addr, (PCHAR)(pdata), length, WRITE_KEEP);
+    hoitWriteThroughCache(pfs->HOITFS_cacheHdr, phys_addr, pdata, length);
     return 0;
 }
 /*********************************************************************************************************
@@ -451,7 +473,7 @@ UINT8 __hoit_del_raw_info(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-UINT8 __hoit_del_raw_data(PHOIT_RAW_INFO pRawInfo) {
+UINT8 __hoit_del_raw_data(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     if (pRawInfo == LW_NULL) {
         printk("Error in hoit_del_raw_data\n");
         return HOIT_ERROR;
@@ -459,7 +481,8 @@ UINT8 __hoit_del_raw_data(PHOIT_RAW_INFO pRawInfo) {
 
     PCHAR buf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);
     lib_bzero(buf, pRawInfo->totlen);
-    read_nor(pRawInfo->phys_addr, buf, pRawInfo->totlen);
+
+    __hoit_read_flash(pfs, pRawInfo->phys_addr, buf, pRawInfo->totlen);
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)buf;
     if (pRawHeader->magic_num != HOIT_MAGIC_NUM || (pRawHeader->flag & HOIT_FLAG_OBSOLETE) == 0) {
@@ -534,12 +557,12 @@ UINT8 __hoit_del_inode_cache(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache) {
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-UINT8 __hoit_get_inode_nodes(PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT* ppDirentList, PHOIT_FULL_DNODE* ppDnodeList) {
+UINT8 __hoit_get_inode_nodes(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT* ppDirentList, PHOIT_FULL_DNODE* ppDnodeList) {
     PHOIT_RAW_INFO pRawInfo = pInodeInfo->HOITC_nodes;
     while (pRawInfo) {
         PCHAR pBuf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);
         
-        read_nor(pRawInfo->phys_addr, pBuf, pRawInfo->totlen);
+        __hoit_read_flash(pfs, pRawInfo->phys_addr, pBuf, pRawInfo->totlen);
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pBuf;
         if (!__HOIT_IS_OBSOLETE(pRawHeader)) {
             if (__HOIT_IS_TYPE_DIRENT(pRawHeader)) {
@@ -627,7 +650,8 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
     /* 再整个块进行扫描 */
     PCHAR pReadBuf = (PCHAR)__SHEAP_ALLOC(uiSectorSize);
     lib_bzero(pReadBuf, uiSectorSize);
-    read_nor(uiSectorOffset, pReadBuf, uiSectorSize);
+
+    __hoit_read_flash(pfs, uiSectorOffset, pReadBuf, uiSectorSize);
 
     PCHAR pNow = pReadBuf;
     while (pNow < pReadBuf + uiSectorSize) {
@@ -659,7 +683,7 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
                 __hoit_add_raw_info_to_sector(pErasableSector, pRawInfo);
 
                 if (pRawInode->ino == HOIT_ROOT_DIR_INO) {     /* 如果扫描到的是根目录的唯一的RawInode */
-                    PHOIT_FULL_DNODE pFullDnode = __hoit_bulid_full_dnode(pRawInfo);
+                    PHOIT_FULL_DNODE pFullDnode = __hoit_bulid_full_dnode(pfs, pRawInfo);
                     PHOIT_INODE_INFO pInodeInfo = (PHOIT_INODE_INFO)__SHEAP_ALLOC(sizeof(HOIT_INODE_INFO));
                     pInodeInfo->HOITN_dents = LW_NULL;
                     pInodeInfo->HOITN_gid = pfs->HOITFS_gid;
@@ -703,7 +727,7 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no) {
                 __hoit_add_raw_info_to_sector(pErasableSector, pRawInfo);
 
                 if (pRawDirent->pino == HOIT_ROOT_DIR_INO) {    /* 如果扫描到的是根目录的目录项 */
-                    PHOIT_FULL_DIRENT pFullDirent = __hoit_bulid_full_dirent(pRawInfo);
+                    PHOIT_FULL_DIRENT pFullDirent = __hoit_bulid_full_dirent(pfs, pRawInfo);
                     if (pfs->HOITFS_pRootDir == LW_NULL) {      /* 如果根目录的唯一RawInode还未扫描到 */
                         pFullDirent->HOITFD_next = pfs->HOITFS_pTempRootDirent;
                         pfs->HOITFS_pTempRootDirent = pFullDirent;
@@ -851,14 +875,15 @@ VOID __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo){
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-PCHAR __hoit_get_data_after_raw_inode(PHOIT_RAW_INFO pInodeInfo) {
+PCHAR __hoit_get_data_after_raw_inode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pInodeInfo) {
     if (pInodeInfo == LW_NULL) {
         return LW_NULL;
     }
 
     INT iDataLen = pInodeInfo->totlen - sizeof(HOIT_RAW_INODE);
     PCHAR pTempBuf = (PCHAR)__SHEAP_ALLOC(pInodeInfo->totlen);
-    read_nor(pInodeInfo->phys_addr, pTempBuf, pInodeInfo->totlen);
+
+    __hoit_read_flash(pfs, pInodeInfo->phys_addr, pTempBuf, pInodeInfo->totlen);
 
     PCHAR pData = (PCHAR)__SHEAP_ALLOC(iDataLen + 1);
     lib_bzero(pData, iDataLen + 1);
@@ -904,7 +929,8 @@ VOID __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     PCHAR pReadBuf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);
     /* 先读出旧数据 */
     lib_bzero(pReadBuf, pRawInfo->totlen);
-    read_nor(pRawInfo->phys_addr, pReadBuf, pRawInfo->totlen);
+
+    __hoit_read_flash(pfs, pRawInfo->phys_addr, pReadBuf, pRawInfo->totlen);
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pReadBuf;
     if (pRawHeader->magic_num != HOIT_MAGIC_NUM || (pRawHeader->flag & HOIT_FLAG_OBSOLETE) == 0) {
@@ -1161,7 +1187,7 @@ INT  __hoit_unlink_regular(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDi
     */
     PHOIT_RAW_INFO pRawInfo = pDirent->HOITFD_raw_info;
     __hoit_del_raw_info(pFatherInodeCache, pRawInfo);     //将RawInfo从InodeCache的链表中删除
-    __hoit_del_raw_data(pRawInfo);
+    __hoit_del_raw_data(pfs, pRawInfo);
     pRawInfo->is_obsolete = 1;
 
     /*
@@ -1176,7 +1202,7 @@ INT  __hoit_unlink_regular(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDi
         PHOIT_RAW_INFO pRawTemp = pInodeCache->HOITC_nodes;
         PHOIT_RAW_INFO pRawNext = LW_NULL;
         while (pRawTemp) {
-            __hoit_del_raw_data(pRawTemp);
+            __hoit_del_raw_data(pfs, pRawTemp);
             pRawNext = pRawTemp->next_logic;
             pRawTemp->is_obsolete = 1;
             pRawTemp = pRawNext;
@@ -1227,7 +1253,7 @@ INT  __hoit_unlink_dir(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDirent
     */
     PHOIT_RAW_INFO pRawInfo = pDirent->HOITFD_raw_info;
     __hoit_del_raw_info(pFatherInodeCache, pRawInfo);     //将RawInfo从InodeCache的链表中删除
-    __hoit_del_raw_data(pRawInfo);
+    __hoit_del_raw_data(pfs, pRawInfo);
     pRawInfo->is_obsolete = 1;
     /*
     *将该FullDirent从父目录文件中的dents链表删除，接着将FullDirent内存释放掉
@@ -1261,7 +1287,7 @@ INT  __hoit_unlink_dir(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDirent
         PHOIT_RAW_INFO pRawTemp = pInodeCache->HOITC_nodes;
         PHOIT_RAW_INFO pRawNext = LW_NULL;
         while (pRawTemp) {
-            __hoit_del_raw_data(pRawTemp);
+            __hoit_del_raw_data(pfs, pRawTemp);
             pRawNext = pRawTemp->next_logic;
             pRawTemp->is_obsolete = 1;
             pRawTemp = pRawNext;
@@ -1598,9 +1624,9 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     pfs->HOITFS_highest_ino = 0;
     pfs->HOITFS_highest_version = 0;
 
-    UINT phys_addr = NOR_FLASH_START_OFFSET;
-    UINT8 sector_no = GET_SECTOR_NO(phys_addr);
-    while (GET_SECTOR_SIZE(sector_no) != -1) {
+    UINT phys_addr = 0;
+    UINT8 sector_no = hoitGetSectorNo(phys_addr);
+    while (hoitGetSectorSize(sector_no) != -1) {
         __hoit_scan_single_sector(pfs, sector_no);
         sector_no++;
     }

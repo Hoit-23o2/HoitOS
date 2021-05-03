@@ -40,6 +40,9 @@
 /* cache Type */
 #define HOIT_CACHE_TYPE_INVALID     0
 #define HOIT_CACHE_TYPE_DATA        1
+#define HOIT_CACHE_TYPE_DATA_EMPTY  2        
+
+
 
 /*********************************************************************************************************
   内联函数偏移修改，注意这里默认cache块大小与flash的sector
@@ -54,7 +57,7 @@ static inline UINT8 hoitGetSectorNo(UINT32 offset){
     {                                                                       
         if(_G_am29LV160DB_sector_infos[i].sector_start_offset <= offset &&  
             _G_am29LV160DB_sector_infos[i].sector_end_offset >= offset){    
-            return i;                                                         
+            return i-GET_SECTOR_NO(NOR_FLASH_START_OFFSET);                                                         
         }                                                                   
     }
     return -1;
@@ -64,7 +67,7 @@ static inline UINT8 hoitGetSectorNo(UINT32 offset){
 */
 static inline UINT32 hoitGetSectorOffset(UINT8 sector_no){
     sector_no += GET_SECTOR_NO(NOR_FLASH_START_OFFSET);
-    return _G_am29LV160DB_sector_infos[sector_no].sector_start_offset;
+    return _G_am29LV160DB_sector_infos[sector_no].sector_start_offset - NOR_FLASH_START_OFFSET;
 }
 /*
     获取一个flash sector 大小
@@ -139,8 +142,15 @@ BOOL        hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr,
                                   PCHAR pContent, 
                                   UINT32 uiSize);
 UINT32    hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, 
+<<<<<<< HEAD
+                        PCHAR pContent, 
+                        UINT32 uiSize);
+PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, 
+                                    UINT32 sector_no);                    
+=======
                            PCHAR pContent, 
                            UINT32 uiSize);
+>>>>>>> d574d7fd1944e59554d33fc3093b32589387163c
 #ifdef HOIT_CACHE_TEST
 BOOL    test_hoit_cache();
 #endif

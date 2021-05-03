@@ -20,6 +20,7 @@
 *********************************************************************************************************/
 #include "hoitFsFDLib.h"
 #include "hoitFsLib.h"
+#include "hoitFsCache.h"
 #include "../../driver/mtd/nor/nor.h"
 
 /*********************************************************************************************************
@@ -34,7 +35,7 @@ BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFullDnode, INT
 	if (flag == 1) {	/* 删完 */
 		PCHAR read_buf = (PCHAR)__SHEAP_ALLOC(pFullDnode->HOITFD_raw_info->totlen);
 
-		read_nor(pFullDnode->HOITFD_raw_info->phys_addr, read_buf, pFullDnode->HOITFD_raw_info->totlen);
+        hoitReadFromCache(pfs->HOITFS_cacheHdr, pFullDnode->HOITFD_raw_info->phys_addr, read_buf, pFullDnode->HOITFD_raw_info->totlen);
 
 		PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)read_buf;
 
@@ -42,7 +43,7 @@ BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFullDnode, INT
 		if (!pInodeCache) {
 			return LW_FALSE;
 		}
-		__hoit_del_raw_data(pFullDnode->HOITFD_raw_info);
+		__hoit_del_raw_data(pfs, pFullDnode->HOITFD_raw_info);
 		__hoit_del_raw_info(pInodeCache, pFullDnode->HOITFD_raw_info);
 		__SHEAP_FREE(pFullDnode->HOITFD_raw_info);
 		pFullDnode->HOITFD_raw_info = LW_NULL;
@@ -88,7 +89,7 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
         return LW_NULL;
     }
     lib_bzero(read_buf, pRawInfo->totlen);
-    read_nor(pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
+    hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
 
     PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)read_buf;
 
@@ -192,9 +193,9 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-PHOIT_FULL_DNODE __hoit_bulid_full_dnode(PHOIT_RAW_INFO pRawInfo) {
+PHOIT_FULL_DNODE __hoit_bulid_full_dnode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     PCHAR read_buf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);        /* 注意内存泄露 */
-    read_nor(pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
+    hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
     PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)read_buf;
     
     PHOIT_FULL_DNODE pFullDnode = (PHOIT_FULL_DNODE)__SHEAP_ALLOC(sizeof(HOIT_FULL_DNODE));
@@ -214,9 +215,9 @@ PHOIT_FULL_DNODE __hoit_bulid_full_dnode(PHOIT_RAW_INFO pRawInfo) {
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-PHOIT_FULL_DIRENT __hoit_bulid_full_dirent(PHOIT_RAW_INFO pRawInfo) {
+PHOIT_FULL_DIRENT __hoit_bulid_full_dirent(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     PCHAR read_buf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);        /* 注意内存泄露 */
-    read_nor(pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
+    hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
     PHOIT_RAW_DIRENT pRawDirent = (PHOIT_RAW_DIRENT)read_buf;
 
     PHOIT_FULL_DIRENT pFullDirent = (PHOIT_FULL_DIRENT)__SHEAP_ALLOC(sizeof(HOIT_FULL_DIRENT));

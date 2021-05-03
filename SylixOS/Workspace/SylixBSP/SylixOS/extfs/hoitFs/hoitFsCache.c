@@ -88,6 +88,7 @@ PHOIT_CACHE_HDR hoitEnableCache(UINT32 uiCacheBlockSize, UINT32 uiCacheBlockNums
     pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListPrev    = pcacheHdr->HOITCACHE_cacheLineHdr;
     pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_buf              = LW_NULL;
 
+    phoitfs->HOITFS_cacheHdr = pcacheHdr;
     return pcacheHdr;
 }
 /*    
@@ -504,6 +505,15 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType) {
             return (PX_ERROR);
         pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector;
         return pSector->HOITS_bno;
+    case HOIT_CACHE_TYPE_DATA_EMPTY:
+        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+        while (pSector != LW_NULL)
+        {
+            if(pSector->HOITS_uiFreeSize == pcacheHdr->HOITCACHE_blockSize) {
+                return pSector->HOITS_bno;
+            }
+        }
+        return (PX_ERROR);
     //TODO 将来有了gc之后就不能单纯的将下一个写入块加一
     default:
         _ErrorHandle(ENOSYS);
@@ -511,8 +521,25 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType) {
     }
     
 }
-
-
+/*    
+** 函数名称:    hoitFindSector
+** 功能描述:    根据sector号获取pSector指针
+** 输　入  :    pcacheHdr               cache头结构
+                sector_no               sector号
+** 输　出  :    pSector指针，返回LW_NULL表示失败
+** 全局变量:
+** 调用模块:    
+*/
+PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no) {
+    PHOIT_ERASABLE_SECTOR pSector;
+    pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+    while (pSector != NULL)
+    {
+        if (pSector->HOITS_bno == sector_no)
+            break;
+    }
+    return pSector;
+}
 
 #ifdef HOIT_CACHE_TEST
 /*
