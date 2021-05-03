@@ -159,13 +159,13 @@ BOOL __hoitFsGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
     PHOIT_RAW_INFO          pRawInfoNextGC;
     
     pRawInfoCurGC   = pErasableSector->HOITS_pRawInfoCurGC;
-    pRawInfoNextGC  = pRawInfoCurGC->next_phys;
-
     bIsCollectOver  = LW_FALSE;
 
     if(pRawInfoCurGC == LW_NULL){
         pRawInfoCurGC = pErasableSector->HOITS_pRawInfoCurGC = pErasableSector->HOITS_pRawInfoFirst;
     }
+
+    pRawInfoNextGC  = pRawInfoCurGC->next_phys;
     
     //!把RawInfo及其对应的数据实体搬家
     __hoit_move_home(pfs, pRawInfoCurGC);

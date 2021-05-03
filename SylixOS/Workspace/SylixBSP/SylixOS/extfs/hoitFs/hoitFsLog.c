@@ -94,7 +94,6 @@ VOID __hoitDeleteLogSectorList(PHOIT_VOLUME pfs, PHOIT_LOG_SECTOR pLogSector){
 *********************************************************************************************************/
 VOID __hoitLogSectorCleanUp(PHOIT_VOLUME pfs, PHOIT_LOG_SECTOR pLogSector){
     PHOIT_ERASABLE_SECTOR   pErasableSector;
-    PHOIT_LOG_SECTOR        pLogSector;
     PHOIT_RAW_INFO          pRawInfoTraverse;
 
     pErasableSector  =  &pLogSector->ErasableSetcor;
@@ -275,6 +274,7 @@ PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
     pRawLog->uiLogSize = uiLogSize;
 
     uiSectorAddr = hoitWriteToCache(pfs->HOITFS_cacheHdr, (PCHAR)pRawLog, pRawLog->totlen);
+    hoitFlushCache(pfs->HOITFS_cacheHdr);
     
     /* 将初始的pRawLog对应的RawInfo加入到管理中 */
     pRawInfo                = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INFO));
@@ -301,8 +301,12 @@ PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
     pLogInfo->uiLogSize                = uiLogSize;
     pLogInfo->uiRawLogHdrAddr          = uiSectorAddr;
     
-    pfs->HOITFS_logInfo                = pLogInfo;
+    if(pfs->HOITFS_logInfo != LW_NULL){
+        lib_free(pfs->HOITFS_logInfo);
+        pfs->HOITFS_logInfo = LW_NULL;
+    }
 
+    pfs->HOITFS_logInfo                = pLogInfo;
     return pLogInfo;
 }
 
@@ -420,6 +424,7 @@ VOID hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
     PHOIT_RAW_LOG       pRawLog;
 
     PHOIT_LOG_INFO      pLogInfo;
+    UINT                uiLogAddr;
     UINT                uiLogCurOfs;
     UINT                uiLogSize;
     UINT                uiLogRemainSize;
@@ -438,6 +443,7 @@ VOID hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
 
 
     pLogInfo                = pfs->HOITFS_logInfo;
+    uiLogAddr               = pLogInfo->uiLogCurAddr;
     uiLogSize               = pLogInfo->uiLogSize;
     uiLogCurOfs             = pLogInfo->uiLogCurOfs;
     uiLogRemainSize         = uiLogSize - uiLogCurOfs;
@@ -463,11 +469,27 @@ VOID hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
             printf("[%s] log memory not enough\n", __func__);
 #endif // LOG_DEBUG
             return;
-        }                          
-    }
-    hoitWriteThroughCache(pfs->HOITFS_cacheHdr, uiLogCurOfs, pcLogContent, uiSize);
-}
+        }
 
+        uiLogAddr   = pfs->HOITFS_logInfo->uiLogCurAddr;                 
+        uiLogCurOfs = pfs->HOITFS_logInfo->uiLogCurOfs;
+    }
+    
+    hoitWriteThroughCache(pfs->HOITFS_cacheHdr, uiLogAddr + uiLogCurOfs, pcLogContent, uiSize);
+    hoitFlushCache(pfs->HOITFS_cacheHdr);
+                                                                    /* 修改相应LOG参数 */
+    pfs->HOITFS_logInfo->uiLogEntityCnt++;
+    pfs->HOITFS_logInfo->uiLogCurOfs += uiSize;
+}
+/*********************************************************************************************************
+** 函数名称: hoitLogCheckIfLog
+** 功能描述: 查看某个Sector是否是Log Sector
+** 输　入  : pfs                HoitFS设备头
+**          pErasableSector     欲检查的块
+** 输　出  : 是 LW_TRUE， 否 LW_FALSE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
 BOOL hoitLogCheckIfLog(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector){
     PHOIT_LOG_SECTOR    pLogSectorTraverse;
     pLogSectorTraverse = pfs->HOITFS_logInfo->pLogSectorList;
