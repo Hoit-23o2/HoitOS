@@ -131,16 +131,16 @@ BOOL                hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr,
                                         PCHAR pContent, 
                                         UINT32 uiSize);
 
-UINT32  hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr);
-UINT32  hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, 
-                            UINT32 cacheType);
-BOOL    hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, 
-                            UINT32 uiOfs, 
-                            PCHAR pContent, 
-                            UINT32 uiSize);
+UINT32      hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr);
+UINT32      hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, 
+                                UINT32 cacheType);
+BOOL        hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, 
+                                  UINT32 uiOfs, 
+                                  PCHAR pContent, 
+                                  UINT32 uiSize);
 UINT32    hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, 
-                        PCHAR pContent, 
-                        UINT32 uiSize);
+                           PCHAR pContent, 
+                           UINT32 uiSize);
 #ifdef HOIT_CACHE_TEST
 BOOL    test_hoit_cache();
 #endif

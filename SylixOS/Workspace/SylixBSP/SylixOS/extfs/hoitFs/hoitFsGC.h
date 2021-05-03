@@ -31,7 +31,9 @@
 
 #define GC_DEBUG
 #define GC_TEST
-
+/*********************************************************************************************************
+  GC参数结构体
+*********************************************************************************************************/
 typedef struct hoitGCAttr
 {
     PHOIT_VOLUME pfs; 
@@ -40,14 +42,23 @@ typedef struct hoitGCAttr
 
 typedef HOIT_GC_ATTR * PHOIT_GC_ATTR;
 
+typedef enum hoitGCLevel
+{
+    GC_FOREGROUND,
+    GC_BACKGROUND
+} ENUM_HOIT_GC_LEVEL;
+
 //TODO:注意 当删除RawInfo的时候，一定要记得调整它属于的GC_Sector的属性内容
-
-
+/*********************************************************************************************************
+  GC相关函数
+*********************************************************************************************************/
 VOID    hoitGCBackgroundThread(PHOIT_VOLUME pfs);
 VOID    hoitGCForgroudForce(PHOIT_VOLUME pfs);
 VOID    hoitGCThread(PHOIT_GC_ATTR pGCAttr);
 
-
+/*********************************************************************************************************
+  GC初始化构造函数
+*********************************************************************************************************/
 static inline VOID hoitStartGCThread(PHOIT_VOLUME pfs, UINT uiThreshold){
     LW_CLASS_THREADATTR     gcThreadAttr;
     PHOIT_GC_ATTR           pGCAttr;

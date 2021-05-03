@@ -29,7 +29,7 @@
 #include "hoitFsTree.h"
 #include "hoitFsFDLib.h"
 #include "hoitFsCache.h"
-#include "hoitCmd.h"
+#include "hoitFsCmd.h"
 #include "../../driver/mtd/nor/nor.h"
 
 /*********************************************************************************************************
@@ -1645,7 +1645,7 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     /* 接下来要递归统计所有文件的nlink          */
     
     __hoit_get_nlink(pfs->HOITFS_pRootDir);
-    register_hln_cmd(pfs);
+    register_hoitfs_cmd(pfs);
 }
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
 #endif //HOITFSLIB_DISABLE
