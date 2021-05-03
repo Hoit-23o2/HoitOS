@@ -259,14 +259,17 @@ PHOIT_LOG_INFO hoitLogOpen(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog){
 ** 功能描述: 读取Log Sector上的信息
 ** 输　入  : pfs            HoitFS设备头
 **          uiEntityNum      该Sector上第uiEntityNum个实体的信息
-** 输　出  : LOG文件信息
+** 输　出  : 返回RAW Header指向地址
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-UINT hoitLogEntityGet(PHOIT_VOLUME pfs, UINT uiEntityNum){
+PCHAR hoitLogEntityGet(PHOIT_VOLUME pfs, UINT uiEntityNum){
     PHOIT_ERASABLE_SECTOR   pErasableSector;
     PHOIT_RAW_INFO          pRawInfoTraverse;
+
     UINT                    uiEntityIndex;
+    PCHAR                   pcEntityTraverse;
+    PHOIT_RAW_HEADER        pEntityRawHeader;
 
     if(uiEntityNum > pfs->HOITFS_logInfo->uiLogEntityCnt){
 #ifdef LOG_DEBUG
@@ -288,8 +291,10 @@ UINT hoitLogEntityGet(PHOIT_VOLUME pfs, UINT uiEntityNum){
         pRawInfoTraverse = pRawInfoTraverse->next_phys;
     }
 
-    /* 目标 Entity 所在RawInfo */
     
+    pcEntityTraverse = pRawInfoTraverse + sizeof(HOIT_RAW_LOG); /* 目标 Entity 所在RawInfo */
+    pEntityRawHeader = (PHOIT_RAW_HEADER)pcEntityTraverse;
+    return pEntityRawHeader;
 }
 
 VOID hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pLog){
