@@ -204,55 +204,54 @@ PHOIT_CACHE_BLK hoitCheckCacheHit(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo) 
 ** 调用模块:    
 */
 BOOL hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
-    read_nor(uiOfs, pContent, uiSize);
-//    PCHAR   pucDest         = pContent;
-//    size_t  cacheBlkSize    = pcacheHdr->HOITCACHE_blockSize;
-//    size_t  stStart         = uiOfs % cacheBlkSize;
-//    PHOIT_CACHE_BLK pcache;
-//    //UINT32  blkNoStart      = uiOfs/cacheBlkSize;
-//    //UINT32  blkNoEnd        = (uiOfs + uiSize) / cacheBlkSize;
-//    UINT32  readBytes      = 0;
-//    UINT32  i;
-//
-//    while(uiSize != 0) {
-//        UINT32  stBufSize = (cacheBlkSize - stStart);
-//        i = (uiOfs + readBytes)/cacheBlkSize;
-//        if (stBufSize > uiSize) {
-//            pcache = hoitCheckCacheHit(pcacheHdr, i);
-//
-//            if (!pcache) {
-//                /* 未命中 */
-//                pcache = hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA);
-//                if(!pcache) {
-//                    /* 分配失败 */
-//                    read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, uiSize);
-//                }
-//            } else {
-//                /* 命中了 */
-//                lib_memcpy(pContent, pcache->HOITBLK_buf+stStart, uiSize);
-//            }
-//            readBytes   += uiSize;
-//            uiSize       = 0;
-//        } else {
-//            pcache = hoitCheckCacheHit(pcacheHdr, i);
-//            read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, stBufSize);
-//            if (!pcache) {
-//                /* 未命中 */
-//                hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA);
-//                if(!pcache) {
-//                    /* 分配失败 */
-//                    read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, stBufSize);
-//                }
-//            } else {
-//                /* 命中了 */
-//                lib_memcpy(pContent, pcache->HOITBLK_buf+stStart, uiSize);
-//            }
-//            pucDest     += stBufSize;
-//            uiSize      -= stBufSize;
-//            readBytes   += stBufSize;
-//            stStart      = 0;
-//        }
-//    }
+    PCHAR   pucDest         = pContent;
+    size_t  cacheBlkSize    = pcacheHdr->HOITCACHE_blockSize;
+    size_t  stStart         = uiOfs % cacheBlkSize;
+    PHOIT_CACHE_BLK pcache;
+    //UINT32  blkNoStart      = uiOfs/cacheBlkSize;
+    //UINT32  blkNoEnd        = (uiOfs + uiSize) / cacheBlkSize;
+    UINT32  readBytes      = 0;
+    UINT32  i;
+
+    while(uiSize != 0) {
+        UINT32  stBufSize = (cacheBlkSize - stStart);
+        i = (uiOfs + readBytes)/cacheBlkSize;
+        if (stBufSize > uiSize) {
+            pcache = hoitCheckCacheHit(pcacheHdr, i);
+
+            if (!pcache) {
+                /* 未命中 */
+                pcache = hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA);
+                if(!pcache) {
+                    /* 分配失败 */
+                    read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, uiSize);
+                }
+            } else {
+                /* 命中了 */
+                lib_memcpy(pContent, pcache->HOITBLK_buf+stStart, uiSize);
+            }
+            readBytes   += uiSize;
+            uiSize       = 0;
+        } else {
+            pcache = hoitCheckCacheHit(pcacheHdr, i);
+            read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, stBufSize);
+            if (!pcache) {
+                /* 未命中 */
+                hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA);
+                if(!pcache) {
+                    /* 分配失败 */
+                    read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, stBufSize);
+                }
+            } else {
+                /* 命中了 */
+                lib_memcpy(pContent, pcache->HOITBLK_buf+stStart, uiSize);
+            }
+            pucDest     += stBufSize;
+            uiSize      -= stBufSize;
+            readBytes   += stBufSize;
+            stStart      = 0;
+        }
+    }
 
     return LW_TRUE;
 }
