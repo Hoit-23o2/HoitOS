@@ -348,7 +348,7 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     if (pSector->HOITS_uiFreeSize < uiSize) {
         pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
     }
-
+    /* 如果当前块写不下，找下一块 */
     while (pSector != LW_NULL) {
         if (pSector->HOITS_uiFreeSize >= uiSize) {
             break;
@@ -364,6 +364,7 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
                 pcacheHdr->HOITCACHE_blockSize + 
                 pSector->HOITS_offset + 
                 NOR_FLASH_START_OFFSET;
+
     pcache = hoitCheckCacheHit(pcacheHdr, pSector->HOITS_bno);
     if (pcache == LW_NULL) {                                    /* 未命中 */
         pcache = hoitAllocCache(pcacheHdr, pSector->HOITS_bno, HOIT_CACHE_TYPE_DATA, pSector);
@@ -378,16 +379,24 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     }
 
     /* 更新HOITFS_now_sector */
-    pSector->HOITS_offset += uiSize;
-    pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
-    while (pSector != LW_NULL) {
-        if (pSector->HOITS_uiFreeSize != 0) {
-            pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
-            break;
-        }
-        pSector = pSector->HOITS_next;
-    }
+    pSector->HOITS_offset       += uiSize;
+    pSector->HOITS_uiFreeSize   -= uiSize;
+    pSector->HOITS_uiUsedSize   += uiSize;
     pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_totalUsedSize += uiSize;
+
+    if (pSector->HOITS_uiFreeSize == 0) {
+            pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+        while (pSector != LW_NULL) {
+            if (pSector->HOITS_uiFreeSize != 0) {
+                pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
+                break;
+            }
+            pSector = pSector->HOITS_next;
+        }
+    } else {
+        pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
+    }
+    
     return writeAddr - NOR_FLASH_START_OFFSET;
 }
 
