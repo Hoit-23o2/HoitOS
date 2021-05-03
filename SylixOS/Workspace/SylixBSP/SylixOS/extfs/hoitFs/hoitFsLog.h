@@ -40,7 +40,7 @@ typedef struct hoitLog
     UINT                version;
 
     UINT                uiLogSize;
-    UINT                uiLogAddr;
+    UINT                uiLogFirstAddr;
 } HOIT_RAW_LOG;
 
 typedef HOIT_RAW_LOG * PHOIT_RAW_LOG;
@@ -52,6 +52,6 @@ PHOIT_LOG_INFO              hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT u
 PHOIT_LOG_INFO              hoitLogOpen(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog);
 VOID                        hoitLogRead(PHOIT_VOLUME pfs, PHOIT_LOG_INFO pLogInfo, UINT uiOfs, PCHAR pLog, UINT uiSize);
 VOID                        hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pLog);
-
+BOOL                        hoitLogCheckIfLog(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector);
 
 #endif /* SYLIXOS_EXTFS_HOITFS_HOITLOG_H_ */

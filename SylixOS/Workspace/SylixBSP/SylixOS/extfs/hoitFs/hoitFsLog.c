@@ -22,6 +22,35 @@
 #include "hoitFsLib.h"
 #include "hoitFsCache.h"
 
+VOID __hoitInserteLogSector(PHOIT_VOLUME pfs, PHOIT_LOG_SECTOR pLogSectorNew){
+    PHOIT_LOG_SECTOR    pLogSectorTraverse;
+    PHOIT_LOG_SECTOR    pLogSectorTrailling;
+
+
+    pLogSectorTraverse = pfs->HOITFS_logInfo->pLogSectorList;
+
+    while (pLogSectorTraverse)
+    {
+        pLogSectorTrailling = pLogSectorTraverse;
+        pLogSectorTraverse = pLogSectorTraverse->pErasableNextLogSector;
+    }
+
+    // PHOIT_FRAG_TREE_LIST_NODE pFTlistTrailling;
+    // PHOIT_FRAG_TREE_LIST_NODE pFTlistTraverse = pFTlistHeader->pFTlistHeader;
+    // while (pFTlistTraverse != LW_NULL)
+    // {
+    //     pFTlistTrailling = pFTlistTraverse;
+    //     pFTlistTraverse = pFTlistTraverse->pFTlistNext;
+    // }
+    // pFTlistTrailling->pFTlistNext = pTFlistNode;
+    
+}
+
+VOID __hoitSearchLogSector(PHOIT_VOLUME pfs,PHOIT_LOG_SECTOR pLogSector){
+    
+}
+
+
 PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
     PHOIT_RAW_LOG           pRawLog;
     PHOIT_LOG_INFO          pLogInfo;
@@ -29,6 +58,10 @@ PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
     PHOIT_ERASABLE_SECTOR   pErasableSector;
     PHOIT_LOG_SECTOR        pLogSector;
 
+    if(uiLogSize == 0 || uiSectorNum == 0){
+        return LW_NULL;
+    }
+    
     pRawLog = (PHOIT_RAW_LOG)lib_malloc(sizeof(HOIT_RAW_LOG));
     lib_memset(pRawLog, 0, sizeof(HOIT_RAW_LOG));
     pRawLog->file_type = S_IFLOG;
@@ -40,16 +73,17 @@ PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
     //TODO: 找到一个空的Sector作为LOG Sector
     //!在Build的时候，如果没有扫描到LOG，就调用InitLOG，
     //!否则调用OPEN LOG
-    pRawLog->uiLogAddr = pErasableSector->HOITS_addr;
+    pRawLog->uiLogFirstAddr = pErasableSector->HOITS_addr;
     pRawLog->uiLogSize = uiLogSize;
     hoitWriteToCache(pfs->HOITFS_cacheHdr, (PCHAR)pRawLog, pRawLog->totlen);
 
     pLogSector = (PHOIT_LOG_SECTOR)lib_malloc(sizeof(HOIT_LOG_SECTOR));
     lib_memset(pLogSector, 0, sizeof(HOIT_LOG_SECTOR));
     lib_memcpy(&pLogSector->ErasableSetcor,  pErasableSector, sizeof(HOIT_ERASABLE_SECTOR));
-
+    
     pLogInfo = (PHOIT_LOG_INFO)lib_malloc(sizeof(HOIT_LOG_INFO));
     lib_memset(pLogInfo, 0, sizeof(HOIT_LOG_INFO));
+    pLogInfo->pLogSectorList = pLogSector;
     
     pfs->HOITFS_logInfo          = pLogInfo;
 
@@ -68,7 +102,7 @@ PHOIT_LOG_INFO hoitLogOpen(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog){
     pErasableSectorTraverse = pfs->HOITFS_erasableSectorList;
     while (pErasableSectorTraverse)
     {
-        if(pErasableSectorTraverse->HOITS_addr == pRawLog->uiLogAddr){
+        if(pErasableSectorTraverse->HOITS_addr == pRawLog->uiLogFirstAddr){
             pErasableLogSector = pErasableSectorTraverse;
             break;
         }
@@ -80,7 +114,7 @@ PHOIT_LOG_INFO hoitLogOpen(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog){
         return LW_NULL;
     }
 
-    pLogInfo->pLogSector = pErasableLogSector;
+    
 }
 
 VOID hoitLogRead(PHOIT_VOLUME pfs, PHOIT_LOG_INFO pLogInfo, UINT uiOfs, PCHAR pLog, UINT uiSize){
