@@ -59,13 +59,18 @@ VOID __hoitFsGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
     
     while (LW_TRUE)
     {
-        if(pRawInfoTrailing == pErasableSector->HOITS_pRawInfoLast){    /* 扫描完毕 */
+        if(pRawInfoTrailing == pErasableSector->HOITS_pRawInfoLast
+        || pRawInfoTraverse == LW_NULL){    /* 扫描完毕 */
             break;
         }
         if(pRawInfoTraverse->is_obsolete){                              /* 如果过期 */
-            pRawInfoObselete            = pRawInfoTraverse;             
-            pRawInfoTrailing->next_phys = pRawInfoTraverse->next_phys;  /* 修改指针——前一块指向当前块的下一块 */
-            pRawInfoTraverse            = pRawInfoTraverse->next_phys;  /* 置当前块为下一块 */
+            pRawInfoObselete                    = pRawInfoTraverse;             
+            pRawInfoTrailing->next_phys         = pRawInfoTraverse->next_phys;  /* 修改指针——前一块指向当前块的下一块 */
+            pRawInfoTraverse                    = pRawInfoTraverse->next_phys;  /* 置当前块为下一块 */
+            
+            pErasableSector->HOITS_uiUsedSize   -= pRawInfoObselete->totlen;
+            pErasableSector->HOITS_uiFreeSize   += pRawInfoObselete->totlen;
+            
             lib_free(pRawInfoObselete);                                 /* 释放过期的块 */
         }
         else {

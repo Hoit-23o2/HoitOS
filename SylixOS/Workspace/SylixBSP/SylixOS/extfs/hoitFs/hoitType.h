@@ -76,7 +76,9 @@ typedef struct hoit_frag_tree_list_header HOIT_FRAG_TREE_LIST_HEADER;
 
 typedef struct HOIT_CACHE_BLK             HOIT_CACHE_BLK;
 typedef struct HOIT_CACHE_HDR             HOIT_CACHE_HDR;
+
 typedef struct HOIT_LOG_INFO              HOIT_LOG_INFO;
+typedef struct HOIT_RAW_LOG               HOIT_RAW_LOG;
 
 typedef HOIT_VOLUME*                      PHOIT_VOLUME;
 typedef HOIT_RAW_HEADER*                  PHOIT_RAW_HEADER;
@@ -101,7 +103,7 @@ typedef HOIT_CACHE_BLK *                  PHOIT_CACHE_BLK;
 typedef HOIT_CACHE_HDR *                  PHOIT_CACHE_HDR;
 
 typedef HOIT_LOG_INFO *                   PHOIT_LOG_INFO;
-
+typedef HOIT_RAW_LOG *                    PHOIT_RAW_LOG;
 DEV_HDR          HOITFS_devhdrHdr;
 
 
@@ -373,13 +375,26 @@ typedef struct HOIT_CACHE_HDR
 *********************************************************************************************************/
 struct HOIT_LOG_INFO
 {
-    PHOIT_LOG_SECTOR pLogSectorList;              /* LOG Sector链表管理 */
+    PHOIT_LOG_SECTOR pLogSectorList;              /* LOG Sector链表管理  */
+    UINT             uiRawLogHdrAddr;             /* 该文件头指向的首 LOG地址 */
     UINT             uiLogCurAddr;
     UINT             uiLogCurOfs;
     UINT             uiLogSize;
-    UINT             uiLogEntityCnt;              
+    UINT             uiLogEntityCnt; 
 };
 
+struct HOIT_RAW_LOG
+{
+    UINT32              magic_num;
+    UINT32              flag;
+    UINT32              totlen;
+    mode_t              file_type;
+    UINT                ino;
+    UINT                version;
+
+    UINT                uiLogSize;
+    UINT                uiLogFirstAddr;
+};
 /*********************************************************************************************************
   偏移量计算
 *********************************************************************************************************/
