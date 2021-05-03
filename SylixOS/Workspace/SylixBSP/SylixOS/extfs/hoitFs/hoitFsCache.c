@@ -275,8 +275,9 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
         UINT32  writeAddr = uiOfs + writeBytes + NOR_FLASH_START_OFFSET;
 
         while (pSector != LW_NULL ) {
-            if (pSector->HOITS_bno != i)
-                pSector = pSector->HOITS_next;
+            if (pSector->HOITS_bno == i)
+                break;
+            pSector = pSector->HOITS_next;
         }
         
         pcache = hoitCheckCacheHit(pcacheHdr, i);

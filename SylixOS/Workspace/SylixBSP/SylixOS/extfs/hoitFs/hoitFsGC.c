@@ -59,7 +59,8 @@ VOID __hoitFsGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
     
     while (LW_TRUE)
     {
-        if(pRawInfoTrailing == pErasableSector->HOITS_pRawInfoLast){    /* 扫描完毕 */
+        if(pRawInfoTrailing == pErasableSector->HOITS_pRawInfoLast
+         ||pRawInfoTraverse == LW_NULL){    /* 扫描完毕 */
             break;
         }
         if(pRawInfoTraverse->is_obsolete){                              /* 如果过期 */
@@ -329,6 +330,6 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
 		        				               LW_NULL);
             }
         }
-        sleep(5);
+        sleep(10);
     }
 }

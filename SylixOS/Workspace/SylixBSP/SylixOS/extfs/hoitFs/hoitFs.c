@@ -161,9 +161,9 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_curGCSector = LW_NULL;
     pfs->HOITFS_erasableSectorList = LW_NULL;
     //__ram_mount(pramfs);
-    hoitEnableCache(64, 8, pfs);
+    hoitEnableCache(GET_SECTOR_SIZE(8), 8, pfs);
     __hoit_mount(pfs);
-    hoitStartGCThread(pfs, 50);
+    //hoitStartGCThread(pfs, 50);
     
     if (iosDevAddEx(&pfs->HOITFS_devhdrHdr, pcName, _G_iHoitFsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
