@@ -24,10 +24,34 @@
 
 #include "hoitType.h"
 
-VOID    hoitLogInit(HOIT_VOLUME pfs, UINT uiLogSize);
-VOID    hoitLogOpen(HOIT_VOLUME pfs);
-VOID    hoitLogRead(HOIT_VOLUME pfs, UINT uiOfs, PCHAR pLog, UINT uiSize);
-VOID    hoitLogAppend(HOIT_VOLUME pfs, PCHAR pLog);
+#define LOG_DEBUG
 
+#define S_IFLOG     0xd000
+
+
+
+typedef struct hoitLog
+{
+    UINT32              magic_num;
+    UINT32              flag;
+    UINT32              totlen;
+    mode_t              file_type;
+    UINT                ino;
+    UINT                version;
+
+    UINT                uiLogSize;
+    UINT                uiLogFirstAddr;
+} HOIT_RAW_LOG;
+
+typedef HOIT_RAW_LOG * PHOIT_RAW_LOG;
+
+/*********************************************************************************************************
+  LOG文件相关函数
+*********************************************************************************************************/
+PHOIT_LOG_INFO              hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum);
+PHOIT_LOG_INFO              hoitLogOpen(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog);
+VOID                        hoitLogRead(PHOIT_VOLUME pfs, PHOIT_LOG_INFO pLogInfo, UINT uiOfs, PCHAR pLog, UINT uiSize);
+VOID                        hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pLog);
+BOOL                        hoitLogCheckIfLog(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector);
 
 #endif /* SYLIXOS_EXTFS_HOITFS_HOITLOG_H_ */

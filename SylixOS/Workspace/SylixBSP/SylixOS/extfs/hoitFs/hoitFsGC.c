@@ -23,14 +23,6 @@
 #include "hoitFsFDLib.h"
 #include "hoitFsLib.h"
 
-
-typedef enum hoitGCLevel
-{
-    GC_FOREGROUND,
-    GC_BACKGROUND
-} ENUM_HOIT_GC_LEVEL;
-
-
 /*********************************************************************************************************
 ** 函数名称: __hoitFsGCSectorRawInfoFixUp
 ** 功能描述: 释放所有pErasableSector中的过期RawInfo，修改next_phys关系
@@ -290,9 +282,7 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
     PHOIT_VOLUME                pfs; 
     UINT                        uiThreshold;
     UINT                        uiCurUsedSize;
-    //TODO:uiCurUsedSize = pfs->UsedSize > uiThreshold
     BOOL                        bIsBackgroundThreadStart;
-
     LW_CLASS_THREADATTR         gcThreadAttr;
     LW_OBJECT_HANDLE            hGcThreadId;
 
@@ -309,9 +299,11 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
 #ifdef GC_TEST
     uiCurUsedSize = 60;
 #endif // GC_TEST
+
     while (LW_TRUE)
     {
-        if(uiCurUsedSize > uiThreshold){
+        uiCurUsedSize = pfs->HOITFS_totalUsedSize;
+        if(uiCurUsedSize > uiThreshold){                                    /* 执行Foreground */
             if(bIsBackgroundThreadStart){
                 API_MsgQueueSend(pfs->HOITFS_GCMsgQ, MSG_BG_GC_END, sizeof(MSG_BG_GC_END));
                 API_ThreadJoin(hGcThreadId, LW_NULL);
@@ -320,7 +312,9 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
             hoitGCForgroudForce(pfs);
         }
         else {
-            if(!bIsBackgroundThreadStart){
+            if(!bIsBackgroundThreadStart 
+                && uiCurUsedSize > (pfs->HOITFS_totalSize / 2)){            /* 执行Background */
+                
                 bIsBackgroundThreadStart = LW_TRUE;
                 
                 API_ThreadAttrBuild(&gcThreadAttr, 

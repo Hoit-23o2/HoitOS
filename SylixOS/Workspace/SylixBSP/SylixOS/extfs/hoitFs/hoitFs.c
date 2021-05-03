@@ -24,6 +24,8 @@
 #include "SylixOS.h"
 #include "hoitFs.h"
 #include "hoitFsGC.h"
+#include "hoitFsCache.h"
+
 #ifndef HOITFS_DISABLE
 /*********************************************************************************************************
   内部全局变量
@@ -152,12 +154,14 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_now_sector      = LW_NULL;
     pfs->HOITFS_pRootDir        = LW_NULL;
     pfs->HOITFS_totalUsedSize   = 0;
+    pfs->HOITFS_totalSize       = 2 * 1024 * 1024;
                                                                         /* GC相关 */
     _SmpSpinInit(&pfs->HOITFS_GCLock);
     
     pfs->HOITFS_curGCSector = LW_NULL;
     pfs->HOITFS_erasableSectorList = LW_NULL;
     //__ram_mount(pramfs);
+    hoitEnableCache(64, 8, pfs);
     __hoit_mount(pfs);
     hoitStartGCThread(pfs, 50);
     
@@ -169,6 +173,8 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     }
 
     _DebugFormat(__LOGMESSAGE_LEVEL, "target \"%s\" mount ok.\r\n", pcName);
+
+
 
     return  (ERROR_NONE);
 }
