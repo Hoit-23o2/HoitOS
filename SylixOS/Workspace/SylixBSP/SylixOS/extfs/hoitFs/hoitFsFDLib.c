@@ -211,6 +211,7 @@ PHOIT_FULL_DNODE __hoit_bulid_full_dnode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawIn
     pFullDnode->HOITFD_length = pRawInode->totlen - sizeof(PHOIT_RAW_INODE);
     pFullDnode->HOITFD_offset = pRawInode->offset;
     pFullDnode->HOITFD_raw_info = pRawInfo;
+    pFullDnode->HOITFD_version = pRawInode->version;
     __SHEAP_FREE(read_buf);
     return pFullDnode;
 }
