@@ -204,7 +204,14 @@ VOID hoitGCForgroudForce(PHOIT_VOLUME pfs){
         if(pErasableSector) {
 #ifdef GC_DEBUG
         API_ThreadLock();
-        printf("[%s]: find a Sector, which no. is %d\n", __func__, pErasableSector->HOITS_bno);
+        if(pErasableSector->HOITS_pRawInfoCurGC == LW_NULL){
+                printf("[%s]: find a Sector start at %ld, GC raw info Init\n", __func__, 
+                       pErasableSector->HOITS_bno);
+        }
+        else {
+            printf("[%s]: find a Sector start at %ld, GC raw info at %u\n", __func__, 
+                    pErasableSector->HOITS_bno, pErasableSector->HOITS_pRawInfoCurGC->phys_addr);
+        }
         API_ThreadUnlock();
 #endif // GC_DEBUG
             LW_SPIN_LOCK_QUICK(&pfs->HOITFS_GCLock, &iregInterLevel);
@@ -259,7 +266,14 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
         if(pErasableSector) {
 #ifdef GC_DEBUG
             API_ThreadLock();
-            printf("[%s]: find a Sector start at %d\n", __func__, pErasableSector->HOITS_offset);
+            if(pErasableSector->HOITS_pRawInfoCurGC == LW_NULL){
+                printf("[%s]: find a Sector start at %ld, GC raw info Init\n", __func__, 
+                       pErasableSector->HOITS_bno);
+            }
+            else {
+                printf("[%s]: find a Sector start at %ld, GC raw info at %u\n", __func__, 
+                       pErasableSector->HOITS_bno, pErasableSector->HOITS_pRawInfoCurGC->phys_addr);
+            }
             API_ThreadUnlock();
 #endif // GC_DEBUG
             LW_SPIN_LOCK_QUICK(&pfs->HOITFS_GCLock, &iregInterLevel);
