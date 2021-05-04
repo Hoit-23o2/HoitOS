@@ -113,7 +113,7 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
     lib_memcpy(write_buf + sizeof(struct HOIT_RAW_INODE), read_buf + sizeof(struct HOIT_RAW_INODE) + offset, length);
 
     UINT phys_addr = 0;
-    __hoit_write_flash(pfs, write_buf, sizeof(struct HOIT_RAW_INODE) + length, &phys_addr);
+    __hoit_write_flash(pfs, write_buf, sizeof(struct HOIT_RAW_INODE) + length, &phys_addr, 1);
 
     PHOIT_RAW_INFO pNewRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(struct HOIT_RAW_INFO)); /* 注意避免内存泄露 */
     if (!pNewRawInfo) {
@@ -149,14 +149,14 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
 
 /*********************************************************************************************************
 ** 函数名称: __hoit_write_full_dnode
-** 功能描述: 将一段数据写入到Flash, 并返回PHOIT_FULL_DNODE
+** 功能描述: 将一段数据(纯数据,不带header)写入到Flash, 并返回PHOIT_FULL_DNODE
 **           offset是指文件内的偏移地址
 ** 输　入  :
 ** 输　出  :
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offset, UINT size, PCHAR pContent) {
+PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offset, UINT size, PCHAR pContent, UINT needLog) {
     PHOIT_VOLUME pfs = pInodeInfo->HOITN_volume;
     PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)__SHEAP_ALLOC(sizeof(HOIT_RAW_INODE));     /* 注意内存泄露 */
     if (pRawInode == LW_NULL) {
@@ -172,8 +172,8 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
     pRawInode->version = pfs->HOITFS_highest_version++;
 
     UINT phys_addr = 0;
-    __hoit_write_flash(pfs, (PVOID)pRawInode, sizeof(HOIT_RAW_INODE), &phys_addr);
-    __hoit_write_flash(pfs, (PVOID)pContent, size, LW_NULL);
+    __hoit_write_flash(pfs, (PVOID)pRawInode, sizeof(HOIT_RAW_INODE), &phys_addr, needLog);
+    __hoit_write_flash(pfs, (PVOID)pContent, size, LW_NULL, needLog);
 
     PHOIT_RAW_INFO pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
     pRawInfo->phys_addr = phys_addr;

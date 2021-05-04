@@ -733,7 +733,7 @@ static ssize_t  __hoitFsWrite(PLW_FD_ENTRY  pfdentry,
     }
 
     if (stNBytes) { //TODO __hoit_write尚未添加定义
-        sstWriteNum = __hoit_write(phoitn, pcBuffer, stNBytes, (size_t)pfdentry->FDENTRY_oftPtr);
+        sstWriteNum = __hoit_write(phoitn, pcBuffer, stNBytes, (size_t)pfdentry->FDENTRY_oftPtr, 1);
         if (sstWriteNum > 0) {
             pfdentry->FDENTRY_oftPtr += (off_t)sstWriteNum;             /*  更新文件指针                */
             //TODO HOITN_stSize尚未定义
@@ -791,7 +791,7 @@ static ssize_t  __hoitFsPWrite(PLW_FD_ENTRY  pfdentry,
     }
 
     if (stNBytes) { //TODO __hoit_write尚未添加定义
-        /* sstWriteNum = __hoit_write(phoitn, pcBuffer, stNBytes, (size_t)oftPos);*/
+        /*sstWriteNum = __hoit_write(phoitn, pcBuffer, stNBytes, (size_t)oftPos, 1);*/
         if (sstWriteNum > 0) {
             //TODO HOITN_stSize尚未定义
             /*pfdnode->FDNODE_oftSize   = (off_t)phoitn->HOITN_stSize;*/
