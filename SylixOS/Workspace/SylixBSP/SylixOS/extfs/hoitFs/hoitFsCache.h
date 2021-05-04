@@ -24,7 +24,7 @@
 
 #define  __SYLIXOS_STDIO
 #define  __SYLIXOS_KERNEL
-//#define HOIT_CACHE_TEST
+
 #include "../SylixOS/kernel/include/k_kernel.h"
 #include "../SylixOS/system/include/s_system.h"
 #include "../SylixOS/fs/fsCommon/fsCommon.h"

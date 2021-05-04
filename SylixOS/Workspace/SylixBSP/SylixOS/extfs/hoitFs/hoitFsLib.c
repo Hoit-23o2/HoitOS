@@ -629,6 +629,7 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no, INT* hasLog) {
     UINT                    uiFreeSize;
     UINT                    uiUsedSize;
     PHOIT_ERASABLE_SECTOR   pErasableSector;
+    UINT                    uiSectorNum;
 
 
     uiSectorSize            = GET_SECTOR_SIZE(sector_no);
@@ -942,7 +943,7 @@ VOID __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
+BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     PCHAR pReadBuf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);
     /* 先读出旧数据 */
     lib_bzero(pReadBuf, pRawInfo->totlen);
@@ -950,9 +951,11 @@ VOID __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     __hoit_read_flash(pfs, pRawInfo->phys_addr, pReadBuf, pRawInfo->totlen);
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pReadBuf;
-    if (pRawHeader->magic_num != HOIT_MAGIC_NUM || (pRawHeader->flag & HOIT_FLAG_OBSOLETE) == 0) {
+    if (pRawHeader->magic_num != HOIT_MAGIC_NUM 
+    || (pRawHeader->flag & HOIT_FLAG_OBSOLETE) == 0
+    || __HOIT_IS_TYPE_LOG(pRawHeader)) {            /* 不回收LOG文件 */
         //printk("Error in hoit_move_home\n");
-        return;
+        return LW_FALSE;
     }
     pRawHeader->flag &= (~HOIT_FLAG_OBSOLETE);      //将obsolete标志变为0，代表过期
     /* 将obsolete标志位清0后写回原地址 */
@@ -966,6 +969,7 @@ VOID __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
 
     /* 将RawInfo从旧块搬到新块 */
     __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pRawInfo);
+    return LW_TRUE;
 }
 
 /*********************************************************************************************************
@@ -1659,22 +1663,21 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
 
     __hoit_redo_log(pfs);
 
-    if (pfs->HOITFS_highest_ino == 2) {    /* 系统第一次运行, 创建根目录文件 */
+    if (pfs->HOITFS_highest_ino == HOIT_ROOT_DIR_INO) {    /* 系统第一次运行, 创建根目录文件 */
         mode_t mode = S_IFDIR;
         PHOIT_INODE_INFO pRootDir = __hoit_new_inode_info(pfs, mode, LW_NULL);
         pfs->HOITFS_pRootDir = pRootDir;
     }
     /* 系统不是第一次运行的话会在扫描时就找到pRootDir */
 
-
+#ifdef LOG_TEST
+    __hoit_redo_log(pfs);
+#endif // LOG_TEST
 
     /* 基本的inode_cache和raw_info构建完毕  */
     /* 接下来要递归统计所有文件的nlink          */
-    
     __hoit_get_nlink(pfs->HOITFS_pRootDir);
     register_hoitfs_cmd(pfs);
-
-
 }
 
 /*********************************************************************************************************

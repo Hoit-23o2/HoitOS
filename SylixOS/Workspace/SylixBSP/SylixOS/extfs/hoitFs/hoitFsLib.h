@@ -61,7 +61,7 @@ VOID                    __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo);
 BOOL                    __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector);
 PCHAR                   __hoit_get_data_after_raw_inode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pInodeInfo);
 VOID                    __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO pRawInfo);
-VOID                    __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo);
+BOOL                    __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo);
 
 PHOIT_INODE_INFO        __hoit_open(PHOIT_VOLUME  pfs,
                                     CPCHAR       pcName,

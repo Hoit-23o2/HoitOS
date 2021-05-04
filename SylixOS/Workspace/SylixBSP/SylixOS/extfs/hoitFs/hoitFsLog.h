@@ -24,8 +24,8 @@
 
 #include "hoitType.h"
 
-#define LOG_DEBUG
-
+//#define DEBUG_LOG
+#define  LOG_TEST
 #define S_IFLOG     0xd000
 
 
@@ -37,6 +37,8 @@ PHOIT_LOG_INFO              hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT u
 PHOIT_LOG_INFO              hoitLogOpen(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog);
 PCHAR                       hoitLogEntityGet(PHOIT_VOLUME pfs, UINT uiEntityNum);
 VOID                        hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize);
-BOOL                        hoitLogCheckIfLog(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector);
 
+#ifdef LOG_TEST
+VOID                        hoitLogTest();
+#endif // LOG_TEST
 #endif /* SYLIXOS_EXTFS_HOITFS_HOITLOG_H_ */

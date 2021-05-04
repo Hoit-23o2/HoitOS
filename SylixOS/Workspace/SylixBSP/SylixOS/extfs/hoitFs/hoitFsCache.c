@@ -508,8 +508,12 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType) {
         pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
         while (pSector != LW_NULL)
         {
-            if(pSector->HOITS_uiFreeSize == pcacheHdr->HOITCACHE_blockSize) {
-                return pSector->HOITS_bno;
+            //! 2021-05-04 Modified By PYQ
+            if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
+               && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
+                if(pSector->HOITS_uiFreeSize == pcacheHdr->HOITCACHE_blockSize) {
+                    return pSector->HOITS_bno;
+                }
             }
         }
         return (PX_ERROR);

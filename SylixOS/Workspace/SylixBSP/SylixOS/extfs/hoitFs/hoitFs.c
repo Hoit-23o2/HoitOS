@@ -155,11 +155,13 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_pRootDir        = LW_NULL;
     pfs->HOITFS_totalUsedSize   = 0;
     pfs->HOITFS_totalSize       = 2 * 1024 * 1024;
+
                                                                         /* GCÏà¹Ø */
     _SmpSpinInit(&pfs->HOITFS_GCLock);
     
     pfs->HOITFS_curGCSector = LW_NULL;
     pfs->HOITFS_erasableSectorList = LW_NULL;
+    pfs->HOITFS_logInfo     = LW_NULL;
     //__ram_mount(pramfs);
     hoitEnableCache(GET_SECTOR_SIZE(8), 8, pfs);
     __hoit_mount(pfs);

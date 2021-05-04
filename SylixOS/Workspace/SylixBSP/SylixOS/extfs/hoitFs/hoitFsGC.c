@@ -109,9 +109,9 @@ PHOIT_ERASABLE_SECTOR __hoitFsGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_G
     while (pErasableListTraverse)
     {
         uiFreeSize  = pErasableListTraverse->HOITS_uiFreeSize;   
-#ifdef GC_TEST
-        if(pErasableListTraverse->HOITS_next == LW_NULL){
-            pErasableListTraverse->HOITS_uiFreeSize -= 3;
+#ifdef GC_TEST                                  
+        if(pErasableListTraverse->HOITS_next == LW_NULL){           /* 如果最后一个Sector了 */
+            pErasableListTraverse->HOITS_uiFreeSize -= 3;           /* 适配一下 */
             pErasableListTraverse->HOITS_uiUsedSize += 3;
         }
 #endif // GC_TEST
@@ -168,10 +168,17 @@ BOOL __hoitFsGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
     pRawInfoNextGC  = pRawInfoCurGC->next_phys;
     
     //!把RawInfo及其对应的数据实体搬家
-    __hoit_move_home(pfs, pRawInfoCurGC);
+    if(!__hoit_move_home(pfs, pRawInfoCurGC)){                  /* 搬家失败，说明该RawInfo要么是LOG要么是一段错误的数据，我们直接跳过 */
+        goto __hoitFsGCCollectSetcorAliveEnd;
+    }
+
     pErasableSector->HOITS_uiUsedSize -= pRawInfoCurGC->totlen;
     pErasableSector->HOITS_uiFreeSize += pRawInfoCurGC->totlen;
 
+    printf("[%s] GC has released size %d of sector %d\n", 
+            __func__, pRawInfoCurGC->totlen, pErasableSector->HOITS_bno);
+            
+__hoitFsGCCollectSetcorAliveEnd:
     if(pRawInfoCurGC == pErasableSector->HOITS_pRawInfoLast){
         bIsCollectOver = LW_TRUE;
     }
