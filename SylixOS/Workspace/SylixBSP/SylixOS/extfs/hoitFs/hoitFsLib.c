@@ -516,6 +516,7 @@ UINT8 __hoit_del_raw_data(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     pRawHeader->flag &= (~HOIT_FLAG_OBSOLETE);      //将obsolete标志变为0，代表过期
     
     __hoit_write_flash_thru(pfs, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
+    __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pRawInfo);
     __SHEAP_FREE(buf);
     return 0;
 }
