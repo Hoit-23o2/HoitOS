@@ -63,7 +63,7 @@ VOID __hoitFsGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
         || pRawInfoTraverse == LW_NULL){    /* 扫描完毕 */
             break;
         }
-        if(pRawInfoTraverse->is_obsolete){                              /* 如果过期 */
+        if(pRawInfoTraverse->is_obsolete){                                      /* 如果过期 */
             pRawInfoObselete                    = pRawInfoTraverse;             
             pRawInfoTrailing->next_phys         = pRawInfoTraverse->next_phys;  /* 修改指针——前一块指向当前块的下一块 */
             pRawInfoTraverse                    = pRawInfoTraverse->next_phys;  /* 置当前块为下一块 */
@@ -71,10 +71,10 @@ VOID __hoitFsGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
             pErasableSector->HOITS_uiUsedSize   -= pRawInfoObselete->totlen;
             pErasableSector->HOITS_uiFreeSize   += pRawInfoObselete->totlen;
             
-            lib_free(pRawInfoObselete);                                 /* 释放过期的块 */
+            lib_free(pRawInfoObselete);                                         /* 释放过期的块 */
         }
         else {
-            pRawInfoLast                = pRawInfoTraverse;             /* 更新pRawInfoLast */
+            pRawInfoLast                = pRawInfoTraverse;                     /* 更新pRawInfoLast */
             pRawInfoTrailing            = pRawInfoTraverse;              
             pRawInfoTraverse            = pRawInfoTraverse->next_phys;
         }
@@ -177,7 +177,7 @@ BOOL __hoitFsGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
 
     printf("[%s] GC has released size %d of sector %d\n", 
             __func__, pRawInfoCurGC->totlen, pErasableSector->HOITS_bno);
-            
+
 __hoitFsGCCollectSetcorAliveEnd:
     if(pRawInfoCurGC == pErasableSector->HOITS_pRawInfoLast){
         bIsCollectOver = LW_TRUE;
