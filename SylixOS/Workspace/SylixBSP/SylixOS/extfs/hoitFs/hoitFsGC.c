@@ -145,19 +145,26 @@ PHOIT_ERASABLE_SECTOR __hoitFsGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_G
     return pErasableVictimSector;
 }
 /*********************************************************************************************************
-** 函数名称: __hoitFSGCCollectSetcorAlive
+** 函数名称: __hoitFsGCCollectRawInfoAlive
 ** 功能描述: 从pErasableSector的pRawInfoCurGC处起，获取有效信息，一次获取一个
 ** 输　入  : pfs        HoitFS文件设备头
 ** 输　出  : 完成对该Sector的GC  LW_TRUE， 否则LW_FALSE
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-BOOL __hoitFsGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector){
+BOOL __hoitFsGCCollectRawInfoAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector){
     BOOL                    bIsCollectOver;
     
     PHOIT_RAW_INFO          pRawInfoCurGC;
     PHOIT_RAW_INFO          pRawInfoNextGC;
     
+    if(pErasableSector == LW_NULL){
+#ifdef GC_DEBUG
+        printf("[%s] setcor can not be null\n", __func__);
+#endif // GC_DEBUG
+        return LW_TRUE;
+    }
+
     pRawInfoCurGC   = pErasableSector->HOITS_pRawInfoCurGC;
     bIsCollectOver  = LW_FALSE;
 
@@ -169,7 +176,7 @@ BOOL __hoitFsGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
     
     //!把RawInfo及其对应的数据实体搬家
     if(!__hoit_move_home(pfs, pRawInfoCurGC)){                  /* 搬家失败，说明该RawInfo要么是LOG要么是一段错误的数据，我们直接跳过 */
-        goto __hoitFsGCCollectSetcorAliveEnd;
+        goto __hoitFsGCCollectRawInfoAliveEnd;
     }
 
     pErasableSector->HOITS_uiUsedSize -= pRawInfoCurGC->totlen;
@@ -178,7 +185,7 @@ BOOL __hoitFsGCCollectSetcorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasa
     printf("[%s] GC has released size %d of sector %d\n", 
             __func__, pRawInfoCurGC->totlen, pErasableSector->HOITS_bno);
 
-__hoitFsGCCollectSetcorAliveEnd:
+__hoitFsGCCollectRawInfoAliveEnd:
     if(pRawInfoCurGC == pErasableSector->HOITS_pRawInfoLast){
         bIsCollectOver = LW_TRUE;
     }
@@ -210,23 +217,26 @@ VOID hoitGCForgroudForce(PHOIT_VOLUME pfs){
     {
         if(pErasableSector) {
 #ifdef GC_DEBUG
-        API_ThreadLock();
-        if(pErasableSector->HOITS_pRawInfoCurGC == LW_NULL){
-                printf("[%s]: find a Sector start at %ld, GC raw info Init\n", __func__, 
-                       pErasableSector->HOITS_bno);
-        }
-        else {
-            printf("[%s]: find a Sector start at %ld, GC raw info at %u\n", __func__, 
-                    pErasableSector->HOITS_bno, pErasableSector->HOITS_pRawInfoCurGC->phys_addr);
-        }
-        API_ThreadUnlock();
+            API_ThreadLock();
+            if(pErasableSector->HOITS_pRawInfoCurGC == LW_NULL){
+                    printf("[%s]: find a Sector start at %ld, GC raw info Init\n", __func__, 
+                        pErasableSector->HOITS_bno);
+            }
+            else {
+                printf("[%s]: find a Sector start at %ld, GC raw info at %u\n", __func__, 
+                        pErasableSector->HOITS_bno, pErasableSector->HOITS_pRawInfoCurGC->phys_addr);
+            }
+            API_ThreadUnlock();
 #endif // GC_DEBUG
             LW_SPIN_LOCK_QUICK(&pfs->HOITFS_GCLock, &iregInterLevel);
             __hoitFsGCSectorRawInfoFixUp(pErasableSector);
+            printf("[%s]: Fix over the Sector %d\n", __func__, pErasableSector->HOITS_bno);
             pfs->HOITFS_curGCSector = pErasableSector;
-            bIsCollectOver = __hoitFsGCCollectSetcorAlive(pfs, pErasableSector);
+            bIsCollectOver = __hoitFsGCCollectRawInfoAlive(pfs, pErasableSector);
             if(bIsCollectOver){
-                pfs->HOITFS_curGCSector = LW_NULL;
+                pErasableSector->HOITS_pRawInfoCurGC = LW_NULL;         /* 当前Sector中GC的RawInfo为空 */
+                pfs->HOITFS_curGCSector = LW_NULL;                      /* 当前GC的Sector为空 */
+                printf("[%s]: Sector %d is collected Over\n", __func__, pErasableSector->HOITS_bno);
                 break;
             }
             LW_SPIN_UNLOCK_QUICK(&pfs->HOITFS_GCLock, iregInterLevel);
@@ -286,7 +296,7 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
             LW_SPIN_LOCK_QUICK(&pfs->HOITFS_GCLock, &iregInterLevel);
             __hoitFsGCSectorRawInfoFixUp(pErasableSector);
             pfs->HOITFS_curGCSector = pErasableSector;
-            bIsCollectOver = __hoitFsGCCollectSetcorAlive(pfs, pErasableSector);
+            bIsCollectOver = __hoitFsGCCollectRawInfoAlive(pfs, pErasableSector);
             if(bIsCollectOver){
                 pfs->HOITFS_curGCSector = LW_NULL;
             }

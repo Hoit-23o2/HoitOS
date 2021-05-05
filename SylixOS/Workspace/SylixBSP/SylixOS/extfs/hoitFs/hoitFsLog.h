@@ -24,8 +24,6 @@
 
 #include "hoitType.h"
 
-//#define DEBUG_LOG
-#define  LOG_TEST
 #define S_IFLOG     0xd000
 
 
