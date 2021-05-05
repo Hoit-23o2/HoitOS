@@ -668,6 +668,8 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no, INT* hasLog) {
     pErasableSector->HOITS_pRawInfoFirst    = LW_NULL;
     pErasableSector->HOITS_pRawInfoLast     = LW_NULL;
     pErasableSector->HOITS_pRawInfoCurGC    = LW_NULL;
+    pErasableSector->HOITS_pRawInfoPrevGC   = LW_NULL;
+    pErasableSector->HOITS_pRawInfoLastGC   = LW_NULL;
     pErasableSector->HOITS_tBornAge         = API_TimeGet(); 
 
     // ugly now
@@ -948,6 +950,9 @@ PCHAR __hoit_get_data_after_raw_inode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pInodeInf
 *********************************************************************************************************/
 VOID __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO pRawInfo) {
     pRawInfo->next_phys = LW_NULL;
+#ifdef LIB_DEBUG
+    printf("[%s]:add raw info at %p for sector %d\n", __func__, pRawInfo, pSector->HOITS_bno);
+#endif // LIB_DEBUG
     if (pSector->HOITS_pRawInfoFirst == LW_NULL) {
         pSector->HOITS_pRawInfoFirst = pRawInfo;
         pSector->HOITS_pRawInfoLast = pRawInfo;
@@ -964,7 +969,8 @@ VOID __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO
 
 /*********************************************************************************************************
 ** 函数名称: __hoit_move_home
-** 功能描述: hoitfs 垃圾回收函数，将含有有效数据的rawInfo从旧sector搬到新sector上
+** 功能描述: hoitfs 垃圾回收函数，将含有有效数据的rawInfo从旧sector搬到新sector上，
+**          注意，这里不会修改某个数据实体的Prev指针
 ** 输　入  : pSector是新sector
 ** 输　出  : 打开结果
 ** 全局变量:

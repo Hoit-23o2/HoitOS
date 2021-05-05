@@ -23,7 +23,10 @@
 #define  __SYLIXOS_KERNEL
 #include "stdio.h"
 #include "SylixOS.h"
-
+/*********************************************************************************************************
+  HoitFs Lib 相关测试
+*********************************************************************************************************/
+//#define LIB_DEBUG
 /*********************************************************************************************************
   HoitFs Cache 相关测试
 *********************************************************************************************************/
@@ -279,6 +282,8 @@ struct HOIT_ERASABLE_SECTOR{
     UINT                          HOITS_addr;
     UINT                          HOITS_length;
     UINT                          HOITS_offset;                                   /* 当前在写物理地址 = addr+offset  */
+    //TODO: 写入、GC时，需要持有该锁
+    spinlock_t                    HOITS_lock;                                     /* 每个Sector持有一个? */ 
 
     UINT                          HOITS_uiUsedSize;
     UINT                          HOITS_uiFreeSize;
@@ -286,8 +291,11 @@ struct HOIT_ERASABLE_SECTOR{
     ////UINT                      HOITS_uiNTotalRawInfo;                          /* 该可擦除Sector中RawInfo的总数 */
     PHOIT_RAW_INFO                HOITS_pRawInfoFirst;                            /* 指向可擦除Sector中第一个数据实体 */
     PHOIT_RAW_INFO                HOITS_pRawInfoLast;                             /* 指向可擦除Sector中最后一个数据实体，通过next_phys获取下一个数据实体 */
-    PHOIT_RAW_INFO                HOITS_pRawInfoCurGC;                            /* 当前即将回收的数据实体，注：一次仅回收一个数据实体 */
     
+    PHOIT_RAW_INFO                HOITS_pRawInfoCurGC;                            /* 当前即将回收的数据实体，注：一次仅回收一个数据实体 */
+    PHOIT_RAW_INFO                HOITS_pRawInfoPrevGC;
+    PHOIT_RAW_INFO                HOITS_pRawInfoLastGC;                           /* 最后一块应当被GC的Raw Info */
+
     ULONG                         HOITS_tBornAge;                                 /* 当前Sector的出生时间 */                        
 };
 

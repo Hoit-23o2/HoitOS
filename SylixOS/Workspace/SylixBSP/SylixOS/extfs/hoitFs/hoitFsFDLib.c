@@ -172,6 +172,7 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
     pRawInode->version = pfs->HOITFS_highest_version++;
 
     UINT phys_addr = 0;
+    //TODO:∫œ≤¢–¥»Î
     __hoit_write_flash(pfs, (PVOID)pRawInode, sizeof(HOIT_RAW_INODE), &phys_addr, needLog);
     __hoit_write_flash(pfs, (PVOID)pContent, size, LW_NULL, needLog);
 
