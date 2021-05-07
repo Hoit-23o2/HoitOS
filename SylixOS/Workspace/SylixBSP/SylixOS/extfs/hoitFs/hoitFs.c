@@ -449,7 +449,7 @@ static INT  __hoitFsRemove(PHOIT_VOLUME   pfs,
             return (ERROR_NONE);
         }
 __re_umount_vol:
-        if (LW_DEV_GET_USE_COUNT((LW_DEV_HDR *)pfs)) {
+        if (LW_DEV_GET_USE_COUNT((LW_DEV_HDR *)pfs) > 1) {
             if (!pfs->HOITFS_bForceDelete) {
                 __HOIT_VOLUME_UNLOCK(pfs);
                 _ErrorHandle(EBUSY);
@@ -473,7 +473,7 @@ __re_umount_vol:
         API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);
          
         //TODO __hoit_unmount…–Œ¥∂®“Â
-        //__hoit_unmount(pfs);
+        __hoit_unmount(pfs);
         __SHEAP_FREE(pfs);
 
         _DebugHandle(__LOGMESSAGE_LEVEL, "hoitfs unmount ok.\r\n");

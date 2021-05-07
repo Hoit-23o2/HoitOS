@@ -644,7 +644,7 @@ BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasable
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no, INT* hasLog) {
+BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no, INT* hasLog, PHOIT_RAW_LOG * ppRawLogHdr) {
     UINT                    uiSectorSize;         
     UINT                    uiSectorOffset;
     UINT                    uiFreeSize;
@@ -775,7 +775,8 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no, INT* hasLog) {
                 *hasLog = 1;
                 PHOIT_RAW_LOG pRawLog = (PHOIT_RAW_LOG)pRawHeader;
                 if (pRawLog->uiLogFirstAddr != -1) {    /* LOG HDR */
-                    hoitLogOpen(pfs, pRawLog);
+                    /* hoitLogOpen(pfs, pRawLog); */
+                    lib_memcpy(*ppRawLogHdr, pRawLog, sizeof(HOIT_RAW_LOG));
                 }
             }
             
@@ -1686,6 +1687,7 @@ VOID  __hoit_unmount(PHOIT_VOLUME pfs)
         printf("Error in unmount.\n");
         return;
     }
+    hoitGCClose(pfs);
     __hoit_close(pfs->HOITFS_pRootDir, 0);  /* 先删除根目录 */
 
     if (pfs->HOITFS_pTempRootDirent != LW_NULL) {   /* 删除TempDirent链表 */
@@ -1737,11 +1739,12 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     pfs->HOITFS_highest_ino = 0;
     pfs->HOITFS_highest_version = 0;
 
-    INT     hasLog = 0;
-    UINT    phys_addr = 0;
-    UINT8 sector_no = hoitGetSectorNo(phys_addr);
+    INT             hasLog      = 0;
+    UINT            phys_addr   = 0;
+    UINT8           sector_no   = hoitGetSectorNo(phys_addr);
+    PHOIT_RAW_LOG   pRawLogHdr  = (PHOIT_RAW_LOG)lib_malloc(sizeof(HOIT_RAW_LOG)); 
     while (hoitGetSectorSize(sector_no) != -1) {
-        __hoit_scan_single_sector(pfs, sector_no, &hasLog);
+        __hoit_scan_single_sector(pfs, sector_no, &hasLog, &pRawLogHdr);
         sector_no++;
     }
     pfs->HOITFS_highest_ino++;
