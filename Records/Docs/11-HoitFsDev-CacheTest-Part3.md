@@ -1,4 +1,4 @@
-## Cache测试通过
+## Cache测试
 
 1. 分配八个块，写满八个块，读取八个块。
 2. flush八个块成功。
@@ -52,9 +52,26 @@ iFd = open(pcDirName, O_RDWR | O_CREAT | O_EXCL, S_IFDIR | mode);   /*  排他�
 
 ```powershell
 mount -t hoitfs 0 /mnt/hoit
+mount -t ramfs 10000 /mnt/ram
+umount /mnt/ram
 cd /apps/FileTreeTest
 ./FileTreeTest
 ls /mnt/hoit
+```
+
+
+
+### 重叠写测试
+
+1. 测试指令
+
+```
+mount -t hoitfs 0 /mnt/hoit
+mount -t ramfs 10000 /mnt/ram
+umount /mnt/ram
+cd /apps/FileOverWriteTest/
+./FileOverWriteTest/
+cat /mnt/ram/OverWriteTest
 ```
 
 
