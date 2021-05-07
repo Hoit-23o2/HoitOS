@@ -26,7 +26,7 @@
 #define MAX_MSG_COUNTER     2
 #define MAX_MSG_BYTE_SIZE   40
 
-#define MSG_BG_GC_START         "msg_gc_background_start"
+#define MSG_GC_END              "msg_gc_end"
 #define MSG_BG_GC_END           "msg_gc_background_end"
 
 /*********************************************************************************************************
@@ -54,6 +54,7 @@ typedef enum hoitGCLevel
 VOID    hoitGCBackgroundThread(PHOIT_VOLUME pfs);
 VOID    hoitGCForgroudForce(PHOIT_VOLUME pfs);
 VOID    hoitGCThread(PHOIT_GC_ATTR pGCAttr);
+VOID    hoitGCClose(PHOIT_VOLUME pfs);
 
 /*********************************************************************************************************
   GC初始化构造函数
@@ -72,10 +73,10 @@ static inline VOID hoitStartGCThread(PHOIT_VOLUME pfs, UINT uiThreshold){
                         LW_OPTION_THREAD_STK_CHK, 
                         (VOID *)pGCAttr);
 
-    API_ThreadCreate("t_hoit_gc_thread",
-                     (PTHREAD_START_ROUTINE)hoitGCThread,
-                     &gcThreadAttr,
-                     LW_NULL);
+    pfs->HOITFS_hGCThreadId = API_ThreadCreate("t_hoit_gc_thread",
+                                               (PTHREAD_START_ROUTINE)hoitGCThread,
+                                               &gcThreadAttr,
+                                               LW_NULL);
 }
 
 #endif /* SYLIXOS_EXTFS_HOITFS_HOITGC_H_ */

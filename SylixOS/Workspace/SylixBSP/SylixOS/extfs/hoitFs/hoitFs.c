@@ -155,6 +155,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_pRootDir        = LW_NULL;
     pfs->HOITFS_totalUsedSize   = 0;
     pfs->HOITFS_totalSize       = 2 * 1024 * 1024;
+    pfs->HOITFS_hGCThreadId     = LW_NULL;
 
                                                                         /* GCÏà¹Ø */
     _SmpSpinInit(&pfs->HOITFS_GCLock);

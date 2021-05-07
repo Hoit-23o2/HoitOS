@@ -296,6 +296,22 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
 }
 
 /*********************************************************************************************************
+** 函数名称: __hoitGCClearBackground
+** 功能描述: HoitFS清除后台GC线程
+** 输　入  : pfs        HoitFS文件设备头
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID __hoitGCClearBackground(PHOIT_VOLUME pfs, BOOL * pBIsBackgroundThreadStart, LW_OBJECT_HANDLE hGcThreadId){
+    if(*pBIsBackgroundThreadStart){
+        API_MsgQueueSend(pfs->HOITFS_GCMsgQ, MSG_BG_GC_END, sizeof(MSG_BG_GC_END));
+        API_ThreadWakeup(hGcThreadId);
+        API_ThreadJoin(hGcThreadId, LW_NULL);
+        *pBIsBackgroundThreadStart = LW_FALSE;
+    }
+}
+/*********************************************************************************************************
 ** 函数名称: hoitFSGCForgroudForce
 ** 功能描述: HoitFS前台强制GC，Greedy算法
 ** 输　入  : pfs        HoitFS文件设备头
@@ -352,8 +368,8 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
                             acMsg, 
                             sizeof(acMsg), 
                             &stLen, 
-                            5);
-        if(lib_strcmp(acMsg, MSG_BG_GC_END)){
+                            LW_OPTION_NOT_WAIT);
+        if(lib_memcmp(acMsg, MSG_BG_GC_END, stLen) == 0){
             break;
         }
 
@@ -371,8 +387,10 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
             API_ThreadUnlock();
 #endif // GC_DEBUG
         }
+        sleep(5);
     }
 }
+
 
 /*********************************************************************************************************
 ** 函数名称: hoitFsGCThread
@@ -390,6 +408,8 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
     BOOL                        bIsBackgroundThreadStart;
     LW_CLASS_THREADATTR         gcThreadAttr;
     LW_OBJECT_HANDLE            hGcThreadId;
+    CHAR                        acMsg[MAX_MSG_BYTE_SIZE];
+    size_t                      stLen;
 
     bIsBackgroundThreadStart = LW_FALSE;
     pfs                      = pGCAttr->pfs;
@@ -407,13 +427,20 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
 
     while (LW_TRUE)
     {
+        API_MsgQueueReceive(pfs->HOITFS_GCMsgQ, 
+                            acMsg, 
+                            sizeof(acMsg), 
+                            &stLen, 
+                            10);
+        if(lib_memcmp(acMsg, MSG_GC_END, stLen) == 0){
+            printf("[%s] recev msg %s\n", __func__, MSG_GC_END);
+            __hoitGCClearBackground(pfs, &bIsBackgroundThreadStart, hGcThreadId);
+            break;
+        }
+        
         uiCurUsedSize = pfs->HOITFS_totalUsedSize;
         if(uiCurUsedSize > uiThreshold){                                    /* 执行Foreground */
-            if(bIsBackgroundThreadStart){
-                API_MsgQueueSend(pfs->HOITFS_GCMsgQ, MSG_BG_GC_END, sizeof(MSG_BG_GC_END));
-                API_ThreadJoin(hGcThreadId, LW_NULL);
-                bIsBackgroundThreadStart = LW_FALSE;
-            }
+            __hoitGCClearBackground(pfs, &bIsBackgroundThreadStart, hGcThreadId);
             hoitGCForgroudForce(pfs);
         }
         else {
@@ -435,5 +462,26 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
             }
         }
         sleep(10);
+    }
+
+}
+
+/*********************************************************************************************************
+** 函数名称: hoitGCClose
+** 功能描述: 关闭 HoitFS GC线程
+** 输　入  : pfs        HoitFS文件设备头
+**          uiThreshold GC阈值，参考F2FS
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID hoitGCClose(PHOIT_VOLUME pfs){
+    if(pfs->HOITFS_hGCThreadId){
+        API_MsgQueueSend(pfs->HOITFS_GCMsgQ, MSG_GC_END, sizeof(MSG_GC_END));
+        API_MsgQueueShow(pfs->HOITFS_GCMsgQ);
+        API_ThreadWakeup(pfs->HOITFS_hGCThreadId);                              /* 强制唤醒GC线程 */
+        API_ThreadJoin(pfs->HOITFS_hGCThreadId, LW_NULL);
+        API_MsgQueueDelete(&pfs->HOITFS_GCMsgQ);
+        pfs->HOITFS_hGCThreadId = LW_NULL;
     }
 }

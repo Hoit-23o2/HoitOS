@@ -22,6 +22,7 @@
 #ifndef __HOITFSCMD_H
 #define __HOITFSCMD_H
 #include "hoitType.h"
+#include "hoitFsGC.h"
 
 VOID register_hoitfs_cmd(PHOIT_VOLUME pfs);
 
