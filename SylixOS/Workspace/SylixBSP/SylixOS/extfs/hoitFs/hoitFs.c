@@ -155,13 +155,15 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_pRootDir        = LW_NULL;
     pfs->HOITFS_totalUsedSize   = 0;
     pfs->HOITFS_totalSize       = 2 * 1024 * 1024;
+
                                                                         /* GC相关 */
     _SmpSpinInit(&pfs->HOITFS_GCLock);
     
     pfs->HOITFS_curGCSector = LW_NULL;
     pfs->HOITFS_erasableSectorList = LW_NULL;
+    pfs->HOITFS_logInfo     = LW_NULL;
     //__ram_mount(pramfs);
-    hoitEnableCache(64, 8, pfs);
+    hoitEnableCache(GET_SECTOR_SIZE(8), 8, pfs);
     __hoit_mount(pfs);
     // hoitStartGCThread(pfs, 50);
     
@@ -499,7 +501,7 @@ static INT  __hoitFsClose(PLW_FD_ENTRY    pfdentry)
     PHOIT_VOLUME        pfs     = (PHOIT_VOLUME)pfdnode->FDNODE_pvFsExtern;
     BOOL                bRemove = LW_FALSE;
 
-    if(phoitn->HOITN_ino == 1){
+    if(phoitn->HOITN_ino == HOIT_ROOT_DIR_INO){
         return (ERROR_NONE);
     }
     /* 先得到要close的文件在hoitfs文件系统中的相对路径, 相对于hoitfs的根目录 */
@@ -731,7 +733,7 @@ static ssize_t  __hoitFsWrite(PLW_FD_ENTRY  pfdentry,
     }
 
     if (stNBytes) { //TODO __hoit_write尚未添加定义
-        sstWriteNum = __hoit_write(phoitn, pcBuffer, stNBytes, (size_t)pfdentry->FDENTRY_oftPtr);
+        sstWriteNum = __hoit_write(phoitn, pcBuffer, stNBytes, (size_t)pfdentry->FDENTRY_oftPtr, 1);
         if (sstWriteNum > 0) {
             pfdentry->FDENTRY_oftPtr += (off_t)sstWriteNum;             /*  更新文件指针                */
             //TODO HOITN_stSize尚未定义
@@ -789,7 +791,7 @@ static ssize_t  __hoitFsPWrite(PLW_FD_ENTRY  pfdentry,
     }
 
     if (stNBytes) { //TODO __hoit_write尚未添加定义
-        /* sstWriteNum = __hoit_write(phoitn, pcBuffer, stNBytes, (size_t)oftPos);*/
+        /*sstWriteNum = __hoit_write(phoitn, pcBuffer, stNBytes, (size_t)oftPos, 1);*/
         if (sstWriteNum > 0) {
             //TODO HOITN_stSize尚未定义
             /*pfdnode->FDNODE_oftSize   = (off_t)phoitn->HOITN_stSize;*/

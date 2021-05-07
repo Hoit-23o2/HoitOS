@@ -23,6 +23,33 @@
 #define  __SYLIXOS_KERNEL
 #include "stdio.h"
 #include "SylixOS.h"
+/*********************************************************************************************************
+  HoitFs Lib 相关测试
+*********************************************************************************************************/
+//#define LIB_DEBUG
+/*********************************************************************************************************
+  HoitFs Cache 相关测试
+*********************************************************************************************************/
+//#define HOIT_CACHE_TEST
+/*********************************************************************************************************
+  HoitFs GC 相关测试
+*********************************************************************************************************/
+#define GC_DEBUG
+//#define GC_TEST
+/*********************************************************************************************************
+  HoitFs 红黑树 相关测试
+*********************************************************************************************************/
+#define RB_TEST
+/*********************************************************************************************************
+  HoitFs FragTree 相关测试
+*********************************************************************************************************/
+//#define FT_TEST
+//#define FT_DEBUG
+/*********************************************************************************************************
+  HoitFs LOG 相关测试
+*********************************************************************************************************/
+//#define DEBUG_LOG
+#define  LOG_TEST
 
 /*********************************************************************************************************
   HoitFs宏定义
@@ -36,10 +63,11 @@
 
 #define HOIT_FLAG_OBSOLETE                  0x00000001     //Flag的最后一位用来表示是否过期，1是没过期，0是过期
 #define HOIT_ERROR                          100
-#define HOIT_ROOT_DIR_INO                   1   /* HoitFs的根目录的ino为1 */
+#define HOIT_ROOT_DIR_INO                   2   /* HoitFs的根目录的ino为1 */
 #define __HOIT_IS_OBSOLETE(pRawHeader)      ((pRawHeader->flag & HOIT_FLAG_OBSOLETE)    == 0)
 #define __HOIT_IS_TYPE_INODE(pRawHeader)    ((pRawHeader->flag & HOIT_FLAG_TYPE_INODE)  != 0)
 #define __HOIT_IS_TYPE_DIRENT(pRawHeader)   ((pRawHeader->flag & HOIT_FLAG_TYPE_DIRENT) != 0)
+#define __HOIT_IS_TYPE_LOG(pRawHeader)      ((pRawHeader->flag & HOIT_FLAG_TYPE_LOG)    != 0)      
 
 #define __HOIT_VOLUME_LOCK(pfs)             API_SemaphoreMPend(pfs->HOITFS_hVolLock, \
                                             LW_OPTION_WAIT_INFINITE)
@@ -75,7 +103,9 @@ typedef struct hoit_frag_tree_list_header HOIT_FRAG_TREE_LIST_HEADER;
 
 typedef struct HOIT_CACHE_BLK             HOIT_CACHE_BLK;
 typedef struct HOIT_CACHE_HDR             HOIT_CACHE_HDR;
+
 typedef struct HOIT_LOG_INFO              HOIT_LOG_INFO;
+typedef struct HOIT_RAW_LOG               HOIT_RAW_LOG;
 
 typedef HOIT_VOLUME*                      PHOIT_VOLUME;
 typedef HOIT_RAW_HEADER*                  PHOIT_RAW_HEADER;
@@ -100,7 +130,7 @@ typedef HOIT_CACHE_BLK *                  PHOIT_CACHE_BLK;
 typedef HOIT_CACHE_HDR *                  PHOIT_CACHE_HDR;
 
 typedef HOIT_LOG_INFO *                   PHOIT_LOG_INFO;
-
+typedef HOIT_RAW_LOG *                    PHOIT_RAW_LOG;
 DEV_HDR          HOITFS_devhdrHdr;
 
 
@@ -252,21 +282,27 @@ struct HOIT_ERASABLE_SECTOR{
     UINT                          HOITS_addr;
     UINT                          HOITS_length;
     UINT                          HOITS_offset;                                   /* 当前在写物理地址 = addr+offset  */
+    //TODO: 写入、GC时，需要持有该锁
+    spinlock_t                    HOITS_lock;                                     /* 每个Sector持有一个? */ 
 
     UINT                          HOITS_uiUsedSize;
     UINT                          HOITS_uiFreeSize;
     
-    ////UINT                          HOITS_uiNTotalRawInfo;                          /* 该可擦除Sector中RawInfo的总数 */
+    ////UINT                      HOITS_uiNTotalRawInfo;                          /* 该可擦除Sector中RawInfo的总数 */
     PHOIT_RAW_INFO                HOITS_pRawInfoFirst;                            /* 指向可擦除Sector中第一个数据实体 */
     PHOIT_RAW_INFO                HOITS_pRawInfoLast;                             /* 指向可擦除Sector中最后一个数据实体，通过next_phys获取下一个数据实体 */
-    PHOIT_RAW_INFO                HOITS_pRawInfoCurGC;                            /* 当前即将回收的数据实体，注：一次仅回收一个数据实体 */
     
+    PHOIT_RAW_INFO                HOITS_pRawInfoCurGC;                            /* 当前即将回收的数据实体，注：一次仅回收一个数据实体 */
+    PHOIT_RAW_INFO                HOITS_pRawInfoPrevGC;
+    PHOIT_RAW_INFO                HOITS_pRawInfoLastGC;                           /* 最后一块应当被GC的Raw Info */
+
     ULONG                         HOITS_tBornAge;                                 /* 当前Sector的出生时间 */                        
 };
 
 struct HOIT_LOG_SECTOR{
-    PHOIT_LOG_SECTOR     pErasableNextLogSector;
-    HOIT_ERASABLE_SECTOR ErasableSetcor;
+    PHOIT_LOG_SECTOR        pErasableNextLogSector;
+    
+    HOIT_ERASABLE_SECTOR    ErasableSetcor;    
 };
 /*********************************************************************************************************
   红黑树节点
@@ -367,13 +403,30 @@ typedef struct HOIT_CACHE_HDR
 
 
 /*********************************************************************************************************
-  HOITFS log 文件信息
+  HOITFS log 文件头
 *********************************************************************************************************/
 struct HOIT_LOG_INFO
 {
-    PHOIT_LOG_SECTOR pLogSectorList;
+    PHOIT_LOG_SECTOR pLogSectorList;              /* LOG Sector链表管理  */
+    UINT             uiRawLogHdrAddr;             /* 该文件头指向的首 LOG地址 */
+    UINT             uiLogCurAddr;
+    UINT             uiLogCurOfs;
+    UINT             uiLogSize;
+    UINT             uiLogEntityCnt; 
 };
 
+struct HOIT_RAW_LOG
+{
+    UINT32              magic_num;
+    UINT32              flag;
+    UINT32              totlen;
+    mode_t              file_type;
+    UINT                ino;
+    UINT                version;
+
+    UINT                uiLogSize;
+    UINT                uiLogFirstAddr;
+};
 /*********************************************************************************************************
   偏移量计算
 *********************************************************************************************************/
@@ -386,5 +439,10 @@ struct HOIT_LOG_INFO
         ((type *)((size_t)ptr - OFFSETOF(type, member)))      \
 
 #define HOIT_RAW_DATA_MAX_SIZE      4096    /* 单位为 Byte */
+
+/*********************************************************************************************************
+  Common 公用方法区
+*********************************************************************************************************/
+BOOL hoitLogCheckIfLog(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector);
 
 #endif /* SYLIXOS_EXTFS_HOITFS_HOITTYPE_H_ */

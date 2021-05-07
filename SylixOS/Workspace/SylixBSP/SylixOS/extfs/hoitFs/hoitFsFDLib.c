@@ -113,7 +113,7 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
     lib_memcpy(write_buf + sizeof(struct HOIT_RAW_INODE), read_buf + sizeof(struct HOIT_RAW_INODE) + offset, length);
 
     UINT phys_addr = 0;
-    __hoit_write_flash(pfs, write_buf, sizeof(struct HOIT_RAW_INODE) + length, &phys_addr);
+    __hoit_write_flash(pfs, write_buf, sizeof(struct HOIT_RAW_INODE) + length, &phys_addr, 1);
 
     PHOIT_RAW_INFO pNewRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(struct HOIT_RAW_INFO)); /* 注意避免内存泄露 */
     if (!pNewRawInfo) {
@@ -123,9 +123,13 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
     }
     pNewRawInfo->phys_addr = phys_addr;
     pNewRawInfo->totlen = sizeof(struct HOIT_RAW_INODE) + length;
+    pNewRawInfo->next_logic = LW_NULL;
+    pNewRawInfo->next_phys = LW_NULL;
+    pNewRawInfo->is_obsolete = 0;
 
     PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pRawInode->ino);
     __hoit_add_to_inode_cache(pInodeCache, pNewRawInfo);
+    __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pNewRawInfo);
 
     PHOIT_FULL_DNODE pNewFullDnode = (PHOIT_FULL_DNODE)__SHEAP_ALLOC(sizeof(struct HOIT_FULL_DNODE));  /* 注意避免内存泄露 */
     if (!pNewFullDnode) {
@@ -145,14 +149,14 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
 
 /*********************************************************************************************************
 ** 函数名称: __hoit_write_full_dnode
-** 功能描述: 将一段数据写入到Flash, 并返回PHOIT_FULL_DNODE
+** 功能描述: 将一段数据(纯数据,不带header)写入到Flash, 并返回PHOIT_FULL_DNODE
 **           offset是指文件内的偏移地址
 ** 输　入  :
 ** 输　出  :
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offset, UINT size, PCHAR pContent) {
+PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offset, UINT size, PCHAR pContent, UINT needLog) {
     PHOIT_VOLUME pfs = pInodeInfo->HOITN_volume;
     PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)__SHEAP_ALLOC(sizeof(HOIT_RAW_INODE));     /* 注意内存泄露 */
     if (pRawInode == LW_NULL) {
@@ -168,14 +172,19 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
     pRawInode->version = pfs->HOITFS_highest_version++;
 
     UINT phys_addr = 0;
-    __hoit_write_flash(pfs, (PVOID)pRawInode, sizeof(HOIT_RAW_INODE), &phys_addr);
-    __hoit_write_flash(pfs, (PVOID)pContent, size, LW_NULL);
+    //TODO:合并写入
+    __hoit_write_flash(pfs, (PVOID)pRawInode, sizeof(HOIT_RAW_INODE), &phys_addr, needLog);
+    __hoit_write_flash(pfs, (PVOID)pContent, size, LW_NULL, needLog);
 
     PHOIT_RAW_INFO pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
     pRawInfo->phys_addr = phys_addr;
     pRawInfo->totlen = sizeof(HOIT_RAW_INODE) + size;
-    
+    pRawInfo->next_phys = LW_NULL;
+    pRawInfo->next_logic = LW_NULL;
+    pRawInfo->is_obsolete = 0;
+
     __hoit_add_to_inode_cache(pInodeInfo->HOITN_inode_cache, pRawInfo);
+    __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pRawInfo);
     PHOIT_FULL_DNODE pFullDnode = (PHOIT_FULL_DNODE)__SHEAP_ALLOC(sizeof(HOIT_FULL_DNODE));
     pFullDnode->HOITFD_file_type = pInodeInfo->HOITN_mode;
     pFullDnode->HOITFD_length = size;
@@ -203,6 +212,7 @@ PHOIT_FULL_DNODE __hoit_bulid_full_dnode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawIn
     pFullDnode->HOITFD_length = pRawInode->totlen - sizeof(PHOIT_RAW_INODE);
     pFullDnode->HOITFD_offset = pRawInode->offset;
     pFullDnode->HOITFD_raw_info = pRawInfo;
+    pFullDnode->HOITFD_version = pRawInode->version;
     __SHEAP_FREE(read_buf);
     return pFullDnode;
 }

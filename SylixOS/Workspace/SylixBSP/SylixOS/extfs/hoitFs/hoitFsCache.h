@@ -24,7 +24,7 @@
 
 #define  __SYLIXOS_STDIO
 #define  __SYLIXOS_KERNEL
-//#define HOIT_CACHE_TEST
+
 #include "../SylixOS/kernel/include/k_kernel.h"
 #include "../SylixOS/system/include/s_system.h"
 #include "../SylixOS/fs/fsCommon/fsCommon.h"
@@ -53,14 +53,7 @@
 static inline UINT8 hoitGetSectorNo(UINT32 offset){
     UINT i;
     offset += NOR_FLASH_START_OFFSET;
-    for (i = 0; i < NOR_FLASH_NSECTOR; i++)                             
-    {                                                                       
-        if(_G_am29LV160DB_sector_infos[i].sector_start_offset <= offset &&  
-            _G_am29LV160DB_sector_infos[i].sector_end_offset >= offset){    
-            return i-GET_SECTOR_NO(NOR_FLASH_START_OFFSET);                                                         
-        }                                                                   
-    }
-    return -1;
+    return GET_SECTOR_NO(offset) - GET_SECTOR_NO(NOR_FLASH_START_OFFSET);
 }
 /*
     ¸ù¾ÝÐéÄâ¿éºÅ»ñÈ¡ÐéÄâÆ«ÒÆ£¬Æ«ÒÆÁãµØÖ·ÎªNOR_FLASH_START_OFFSET

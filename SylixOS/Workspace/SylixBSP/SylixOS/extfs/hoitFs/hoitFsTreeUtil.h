@@ -24,7 +24,6 @@
 #ifndef SYLIXOS_EXTFS_HOITFS_HOITFSTREEUTIL_H_
 #define SYLIXOS_EXTFS_HOITFS_HOITFSTREEUTIL_H_
 
-#define RB_TEST
 
 #include "hoitType.h"
 
