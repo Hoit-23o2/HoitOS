@@ -948,6 +948,9 @@ PCHAR __hoit_get_data_after_raw_inode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pInodeInf
 ** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 VOID __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO pRawInfo) {
+    INTREG iregInterLevel;
+    LW_SPIN_LOCK_QUICK(&pSector->HOITS_lock, &iregInterLevel);
+
     pRawInfo->next_phys = LW_NULL;
 #ifdef LIB_DEBUG
     printf("[%s]:add raw info at %p for sector %d\n", __func__, pRawInfo, pSector->HOITS_bno);
@@ -964,6 +967,8 @@ VOID __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO
         pSector->HOITS_pRawInfoLast->next_phys = pRawInfo;
         pSector->HOITS_pRawInfoLast = pRawInfo;
     }
+
+    LW_SPIN_UNLOCK(&pSector->HOITS_lock);
 }
 
 /*********************************************************************************************************
