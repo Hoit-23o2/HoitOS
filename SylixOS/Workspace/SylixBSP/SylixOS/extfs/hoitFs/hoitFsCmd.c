@@ -38,6 +38,8 @@ INT hln_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     PCHAR pLinkSrcName2 = GET_ARG(2);
     
     __hoitFsHardlink(_G_Volumn, pLinkSrcName2, pLinkDstName1);
+    int fd = open("HHH", O_RDWR|O_CREAT);
+    write(fd, "123\n", 4);
     return 0;
 }
 

@@ -158,7 +158,10 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
 *********************************************************************************************************/
 PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offset, UINT size, PCHAR pContent, UINT needLog) {
     PHOIT_VOLUME pfs = pInodeInfo->HOITN_volume;
-    PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)__SHEAP_ALLOC(sizeof(HOIT_RAW_INODE));     /* 注意内存泄露 */
+    UINT totlen = sizeof(HOIT_RAW_INODE) + size;
+    PCHAR pBuf = (PCHAR)__SHEAP_ALLOC(sizeof(HOIT_RAW_INODE) + size);
+    lib_bzero(pBuf, totlen);
+    PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)pBuf;     /* 注意内存泄露 */
     if (pRawInode == LW_NULL) {
         return LW_NULL;
     }
@@ -171,10 +174,12 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
     pRawInode->offset = offset;
     pRawInode->version = pfs->HOITFS_highest_version++;
 
+    PCHAR pDataBuf = pBuf + sizeof(HOIT_RAW_INODE);
+    lib_memcpy(pDataBuf, pContent, size);
+
     UINT phys_addr = 0;
     //TODO:合并写入
-    __hoit_write_flash(pfs, (PVOID)pRawInode, sizeof(HOIT_RAW_INODE), &phys_addr, needLog);
-    __hoit_write_flash(pfs, (PVOID)pContent, size, LW_NULL, needLog);
+    __hoit_write_flash(pfs, pBuf, totlen, &phys_addr, needLog);
 
     PHOIT_RAW_INFO pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
     pRawInfo->phys_addr = phys_addr;
@@ -191,7 +196,7 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
     pFullDnode->HOITFD_offset = offset;
     pFullDnode->HOITFD_raw_info = pRawInfo;
     
-    __SHEAP_FREE(pRawInode);
+    __SHEAP_FREE(pBuf);
     return pFullDnode;
 }
 /*********************************************************************************************************
