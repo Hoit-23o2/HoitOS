@@ -516,7 +516,6 @@ UINT8 __hoit_del_raw_data(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     pRawHeader->flag &= (~HOIT_FLAG_OBSOLETE);      //将obsolete标志变为0，代表过期
     
     __hoit_write_flash_thru(pfs, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
-    __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pRawInfo);
     __SHEAP_FREE(buf);
     return 0;
 }
@@ -1676,7 +1675,49 @@ ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  st
 *********************************************************************************************************/
 VOID  __hoit_unmount(PHOIT_VOLUME pfs)
 {
-    /* TODO */
+    /* TODO 释放RAW INFO需要把GC先关了*/
+    //API_SpinDestory()
+    if (pfs == LW_NULL) {
+        printf("Error in unmount.\n");
+        return;
+    }
+    __hoit_close(pfs->HOITFS_pRootDir, 0);  /* 先删除根目录 */
+
+    if (pfs->HOITFS_pTempRootDirent != LW_NULL) {   /* 删除TempDirent链表 */
+        PHOIT_FULL_DIRENT pTempDirent = pfs->HOITFS_pTempRootDirent;
+        PHOIT_FULL_DIRENT pNextDirent = LW_NULL;
+        while (pTempDirent) {
+            pNextDirent = pTempDirent->HOITFD_next;
+            __SHEAP_FREE(pTempDirent);
+            pTempDirent = pNextDirent;
+        }
+    }
+
+    /* 只先删除所有的inode cache, raw info等到删除sector的时候再删除 */
+    PHOIT_INODE_CACHE pTempCache = pfs->HOITFS_cache_list;
+    PHOIT_INODE_CACHE pNextCache = LW_NULL;
+    while (pTempCache) {
+        pNextCache = pTempCache->HOITC_next;
+        __SHEAP_FREE(pTempCache);
+        pTempCache = pNextCache;
+    }
+
+    /* 释放所有sector */
+    PHOIT_ERASABLE_SECTOR pTempSector = pfs->HOITFS_erasableSectorList;
+    PHOIT_ERASABLE_SECTOR pNextSector = LW_NULL;
+    while (pTempSector) {
+        pNextSector = pTempSector->HOITS_next;
+        /* 删除RAW INFO, 小心GC */
+        PHOIT_RAW_INFO pTempRaw = pTempSector->HOITS_pRawInfoFirst;
+        PHOIT_RAW_INFO pNextRaw = LW_NULL;
+        while (pTempRaw) {
+            pNextRaw = pTempRaw->next_phys;
+            __SHEAP_FREE(pTempRaw);
+            pTempRaw = pNextRaw;
+        }
+        pTempSector = pNextSector;
+    }
+
 }
 /*********************************************************************************************************
 ** 函数名称: __hoit_mount
