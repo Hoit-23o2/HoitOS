@@ -165,7 +165,8 @@ typedef struct HOIT_VOLUME{
     PHOIT_ERASABLE_SECTOR   HOITFS_erasableSectorList;                     /* 可擦除Sector列表 */
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
     spinlock_t              HOITFS_GCLock;                                 /* GC锁 */
-    LW_HANDLE               HOITFS_GCMsgQ;                                 /* GC线程*/
+    LW_OBJECT_HANDLE        HOITFS_GCMsgQ;                                 /* GC线程消息队列*/
+    LW_OBJECT_HANDLE        HOITFS_hGCThreadId;                            /* GC总线程ID */
     size_t                  HOITFS_totalUsedSize;                          /* hoitfs已使用Flash大小 */
     size_t                  HOITFS_totalSize;                              /* 总Flash大小 */
     

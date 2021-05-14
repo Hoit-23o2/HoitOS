@@ -155,6 +155,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_pRootDir        = LW_NULL;
     pfs->HOITFS_totalUsedSize   = 0;
     pfs->HOITFS_totalSize       = 2 * 1024 * 1024;
+    pfs->HOITFS_hGCThreadId     = LW_NULL;
 
                                                                         /* GC相关 */
     _SmpSpinInit(&pfs->HOITFS_GCLock);
@@ -165,7 +166,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     //__ram_mount(pramfs);
     hoitEnableCache(GET_SECTOR_SIZE(8), 8, pfs);
     __hoit_mount(pfs);
-    //hoitStartGCThread(pfs, 100000);
+    hoitStartGCThread(pfs, 50);
     
     if (iosDevAddEx(&pfs->HOITFS_devhdrHdr, pcName, _G_iHoitFsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
@@ -448,7 +449,7 @@ static INT  __hoitFsRemove(PHOIT_VOLUME   pfs,
             return (ERROR_NONE);
         }
 __re_umount_vol:
-        if (LW_DEV_GET_USE_COUNT((LW_DEV_HDR *)pfs)) {
+        if (LW_DEV_GET_USE_COUNT((LW_DEV_HDR *)pfs) > 1) {
             if (!pfs->HOITFS_bForceDelete) {
                 __HOIT_VOLUME_UNLOCK(pfs);
                 _ErrorHandle(EBUSY);
@@ -472,7 +473,7 @@ __re_umount_vol:
         API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);
          
         //TODO __hoit_unmount尚未定义
-        //__hoit_unmount(pfs);
+        __hoit_unmount(pfs);
         __SHEAP_FREE(pfs);
 
         _DebugHandle(__LOGMESSAGE_LEVEL, "hoitfs unmount ok.\r\n");

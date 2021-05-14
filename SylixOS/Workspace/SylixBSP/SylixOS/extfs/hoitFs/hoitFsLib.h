@@ -55,7 +55,7 @@ UINT8                   __hoit_del_raw_info(PHOIT_INODE_CACHE pInodeCache, PHOIT
 UINT8                   __hoit_del_raw_data(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo);
 UINT8                   __hoit_del_full_dirent(PHOIT_FULL_DIRENT* ppFatherDents, PHOIT_FULL_DIRENT pFullDirent);
 UINT8                   __hoit_del_inode_cache(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeCache);
-BOOL                    __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no, INT* hasLog);
+BOOL                    __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no, INT* hasLog, PHOIT_RAW_LOG * ppRawLogHdr);
 PHOIT_INODE_INFO        __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode, CPCHAR pcLink);
 VOID                    __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo);
 BOOL                    __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector);
