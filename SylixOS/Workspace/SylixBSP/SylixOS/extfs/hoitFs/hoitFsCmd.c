@@ -124,7 +124,8 @@ INT fs_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
 VOID register_hoitfs_cmd(PHOIT_VOLUME pfs) {
     _G_Volumn = pfs;
     API_TShellKeywordAdd("hln", hln_cmd_wrapper);
-    API_TShellKeywordAdd("clrgc", closegc_cmd_wrapper);
+    API_TShellKeywordAdd("gc", gc_cmd_wrapper);
+    API_TShellKeywordAdd("hoit", fs_cmd_wrapper);
     API_TShellKeywordAdd("ftt", FileTreeTest);
     API_TShellKeywordAdd("fot", FileOverWriteTest);
 }
