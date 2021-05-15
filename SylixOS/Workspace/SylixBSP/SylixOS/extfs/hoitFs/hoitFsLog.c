@@ -214,7 +214,7 @@ PHOIT_ERASABLE_SECTOR __hoitFindAvailableSector(PHOIT_VOLUME pfs){
     UINT                    uiAvaiSectorNum;
     PHOIT_ERASABLE_SECTOR   pErasableSector;
     
-    uiAvaiSectorNum = hoitFindNextToWrite(pfs->HOITFS_cacheHdr, HOIT_CACHE_TYPE_DATA_EMPTY);
+    uiAvaiSectorNum = hoitFindNextToWrite(pfs->HOITFS_cacheHdr, HOIT_CACHE_TYPE_DATA_EMPTY, LW_NULL);
     if(uiAvaiSectorNum == PX_ERROR){
         return LW_NULL;
     }

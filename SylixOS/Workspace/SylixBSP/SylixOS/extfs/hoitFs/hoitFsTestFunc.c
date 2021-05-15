@@ -214,12 +214,12 @@ void checkFile(PUCHAR pFileName, UINT fileNo) {
     for(i=0; i<writetimes ; i++) {        
         writebytes = read(iFd, fileread, sizeof(filewrite));
         if (writebytes == 0) {
-            printf("\"%s\" is empty!\n", pFileName);
+            printf("\"%s\" is empty!\n");
             ERROR_FLAG = 1;
             return ;            
         }
         if (lib_strcmp(fileread, filewrite) != 0) {
-            printf("\"%s\" read content is not correct!\n", pFileName);
+            printf("\"%s\" read content is not correct!\n");
         }
     }
 
@@ -305,10 +305,10 @@ INT FileTreeTest (INT  iArgC, PCHAR  ppcArgV[])
  * File Over Write Test
 *********************************************************************************************************/
 INT FileOverWriteTest (INT  iArgC, PCHAR  ppcArgV[]) {
-    UCHAR   filename[30]     = "/mnt/hoitfs/OverWriteTest\0";
-    UCHAR   readData[1024+256];
+    CHAR   filename[30]     = "/mnt/hoitfs/OverWriteTest\0";
+    CHAR   readData[1024+256];
     INT     iFd;
-    UCHAR   data    = '1';
+    CHAR   data    = '1';
     INT     i;
     printf("===========  File Overwrite Test!       ===========\n");
     iFd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_FILE_PERM);   /*  排他性创建 */ 
