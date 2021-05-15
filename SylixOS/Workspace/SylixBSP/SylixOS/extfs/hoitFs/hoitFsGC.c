@@ -137,6 +137,10 @@ PHOIT_ERASABLE_SECTOR __hoitGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_GC_
     
     while (pErasableListTraverse)
     {
+        if(hoitLogCheckIfLog(pfs, pErasableListTraverse)){
+            pErasableListTraverse   = pErasableListTraverse->HOITS_next;
+            continue;
+        }
         uiFreeSize  = pErasableListTraverse->HOITS_uiFreeSize;   
 #ifdef GC_TEST                                  
         if(pErasableListTraverse->HOITS_next == LW_NULL){           /* 如果最后一个Sector了 */

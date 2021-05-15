@@ -952,7 +952,7 @@ PCHAR __hoit_get_data_after_raw_inode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pInodeInf
 *********************************************************************************************************/
 VOID __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO pRawInfo) {
     INTREG iregInterLevel;
-    LW_SPIN_LOCK_QUICK(&pSector->HOITS_lock, &iregInterLevel);
+    //API_SpinLockQuick(&pSector->HOITS_lock, &iregInterLevel);
 
     pRawInfo->next_phys = LW_NULL;
 #ifdef LIB_DEBUG
@@ -961,17 +961,19 @@ VOID __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO
     if (pSector->HOITS_pRawInfoFirst == LW_NULL) {
         pSector->HOITS_pRawInfoFirst = pRawInfo;
         pSector->HOITS_pRawInfoLast = pRawInfo;
+        //API_SpinUnlockQuick(&pSector->HOITS_lock, iregInterLevel);
         return;
     }
     else {
         if (pSector->HOITS_pRawInfoLast == LW_NULL) {
+            //API_SpinUnlockQuick(&pSector->HOITS_lock, iregInterLevel);
             return;
         }
         pSector->HOITS_pRawInfoLast->next_phys = pRawInfo;
         pSector->HOITS_pRawInfoLast = pRawInfo;
     }
 
-    LW_SPIN_UNLOCK(&pSector->HOITS_lock);
+    //API_SpinUnlockQuick(&pSector->HOITS_lock, iregInterLevel);
 }
 
 /*********************************************************************************************************
