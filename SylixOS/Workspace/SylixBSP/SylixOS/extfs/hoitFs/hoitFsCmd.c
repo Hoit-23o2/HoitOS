@@ -53,8 +53,8 @@ VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs){
     while (pErasableSectorTraverse)
     {
         printf(DIVIDER "SECTOR %d" DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
-        printf("UsedSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiUsedSize);
-        printf("FreeSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiFreeSize);
+        printf("UsedSize: %d \n", pErasableSectorTraverse->HOITS_uiUsedSize);
+        printf("FreeSize: %d \n", pErasableSectorTraverse->HOITS_uiFreeSize);
         pErasableSectorTraverse = pErasableSectorTraverse->HOITS_next;
     }
 }
@@ -91,17 +91,20 @@ INT gc_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
         for (i = 0; i < 64; i++)
         {
             if(i == 2){
-                printf("arrive here" NEXT_LINE);
+                printf("arrive here\n");
             }
             pcWriteBuffer = (PCHAR)lib_malloc(26 * 1024);
-            printf("start cycle %d" NEXT_LINE, i);
+            printf("start cycle %d \n", i);
+            if(i == 29){
+                printf("awdlij\n");
+            }
             for (j = 0; j < 26 * 1024; j++)
             {
                 *(pcWriteBuffer + j) = 'a';
             }
-            write(iFd, pcWriteBuffer, 26 * 1024);
+            size_t x = write(iFd, pcWriteBuffer, 26 * 1024);
             uiSizeWritten += 26;
-            printf("write cycle %d ok, %dKB has written, now sector is %d" NEXT_LINE, i, uiSizeWritten, 
+            printf("write cycle %d ok, %dKB has written, now sector is %d\n" , i, uiSizeWritten, 
                     _G_Volumn->HOITFS_now_sector->HOITS_bno);
             lib_free(pcWriteBuffer);
         }

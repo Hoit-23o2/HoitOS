@@ -608,7 +608,7 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
 PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no) {
     PHOIT_ERASABLE_SECTOR pSector;
     pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
-    while (pSector != NULL)
+    while (pSector != LW_NULL)
     {
         if (pSector->HOITS_bno == sector_no)
             break;
