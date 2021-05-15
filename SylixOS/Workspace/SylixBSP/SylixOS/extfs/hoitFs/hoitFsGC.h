@@ -52,7 +52,7 @@ typedef enum hoitGCLevel
   GCÏà¹Øº¯Êý
 *********************************************************************************************************/
 VOID    hoitGCBackgroundThread(PHOIT_VOLUME pfs);
-VOID    hoitGCForgroudForce(PHOIT_VOLUME pfs);
+VOID    hoitGCForegroundForce(PHOIT_VOLUME pfs);
 VOID    hoitGCThread(PHOIT_GC_ATTR pGCAttr);
 VOID    hoitGCClose(PHOIT_VOLUME pfs);
 

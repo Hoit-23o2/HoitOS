@@ -296,7 +296,7 @@ INT FileTreeTest (INT  iArgC, PCHAR  ppcArgV[])
  * File Over Write Test
 *********************************************************************************************************/
 INT FileOverWriteTest (INT  iArgC, PCHAR  ppcArgV[]) {
-    UCHAR   filename[23]     = "/mnt/hoitfs/OverWriteTest\0";
+    UCHAR   filename[30]     = "/mnt/hoitfs/OverWriteTest\0";
     UCHAR   readData[1024+256];
     INT     iFd;
     UCHAR   data    = '1';
