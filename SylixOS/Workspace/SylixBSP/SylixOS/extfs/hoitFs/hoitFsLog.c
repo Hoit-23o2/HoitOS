@@ -214,7 +214,7 @@ PHOIT_ERASABLE_SECTOR __hoitFindAvailableSector(PHOIT_VOLUME pfs){
     UINT                    uiAvaiSectorNum;
     PHOIT_ERASABLE_SECTOR   pErasableSector;
     
-    uiAvaiSectorNum = hoitFindNextToWrite(pfs->HOITFS_cacheHdr, HOIT_CACHE_TYPE_DATA_EMPTY);
+    uiAvaiSectorNum = hoitFindNextToWrite(pfs->HOITFS_cacheHdr, HOIT_CACHE_TYPE_DATA_EMPTY, LW_NULL);
     if(uiAvaiSectorNum == PX_ERROR){
         return LW_NULL;
     }
@@ -424,11 +424,11 @@ PCHAR hoitLogEntityGet(PHOIT_VOLUME pfs, UINT uiEntityNum){
 ** 输　入  : pfs                HoitFS设备头
 **          pcEntityContent     要写入Log的实体
 **          uiEntitySize        实体大小 
-** 输　出  : LOG文件信息
+** 输　出  : 追加错误类型
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
+INT hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
     PHOIT_RAW_HEADER    pRawHeader;
     PHOIT_RAW_LOG       pRawLog;
     PHOIT_RAW_INFO      pRawInfo;
@@ -446,14 +446,14 @@ VOID hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
 #ifdef DEBUG_LOG
         printf("[%s] no space for log sector\n", __func__);
 #endif // DEBUG_LOG
-        return;
+        return (LOG_APPEND_NO_SECTOR);
     }
 
     if(uiEntitySize < sizeof(HOIT_RAW_HEADER)){
 #ifdef DEBUG_LOG
         printf("[%s] cannot append something that not is Entity\n", __func__);
 #endif // DEBUG_LOG
-        return ;
+        return (LOG_APPEND_BAD_ENTITY);
     }
 
     pRawHeader = (PHOIT_RAW_HEADER)pcEntityContent;
@@ -461,7 +461,7 @@ VOID hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
 #ifdef DEBUG_LOG
         printf("[%s] cannot append something that not is Entity\n", __func__);
 #endif // DEBUG_LOG
-        return ;
+        return (LOG_APPEND_BAD_ENTITY);
     }
 
 
@@ -500,7 +500,7 @@ VOID hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
 #ifdef DEBUG_LOG
             printf("[%s] log memory not enough\n", __func__);
 #endif // DEBUG_LOG
-            return;
+            return (LOG_APPEND_NO_SECTOR);
         }
 
         uiLogAddr   = pfs->HOITFS_logInfo->uiLogCurAddr;                 
@@ -519,6 +519,8 @@ VOID hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
     pfs->HOITFS_logInfo->uiLogCurOfs += uiSize;
 
     lib_free(pcLogContent);
+
+    return (LOG_APPEND_OK);
 }
 /*********************************************************************************************************
 ** 函数名称: hoitLogCheckIfLog

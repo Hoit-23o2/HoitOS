@@ -41,6 +41,8 @@
         "hoitfscmd.h": "c",
         "hoitfslog.h": "c",
         "hoittype.h": "c",
-        "system_error": "c"
+        "system_error": "c",
+        "cstdio": "cpp",
+        "hoitfstest.h": "c"
     }
 }

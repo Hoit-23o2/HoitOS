@@ -10,7 +10,7 @@
 **
 **--------------文件信息--------------------------------------------------------------------------------
 **
-** 文   件   名: hoitFsMid.h
+** 文   件   名: hoitFsTest.h
 **
 ** 创   建   人: 张楠
 **
@@ -19,12 +19,11 @@
 ** 描        述: 测试函数，用于测试hoitfs文件系统
 *********************************************************************************************************/
 
-#include "./hoitFsTestFunc.h"
+#include "./hoitFsTest.h"
 
 /*********************************************************************************************************
- * File Tree Test
+ * File Tree Test 文件树基础测试
 *********************************************************************************************************/
-
 UINT max_depth      = 6;
 UINT max_dirNo      = 5;
 UINT max_fileNo     = 5;
@@ -90,22 +89,28 @@ void createFile(PUCHAR pFileName, UINT fileNo) {
     lib_memcpy(pEnd, filename, sizeof(filename));
 
     iFd = open(pFileName, O_WRONLY | O_CREAT | O_TRUNC, mode);   /*  排他性创建 */ 
+    if (iFd < 0) {
+        printf("%s create error!\n",pFileName);
+        ERROR_FLAG = 1;
+        return ;
+    }
     /* 文件统一写入"Hello hoitfs" */
     printf("\t%s starts writing.\n", pFileName);
     for(i=0; i<writetimes ; i++) {        
         writebytes = write(iFd, filewrite, sizeof(filewrite));
     }
-    
-    // read(iFd, fileread, sizeof(fileread));
-
-    if (iFd < 0) {
-        printf("error!\n");
-        ERROR_FLAG = 1;
-        return ;
-    }
     close(iFd);
+
+    // iFd = open(pFileName, O_RDONLY | O_CREAT | O_TRUNC, mode);
+    // if (iFd < 0) {
+    //     printf("error!\n");
+    //     ERROR_FLAG = 1;
+    //     return ;
+    // }
+    // read(iFd, fileread, sizeof(fileread));
+    // close(iFd);
+
     lib_memset(pEnd, 0, sizeof(filename));
-//    lib_memcpy(pEnd, zero, sizeof(zero));
 }
 /*
     创建文件和目录
@@ -136,7 +141,7 @@ void FileTreeTestStart(PUCHAR pFileName) {
         }        
     }
 }
-
+/******************************  check part  ******************************/
 void checkDir(PUCHAR pFileName, UINT dirNo) {
     mode_t  mode        = DEFAULT_DIR_PERM;
     PUCHAR  pEnd        = pFileName;
@@ -195,6 +200,7 @@ void checkFile(PUCHAR pFileName, UINT fileNo) {
         pEnd ++;
     }
     lib_memcpy(pEnd, filename, sizeof(filename));
+    
     printf("\tcheck %s content\n", pFileName);
     iFd = open(pFileName, O_RDONLY, mode);   /*  排他性创建 */ 
     if (iFd < 0) {
@@ -204,15 +210,20 @@ void checkFile(PUCHAR pFileName, UINT fileNo) {
     }    
     /* 查看文件内容 "Hello hoitfs" */
 
-    for(i=0; i<writetimes ; i++) {        
+    for(i=0; i < writetimes ; i++) {        
         writebytes = read(iFd, fileread, sizeof(filewrite));
         if (writebytes == 0) {
-            printf("read failed!\n");
+            printf("\"%s\" is empty!\n");
             ERROR_FLAG = 1;
             return ;            
         }
         if (lib_strcmp(fileread, filewrite) != 0) {
-            printf("read content is not !\n");
+            printf("\"%s\" read content is not correct!\n");
+        }
+        else {
+            API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+            printf("\tcheck %s ok\n", pFileName);
+            API_TShellColorEnd(STD_OUT);
         }
     }
 
@@ -243,7 +254,7 @@ void FileTreeTestCheck(PUCHAR pFileName) {
     }    
 }
 
-INT FileTreeTest (INT  iArgC, PCHAR  ppcArgV[])
+INT hoitTestFileTree (INT  iArgC, PCHAR  ppcArgV[])
 {
     UCHAR       filename[512];
     UINT        temp;
@@ -295,13 +306,13 @@ INT FileTreeTest (INT  iArgC, PCHAR  ppcArgV[])
 }
 
 /*********************************************************************************************************
- * File Over Write Test
+ * File Over Write Test 文件Overlay Write测试
 *********************************************************************************************************/
-INT FileOverWriteTest (INT  iArgC, PCHAR  ppcArgV[]) {
+INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     UCHAR   filename[30]     = "/mnt/hoitfs/OverWriteTest\0";
     UCHAR   readData[1024+256];
     INT     iFd;
-    UCHAR   data    = '1';
+    CHAR   data    = '1';
     INT     i;
     printf("===========  File Overwrite Test!       ===========\n");
     iFd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_FILE_PERM);   /*  排他性创建 */ 
@@ -381,4 +392,46 @@ INT FileOverWriteTest (INT  iArgC, PCHAR  ppcArgV[]) {
     printf("\n");
     printf("===========  File Overwrite Test End!    ===========\n");
     return  ERROR_NONE;
+}
+
+/*********************************************************************************************************
+ * GC测试
+*********************************************************************************************************/
+#define FILE_MODE                       (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
+#define BIG_FILE                        "RealBigFiles"
+#define FILE_SIZE                       64 * 1024
+INT hoitTestGC(PHOIT_VOLUME pfs){
+    INT   iFd;
+    UINT  i, j;
+    UINT  uiSizeWritten;
+    PCHAR pcWriteBuffer;
+    
+    iFd = open(BIG_FILE, O_RDWR | O_CREAT | O_TRUNC, FILE_MODE);
+    if(iFd < 0){
+        printf("[Create " BIG_FILE "Fail]");
+        return;
+    }
+
+    uiSizeWritten = 0;
+    /* 写入 64 * 1024B */
+    for (i = 0; i < 64; i++)
+    {
+        pcWriteBuffer = (PCHAR)lib_malloc(26 * 1024);
+        printf("start cycle %d \n", i);
+        for (j = 0; j < 26 * 1024; j++)
+        {
+            *(pcWriteBuffer + j) = 'a';
+        }
+        write(iFd, pcWriteBuffer, 26 * 1024);
+        uiSizeWritten += 26;
+        printf("write cycle %d ok, %dKB has written, now sector is %d\n" , i, uiSizeWritten, 
+                pfs->HOITFS_now_sector->HOITS_bno);
+        lib_free(pcWriteBuffer);
+    }
+    
+    API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+    printf("Write BigFile OK \n");
+    API_TShellColorEnd(STD_OUT);
+
+    close(iFd);
 }

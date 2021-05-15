@@ -10,7 +10,7 @@
 **
 **--------------文件信息--------------------------------------------------------------------------------
 **
-** 文   件   名: hoitCmd.c
+** 文   件   名: hoitFsCmd.c
 **
 ** 创   建   人: Hu Zhisheng
 **
@@ -29,21 +29,14 @@
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-#include "./hoitFsTestFunc.h"
+#include "./hoitFsTest.h"
 static PHOIT_VOLUME _G_Volumn;
 
 #define DIVIDER                         "================="
 #define GET_ARG(i)                      *(ppcArgV + i)
 #define EQU_ARG(pcTargetArg, pcSrcArg)  lib_strcmp(pcTargetArg, pcSrcArg) == 0
-#define FILE_MODE                       (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
-
-#define BIG_FILE                        "RealBigFiles"
 
 
-
-#define COLOR_RED                       "\033[31;m"
-#define COLOR_GREEN                     "\033[32;m"
-#define COLOR_END                       "\033[0m"
 #define NEXT_LINE                       "\n"
 
 
@@ -52,10 +45,12 @@ VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs){
     pErasableSectorTraverse = pfs->HOITFS_erasableSectorList;
     while (pErasableSectorTraverse)
     {
+        API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
         printf(DIVIDER "SECTOR %d" DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
-        printf("UsedSize: %d \n", pErasableSectorTraverse->HOITS_uiUsedSize);
-        printf("FreeSize: %d \n", pErasableSectorTraverse->HOITS_uiFreeSize);
+        printf("UsedSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiUsedSize);
+        printf("FreeSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiFreeSize);
         pErasableSectorTraverse = pErasableSectorTraverse->HOITS_next;
+        API_TShellColorEnd(STD_OUT);
     }
 }
 
@@ -70,10 +65,6 @@ INT hln_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
 
 INT gc_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     PCHAR pcGCOption;
-    INT   iFd;
-    UINT  i, j;
-    UINT  uiSizeWritten;
-    PCHAR pcWriteBuffer;
 
     pcGCOption = GET_ARG(1);
     if(EQU_ARG("-c", pcGCOption)){
@@ -81,45 +72,28 @@ INT gc_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     }
     else if (EQU_ARG("-t", pcGCOption))
     {
-        iFd = open(BIG_FILE, O_RDWR | O_CREAT | O_TRUNC, FILE_MODE);
-        if(iFd < 0){
-            printf("[Create " BIG_FILE "Fail]");
-            return;
-        }
-        uiSizeWritten = 0;
-        /* 写入 64 * 26 * 1024B */
-        for (i = 0; i < 64; i++)
-        {
-            if(i == 2){
-                printf("arrive here\n");
-            }
-            pcWriteBuffer = (PCHAR)lib_malloc(26 * 1024);
-            printf("start cycle %d \n", i);
-            if(i == 29){
-                printf("awdlij\n");
-            }
-            for (j = 0; j < 26 * 1024; j++)
-            {
-                *(pcWriteBuffer + j) = 'a';
-            }
-            size_t x = write(iFd, pcWriteBuffer, 26 * 1024);
-            uiSizeWritten += 26;
-            printf("write cycle %d ok, %dKB has written, now sector is %d\n" , i, uiSizeWritten, 
-                    _G_Volumn->HOITFS_now_sector->HOITS_bno);
-            lib_free(pcWriteBuffer);
-        }
         
-        printf(COLOR_GREEN "Write BigFile OK" COLOR_END NEXT_LINE);
-        close(iFd);
     }
 }
 
 
 INT fs_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
-    PCHAR pcFSOption;
+    PCHAR       pcFSOption;
+
     pcFSOption = GET_ARG(1);
     if(EQU_ARG("-i", pcFSOption)){
         __hoitShowSectorInfo(_G_Volumn);
+    }
+    else if (EQU_ARG("-t", pcFSOption))
+    {
+        pcFSOption = GET_ARG(2);
+        if(EQU_ARG("ftt", pcFSOption)){                                 /* hoit -t ftt -t 2 3 2 */
+            hoitTestFileTree(iArgC - 2, ppcArgV + 2);
+        }
+        else if (EQU_ARG("fot", pcFSOption))                            /* hoit -t fot */
+        {
+            hoitTestFileOverWrite(iArgC - 2, ppcArgV + 2);
+        }
     }
 }
 
@@ -129,6 +103,6 @@ VOID register_hoitfs_cmd(PHOIT_VOLUME pfs) {
     API_TShellKeywordAdd("hln", hln_cmd_wrapper);
     API_TShellKeywordAdd("gc", gc_cmd_wrapper);
     API_TShellKeywordAdd("hoit", fs_cmd_wrapper);
-    API_TShellKeywordAdd("ftt", FileTreeTest);
-    API_TShellKeywordAdd("fot", FileOverWriteTest);
+    // API_TShellKeywordAdd("ftt", hoitTestFileTree);
+    // API_TShellKeywordAdd("fot", hoitTestFileOverWrite);
 }
