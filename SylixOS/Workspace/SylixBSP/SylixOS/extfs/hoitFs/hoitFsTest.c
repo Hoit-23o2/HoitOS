@@ -306,13 +306,13 @@ INT hoitTestFileTree (INT  iArgC, PCHAR  ppcArgV[])
 }
 
 /*********************************************************************************************************
- * File Over Write Test 文件Overlay Write测试
+ * File Over Write Test
 *********************************************************************************************************/
 INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     UCHAR   filename[30]     = "/mnt/hoitfs/OverWriteTest\0";
     UCHAR   readData[1024+256];
     INT     iFd;
-    CHAR   data    = '1';
+    UCHAR   data    = '1';
     INT     i;
     printf("===========  File Overwrite Test!       ===========\n");
     iFd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_FILE_PERM);   /*  排他性创建 */ 
@@ -372,7 +372,7 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
 
     /* 从1024位开始中间空128字节，然后写128个'5' */
 //    data ++;
-    close(iFd);
+//    close(iFd);
 //    iFd = open(filename, O_WRONLY, DEFAULT_FILE_PERM);
 //    for(i=128 ; i<160 ; i++) {
 //        lseek(iFd, (i)*sizeof(CHAR), SEEK_SET);
@@ -389,6 +389,32 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
 //        else
 //            printf(" ");
 //    }
+
+    data ++;
+    close(iFd);
+    /* 在开头写下16个x */
+    iFd = open(filename, O_WRONLY, DEFAULT_FILE_PERM);
+    lseek(iFd, 0, SEEK_SET);
+    write(iFd, "xxxxxxxxxxxxxxxx", 16);
+    printf("\nNo.%c result:\n", data);
+    close(iFd);
+    iFd = open(filename, O_RDONLY, DEFAULT_FILE_PERM);
+    read(iFd, readData, sizeof(readData));
+    printf("%s\n", readData);
+
+    data ++;
+    close(iFd);
+    /* 将前8个x换成y */
+    iFd = open(filename, O_WRONLY, DEFAULT_FILE_PERM);
+    lseek(iFd, 0, SEEK_SET);
+    write(iFd, "yyyyyyyy", 8);
+    printf("\nNo.%c result:\n", data);
+    close(iFd);
+    iFd = open(filename, O_RDONLY, DEFAULT_FILE_PERM);
+    read(iFd, readData, sizeof(readData));
+    printf("%s\n", readData);
+    close(iFd);
+
     printf("\n");
     printf("===========  File Overwrite Test End!    ===========\n");
     return  ERROR_NONE;
