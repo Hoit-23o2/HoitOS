@@ -423,6 +423,7 @@ BOOL hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyH
 BOOL hoitFragTreeDeleteTree(PHOIT_FRAG_TREE pFTTree, BOOL bDoDelete){
     BOOL                          res;
     res = hoitFragTreeDeleteRange(pFTTree, INT_MIN, INT_MAX, bDoDelete);
+    lib_free(pFTTree->pRbTree->pRbnGuard->pRbnLeft);
     lib_free(pFTTree->pRbTree->pRbnGuard);
     lib_free(pFTTree->pRbTree);
     lib_free(pFTTree);
@@ -709,8 +710,9 @@ VOID hoitFTTreeTest(){
     PHOIT_FRAG_TREE_LIST_NODE           pFTlistNode;
     BOOL                                res;
     PHOIT_VOLUME                        pfs;
-    INT testArray[10] = {8,11,14,15,1,2,4,5,7, 1};
-
+    //INT testArray[10] = {8,11,14,15,1,2,4,5,7, 1};
+    INT testArray[10] = {0, 1,2,3, 4,5,7,11,14,15};
+    
     pfs = (PHOIT_VOLUME)lib_malloc(sizeof(HOIT_VOLUME));
     pFTTree = hoitInitFragTree(pfs);
     

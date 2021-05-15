@@ -393,3 +393,45 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     printf("===========  File Overwrite Test End!    ===========\n");
     return  ERROR_NONE;
 }
+
+/*********************************************************************************************************
+ * GC≤‚ ‘
+*********************************************************************************************************/
+#define FILE_MODE                       (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
+#define BIG_FILE                        "RealBigFiles"
+#define FILE_SIZE                       64 * 1024
+INT hoitTestGC(PHOIT_VOLUME pfs){
+    INT   iFd;
+    UINT  i, j;
+    UINT  uiSizeWritten;
+    PCHAR pcWriteBuffer;
+    
+    iFd = open(BIG_FILE, O_RDWR | O_CREAT | O_TRUNC, FILE_MODE);
+    if(iFd < 0){
+        printf("[Create " BIG_FILE "Fail]");
+        return;
+    }
+
+    uiSizeWritten = 0;
+    /* –¥»Î 64 * 1024B */
+    for (i = 0; i < 64; i++)
+    {
+        pcWriteBuffer = (PCHAR)lib_malloc(26 * 1024);
+        printf("start cycle %d \n", i);
+        for (j = 0; j < 26 * 1024; j++)
+        {
+            *(pcWriteBuffer + j) = 'a';
+        }
+        write(iFd, pcWriteBuffer, 26 * 1024);
+        uiSizeWritten += 26;
+        printf("write cycle %d ok, %dKB has written, now sector is %d\n" , i, uiSizeWritten, 
+                pfs->HOITFS_now_sector->HOITS_bno);
+        lib_free(pcWriteBuffer);
+    }
+    
+    API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+    printf("Write BigFile OK \n");
+    API_TShellColorEnd(STD_OUT);
+
+    close(iFd);
+}

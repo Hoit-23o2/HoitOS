@@ -523,15 +523,21 @@ BOOL hoitRbDeleteNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
 *********************************************************************************************************/
 PHOIT_RB_TREE hoitRbInitTree(){
     PHOIT_RB_TREE           pRbTree; 
+    PHOIT_RB_NODE           pRbNullNode;
 
     pRbTree = (PHOIT_RB_TREE)lib_malloc(sizeof(HOIT_RB_TREE));
-    pRbTree->pRbnGuard = (PHOIT_RB_NODE)lib_malloc(sizeof(HOIT_RB_NODE));
+    pRbTree->pRbnGuard      = (PHOIT_RB_NODE)lib_malloc(sizeof(HOIT_RB_NODE));
+    pRbNullNode             = (PHOIT_RB_NODE)lib_malloc(sizeof(HOIT_RB_NODE));      /* 2021-05-15 Ìí¼Ó */
+    pRbNullNode->uiColor    = PX_ERROR;                                         
+
     if(pRbTree < 0 || pRbTree->pRbnGuard < 0){
         printf("init red/black tree fail: memory low\n");
         return LW_NULL;
     }
-    pRbTree->pRbnGuard->uiColor = RB_BLACK;
-    pRbTree->pRbnRoot = pRbTree->pRbnGuard;
+    pRbTree->pRbnGuard->uiColor     = RB_BLACK;
+    pRbTree->pRbnGuard->pRbnLeft    = pRbNullNode;
+    pRbTree->pRbnGuard->pRbnRight   = pRbNullNode;
+    pRbTree->pRbnRoot               = pRbTree->pRbnGuard;
     return pRbTree;
 }
 
@@ -540,13 +546,17 @@ VOID hoitRbTreeTest(){
     INT i;
     PHOIT_RB_TREE pRbTree;
     PHOIT_RB_NODE pRbn;
-    INT testArray[10] = {8,11,14,15,1,2,4,5,7, 1};
-
+    //INT testArray[10] = {8,11,14,15,1,2,4,5,7, 0};
+    INT testArray[10] = {0, 1,2,3, 4,5,7,11,14,15};
+    
     printf("\n [Red Black Tree Test Start] \n");
     pRbTree = hoitRbInitTree();
     
     for (i = 0; i < 10; i++)
     {
+        if(testArray[i] == 5){
+            printf("\n");
+        }
         pRbn = newHoitRbNode(testArray[i]);
         hoitRbInsertNode(pRbTree, pRbn);
     }

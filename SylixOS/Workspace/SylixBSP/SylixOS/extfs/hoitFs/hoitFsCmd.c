@@ -35,9 +35,7 @@ static PHOIT_VOLUME _G_Volumn;
 #define DIVIDER                         "================="
 #define GET_ARG(i)                      *(ppcArgV + i)
 #define EQU_ARG(pcTargetArg, pcSrcArg)  lib_strcmp(pcTargetArg, pcSrcArg) == 0
-#define FILE_MODE                       (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
 
-#define BIG_FILE                        "RealBigFiles"
 
 #define NEXT_LINE                       "\n"
 
@@ -49,8 +47,8 @@ VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs){
     {
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
         printf(DIVIDER "SECTOR %d" DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
-        printf("UsedSize: %d \n", pErasableSectorTraverse->HOITS_uiUsedSize);
-        printf("FreeSize: %d \n", pErasableSectorTraverse->HOITS_uiFreeSize);
+        printf("UsedSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiUsedSize);
+        printf("FreeSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiFreeSize);
         pErasableSectorTraverse = pErasableSectorTraverse->HOITS_next;
         API_TShellColorEnd(STD_OUT);
     }
@@ -67,10 +65,6 @@ INT hln_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
 
 INT gc_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     PCHAR pcGCOption;
-    INT   iFd;
-    UINT  i, j;
-    UINT  uiSizeWritten;
-    PCHAR pcWriteBuffer;
 
     pcGCOption = GET_ARG(1);
     if(EQU_ARG("-c", pcGCOption)){
@@ -78,34 +72,7 @@ INT gc_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     }
     else if (EQU_ARG("-t", pcGCOption))
     {
-        iFd = open(BIG_FILE, O_RDWR | O_CREAT | O_TRUNC, FILE_MODE);
-        if(iFd < 0){
-            printf("[Create " BIG_FILE "Fail]");
-            return;
-        }
-
-        uiSizeWritten = 0;
-        /* Ð´Èë 64 * 26 * 1024B */
-        for (i = 0; i < 64; i++)
-        {
-            pcWriteBuffer = (PCHAR)lib_malloc(26 * 1024);
-            printf("start cycle %d \n", i);
-            for (j = 0; j < 26 * 1024; j++)
-            {
-                *(pcWriteBuffer + j) = 'a';
-            }
-            write(iFd, pcWriteBuffer, 26 * 1024);
-            uiSizeWritten += 26;
-            printf("write cycle %d ok, %dKB has written, now sector is %d\n" , i, uiSizeWritten, 
-                    _G_Volumn->HOITFS_now_sector->HOITS_bno);
-            lib_free(pcWriteBuffer);
-        }
         
-        API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
-        printf("Write BigFile OK" NEXT_LINE);
-        API_TShellColorEnd(STD_OUT);
-
-        close(iFd);
     }
 }
 
