@@ -295,14 +295,13 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
             }
 
             writeBytes += uiSize;
-            uiSize      = 0;
-
             if (stStart + uiSize > pSector->HOITS_offset) {
                 /* 如果write through位置大于当前sector偏移，则需要修改 */
                 pSector->HOITS_offset       = stStart + uiSize;
                 pSector->HOITS_uiUsedSize   = stStart + uiSize;
                 pSector->HOITS_uiFreeSize   = cacheBlkSize - (stStart + uiSize);
             }
+            uiSize      = 0;
             break;
         } else { /* 写满整个sector */
             if (pcache == LW_NULL) { /* 未命中 */
