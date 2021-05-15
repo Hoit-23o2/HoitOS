@@ -653,8 +653,8 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no, INT* hasLog, P
     UINT                    uiSectorNum;
 
 
-    uiSectorSize            = GET_SECTOR_SIZE(sector_no);
-    uiSectorOffset          = GET_SECTOR_OFFSET(sector_no);
+    uiSectorSize            = hoitGetSectorSize(sector_no);
+    uiSectorOffset          = hoitGetSectorOffset(sector_no);
     uiFreeSize              = uiSectorSize;
     uiUsedSize              = 0;
 
