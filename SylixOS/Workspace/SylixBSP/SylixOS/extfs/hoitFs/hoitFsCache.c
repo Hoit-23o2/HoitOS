@@ -19,6 +19,7 @@
 ** 描        述: 缓存层
 *********************************************************************************************************/
 #include "hoitFsCache.h"
+#include "hoitFsGC.h"
 #include "../../driver/mtd/nor/nor.h"
 /*********************************************************************************************************
 ** 函数名称: hoitEnableCache
@@ -108,7 +109,6 @@ PHOIT_CACHE_BLK hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo, UIN
     PHOIT_CACHE_BLK cacheLineHdr = pcacheHdr->HOITCACHE_cacheLineHdr; /* cache链表头指针 */
     size_t          cacheBlkSize = pcacheHdr->HOITCACHE_blockSize;
     BOOL            flag; /* 换块标记 */
-    UINT32          blkToWrite;
 
     if (!pcacheHdr || !pSector) {
         return LW_NULL;
@@ -134,13 +134,13 @@ PHOIT_CACHE_BLK hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo, UIN
         pcache = (PHOIT_CACHE_BLK)__SHEAP_ALLOC(sizeof(HOIT_CACHE_BLK));
         if (pcache == NULL) {
             _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
-            return i;
+            return LW_NULL;
         }
 
         pcache->HOITBLK_buf = (PCHAR)__SHEAP_ALLOC(cacheBlkSize);
         if (pcache == NULL) {
             _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
-            return i;
+            return LW_NULL;
         }
 
         /* 插入新分配的cache */
@@ -154,7 +154,6 @@ PHOIT_CACHE_BLK hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo, UIN
 
     if (flag) { 
         /* 换了块要写回 */
-        blkToWrite = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA);
         write_nor(pcache->HOITBLK_blkNo*pcacheHdr->HOITCACHE_blockSize + NOR_FLASH_START_OFFSET,
                     pcache->HOITBLK_buf, 
                     pcacheHdr->HOITCACHE_blockSize, 
@@ -300,6 +299,7 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
                 pSector->HOITS_offset       = stStart + uiSize;
                 pSector->HOITS_uiUsedSize   = stStart + uiSize;
                 pSector->HOITS_uiFreeSize   = cacheBlkSize - (stStart + uiSize);
+                pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_totalUsedSize += uiSize;
             }
             uiSize      = 0;
             break;
@@ -347,7 +347,7 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     UINT32  i;
 
     PHOIT_CACHE_BLK         pcache;
-    PHOIT_ERASABLE_SECTOR   pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector;    /* 当前写入块 */
+    PHOIT_ERASABLE_SECTOR   pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
 
     if (pSector == LW_NULL) {
         return PX_ERROR;
@@ -357,19 +357,41 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
         return PX_ERROR;
     }
 
-    if (pSector->HOITS_uiFreeSize < uiSize) {
-        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
-    }
-    /* 如果当前块写不下，找下一块 */
-    while (pSector != LW_NULL) {
-        if (pSector->HOITS_uiFreeSize >= uiSize) {
-            break;
-        }
-        pSector = pSector->HOITS_next;
-    }
-
-    if (pSector == LW_NULL) {                                   /* flash空间整体不足 */
+    // if (pSector->HOITS_uiFreeSize < uiSize) {
+    //     pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+    // }
+    // /* 如果当前块写不下，找下一块 */
+    // while (pSector != LW_NULL) {
+    //     if (pSector->HOITS_uiFreeSize >= uiSize) {
+    //         break;
+    //     }
+    //     pSector = pSector->HOITS_next;
+    // }
+    // /* 所有块都写不下当前数据，则调用前台GC */
+    // if (pSector == LW_NULL) {                                   /* flash空间整体不足 */
+    //     hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
+    // }
+    // /* GC之后重新找块 */
+    // pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+    // while (pSector != LW_NULL) {
+    //     if (pSector->HOITS_uiFreeSize >= uiSize) {
+    //         break;
+    //     }
+    //     pSector = pSector->HOITS_next;
+    // }
+    // /* 仍然没有可用块则返回错误 */
+    // if (pSector == LW_NULL) {                                   /* flash空间整体不足 */
+    //     return PX_ERROR;
+    // }
+    i = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA, uiSize);
+    if (i == PX_ERROR) {
         return PX_ERROR;
+    } else {
+        while (pSector != LW_NULL) {
+            if (pSector->HOITS_bno == i)
+                break;
+            pSector = pSector->HOITS_next;
+        }        
     }
 
     writeAddr = pSector->HOITS_bno * 
@@ -446,7 +468,6 @@ VOID hoitCheckCacheList(PHOIT_CACHE_HDR pcacheHdr) {
 UINT32 hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr) {
     PHOIT_CACHE_BLK tempCache;
     UINT32  writeCount = 0;
-    UINT32  blkToWrite;
     UINT32  writeAddr;
     if (pcacheHdr->HOITCACHE_blockNums == 0)
         return 0;
@@ -455,8 +476,6 @@ UINT32 hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr) {
     while (tempCache != pcacheHdr->HOITCACHE_cacheLineHdr) {
         if (tempCache->HOITBLK_sector == LW_NULL)
             continue;
-        //TODO 需要获取写flash的位置
-        blkToWrite  = hoitFindNextToWrite(pcacheHdr, tempCache->HOITBLK_bType);
         writeAddr   = tempCache->HOITBLK_blkNo*pcacheHdr->HOITCACHE_blockSize + NOR_FLASH_START_OFFSET;
         write_nor(  writeAddr, 
                     tempCache->HOITBLK_buf, 
@@ -503,18 +522,44 @@ BOOL hoitReleaseCacheHDR(PHOIT_CACHE_HDR pcacheHdr) {
 }
 /*
     返回下一个要写的块，并更新PHOIT_CACHE_HDR中HOITCACHE_nextBlkToWrite(要写的下一块)
+    pcacheHdr   cache头
+    cacheType   块类型
+    uiSize      块的剩余空间要求，只有cacheType == HOIT_CACHE_TYPE_DATA下才有意义。
 */
-UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType) {
+UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 uiSize) {
     PHOIT_ERASABLE_SECTOR pSector;
     switch (cacheType)
     {
     case HOIT_CACHE_TYPE_INVALID:
         return (PX_ERROR);
     case HOIT_CACHE_TYPE_DATA:
-        if (!pcacheHdr->HOITCACHE_hoitfsVol)
-            return (PX_ERROR);
         pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector;
-        return pSector->HOITS_bno;
+        /* 如果当前块写不下，找下一块 */
+        if (pSector->HOITS_uiFreeSize < uiSize) {
+            pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+        }
+
+        while (pSector != LW_NULL) {
+            if (pSector->HOITS_uiFreeSize >= uiSize) {
+                return pSector->HOITS_bno;
+            }
+            pSector = pSector->HOITS_next;
+        }      
+        if (pSector == LW_NULL) {                                   /* flash空间整体不足 */
+            hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
+        }
+
+        /* GC之后重新找块 */
+        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+        while (pSector != LW_NULL) {
+            if (pSector->HOITS_uiFreeSize >= uiSize) {
+                return pSector->HOITS_bno;
+            }
+            pSector = pSector->HOITS_next;
+        }
+        /* 仍然没有可用块则返回错误 */
+        return PX_ERROR;
+
     case HOIT_CACHE_TYPE_DATA_EMPTY:
         pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
         while (pSector != LW_NULL)
@@ -527,6 +572,21 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType) {
                 }
             }
             pSector = pSector->HOITS_next;
+        }
+        /* 找不到，调用GC */
+        if (pSector == LW_NULL) {
+            hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
+            while (pSector != LW_NULL)
+            {
+                //! 2021-05-04 Modified By PYQ
+                if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
+                && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
+                    if(pSector->HOITS_uiFreeSize == pcacheHdr->HOITCACHE_blockSize) {
+                        return pSector->HOITS_bno;
+                    }
+                }
+                pSector = pSector->HOITS_next;
+            }            
         }
         return (PX_ERROR);
     //TODO 将来有了gc之后就不能单纯的将下一个写入块加一

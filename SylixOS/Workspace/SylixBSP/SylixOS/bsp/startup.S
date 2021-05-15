@@ -66,7 +66,7 @@
     SECTION(.vector)
 
 FUNC_DEF(vector)
-    LDR     PC, resetEntry
+	    LDR     PC, resetEntry
     LDR     PC, undefineEntry
     LDR     PC, swiEntry
     LDR     PC, prefetchEntry

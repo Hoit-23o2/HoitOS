@@ -80,6 +80,7 @@ BOOL __hoit_update_full_dnode(PHOIT_FULL_DNODE pFullDnode, UINT offset, UINT len
 ** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFullDnode, UINT offset, UINT length) {
+    length = min(length, pFullDnode->HOITFD_length - offset);
     PHOIT_RAW_INFO pRawInfo = pFullDnode->HOITFD_raw_info;
     if (sizeof(struct HOIT_RAW_INODE) + offset > pRawInfo->totlen) {
         return LW_NULL;
@@ -195,6 +196,7 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
     pFullDnode->HOITFD_length = size;
     pFullDnode->HOITFD_offset = offset;
     pFullDnode->HOITFD_raw_info = pRawInfo;
+    pFullDnode->HOITFD_version = pRawInode->version;
     
     __SHEAP_FREE(pBuf);
     return pFullDnode;

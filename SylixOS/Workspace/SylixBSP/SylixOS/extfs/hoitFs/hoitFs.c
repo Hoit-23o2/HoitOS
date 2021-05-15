@@ -999,11 +999,11 @@ static INT  __hoitFsSeek (PLW_FD_ENTRY  pfdentry,
 
     pfdentry->FDENTRY_oftPtr = oftOffset;
     //TODO HOITN_stSizeÉÐÎ´¶¨Òå
-    /*
+
     if (phoitn->HOITN_stSize < (size_t)oftOffset) {
         phoitn->HOITN_stSize = (size_t)oftOffset;
     }
-    */
+
 
    __HOIT_VOLUME_UNLOCK(pfs);
    return   (ERROR_NONE);

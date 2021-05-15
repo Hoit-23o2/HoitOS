@@ -129,7 +129,8 @@ BOOL                hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr,
 
 UINT32      hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr);
 UINT32      hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, 
-                                UINT32 cacheType);
+                                UINT32 cacheType,
+                                UINT32 uiSize);
 BOOL        hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, 
                                   UINT32 uiOfs, 
                                   PCHAR pContent, 

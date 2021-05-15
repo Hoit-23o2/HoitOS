@@ -59,7 +59,7 @@ cd /apps/FileTreeTest
 ls /mnt/hoit
 /* 或者直接使用指令 */
 ftt -h
-ftt -t 1 3 2
+ftt -t 2 3 2
 ```
 
 4.手动测试
