@@ -531,6 +531,8 @@ PHOIT_RB_TREE hoitRbInitTree(){
         return LW_NULL;
     }
     pRbTree->pRbnGuard->uiColor = RB_BLACK;
+    pRbTree->pRbnGuard->pRbnLeft = LW_NULL;
+    pRbTree->pRbnGuard->pRbnRight = LW_NULL;
     pRbTree->pRbnRoot = pRbTree->pRbnGuard;
     return pRbTree;
 }

@@ -597,6 +597,7 @@ UINT8 __hoit_get_inode_nodes(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeInfo, PHO
                 pFullDirent->HOITFD_ino = pRawDirent->ino;
                 pFullDirent->HOITFD_pino = pRawDirent->pino;
                 pFullDirent->HOITFD_raw_info = pRawInfo;
+                pFullDirent->HOITFD_version = pRawDirent->version;
                 pFullDirent->HOITFD_file_name = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen - sizeof(HOIT_RAW_DIRENT) + 1);   // 这里要加1添加'\0', 因为在flash中存储的文件名'
                 lib_bzero(pFullDirent->HOITFD_file_name, pRawInfo->totlen - sizeof(HOIT_RAW_DIRENT) + 1);
 
@@ -615,6 +616,7 @@ UINT8 __hoit_get_inode_nodes(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeInfo, PHO
                 pFullDnode->HOITFD_raw_info = pRawInfo;
                 pFullDnode->HOITFD_next = *ppDnodeList;
                 pFullDnode->HOITFD_file_type = pRawInode->file_type;
+                pFullDnode->HOITFD_version = pRawInode->version;
                 *ppDnodeList = pFullDnode;
             }
         }

@@ -142,6 +142,7 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
     pNewFullDnode->HOITFD_length = length;
     pNewFullDnode->HOITFD_offset = pFullDnode->HOITFD_offset + offset;
     pNewFullDnode->HOITFD_raw_info = pNewRawInfo;
+    pNewFullDnode->HOITFD_version = pFullDnode->HOITFD_version;
 
     __SHEAP_FREE(write_buf);
     __SHEAP_FREE(read_buf);

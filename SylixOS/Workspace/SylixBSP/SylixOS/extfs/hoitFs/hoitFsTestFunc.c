@@ -307,7 +307,7 @@ INT FileOverWriteTest (INT  iArgC, PCHAR  ppcArgV[]) {
     iFd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_FILE_PERM);   /*  排他性创建 */ 
     lib_memset(readData, 0, sizeof(readData));
     /* 初始写入512个'1' */
-    for (i=0 ; i<512 ; i++) {
+    for (i=0 ; i<64 ; i++) {
         lseek(iFd, (i)*sizeof(CHAR), SEEK_SET);
         write(iFd, &data, sizeof(CHAR));
     }
@@ -321,7 +321,7 @@ INT FileOverWriteTest (INT  iArgC, PCHAR  ppcArgV[]) {
     data ++;
     close(iFd);
     iFd = open(filename, O_WRONLY, DEFAULT_FILE_PERM);
-    for (i=512 ; i<512+256 ; i++) {
+    for (i=64 ; i<96 ; i++) {
         lseek(iFd, (i)*sizeof(CHAR), SEEK_SET);
         write(iFd, &data, sizeof(CHAR));
     }
@@ -335,7 +335,7 @@ INT FileOverWriteTest (INT  iArgC, PCHAR  ppcArgV[]) {
     data ++;
     close(iFd);
     iFd = open(filename, O_WRONLY, DEFAULT_FILE_PERM);
-    for(i=0 ; i<256 ; i++) {
+    for(i=0 ; i<32 ; i++) {
         lseek(iFd, (i)*sizeof(CHAR), SEEK_SET);
         write(iFd, &data, sizeof(CHAR));
     }
@@ -349,35 +349,35 @@ INT FileOverWriteTest (INT  iArgC, PCHAR  ppcArgV[]) {
     data ++;
     close(iFd);
     iFd = open(filename, O_WRONLY, DEFAULT_FILE_PERM);
-    for(i=512 ; i<1024 ; i++) {
+    for(i=64 ; i<128 ; i++) {
         lseek(iFd, (i)*sizeof(CHAR), SEEK_SET);
         write(iFd, &data, sizeof(CHAR));
     }
     printf("\nNo.%c result:\n", data);
     close(iFd);
     iFd = open(filename, O_RDONLY, DEFAULT_FILE_PERM);
-    read(iFd, readData, sizeof(readData));    
+    read(iFd, readData, sizeof(readData));
     printf("%s\n",readData);
 
     /* 从1024位开始中间空128字节，然后写128个'5' */
-    data ++;
+//    data ++;
     close(iFd);
-    iFd = open(filename, O_WRONLY, DEFAULT_FILE_PERM);
-    for(i=1024+128 ; i<1024+256 ; i++) {
-        lseek(iFd, (i)*sizeof(CHAR), SEEK_SET);
-        write(iFd, &data, sizeof(CHAR));
-    }
-    printf("\nNo.%c result:\n", data);
-    close(iFd);
-    iFd = open(filename, O_RDONLY, DEFAULT_FILE_PERM);
-    read(iFd, readData, sizeof(readData));    
-    for ( i = 0; i < sizeof(readData)/sizeof(UCHAR); i++)
-    {
-        if(readData[i] != 0)
-            printf("%c",readData[i]);
-        else 
-            printf(" ");
-    }
+//    iFd = open(filename, O_WRONLY, DEFAULT_FILE_PERM);
+//    for(i=128 ; i<160 ; i++) {
+//        lseek(iFd, (i)*sizeof(CHAR), SEEK_SET);
+//        write(iFd, &data, sizeof(CHAR));
+//    }
+//    printf("\nNo.%c result:\n", data);
+//    close(iFd);
+//    iFd = open(filename, O_RDONLY, DEFAULT_FILE_PERM);
+//    read(iFd, readData, sizeof(readData));
+//    for ( i = 0; i < sizeof(readData)/sizeof(UCHAR); i++)
+//    {
+//        if(readData[i] != 0)
+//            printf("%c",readData[i]);
+//        else
+//            printf(" ");
+//    }
     printf("\n");
     printf("===========  File Overwrite Test End!    ===========\n");
     return  ERROR_NONE;
