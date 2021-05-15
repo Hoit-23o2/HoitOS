@@ -245,7 +245,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
             uiRightRemainSize = uiCurHigh - uiConquerorHigh;
             pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,
                                                     pFTn->pFDnode,
-                                                    uiConquerorHigh - uiCurLow,
+                                                    uiConquerorHigh - uiCurLow + 1,
                                                     uiRightRemainSize);
             *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 根据pFDNodeNew生成新的FragTree节点 */
                                            pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
