@@ -442,7 +442,13 @@ VOID hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
     UINT                uiSize;
     PCHAR               pcLogContent;
 
-    
+    if(pfs->HOITFS_logInfo == LW_NULL){
+#ifdef DEBUG_LOG
+        printf("[%s] no space for log sector\n", __func__);
+#endif // DEBUG_LOG
+        return;
+    }
+
     if(uiEntitySize < sizeof(HOIT_RAW_HEADER)){
 #ifdef DEBUG_LOG
         printf("[%s] cannot append something that not is Entity\n", __func__);
@@ -473,7 +479,9 @@ VOID hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
     pRawLog->totlen         = uiSize;
     pRawLog->uiLogFirstAddr = PX_ERROR;
     pRawLog->uiLogSize      = uiLogSize;
-    pRawLog->version        = __hoit_alloc_ino(pfs);
+    pRawLog->version        = pfs->HOITFS_highest_version++;
+    pRawLog->ino            = __hoit_alloc_ino(pfs);
+
 
     pcLogContent            = (PCHAR)lib_malloc(uiSize);
     lib_memcpy(pcLogContent, pRawLog, sizeof(HOIT_RAW_LOG));
@@ -502,12 +510,10 @@ VOID hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
     pRawInfo->phys_addr     = uiLogAddr + uiLogCurOfs;
     
     __hoit_add_raw_info_to_sector(&pfs->HOITFS_logInfo->pLogSectorList->ErasableSetcor, pRawInfo);      /* 将新写入LOG加入到Sector管理 */
+    pRawHeader = (PHOIT_RAW_HEADER)pcLogContent;
 
     hoitWriteThroughCache(pfs->HOITFS_cacheHdr, uiLogAddr + uiLogCurOfs, pcLogContent, uiSize);
     hoitFlushCache(pfs->HOITFS_cacheHdr);
-    
-    __hoit_read_flash(pfs, uiLogAddr + uiLogCurOfs, pcLogContent, uiSize);
-    pRawHeader = (PHOIT_RAW_HEADER)pcLogContent;
                                                                     /* 修改相应LOG参数 */
     pfs->HOITFS_logInfo->uiLogEntityCnt++;
     pfs->HOITFS_logInfo->uiLogCurOfs += uiSize;

@@ -95,6 +95,9 @@ INT gc_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
             }
             pcWriteBuffer = (PCHAR)lib_malloc(26 * 1024);
             printf("start cycle %d \n", i);
+            if(i == 29){
+                printf("awdlij\n");
+            }
             for (j = 0; j < 26 * 1024; j++)
             {
                 *(pcWriteBuffer + j) = 'a';
