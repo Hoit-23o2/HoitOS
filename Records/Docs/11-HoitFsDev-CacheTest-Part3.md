@@ -58,8 +58,8 @@ cd /apps/FileTreeTest
 /apps/FileTreeTest/FileTreeTest
 ls /mnt/hoit
 /* 或者直接使用指令 */
-ftt -h
-ftt -t 2 3 2
+hoit -t ftt -h
+hoit -t ftt -t 4 3 2
 ```
 
 4.手动测试
@@ -79,13 +79,15 @@ cat
 
 1. 测试指令
 
-```
+```powershell
 mount -t hoitfs 0 /mnt/hoit
 mount -t ramfs 10000 /mnt/ram
 umount /mnt/ram
 cd /apps/FileOverWriteTest/
 /apps/FileOverWriteTest/FileOverWriteTest/
 cat /mnt/ram/OverWriteTest
+/*或直接使用指令*/
+hoit -t fot
 ```
 
 
