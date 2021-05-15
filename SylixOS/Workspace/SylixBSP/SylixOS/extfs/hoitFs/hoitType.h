@@ -310,7 +310,7 @@ struct HOIT_ERASABLE_SECTOR{
 struct HOIT_LOG_SECTOR{
     PHOIT_LOG_SECTOR        pErasableNextLogSector;
     
-    HOIT_ERASABLE_SECTOR    ErasableSetcor;    
+    PHOIT_ERASABLE_SECTOR   pErasableSetcor;    
 };
 /*********************************************************************************************************
   ºìºÚÊ÷½Úµã

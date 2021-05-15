@@ -30,7 +30,6 @@
 ** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 #include "./hoitFsTest.h"
-static PHOIT_VOLUME _G_Volumn;
 
 #define DIVIDER                         "================="
 #define GET_ARG(i)                      *(ppcArgV + i)
@@ -39,6 +38,7 @@ static PHOIT_VOLUME _G_Volumn;
 
 #define NEXT_LINE                       "\n"
 
+PHOIT_VOLUME _G_Volumn;
 
 VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs){
     PHOIT_ERASABLE_SECTOR       pErasableSectorTraverse;
@@ -73,6 +73,7 @@ INT gc_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     else if (EQU_ARG("-t", pcGCOption))
     {
         hoitTestGC(_G_Volumn);
+        printf("\n");
     }
 }
 

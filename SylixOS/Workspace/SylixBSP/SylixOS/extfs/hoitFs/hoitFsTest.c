@@ -399,8 +399,9 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
 *********************************************************************************************************/
 #define FILE_MODE                       (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
 #define BIG_FILE                        "RealBigFiles"
-#define FILE_SIZE                       64 * 1024
+#define FILE_SIZE                       60 * 1024
 #define PER_SIZE                        1024
+
 INT hoitTestGC(PHOIT_VOLUME pfs){
     INT   iFd;
     UINT  i, j;
