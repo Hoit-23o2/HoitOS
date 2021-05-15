@@ -29,6 +29,7 @@
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
+#include "./hoitFsTestFunc.h"
 static PHOIT_VOLUME _G_Volumn;
 
 #define DIVIDER                         "================="
@@ -125,4 +126,6 @@ VOID register_hoitfs_cmd(PHOIT_VOLUME pfs) {
     API_TShellKeywordAdd("hln", hln_cmd_wrapper);
     API_TShellKeywordAdd("gc", gc_cmd_wrapper);
     API_TShellKeywordAdd("hoit", fs_cmd_wrapper);
+    API_TShellKeywordAdd("ftt", FileTreeTest);
+    API_TShellKeywordAdd("fot", FileOverWriteTest);
 }

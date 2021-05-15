@@ -263,27 +263,26 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
     UINT32  blkNoStart      = uiOfs/cacheBlkSize;
     UINT32  blkNoEnd        = (uiOfs + uiSize) / cacheBlkSize;
     UINT32  writeBytes      = 0;
-    UINT32  blkToWrite      = 0; /* 下一块要写入的flash块 */
-    UINT32  i;
-
+    UINT32  i;                      /* 下一块要写入的flash块 */
+    UINT32                  writeAddr = uiOfs + writeBytes + NOR_FLASH_START_OFFSET;
     PHOIT_CACHE_BLK         pcache;
     PHOIT_ERASABLE_SECTOR   pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
-
+    
     while(uiSize != 0) {
         size_t  stBufSize = (cacheBlkSize - stStart);
         i = (uiOfs + writeBytes)/cacheBlkSize;
-        UINT32  writeAddr = uiOfs + writeBytes + NOR_FLASH_START_OFFSET;
-
-        while (pSector != LW_NULL ) {
+        
+        while (pSector != LW_NULL ) {   /* 查找块号对应的pSector */
             if (pSector->HOITS_bno == i)
                 break;
             pSector = pSector->HOITS_next;
         }
-        
+
+        writeAddr = uiOfs + writeBytes + NOR_FLASH_START_OFFSET;
+
         pcache = hoitCheckCacheHit(pcacheHdr, i);
-        if (stBufSize > uiSize) {
+        if (stBufSize > uiSize) { /* 不用写满整个sector */
             if (pcache == LW_NULL) { /* 未命中 */
-                //TODO pSector怎么获取
                 pcache = hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA, pSector);
                 if (pcache == LW_NULL) { /* 未成功分配cache，直接写入flash */                      
                     write_nor(writeAddr, pContent, uiSize, WRITE_KEEP);
@@ -294,13 +293,21 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
             } else {
                 lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, uiSize);
             }
-            uiSize = 0;
+
+            writeBytes += uiSize;
+            uiSize      = 0;
+
+            if (stStart + uiSize > pSector->HOITS_offset) {
+                /* 如果write through位置大于当前sector偏移，则需要修改 */
+                pSector->HOITS_offset       = stStart + uiSize;
+                pSector->HOITS_uiUsedSize   = stStart + uiSize;
+                pSector->HOITS_uiFreeSize   = cacheBlkSize - (stStart + uiSize);
+            }
             break;
-        } else {
+        } else { /* 写满整个sector */
             if (pcache == LW_NULL) { /* 未命中 */
                 pcache = hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA, pSector);
                 if (pcache == LW_NULL) { /* 未成功分配cache，直接写入flash */
-                    //TODO 尚未知道上层文件系统通知在哪写入当前cache
                     write_nor(writeAddr, pContent, stBufSize, WRITE_KEEP);
                 }
                 else { /* 成功分配cache，则写入cache */
@@ -310,9 +317,14 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
                 lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, stBufSize);
             }
 
-            pucDest += stBufSize;
-            uiSize  -= stBufSize;
-            stStart  = 0;
+            pucDest     += stBufSize;
+            uiSize      -= stBufSize;
+            writeBytes  += stBufSize;
+            stStart      = 0;
+
+            pSector->HOITS_offset       = cacheBlkSize;
+            pSector->HOITS_uiFreeSize   = 0;
+            pSector->HOITS_uiUsedSize   = cacheBlkSize;
         }
     }
 
