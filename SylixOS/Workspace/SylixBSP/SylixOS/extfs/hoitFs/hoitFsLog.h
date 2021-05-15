@@ -34,7 +34,7 @@
 PHOIT_LOG_INFO              hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum);
 PHOIT_LOG_INFO              hoitLogOpen(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog);
 PCHAR                       hoitLogEntityGet(PHOIT_VOLUME pfs, UINT uiEntityNum);
-VOID                        hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize);
+INT                         hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize);
 
 #ifdef LOG_TEST
 VOID                        hoitLogTest();

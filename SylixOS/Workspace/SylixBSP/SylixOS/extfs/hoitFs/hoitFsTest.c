@@ -10,7 +10,7 @@
 **
 **--------------文件信息--------------------------------------------------------------------------------
 **
-** 文   件   名: hoitFsMid.h
+** 文   件   名: hoitFsTest.h
 **
 ** 创   建   人: 张楠
 **
@@ -19,12 +19,11 @@
 ** 描        述: 测试函数，用于测试hoitfs文件系统
 *********************************************************************************************************/
 
-#include "./hoitFsTestFunc.h"
+#include "./hoitFsTest.h"
 
 /*********************************************************************************************************
- * File Tree Test
+ * File Tree Test 文件树基础测试
 *********************************************************************************************************/
-
 UINT max_depth      = 6;
 UINT max_dirNo      = 5;
 UINT max_fileNo     = 5;
@@ -204,7 +203,7 @@ void checkFile(PUCHAR pFileName, UINT fileNo) {
     }    
     /* 查看文件内容 "Hello hoitfs" */
 
-    for(i=0; i<writetimes ; i++) {        
+    for(i=0; i < writetimes ; i++) {        
         writebytes = read(iFd, fileread, sizeof(filewrite));
         if (writebytes == 0) {
             printf("read failed!\n");
@@ -213,6 +212,11 @@ void checkFile(PUCHAR pFileName, UINT fileNo) {
         }
         if (lib_strcmp(fileread, filewrite) != 0) {
             printf("read content is not !\n");
+        }
+        else {
+            API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+            printf("\tcheck %s ok\n", pFileName);
+            API_TShellColorEnd(STD_OUT);
         }
     }
 
@@ -243,7 +247,7 @@ void FileTreeTestCheck(PUCHAR pFileName) {
     }    
 }
 
-INT FileTreeTest (INT  iArgC, PCHAR  ppcArgV[])
+INT hoitTestFileTree (INT  iArgC, PCHAR  ppcArgV[])
 {
     UCHAR       filename[512];
     UINT        temp;
@@ -295,9 +299,9 @@ INT FileTreeTest (INT  iArgC, PCHAR  ppcArgV[])
 }
 
 /*********************************************************************************************************
- * File Over Write Test
+ * File Over Write Test 文件Overlay Write测试
 *********************************************************************************************************/
-INT FileOverWriteTest (INT  iArgC, PCHAR  ppcArgV[]) {
+INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     UCHAR   filename[30]     = "/mnt/hoitfs/OverWriteTest\0";
     UCHAR   readData[1024+256];
     INT     iFd;

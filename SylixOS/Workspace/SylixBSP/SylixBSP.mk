@@ -67,7 +67,7 @@ SylixOS/extfs/hoitFs/hoitFsGC.c \
 SylixOS/extfs/hoitFs/hoitFsLib.c \
 SylixOS/extfs/hoitFs/hoitFsLog.c \
 SylixOS/extfs/hoitFs/hoitFsMid.c \
-SylixOS/extfs/hoitFs/hoitFsTestFunc.c \
+SylixOS/extfs/hoitFs/hoitFsTest.c \
 SylixOS/extfs/hoitFs/hoitFsTree.c \
 SylixOS/extfs/hoitFs/hoitFsTreeUtil.c \
 SylixOS/user/main.c

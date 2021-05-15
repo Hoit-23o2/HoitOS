@@ -10,7 +10,7 @@
 **
 **--------------文件信息--------------------------------------------------------------------------------
 **
-** 文   件   名: hoitFsMid.h
+** 文   件   名: hoitFsTest.h
 **
 ** 创   建   人: 张楠
 **
@@ -28,9 +28,5 @@
 #include "../SylixOS/shell/include/ttiny_shell.h"
 #include "../SylixOS/include/sys/ioctl.h"
 
-INT FileTreeTest (INT  iArgC, PCHAR  ppcArgV[]);
-void createDir(PUCHAR pFileName, UINT dirNo);
-void createFile(PUCHAR pFileName, UINT fileNo);
-void FileTreeTestStart(PUCHAR pFileName);
-
-INT FileOverWriteTest (INT  iArgC, PCHAR  ppcArgV[]);
+INT     hoitTestFileTree (INT  iArgC, PCHAR  ppcArgV[]);
+INT     hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]);
