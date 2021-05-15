@@ -72,7 +72,7 @@ INT gc_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     }
     else if (EQU_ARG("-t", pcGCOption))
     {
-        
+        hoitTestGC(_G_Volumn);
     }
 }
 

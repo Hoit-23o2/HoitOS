@@ -400,6 +400,7 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
 #define FILE_MODE                       (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
 #define BIG_FILE                        "RealBigFiles"
 #define FILE_SIZE                       64 * 1024
+#define PER_SIZE                        1024
 INT hoitTestGC(PHOIT_VOLUME pfs){
     INT   iFd;
     UINT  i, j;
@@ -414,16 +415,16 @@ INT hoitTestGC(PHOIT_VOLUME pfs){
 
     uiSizeWritten = 0;
     /* –¥»Î 64 * 1024B */
-    for (i = 0; i < 64; i++)
+    for (i = 0; i < FILE_SIZE / PER_SIZE; i++)
     {
-        pcWriteBuffer = (PCHAR)lib_malloc(26 * 1024);
+        pcWriteBuffer = (PCHAR)lib_malloc(PER_SIZE);
         printf("start cycle %d \n", i);
-        for (j = 0; j < 26 * 1024; j++)
+        for (j = 0; j < PER_SIZE; j++)
         {
             *(pcWriteBuffer + j) = 'a';
         }
-        write(iFd, pcWriteBuffer, 26 * 1024);
-        uiSizeWritten += 26;
+        write(iFd, pcWriteBuffer, PER_SIZE);
+        uiSizeWritten += (PER_SIZE / 1024);
         printf("write cycle %d ok, %dKB has written, now sector is %d\n" , i, uiSizeWritten, 
                 pfs->HOITFS_now_sector->HOITS_bno);
         lib_free(pcWriteBuffer);

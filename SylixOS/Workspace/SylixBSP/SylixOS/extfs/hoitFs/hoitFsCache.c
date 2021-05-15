@@ -21,6 +21,11 @@
 #include "hoitFsCache.h"
 #include "hoitFsGC.h"
 #include "../../driver/mtd/nor/nor.h"
+
+//TODO: 1. now_sector不能与LOG重叠，可是为啥还是重叠了？
+//TODO: 2. 强制GC
+//TODO: 3. 注意无空间了就报错
+//TODO: 4. 
 /*********************************************************************************************************
 ** 函数名称: hoitEnableCache
 ** 功能描述: 初始化 hoit cache

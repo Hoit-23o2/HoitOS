@@ -23,6 +23,8 @@
 #include "hoitFsFDLib.h"
 #include "hoitFsLib.h"
 
+//TODO: move_home返回错误值，表示不行了，GC抛出异常
+
 #define IS_MSG_GC_END(acMsg, stLen)             lib_memcmp(acMsg, MSG_GC_END, stLen) == 0
 #define IS_MSG_BG_GC_END(acMsg, stLen)          lib_memcmp(acMsg, MSG_BG_GC_END, stLen) == 0
 #define KILL_LOOP()                             break

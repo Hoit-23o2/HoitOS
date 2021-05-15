@@ -279,8 +279,8 @@ PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
     uiSectorAddr = hoitWriteToCache(pfs->HOITFS_cacheHdr, (PCHAR)pRawLog, pRawLog->totlen);
     hoitFlushCache(pfs->HOITFS_cacheHdr);
     
-    printf("[%s] our LOG HDR' version is %d, inode no is %d\n", 
-            __func__, pRawLog->version, pRawLog->ino);
+    printf("[%s] our LOG HDR' version is %d, inode no is %d, log sector is %d\n", 
+            __func__, pRawLog->version, pRawLog->ino, );
 
     /* 将初始的pRawLog对应的RawInfo加入到管理中 */
     pRawInfo                = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INFO));
