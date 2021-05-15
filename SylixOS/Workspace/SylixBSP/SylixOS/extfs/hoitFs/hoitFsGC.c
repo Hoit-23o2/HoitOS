@@ -23,6 +23,9 @@
 #include "hoitFsFDLib.h"
 #include "hoitFsLib.h"
 
+#define IS_MSG_GC_END(acMsg, stLen)             lib_memcmp(acMsg, MSG_GC_END, stLen) == 0
+#define IS_MSG_BG_GC_END(acMsg, stLen)          lib_memcmp(acMsg, MSG_BG_GC_END, stLen) == 0
+#define KILL_LOOP()                             break
 /*********************************************************************************************************
 ** 函数名称: __hoitGCSectorRawInfoFixUp
 ** 功能描述: 释放所有pErasableSector中的过期RawInfo，修改next_phys关系
@@ -313,19 +316,24 @@ VOID __hoitGCClearBackground(PHOIT_VOLUME pfs, BOOL * pBIsBackgroundThreadStart,
 }
 /*********************************************************************************************************
 ** 函数名称: hoitFSGCForgroudForce
-** 功能描述: HoitFS前台强制GC，Greedy算法
+** 功能描述: HoitFS前台强制GC，Greedy算法，阻塞至回收完整个Sector
 ** 输　入  : pfs        HoitFS文件设备头
 ** 输　出  : None
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID hoitGCForgroudForce(PHOIT_VOLUME pfs){
+VOID hoitGCForegroundForce(PHOIT_VOLUME pfs){
     PHOIT_ERASABLE_SECTOR   pErasableSector;
     INTREG                  iregInterLevel;
     BOOL                    bIsCollectOver;
     
+    pErasableSector = LW_NULL;
     if(pfs->HOITFS_curGCSector == LW_NULL) {
-        pErasableSector = __hoitGCFindErasableSector(pfs, GC_FOREGROUND);
+        pErasableSector = __hoitGCFindErasableSector(pfs, GC_FOREGROUND);           
+    }
+
+    if(pErasableSector){
+        API_SpinLockQuick(&pErasableSector->HOITS_lock, &iregInterLevel);               /* 尝试加锁，阻塞整个回收 */
     }
 
     while (LW_TRUE)
@@ -345,11 +353,15 @@ VOID hoitGCForgroudForce(PHOIT_VOLUME pfs){
             break;
         }
     }
+
+    if(pErasableSector){
+        API_SpinUnlockQuick(&pErasableSector->HOITS_lock, iregInterLevel);              /* 尝试解锁 */
+    }
 }
 
 /*********************************************************************************************************
 ** 函数名称: hoitFsGCBackgroundThread
-** 功能描述: HoitFS后台GC线程
+** 功能描述: HoitFS后台GC线程，只阻塞回收一个实体
 ** 输　入  : pfs        HoitFS文件设备头
 ** 输　出  : None
 ** 全局变量:
@@ -369,8 +381,8 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
                             sizeof(acMsg), 
                             &stLen, 
                             LW_OPTION_NOT_WAIT);
-        if(lib_memcmp(acMsg, MSG_BG_GC_END, stLen) == 0){
-            break;
+        if(IS_MSG_BG_GC_END(acMsg, stLen)){
+            KILL_LOOP();
         }
 
         if(pfs->HOITFS_curGCSector == LW_NULL) {
@@ -378,7 +390,9 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
         }
 
         if(pErasableSector) {
-            bIsCollectOver = __hoitGCCollectSectorAlive(pfs, pErasableSector);
+            API_SpinLockQuick(&pErasableSector->HOITS_lock, &iregInterLevel); 
+            bIsCollectOver = __hoitGCCollectSectorAlive(pfs, pErasableSector);      /* 阻塞回收单一实体 */
+            API_SpinUnlockQuick(&pErasableSector->HOITS_lock, iregInterLevel);
         }
         else {
 #ifdef GC_DEBUG
@@ -394,7 +408,7 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
 
 /*********************************************************************************************************
 ** 函数名称: hoitFsGCThread
-** 功能描述: HoitFS GC线程
+** 功能描述: HoitFS GC监听线程，用于监听空间变化，从而判断此时该执行的GC方式
 ** 输　入  : pfs        HoitFS文件设备头
 **          uiThreshold GC阈值，参考F2FS
 ** 输　出  : None
@@ -432,20 +446,20 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
                             sizeof(acMsg), 
                             &stLen, 
                             10);
-        if(lib_memcmp(acMsg, MSG_GC_END, stLen) == 0){
-            printf("[%s] recev msg %s\n", __func__, MSG_GC_END);
-            __hoitGCClearBackground(pfs, &bIsBackgroundThreadStart, hGcThreadId);
-            break;
+        if(IS_MSG_GC_END(acMsg, stLen)){                                            /* 关闭GC监听线程  */
+            printf("[%s] recev msg %s\n", __func__, MSG_GC_END);                
+            __hoitGCClearBackground(pfs, &bIsBackgroundThreadStart, hGcThreadId);   /* 关闭后台GC线程 */
+            KILL_LOOP();
         }
         
         uiCurUsedSize = pfs->HOITFS_totalUsedSize;
-        if(uiCurUsedSize > uiThreshold){                                    /* 执行Foreground */
-            __hoitGCClearBackground(pfs, &bIsBackgroundThreadStart, hGcThreadId);
-            hoitGCForgroudForce(pfs);
+        if(uiCurUsedSize > uiThreshold){                                            /* 执行Foreground */
+            //__hoitGCClearBackground(pfs, &bIsBackgroundThreadStart, hGcThreadId); /* 好像没必要终止GC后台线程，因为引入了锁机制，呵呵 */
+            hoitGCForegroundForce(pfs);
         }
         else {
             if(!bIsBackgroundThreadStart 
-                && uiCurUsedSize > (pfs->HOITFS_totalSize / 2)){            /* 执行Background */
+                && uiCurUsedSize > (pfs->HOITFS_totalSize / 2)){                    /* 执行Background */
                 
                 bIsBackgroundThreadStart = LW_TRUE;
                 
@@ -484,4 +498,6 @@ VOID hoitGCClose(PHOIT_VOLUME pfs){
         API_MsgQueueDelete(&pfs->HOITFS_GCMsgQ);
         pfs->HOITFS_hGCThreadId = LW_NULL;
     }
+    printf("================ Goodbye GC ================\n");
 }
+

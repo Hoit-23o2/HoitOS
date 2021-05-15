@@ -166,7 +166,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     //__ram_mount(pramfs);
     hoitEnableCache(GET_SECTOR_SIZE(8), 8, pfs);
     __hoit_mount(pfs);
-    hoitStartGCThread(pfs, 50);
+    hoitStartGCThread(pfs, 64 * 26 * 1024);
     
     if (iosDevAddEx(&pfs->HOITFS_devhdrHdr, pcName, _G_iHoitFsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
