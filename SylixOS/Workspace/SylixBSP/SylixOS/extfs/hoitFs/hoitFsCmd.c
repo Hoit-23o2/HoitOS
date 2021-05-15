@@ -29,6 +29,7 @@
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
+#include "./hoitFsTestFunc.h"
 static PHOIT_VOLUME _G_Volumn;
 
 #define GET_ARG(i)            *(ppcArgV + i)
@@ -52,4 +53,6 @@ VOID register_hoitfs_cmd(PHOIT_VOLUME pfs) {
     _G_Volumn = pfs;
     API_TShellKeywordAdd("hln", hln_cmd_wrapper);
     API_TShellKeywordAdd("clrgc", closegc_cmd_wrapper);
+    API_TShellKeywordAdd("ftt", FileTreeTest);
+    API_TShellKeywordAdd("fot", FileOverWriteTest);
 }
