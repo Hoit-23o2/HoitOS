@@ -575,6 +575,9 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
         while (pFTlistConqueror != LW_NULL)
         {
             bIsOverlay = LW_FALSE;
+            if(pFTlistCur == LW_NULL){
+                break;
+            }
             if(pFTlistConqueror == pFTlistCur)                                      /* Ìø¹ý */
             {
                 pFTlistConqueror = pFTlistConqueror->pFTlistNext;
@@ -686,6 +689,9 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
             else{
                 pFTlistConqueror = pFTlistConqueror->pFTlistNext;
             }
+        }
+        if(pFTlistCur == LW_NULL){
+            break;
         }
         pFTlistCur = pFTlistCur->pFTlistNext;   
     }

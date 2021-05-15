@@ -51,15 +51,26 @@ iFd = open(pcDirName, O_RDWR | O_CREAT | O_EXCL, S_IFDIR | mode);   /*  排他�
 3.测试指令
 
 ```powershell
-mount -t hoitfs 0 /mnt/hoit
-mount -t ramfs 10000 /mnt/ram
+mount -t hoitfs 0 /mnt/hoitfs
+mount -t ramfs 100000 /mnt/ram
 umount /mnt/ram
 cd /apps/FileTreeTest
-./FileTreeTest
+/apps/FileTreeTest/FileTreeTest
 ls /mnt/hoit
 ```
 
+4.手动测试
 
+```powershell
+mkdir Newdir0
+touch Newfile0
+echo Hello_hoitfs1234 >
+cat 
+```
+
+5.出现问题
+
+创建13个文件和4个目录久报错了。
 
 ### 重叠写测试
 
@@ -70,11 +81,21 @@ mount -t hoitfs 0 /mnt/hoit
 mount -t ramfs 10000 /mnt/ram
 umount /mnt/ram
 cd /apps/FileOverWriteTest/
-./FileOverWriteTest/
+/apps/FileOverWriteTest/FileOverWriteTest/
 cat /mnt/ram/OverWriteTest
 ```
 
 
 
 ## 待测试
+
+## mount参数
+
+> pcDevName = '\0' //就是hoitfs 后面那个参数
+>
+> pcVolName = "/mnt/hoitfs\0"
+>
+> pcFileSystem = "hoitfs\0"
+>
+> pcOption = LW_NULL
 
