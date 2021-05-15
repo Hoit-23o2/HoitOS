@@ -228,7 +228,7 @@ void FileTreeTestCheck(PUCHAR pFileName) {
     UINT    i;
     /* 检查文件 */
     for (i=0 ; i<max_fileNo ; i++) {
-        createFile(pFileName, i);
+        checkFile(pFileName, i);
         if (ERROR_FLAG == 1) {
             return;
         }
@@ -236,7 +236,7 @@ void FileTreeTestCheck(PUCHAR pFileName) {
  
     /* 检查目录 */
     for (i=0 ; i<max_dirNo ; i++) {
-        createDir(pFileName, i);
+        checkDir(pFileName, i);
         if (ERROR_FLAG == 1) {
             return;
         }        
@@ -285,10 +285,12 @@ INT FileTreeTest (INT  iArgC, PCHAR  ppcArgV[])
         }        
     }
 
-    printf("===========  File Tree Test!    ===========\n");
+    printf("===========  File Tree Test!         ===========\n");
+    printf("===========  Create File And Dir!    ===========\n");
     FileTreeTestStart(filename);
+    printf("===========  Check File And Dir!     ===========\n");
     FileTreeTestCheck(filename);
-    printf("=========== File Tree Test End! ===========\n");
+    printf("===========  File Tree Test End!     ===========\n");
     return  ERROR_NONE;
 }
 
