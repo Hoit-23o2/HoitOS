@@ -276,11 +276,12 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
         size_t  stBufSize = (cacheBlkSize - stStart);
         i = (uiOfs + writeBytes)/cacheBlkSize;
         
-        while (pSector != LW_NULL ) {   /* 查找块号对应的pSector */
-            if (pSector->HOITS_bno == i)
-                break;
-            pSector = pSector->HOITS_next;
-        }
+        // while (pSector != LW_NULL ) {   
+        //     if (pSector->HOITS_bno == i)
+        //         break;
+        //     pSector = pSector->HOITS_next;
+        // }
+        pSector = hoitFindSector(pcacheHdr, i);/* 查找块号对应的pSector */
 
         writeAddr = uiOfs + writeBytes + NOR_FLASH_START_OFFSET;
 
@@ -392,11 +393,7 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     if (i == PX_ERROR) {
         return PX_ERROR;
     } else {
-        while (pSector != LW_NULL) {
-            if (pSector->HOITS_bno == i)
-                break;
-            pSector = pSector->HOITS_next;
-        }        
+        pSector = hoitFindSector(pcacheHdr, i);      
     }
 
     writeAddr = pSector->HOITS_bno * 
@@ -423,18 +420,17 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     pSector->HOITS_uiUsedSize   += uiSize;
     pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_totalUsedSize += uiSize;
 
+    /* 当前写的块满了，则去找下一个仍有空闲的块 */
     if (pSector->HOITS_uiFreeSize == 0) {
-            pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
-        while (pSector != LW_NULL) {
-            if (pSector->HOITS_uiFreeSize != 0) {
-                pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
-                break;
-            }
-            pSector = pSector->HOITS_next;
+        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+        i = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA, 1);
+        if (i != PX_ERROR) {
+            pSector = hoitFindSector(pcacheHdr, i);
         }
-    } else {
-        pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
     }
+
+    pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
+
     
     return writeAddr - NOR_FLASH_START_OFFSET;
 }
@@ -530,6 +526,7 @@ BOOL hoitReleaseCacheHDR(PHOIT_CACHE_HDR pcacheHdr) {
     pcacheHdr   cache头
     cacheType   块类型
     uiSize      块的剩余空间要求，只有cacheType == HOIT_CACHE_TYPE_DATA下才有意义。
+                如果HOITFS_now_sector空间充足，则默认返回HOITFS_now_sector号
 */
 UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 uiSize) {
     PHOIT_ERASABLE_SECTOR pSector;
@@ -542,11 +539,16 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
         /* 如果当前块写不下，找下一块 */
         if (pSector->HOITS_uiFreeSize < uiSize) {
             pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+        } else {
+            return pSector->HOITS_bno;
         }
 
         while (pSector != LW_NULL) {
-            if (pSector->HOITS_uiFreeSize >= uiSize) {
-                return pSector->HOITS_bno;
+            if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
+               && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
+                if(pSector->HOITS_uiFreeSize >= uiSize) {
+                    return pSector->HOITS_bno;
+                }
             }
             pSector = pSector->HOITS_next;
         }      
@@ -557,8 +559,11 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
         /* GC之后重新找块 */
         pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
         while (pSector != LW_NULL) {
-            if (pSector->HOITS_uiFreeSize >= uiSize) {
-                return pSector->HOITS_bno;
+            if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
+               && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
+                if(pSector->HOITS_uiFreeSize >= uiSize) {
+                    return pSector->HOITS_bno;
+                }
             }
             pSector = pSector->HOITS_next;
         }
