@@ -195,6 +195,7 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
     pFullDnode->HOITFD_length = size;
     pFullDnode->HOITFD_offset = offset;
     pFullDnode->HOITFD_raw_info = pRawInfo;
+    pFullDnode->HOITFD_version = pRawInode->version;
     
     __SHEAP_FREE(pBuf);
     return pFullDnode;
