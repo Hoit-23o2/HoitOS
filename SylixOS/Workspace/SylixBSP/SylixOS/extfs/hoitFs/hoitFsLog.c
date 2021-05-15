@@ -468,7 +468,8 @@ VOID hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
                                                             /* 声明一个LOG实体头 */                                                                        
     pRawLog                 = (PHOIT_RAW_LOG)lib_malloc(sizeof(HOIT_RAW_LOG));
     pRawLog->file_type      = S_IFLOG;
-    pRawLog->flag           = HOIT_MAGIC_NUM;
+    pRawLog->flag           = HOIT_FLAG_TYPE_LOG | HOIT_FLAG_OBSOLETE;
+    pRawLog->magic_num      = HOIT_MAGIC_NUM;
     pRawLog->totlen         = uiSize;
     pRawLog->uiLogFirstAddr = PX_ERROR;
     pRawLog->uiLogSize      = uiLogSize;
@@ -504,6 +505,9 @@ VOID hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
 
     hoitWriteThroughCache(pfs->HOITFS_cacheHdr, uiLogAddr + uiLogCurOfs, pcLogContent, uiSize);
     hoitFlushCache(pfs->HOITFS_cacheHdr);
+    
+    __hoit_read_flash(pfs, uiLogAddr + uiLogCurOfs, pcLogContent, uiSize);
+    pRawHeader = (PHOIT_RAW_HEADER)pcLogContent;
                                                                     /* 修改相应LOG参数 */
     pfs->HOITFS_logInfo->uiLogEntityCnt++;
     pfs->HOITFS_logInfo->uiLogCurOfs += uiSize;

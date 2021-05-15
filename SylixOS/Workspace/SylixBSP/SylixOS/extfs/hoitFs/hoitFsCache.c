@@ -515,6 +515,7 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType) {
                     return pSector->HOITS_bno;
                 }
             }
+            pSector = pSector->HOITS_next;
         }
         return (PX_ERROR);
     //TODO 将来有了gc之后就不能单纯的将下一个写入块加一
@@ -536,10 +537,11 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType) {
 PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no) {
     PHOIT_ERASABLE_SECTOR pSector;
     pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
-    while (pSector != NULL)
+    while (pSector != LW_NULL)
     {
         if (pSector->HOITS_bno == sector_no)
             break;
+        pSector = pSector->HOITS_next;
     }
     return pSector;
 }
