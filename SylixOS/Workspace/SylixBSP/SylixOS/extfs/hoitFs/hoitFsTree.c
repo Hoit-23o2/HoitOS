@@ -192,7 +192,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
     BOOL                      bIsOverlay;
 
     uiCurLow                  = pFTn->uiOfs;
-    uiCurHigh                 = uiCurLow + pFTn->uiSize - 1;
+    uiCurHigh                 = uiCurLow + pFTn->uiSize == 0 ? 0 : uiCurLow + pFTn->uiSize - 1;
     bIsOverlay                = MAX(uiCurLow, uiConquerorLow) <= MIN(uiCurHigh, uiConquerorHigh);
     *uiCase                   = -1;
     *pFTnNew                  = LW_NULL;
@@ -593,7 +593,8 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
             pFTn            = pFTlistCur->pFTn;
             pFTnConqueror   = pFTlistConqueror->pFTn;
             uiConquerorLow  = pFTnConqueror->uiOfs;
-            uiConquerorHigh = uiConquerorLow + pFTnConqueror->uiSize - 1;
+            uiConquerorHigh = uiConquerorLow + pFTnConqueror->uiSize == 0 ?
+                              0 : uiConquerorLow + pFTnConqueror->uiSize - 1;
             
             bIsOverlay = __hoitFragTreeConquerNode(pFTTree, pFTn, uiConquerorLow, uiConquerorHigh,
                                                    &pFTnNew, &uiCase, LW_TRUE);
