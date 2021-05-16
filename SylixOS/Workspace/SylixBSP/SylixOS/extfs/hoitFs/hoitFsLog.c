@@ -210,7 +210,7 @@ UINT __hoitScanLogSector(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog, UINT * puiEnti
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-PHOIT_ERASABLE_SECTOR __hoitFindAvailableSector(PHOIT_VOLUME pfs){
+PHOIT_ERASABLE_SECTOR hoitFindAvailableSector(PHOIT_VOLUME pfs){
     UINT                    uiAvaiSectorNum;
     PHOIT_ERASABLE_SECTOR   pErasableSector;
     
@@ -265,7 +265,7 @@ PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
     pRawLog->version   = pfs->HOITFS_highest_version++;
 
     //TODO: 找到一个空的Sector作为LOG Sector
-    pErasableSector    = __hoitFindAvailableSector(pfs);
+    pErasableSector    = hoitFindAvailableSector(pfs);
     if(pErasableSector == LW_NULL){
 #ifdef DEBUG_LOG
         printf("[%s] can't find a sector for log\n", __func__);
@@ -539,7 +539,7 @@ BOOL hoitLogCheckIfLog(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector){
     pLogSectorTraverse = pfs->HOITFS_logInfo->pLogSectorList;
     while (pLogSectorTraverse)
     {
-        if(!lib_memcmp(pLogSectorTraverse->pErasableSetcor, pErasableSector, sizeof(HOIT_ERASABLE_SECTOR))){
+        if(pLogSectorTraverse->pErasableSetcor == pErasableSector){
             return LW_TRUE;
         }
         pLogSectorTraverse = pLogSectorTraverse->pErasableNextLogSector;

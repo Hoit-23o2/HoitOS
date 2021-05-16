@@ -672,6 +672,8 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no, INT* hasLog, P
     pErasableSector->HOITS_pRawInfoPrevGC   = LW_NULL;
     pErasableSector->HOITS_pRawInfoLastGC   = LW_NULL;
     pErasableSector->HOITS_tBornAge         = API_TimeGet(); 
+    
+    LW_SPIN_INIT(&pErasableSector->HOITS_lock);         /* 初始化SPIN LOCK */
 
     // ugly now
     if(pfs->HOITFS_now_sector == LW_NULL){
@@ -979,14 +981,18 @@ VOID __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO
 /*********************************************************************************************************
 ** 函数名称: __hoit_move_home
 ** 功能描述: hoitfs 垃圾回收函数，将含有有效数据的rawInfo从旧sector搬到新sector上，
-**          注意，这里不会修改某个数据实体的Prev指针
+**          注意，这里不会修改某个数据实体的Prev指针，并且注意保存now_sector指针，
+**          它会修改该指针；
 ** 输　入  : pSector是新sector
 ** 输　出  : 打开结果
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
 BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
-    PCHAR pReadBuf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);
+    //! 2021-05-16 修改 move home By PYQ，我们应该找一个新块来写
+    PCHAR                   pReadBuf;
+    PHOIT_RAW_LOG           pRawLog;
+    pReadBuf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);
     /* 先读出旧数据 */
     lib_bzero(pReadBuf, pRawInfo->totlen);
 
@@ -994,8 +1000,7 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pReadBuf;
     if (pRawHeader->magic_num != HOIT_MAGIC_NUM 
-    || (pRawHeader->flag & HOIT_FLAG_OBSOLETE) == 0
-    || __HOIT_IS_TYPE_LOG(pRawHeader)) {            /* 不回收LOG文件 */
+    || (pRawHeader->flag & HOIT_FLAG_OBSOLETE) == 0) {
         //printk("Error in hoit_move_home\n");
         return LW_FALSE;
     }
@@ -1006,9 +1011,19 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     /* 将obsolete标志位恢复后写到新地址 */
     pRawHeader->flag |= HOIT_FLAG_OBSOLETE;         //将obsolete标志变为1，代表未过期
     UINT phys_addr = 0;
+
+    //!2021-05-16 修改now_sector指针 modified by PYQ 
+    pfs->HOITFS_now_sector = pfs->HOITFS_curGCSuvivorSector;
+
     __hoit_write_flash(pfs, pReadBuf, pRawInfo->totlen, &phys_addr, 1);
     pRawInfo->phys_addr = phys_addr;
 
+    if(__HOIT_IS_TYPE_LOG(pRawHeader)){                         /* 如果是LOG HDR，那么要调整logInfo里的信息 */
+        pRawLog = (PHOIT_RAW_LOG)pRawHeader;
+        if (pRawLog->uiLogFirstAddr != -1) {                    /* LOG HDR */
+            pfs->HOITFS_logInfo->uiRawLogHdrAddr = pRawInfo->phys_addr;
+        }
+    }
     /* 将RawInfo从旧块搬到新块 */
     __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pRawInfo);
     return LW_TRUE;

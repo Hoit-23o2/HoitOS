@@ -171,7 +171,7 @@ typedef struct HOIT_VOLUME{
                                                                            /*! GC 相关 */
     PHOIT_ERASABLE_SECTOR   HOITFS_erasableSectorList;                     /* 可擦除Sector列表 */
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
-    spinlock_t              HOITFS_GCLock;                                 /* GC锁 */
+    PHOIT_ERASABLE_SECTOR   HOITFS_curGCSuvivorSector;                      /* 目标搬家地址 */
     LW_OBJECT_HANDLE        HOITFS_GCMsgQ;                                 /* GC线程消息队列*/
     LW_OBJECT_HANDLE        HOITFS_hGCThreadId;                            /* GC总线程ID */
     size_t                  HOITFS_totalUsedSize;                          /* hoitfs已使用Flash大小 */
@@ -451,6 +451,6 @@ struct HOIT_RAW_LOG
 /*********************************************************************************************************
   Common 公用方法区
 *********************************************************************************************************/
-BOOL hoitLogCheckIfLog(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector);
-
+BOOL                  hoitLogCheckIfLog(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector);
+PHOIT_ERASABLE_SECTOR hoitFindAvailableSector(PHOIT_VOLUME pfs);
 #endif /* SYLIXOS_EXTFS_HOITFS_HOITTYPE_H_ */

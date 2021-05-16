@@ -46,7 +46,12 @@ VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs){
     while (pErasableSectorTraverse)
     {
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
-        printf(DIVIDER "SECTOR %d" DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
+        if(hoitLogCheckIfLog(pfs, pErasableSectorTraverse)){
+            printf(DIVIDER "SECTOR %d [*LOG] " DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
+        }
+        else {
+            printf(DIVIDER "SECTOR %d" DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
+        }
         printf("UsedSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiUsedSize);
         printf("FreeSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiFreeSize);
         pErasableSectorTraverse = pErasableSectorTraverse->HOITS_next;
