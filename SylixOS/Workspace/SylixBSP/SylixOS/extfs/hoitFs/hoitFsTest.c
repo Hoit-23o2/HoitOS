@@ -310,14 +310,18 @@ INT hoitTestFileTree (INT  iArgC, PCHAR  ppcArgV[])
 *********************************************************************************************************/
 INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     UCHAR   filename[30]     = "/mnt/hoitfs/OverWriteTest\0";
+    UCHAR   writeData[1024+256];
     UCHAR   readData[1024+256];
     INT     iFd;
     UCHAR   data    = '1';
     INT     i;
+    
+    lib_zero(writeData,sizeof(writedata));
+
     printf("===========  File Overwrite Test!       ===========\n");
     iFd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_FILE_PERM);   /*  排他性创建 */ 
     lib_memset(readData, 0, sizeof(readData));
-    /* 初始写入512个'1' */
+    /* 初始写入64个'1' */
     for (i=0 ; i<64 ; i++) {
         lseek(iFd, (i)*sizeof(CHAR), SEEK_SET);
         write(iFd, &data, sizeof(CHAR));
