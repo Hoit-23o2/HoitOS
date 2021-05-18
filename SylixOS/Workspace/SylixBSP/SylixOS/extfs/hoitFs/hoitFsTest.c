@@ -784,7 +784,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         return PX_ERROR;
     }
     close(iFd);
-    check("");
+    checkOK("");
     /***************************** 删除硬链接 ****************************/
     printf("delete hard link...\n");
     if (unlink(hard_link)==PX_ERROR) {
@@ -809,7 +809,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         return PX_ERROR;
     }
     close(iFd);
-    check("");
+    checkOK("");
     /******************************* step6 *******************************/
     /* 创建ramfs */
     printf("mount ramfs...\n");
@@ -844,7 +844,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         return PX_ERROR;
     }
     close(iFd);
-    check("outer link");
+    checkOK("outer link");
     
     /* 检查从hoitfs指向ramfs的软链接 */
     iFd = open(outer_file_name, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_FILE_PERM); 
