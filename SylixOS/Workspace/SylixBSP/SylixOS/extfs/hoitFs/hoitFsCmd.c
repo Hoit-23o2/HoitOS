@@ -30,6 +30,7 @@
 ** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 #include "./hoitFsTest.h"
+PHOIT_VOLUME _G_Volumn;
 
 #define DIVIDER                         "================="
 #define GET_ARG(i)                      *(ppcArgV + i)
@@ -99,6 +100,10 @@ INT fs_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
         else if (EQU_ARG("fot", pcFSOption))                            /* hoit -t fot */
         {
             hoitTestFileOverWrite(iArgC - 2, ppcArgV + 2);
+        }
+        else if (EQU_ARG("fot", pcFSOption))
+        {
+            
         }
     }
 }

@@ -80,7 +80,7 @@ cat
 1. 测试指令
 
 ```powershell
-mount -t hoitfs 0 /mnt/hoit
+mount -t hoitfs 0 /mnt/hoitfs
 mount -t ramfs 10000 /mnt/ram
 umount /mnt/ram
 cd /apps/FileOverWriteTest/
@@ -88,6 +88,21 @@ cd /apps/FileOverWriteTest/
 cat /mnt/ram/OverWriteTest
 /*或直接使用指令*/
 hoit -t fot
+```
+
+
+
+### 软硬链接
+
+1.软链接函数
+
+```
+/*
+	pcLinkDst:源文件路径（文件系统中）
+	pcSymPath:软链接路径（文件系统中）
+	似乎是自动查找文件处于哪个文件系统中，然后进行软链接
+*/
+INT  symlink (CPCHAR  pcLinkDst, CPCHAR  pcSymPath)
 ```
 
 
