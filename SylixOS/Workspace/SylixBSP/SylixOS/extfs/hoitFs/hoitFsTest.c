@@ -30,6 +30,7 @@ UINT max_fileNo     = 5;
 UINT max_data_write = 16;
 UINT ERROR_FLAG     = 0;
 UINT depth  = 1;
+extern PHOIT_VOLUME _G_Volumn;
 
 void createDir(PUCHAR pFileName, UINT dirNo) {
     mode_t  mode        = DEFAULT_DIR_PERM;
@@ -316,7 +317,7 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     UCHAR   data    = '1';
     INT     i;
     
-    lib_zero(writeData,sizeof(writedata));
+    lib_memset(writeData, 0, sizeof(writeData));
 
     printf("===========  File Overwrite Test!       ===========\n");
     iFd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_FILE_PERM);   /*  排他性创建 */ 
@@ -325,12 +326,23 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     for (i=0 ; i<64 ; i++) {
         lseek(iFd, (i)*sizeof(CHAR), SEEK_SET);
         write(iFd, &data, sizeof(CHAR));
+        writeData[i] = data;
     }
     printf("\nNo.%c result:\n", data);
     close(iFd);
     iFd = open(filename, O_RDONLY, DEFAULT_FILE_PERM);
     read(iFd, readData, sizeof(readData));
     printf("%s\n",readData);
+    if (lib_strcmp(writeData,readData) == 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+        printf("\tcheck No.%c ok\n", data);
+        API_TShellColorEnd(STD_OUT);        
+    } else {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("\tcheck No.%c failed\n", data);
+        API_TShellColorEnd(STD_OUT);  
+        goto __fot_end;       
+    }
 
     /* 关闭文件再打开，追加写256个'2' */
     data ++;
@@ -339,12 +351,23 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     for (i=64 ; i<96 ; i++) {
         lseek(iFd, (i)*sizeof(CHAR), SEEK_SET);
         write(iFd, &data, sizeof(CHAR));
+        writeData[i] = data;
     }
     printf("\nNo.%c result:\n", data);
     close(iFd);
     iFd = open(filename, O_RDONLY, DEFAULT_FILE_PERM);
     read(iFd, readData, sizeof(readData));
     printf("%s\n",readData);
+    if (lib_strcmp(writeData,readData) == 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+        printf("\tcheck No.%c ok\n", data);
+        API_TShellColorEnd(STD_OUT);        
+    } else {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("\tcheck No.%c failed\n", data);
+        API_TShellColorEnd(STD_OUT);  
+        goto __fot_end;       
+    }
 
     /* 覆盖修改前256个字为"3" */
     data ++;
@@ -353,12 +376,23 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     for(i=0 ; i<32 ; i++) {
         lseek(iFd, (i)*sizeof(CHAR), SEEK_SET);
         write(iFd, &data, sizeof(CHAR));
+        writeData[i] = data;
     }
     printf("\nNo.%c result:\n", data);
     close(iFd);
     iFd = open(filename, O_RDONLY, DEFAULT_FILE_PERM);
     read(iFd, readData, sizeof(readData));    
     printf("%s\n",readData);
+    if (lib_strcmp(writeData,readData) == 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+        printf("\tcheck No.%c ok\n", data);
+        API_TShellColorEnd(STD_OUT);        
+    } else {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("\tcheck No.%c failed\n", data);
+        API_TShellColorEnd(STD_OUT);  
+        goto __fot_end;       
+    }
 
     /* 从512位开始写512个'4' */
     data ++;
@@ -367,13 +401,23 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     for(i=64 ; i<128 ; i++) {
         lseek(iFd, (i)*sizeof(CHAR), SEEK_SET);
         write(iFd, &data, sizeof(CHAR));
+        writeData[i] = data;
     }
     printf("\nNo.%c result:\n", data);
     close(iFd);
     iFd = open(filename, O_RDONLY, DEFAULT_FILE_PERM);
     read(iFd, readData, sizeof(readData));
     printf("%s\n",readData);
-
+    if (lib_strcmp(writeData,readData) == 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+        printf("\tcheck No.%c ok\n", data);
+        API_TShellColorEnd(STD_OUT);        
+    } else {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("\tcheck No.%c failed\n", data);
+        API_TShellColorEnd(STD_OUT);  
+        goto __fot_end;       
+    }
     /* 从1024位开始中间空128字节，然后写128个'5' */
 //    data ++;
 //    close(iFd);
@@ -400,11 +444,24 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     iFd = open(filename, O_WRONLY, DEFAULT_FILE_PERM);
     lseek(iFd, 0, SEEK_SET);
     write(iFd, "xxxxxxxxxxxxxxxx", 16);
+    for (i=0 ; i<16; i++) {
+        writeData[i] = 'x';
+    }
     printf("\nNo.%c result:\n", data);
     close(iFd);
     iFd = open(filename, O_RDONLY, DEFAULT_FILE_PERM);
     read(iFd, readData, sizeof(readData));
     printf("%s\n", readData);
+    if (lib_strcmp(writeData,readData) == 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+        printf("\tcheck No.%c ok\n", 'x');
+        API_TShellColorEnd(STD_OUT);        
+    } else {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("\tcheck No.%c failed\n", 'x');
+        API_TShellColorEnd(STD_OUT);  
+        goto __fot_end;       
+    }
 
     data ++;
     close(iFd);
@@ -412,17 +469,415 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     iFd = open(filename, O_WRONLY, DEFAULT_FILE_PERM);
     lseek(iFd, 0, SEEK_SET);
     write(iFd, "yyyyyyyy", 8);
+    for (i=0 ; i<8; i++) {
+        writeData[i] = 'y';
+    }    
     printf("\nNo.%c result:\n", data);
     close(iFd);
     iFd = open(filename, O_RDONLY, DEFAULT_FILE_PERM);
     read(iFd, readData, sizeof(readData));
     printf("%s\n", readData);
     close(iFd);
+    if (lib_strcmp(writeData,readData) == 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+        printf("\tcheck No.%c ok\n", 'y');
+        API_TShellColorEnd(STD_OUT);        
+    } else {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("\tcheck No.%c failed\n", 'y');
+        API_TShellColorEnd(STD_OUT);  
+        goto __fot_end;       
+    }
 
+__fot_end:
     printf("\n");
     printf("===========  File Overwrite Test End!    ===========\n");
     return  ERROR_NONE;
 }
+
+/*********************************************************************************************************
+ * 软硬连接测试
+*********************************************************************************************************/
+/*
+    读取iFd内容，与write_data比对
+*/
+INT checkData(INT iFd, UCHAR write_data[128]){
+    UCHAR read_data[128];
+    /* 先读取文件查看内容是否一致 */
+    lib_bzero(read_data, sizeof(read_data));
+    read(iFd, read_data, sizeof(read_data));
+    if (lib_strcmp(read_data, write_data)!= 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("data is not consist\n");
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;        
+    }
+    return ERROR_NONE;
+}
+
+void checkOK(char const* const _Format) {
+    API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+    printf("%s check ok\n",_Format);
+    API_TShellColorEnd(STD_OUT);
+}
+
+/*
+    软硬连接测试流程如下：
+    step 1: 创建源文件
+        在A目录下，创建源文件，写入原始数据
+    step 2: 创建软硬链接
+        在B目录下，创建源文件的软链接
+        在B目录下。创建源文件的硬链接
+    step 3: 检查基本读写
+        通过软链接读取源文件数据，检查正确性，再写入新数据，通过源文件读取新数据
+        通过硬链接读取源文件数据，检查正确性，再写入新数据，通过源文件读取新数据
+    step 4: 检查传递链接
+        对软链接创建软链接，通过次级软链接读取数据。
+    step 5:检查删除链接对源文件的影响
+        删除软链接，再从源文件读取数据
+        删除硬链接，再从源文件读取数据
+    step 6:检查不同文件系统之间是否可以建立软链接文件。
+        在ramfs下创建指向hoitfs下源文件的软链接，读取文件数据。
+        创建ramfs，在ramfs下创建新文件，在hoitfs创建指向其的软链接，读取文件数据。
+*/
+INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
+    UCHAR   file_name[64]           = "/mnt/hoitfs/A/Test_LinkSourceFile\0";
+    UCHAR   outer_file_name[64]     = "/mnt/ramfs/Test_OuterFile\0";    /* hoitfs软链接指向ramfs的目标文件 */
+    UCHAR   file_dir[64]            = "/mnt/hoitfs/A\0";
+
+    UCHAR   hard_link[64]           = "/mnt/hoitfs/B/Test_HardLinkFile\0";
+    UCHAR   soft_link[64]           = "/mnt/hoitfs/B/Test_SoftLinkFile\0";
+    UCHAR   second_soft_link[64]    = "/mnt/hoitfs/B/Test_SoftLinkFile2\0";
+    UCHAR   inner_link[64]          = "/mnt/hoitfs/B/Test_InnerLinkFile\0"; /* 从hoitfs指向ramfs的软链接 */
+    UCHAR   outer_link[64]          = "/mnt/ramfs/Test_OuterLinkFile\0";    /* 从hoitfs指向ramfs的软链接 */
+
+    UCHAR   link_dir[64]            = "/mnt/hoitfs/B\0";
+
+    mode_t  dir_mode                = DEFAULT_DIR_PERM & (~S_IFMT);
+    mode_t  file_mode               = DEFAULT_FILE_PERM;
+
+    UCHAR   write_data[128];
+    UCHAR   read_data[128];  
+    UCHAR   data = 'x';  
+    INT     iFd;
+    INT     i;
+    
+    /* 创建目录 */
+    iFd = open(file_dir, O_RDWR | O_CREAT | O_EXCL, S_IFDIR | dir_mode);
+    if (iFd < 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("create \" %s \" error!\n", file_dir);
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
+    }
+    close(iFd);
+    iFd = open(link_dir, O_RDWR | O_CREAT | O_EXCL, S_IFDIR | dir_mode);
+    if (iFd < 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("create \" %s \" error!\n", link_dir);
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
+    }
+    close(iFd);
+
+    /******************************* step1 *******************************/
+    iFd = open(file_name, O_WRONLY | O_CREAT | O_TRUNC, file_mode); 
+    if (iFd < 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("create \" %s \" error!\n", file_name);
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
+    }
+    
+    /* 写128个 "x" */
+    for (i=0 ; i<128 ; i++) {
+        write(iFd, &data, sizeof(data));
+        write_data[i] = data;
+    }
+    close(iFd);
+
+    /******************************* step2 *******************************/
+    /* 软链接 */
+    if (symlink(file_name, soft_link) != ERROR_NONE) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("soft link creating failed!\n");
+        API_TShellColorEnd(STD_OUT); 
+    }
+
+    /* 硬链接 */
+    if (_G_Volumn == LW_NULL) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("can't get the hoitfs header!\n");
+        API_TShellColorEnd(STD_OUT); 
+    }
+    if (__hoitFsHardlink(_G_Volumn, file_name, hard_link) != ERROR_NONE) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("hard link creating failed!\n");
+        API_TShellColorEnd(STD_OUT); 
+    }
+
+    /******************************* step3 *******************************/
+    /******************************* 软链接 *******************************/
+    printf("check soft link read...\n");
+    iFd = open(soft_link, O_RDWR, file_mode);
+    if (iFd < 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("open \" %s \" error!\n", soft_link);
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
+    }
+    /* 先读取文件查看内容是否一致 */
+    if (checkData(iFd, write_data)!=ERROR_NONE) {
+        close(iFd);
+        return PX_ERROR;
+    }
+    close(iFd);
+    checkOK("soft link read");
+
+    /* 文件前半部'x'改为'y' */
+    printf("check soft link write...\n");
+    lseek(iFd, 0, SEEK_SET);
+    data = 'y';
+    for (i=0; i< 64 ; i++) {
+        write(iFd, &data, sizeof(UCHAR));
+        write_data[i] = data;
+    }
+    close(iFd);
+
+    /* 通过源文件检查 */
+    iFd = open(file_name, O_RDONLY, file_mode);
+    if (iFd < 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("open \" %s \" error!\n", file_name);
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
+    }
+
+    if (checkData(iFd, write_data)!=ERROR_NONE) {
+        close(iFd);
+        return PX_ERROR;
+    }
+    close(iFd);   
+    checkOK("soft link write");
+
+    /******************************* 硬链接 *******************************/
+    printf("check hard link read...\n");
+    iFd = open(hard_link, O_RDWR, file_mode);
+    if (iFd < 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("open \" %s \" error!\n", hard_link);
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
+    }  
+
+    /* 先读取文件查看内容是否一致 */
+    if (checkData(iFd, write_data)!=ERROR_NONE) {
+        close(iFd);
+        return PX_ERROR;
+    }
+    close(iFd);
+    checkOK("hard link read");
+
+    /* 文件后半部'x'改为'z' */
+    printf("check hard link write...\n");
+    lseek(iFd, 0, SEEK_SET);
+    data = 'z';
+    for (i=0; i< 64 ; i++) {
+        write(iFd, &data, sizeof(UCHAR));
+        write_data[i] = data;
+    }
+    close(iFd);     
+    
+    /* 通过源文件检查 */
+    iFd = open(file_name, O_RDONLY, file_mode);
+    if (iFd < 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("open \" %s \" error!\n", file_name);
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
+    }
+
+    if (checkData(iFd, write_data)!=ERROR_NONE) {
+        close(iFd);
+        return PX_ERROR;
+    }
+    close(iFd);
+    checkOK("hard link write");
+
+    /******************************* step4 *******************************/
+    /***************************** 传递软链接 ****************************/
+    printf("check passing check link read...\n");
+    if (symlink(soft_link, second_soft_link) != ERROR_NONE) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("second soft link creating failed!\n");
+        API_TShellColorEnd(STD_OUT); 
+    }
+    iFd = open(second_soft_link, O_RDWR, file_mode);
+    if (iFd < 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("open \" %s \" error!\n", second_soft_link);
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
+    }
+    /* 先读取文件查看内容是否一致 */
+    if (checkData(iFd, write_data)!=ERROR_NONE) {
+        close(iFd);
+        return PX_ERROR;
+    }
+    close(iFd);
+    checkOK("passing link read");
+
+    /* 文件数据全改成'0' */
+    printf("check passing check link write...\n");
+    lseek(iFd, 0, SEEK_SET);
+    data = '0';
+    for (i=0; i< 128 ; i++) {
+        write(iFd, &data, sizeof(UCHAR));
+        write_data[i] = data;
+    }
+    close(iFd);
+
+    /* 通过源文件检查 */
+    iFd = open(file_name, O_RDONLY, file_mode);
+    if (iFd < 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("open \" %s \" error!\n", file_name);
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
+    }
+
+    if (checkData(iFd, write_data)!=ERROR_NONE) {
+        close(iFd);
+        return PX_ERROR;
+    }
+    close(iFd);
+    checkOK("passing link write");
+
+    /******************************* step5 *******************************/
+    /*********************** 删除软链接和传递软链接 ***********************/
+    printf("delete soft link...\n");
+    if(unlink(second_soft_link)==PX_ERROR) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("delete soft link failed!\n");
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;         
+    }
+    if(unlink(soft_link)==PX_ERROR) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("delete soft link failed!\n");
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;         
+    }
+
+    /* 通过源文件检查 */
+    printf("check soft link deleting influence...\n");
+    iFd = open(file_name, O_RDONLY, file_mode);
+    if (iFd < 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("open \" %s \" error!\n", file_name);
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
+    }
+
+    if (checkData(iFd, write_data)!=ERROR_NONE) {
+        close(iFd);
+        return PX_ERROR;
+    }
+    close(iFd);
+    check("");
+    /***************************** 删除硬链接 ****************************/
+    printf("delete hard link...\n");
+    if (unlink(hard_link)==PX_ERROR) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("delete hard link failed!\n");
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;         
+    }
+
+    /* 通过源文件检查 */
+    printf("check hard link deleting influence...\n");
+    iFd = open(file_name, O_RDONLY, file_mode);
+    if (iFd < 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("open \" %s \" error!\n", file_name);
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
+    }
+
+    if (checkData(iFd, write_data)!=ERROR_NONE) {
+        close(iFd);
+        return PX_ERROR;
+    }
+    close(iFd);
+    check("");
+    /******************************* step6 *******************************/
+    /* 创建ramfs */
+    printf("mount ramfs...\n");
+    if (API_MountEx("10000","/mnt/ramfs\0","ramfs\0",LW_NULL)!=ERROR_NONE) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("mount ramfs failed!\n");
+        API_TShellColorEnd(STD_OUT);
+        return (0);
+    }   
+    API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+    printf("mount ramfs OK\n");
+    API_TShellColorEnd(STD_OUT);
+
+    /* 在ramfs下指向hoitfs的软链接 */
+    if (symlink(file_name, outer_link) != ERROR_NONE) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("outer link creating failed!\n");
+        API_TShellColorEnd(STD_OUT); 
+    }
+
+    printf("check outer link...\n");
+    iFd = open(outer_link, O_RDWR, file_mode);
+    if (iFd < 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("open \" %s \" error!\n", outer_link);
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
+    }
+    
+    if (checkData(iFd, write_data)!=ERROR_NONE) {
+        close(iFd);
+        return PX_ERROR;
+    }
+    close(iFd);
+    check("outer link");
+    
+    /* 检查从hoitfs指向ramfs的软链接 */
+    iFd = open(outer_file_name, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_FILE_PERM); 
+    if (iFd < 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("create \" %s \" error!\n", outer_file_name);
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
+    }    
+    close(iFd);
+
+    if (symlink(outer_file_name, inner_link) != ERROR_NONE) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("inner link creating failed!\n");
+        API_TShellColorEnd(STD_OUT); 
+    }   
+    printf("check inner link...\n");
+    iFd = open(inner_link, O_RDWR, file_mode);
+    if (iFd < 0) {
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+        printf("open \" %s \" error!\n", inner_link);
+        API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
+    }
+    
+    if (checkData(iFd, write_data)!=ERROR_NONE) {
+        close(iFd);
+        return PX_ERROR;
+    }
+    close(iFd);
+    checkOK("");
+}
+
 
 /*********************************************************************************************************
  * GC测试

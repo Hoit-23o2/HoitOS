@@ -51,7 +51,6 @@
     根据虚拟偏移获取块号，偏移零地址为NOR_FLASH_START_OFFSET
 */
 static inline UINT8 hoitGetSectorNo(UINT32 offset){
-    UINT i;
     offset += NOR_FLASH_START_OFFSET;
     return GET_SECTOR_NO(offset) - GET_SECTOR_NO(NOR_FLASH_START_OFFSET);
 }
