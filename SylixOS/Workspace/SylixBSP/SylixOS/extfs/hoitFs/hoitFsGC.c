@@ -23,6 +23,8 @@
 #include "hoitFsFDLib.h"
 #include "hoitFsLib.h"
 
+//TODO: move_home返回错误值，表示不行了，GC抛出异常
+
 #define IS_MSG_GC_END(acMsg, stLen)             lib_memcmp(acMsg, MSG_GC_END, stLen) == 0
 #define IS_MSG_BG_GC_END(acMsg, stLen)          lib_memcmp(acMsg, MSG_BG_GC_END, stLen) == 0
 #define KILL_LOOP()                             break
@@ -30,11 +32,11 @@
 ** 函数名称: __hoitGCSectorRawInfoFixUp
 ** 功能描述: 释放所有pErasableSector中的过期RawInfo，修改next_phys关系
 ** 输　入  : pErasableSector        目标擦除块
-** 输　出  : None
+** 输　出  : 是否还需回收？
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
+BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
     PHOIT_RAW_INFO          pRawInfoFirst;
     PHOIT_RAW_INFO          pRawInfoLast;
     
@@ -58,10 +60,19 @@ VOID __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
         bIsReset = LW_TRUE;
     }
     
-    while (pRawInfoTraverse->is_obsolete)                               /* 寻找第一个非obselete的RawInfo，并释放已过期的RawInfo */
+    while (pRawInfoTraverse && pRawInfoTraverse->is_obsolete)           /* 寻找第一个非obselete的RawInfo，并释放已过期的RawInfo */
     {
         pRawInfoObselete = pRawInfoTraverse;
         pRawInfoTraverse = pRawInfoTraverse->next_phys;
+        if(pRawInfoObselete == pErasableSector->HOITS_pRawInfoLast){    /* 全是空，直接返回咯 */
+            lib_free(pRawInfoObselete);
+            pErasableSector->HOITS_pRawInfoFirst    = LW_NULL;
+            pErasableSector->HOITS_pRawInfoLast     = LW_NULL;
+            pErasableSector->HOITS_pRawInfoCurGC    = LW_NULL;
+            pErasableSector->HOITS_pRawInfoPrevGC   = LW_NULL;
+            pErasableSector->HOITS_pRawInfoLastGC   = LW_NULL;
+            return LW_FALSE;
+        }
         lib_free(pRawInfoObselete);
     }
 
@@ -80,8 +91,9 @@ VOID __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
             pRawInfoTrailing->next_phys         = pRawInfoTraverse->next_phys;  /* 修改指针——前一块指向当前块的下一块 */
             pRawInfoTraverse                    = pRawInfoTraverse->next_phys;  /* 置当前块为下一块 */
             
-            pErasableSector->HOITS_uiUsedSize   -= pRawInfoObselete->totlen;
-            pErasableSector->HOITS_uiFreeSize   += pRawInfoObselete->totlen;
+            //!不能在GC过程中修改一个Sector的各种Size，否则会出现很严重的情况
+            // pErasableSector->HOITS_uiUsedSize   -= pRawInfoObselete->totlen; 
+            // pErasableSector->HOITS_uiFreeSize   += pRawInfoObselete->totlen; 
             
             lib_free(pRawInfoObselete);                                         /* 释放过期的块 */
         }
@@ -109,6 +121,7 @@ VOID __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
             pErasableSector->HOITS_pRawInfoLastGC = LW_NULL;        /* 该Sector中没有Raw Info了…… */
         }
     }
+    return LW_TRUE;
 }
 /*********************************************************************************************************
 ** 函数名称: __hoitGCFindErasableSector
@@ -135,6 +148,10 @@ PHOIT_ERASABLE_SECTOR __hoitGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_GC_
     
     while (pErasableListTraverse)
     {
+        if(hoitLogCheckIfLog(pfs, pErasableListTraverse)){          /* 不回收Log Sector中的任何文件 */
+            pErasableListTraverse   = pErasableListTraverse->HOITS_next;
+            continue;
+        }
         uiFreeSize  = pErasableListTraverse->HOITS_uiFreeSize;   
 #ifdef GC_TEST                                  
         if(pErasableListTraverse->HOITS_next == LW_NULL){           /* 如果最后一个Sector了 */
@@ -179,7 +196,9 @@ PHOIT_ERASABLE_SECTOR __hoitGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_GC_
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID __hoitGCCollectRawInfoAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector, PHOIT_RAW_INFO pRawInfoCurGC, BOOL *pbIsMoveSuccess){
+BOOL __hoitGCCollectRawInfoAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector, PHOIT_RAW_INFO pRawInfoCurGC){
+    PHOIT_ERASABLE_SECTOR   pNowSectorOrigin;
+    BOOL                    bIsMoveSuccess;
 
     if(pErasableSector == LW_NULL){
 #ifdef GC_DEBUG
@@ -188,18 +207,12 @@ VOID __hoitGCCollectRawInfoAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasab
         return LW_TRUE;
     }
     
-
+    pNowSectorOrigin = pfs->HOITFS_now_sector;              /* 保存原有now_sector */
     //!把RawInfo及其对应的数据实体搬家
-    *pbIsMoveSuccess = __hoit_move_home(pfs, pRawInfoCurGC);  /* 搬家失败，说明该RawInfo要么是LOG要么是一段错误的数据，我们直接跳过 */
+    bIsMoveSuccess = __hoit_move_home(pfs, pRawInfoCurGC);  /* 搬家失败，说明该RawInfo要么是LOG要么是一段错误的数据，我们直接跳过 */
+    pfs->HOITFS_now_sector = pNowSectorOrigin;              /* 恢复原有now_sector */
 
-    if(*pbIsMoveSuccess){
-        pErasableSector->HOITS_uiUsedSize -= pRawInfoCurGC->totlen;
-        pErasableSector->HOITS_uiFreeSize += pRawInfoCurGC->totlen;
-
-        printf("[%s] GC has released size %d of sector %d\n", 
-                __func__, pRawInfoCurGC->totlen, pErasableSector->HOITS_bno);
-    }
-
+    return bIsMoveSuccess;
 }
 
 /*********************************************************************************************************
@@ -214,15 +227,18 @@ VOID __hoitGCCollectRawInfoAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasab
 BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector){
     BOOL                    bIsCollectOver;
     BOOL                    bIsMoveSuccess;
+    BOOL                    bIsNeedMoreCollect;
     INTREG                  iregInterLevel;
 
     PHOIT_RAW_INFO          pRawInfoNextGC;
     PHOIT_RAW_INFO          pRawInfoCurGC;
     PHOIT_RAW_INFO          pRawInfoPrevGC;
 
-    LW_SPIN_LOCK_QUICK(&pfs->HOITFS_GCLock, &iregInterLevel);
-    __hoitGCSectorRawInfoFixUp(pErasableSector);            /* FixUp后，会更新 HOITS_pRawInfoCurGC，HOITS_pRawInfoPrevGC，HOITS_pRawInfoLastGC等 */
-    
+    bIsNeedMoreCollect = __hoitGCSectorRawInfoFixUp(pErasableSector);            /* FixUp后，会更新 HOITS_pRawInfoCurGC，HOITS_pRawInfoPrevGC，HOITS_pRawInfoLastGC等 */
+    if(!bIsNeedMoreCollect){
+        bIsCollectOver = LW_TRUE;
+        goto __hoitGCCollectSectorAliveEnd;                                      /* 结束了 */
+    }
     printf("[%s]: Fix over the Sector %d\n", __func__, pErasableSector->HOITS_bno);
     pRawInfoCurGC   = LW_NULL;
     pRawInfoPrevGC  = LW_NULL;
@@ -246,8 +262,6 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
     API_ThreadUnlock();
 #endif // GC_DEBUG
 
-    pfs->HOITFS_curGCSector = pErasableSector;
-
     if(pErasableSector->HOITS_pRawInfoLastGC == LW_NULL){                                  /* 不存在Last了 */
         bIsCollectOver = LW_TRUE;
     }
@@ -259,7 +273,7 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
         bIsCollectOver = LW_TRUE;
     }
 
-    __hoitGCCollectRawInfoAlive(pfs, pErasableSector, pRawInfoCurGC, &bIsMoveSuccess);
+    bIsMoveSuccess = __hoitGCCollectRawInfoAlive(pfs, pErasableSector, pRawInfoCurGC);
 
 
     if(bIsMoveSuccess){                                                  /* 移动成功 */
@@ -285,15 +299,18 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
     }
 
     pErasableSector->HOITS_pRawInfoCurGC  = pRawInfoNextGC;              /* 调整Cur指针 */
-    
+
+__hoitGCCollectSectorAliveEnd:    
     if(bIsCollectOver){
         pErasableSector->HOITS_pRawInfoCurGC  = LW_NULL;                  /* 当前Sector中GC的RawInfo为空 */
         pErasableSector->HOITS_pRawInfoPrevGC = LW_NULL;
-        pfs->HOITFS_curGCSector = LW_NULL;                                /* 当前GC的Sector为空 */
-        printf("[%s]: Sector %d is collected Over\n", __func__, pErasableSector->HOITS_bno);
-    }
 
-    LW_SPIN_UNLOCK_QUICK(&pfs->HOITFS_GCLock, iregInterLevel);
+        API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+        printf("[%s] Sector %d is collected Over, Total Moved %dKB to Survivor Sector %d\n", 
+                __func__, pErasableSector->HOITS_bno, (pfs->HOITFS_curGCSuvivorSector->HOITS_uiUsedSize / 1024), 
+                pfs->HOITFS_curGCSuvivorSector->HOITS_bno);
+        API_TShellColorEnd(STD_OUT);
+    }
 
     return bIsCollectOver;
 }
@@ -328,19 +345,25 @@ VOID hoitGCForegroundForce(PHOIT_VOLUME pfs){
     BOOL                    bIsCollectOver;
     
     pErasableSector = LW_NULL;
-    if(pfs->HOITFS_curGCSector == LW_NULL) {
-        pErasableSector = __hoitGCFindErasableSector(pfs, GC_FOREGROUND);           
+    
+    if(pfs->HOITFS_curGCSector == LW_NULL && pfs->HOITFS_curGCSuvivorSector == LW_NULL) {
+        pErasableSector                 = __hoitGCFindErasableSector(pfs, GC_FOREGROUND);      
+        pfs->HOITFS_curGCSector         = pErasableSector;     
+        pfs->HOITFS_curGCSuvivorSector  = hoitFindAvailableSector(pfs);
     }
 
     if(pErasableSector){
-        API_SpinLockQuick(&pErasableSector->HOITS_lock, &iregInterLevel);               /* 尝试加锁，阻塞整个回收 */
+        LW_SPIN_LOCK_QUICK(&pErasableSector->HOITS_lock, &iregInterLevel);      /* 尝试加锁，阻塞整个回收 */
     }
 
     while (LW_TRUE)
     {
         if(pErasableSector) {
             bIsCollectOver = __hoitGCCollectSectorAlive(pfs, pErasableSector);
-            if(bIsCollectOver){
+            if(bIsCollectOver){                                                  /*! 显示置空 */
+                pfs->HOITFS_curGCSector        = LW_NULL;                        /* 当前GC的Sector为空 */
+                pfs->HOITFS_curGCSuvivorSector = LW_NULL;                        /* 幸存者Sector为空 */
+                hoitResetSectorState(pfs->HOITFS_cacheHdr, pErasableSector);     /* 重置该Sector状态，表明为空 */
                 break;
             }
         }
@@ -355,7 +378,7 @@ VOID hoitGCForegroundForce(PHOIT_VOLUME pfs){
     }
 
     if(pErasableSector){
-        API_SpinUnlockQuick(&pErasableSector->HOITS_lock, iregInterLevel);              /* 尝试解锁 */
+        LW_SPIN_UNLOCK_QUICK(&pErasableSector->HOITS_lock, iregInterLevel);              /* 尝试解锁 */
     }
 }
 
@@ -385,14 +408,21 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
             KILL_LOOP();
         }
 
-        if(pfs->HOITFS_curGCSector == LW_NULL) {
-            pErasableSector = __hoitGCFindErasableSector(pfs, GC_BACKGROUND);
+        if(pfs->HOITFS_curGCSector == LW_NULL && pfs->HOITFS_curGCSuvivorSector == LW_NULL) {
+            pErasableSector                 = __hoitGCFindErasableSector(pfs, GC_BACKGROUND);
+            pfs->HOITFS_curGCSector         = pErasableSector;     
+            pfs->HOITFS_curGCSuvivorSector  = hoitFindAvailableSector(pfs);
         }
 
         if(pErasableSector) {
-            API_SpinLockQuick(&pErasableSector->HOITS_lock, &iregInterLevel); 
+            LW_SPIN_LOCK_QUICK(&pErasableSector->HOITS_lock, &iregInterLevel); 
             bIsCollectOver = __hoitGCCollectSectorAlive(pfs, pErasableSector);      /* 阻塞回收单一实体 */
-            API_SpinUnlockQuick(&pErasableSector->HOITS_lock, iregInterLevel);
+            if(bIsCollectOver){
+                pfs->HOITFS_curGCSector        = LW_NULL;                           /* 当前GC的Sector为空 */
+                pfs->HOITFS_curGCSuvivorSector = LW_NULL;                           /* 幸存者Sector为空 */
+                hoitResetSectorState(pfs->HOITFS_cacheHdr, pErasableSector);        /* 重置该Sector状态，表明为空 */
+            }
+            LW_SPIN_UNLOCK_QUICK(&pErasableSector->HOITS_lock, iregInterLevel);
         }
         else {
 #ifdef GC_DEBUG
@@ -475,7 +505,7 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
 		        				               LW_NULL);
             }
         }
-        sleep(10);
+        sleep(5);
     }
 
 }

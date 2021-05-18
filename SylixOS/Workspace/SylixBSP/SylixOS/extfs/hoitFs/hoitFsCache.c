@@ -21,6 +21,11 @@
 #include "hoitFsCache.h"
 #include "hoitFsGC.h"
 #include "../../driver/mtd/nor/nor.h"
+
+//TODO: 1. now_sector不能与LOG重叠，可是为啥还是重叠了？
+//TODO: 2. 强制GC
+//TODO: 3. 注意无空间了就报错
+//TODO: 4. 
 /*********************************************************************************************************
 ** 函数名称: hoitEnableCache
 ** 功能描述: 初始化 hoit cache
@@ -601,6 +606,22 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
     }
     
 }
+/*********************************************************************************************************
+** 函数名称: hoitResetSectorState
+** 功能描述: 重置一个Sector的状态， Added By PYQ
+** 输　入  : pcacheHdr        缓存信息头部
+**          pErasableSector   目标Sector
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr, PHOIT_ERASABLE_SECTOR pErasableSector){
+    pErasableSector->HOITS_uiFreeSize = pErasableSector->HOITS_length;
+    pErasableSector->HOITS_uiUsedSize = 0;
+    pErasableSector->HOITS_offset     = 0;
+}
+
+                                         
 /*    
 ** 函数名称:    hoitFindSector
 ** 功能描述:    根据sector号获取pSector指针
