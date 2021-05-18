@@ -58,8 +58,8 @@ cd /apps/FileTreeTest
 /apps/FileTreeTest/FileTreeTest
 ls /mnt/hoit
 /* 或者直接使用指令 */
-ftt -h
-ftt -t 2 3 2
+hoit -t ftt -h
+hoit -t ftt -t 4 3 2
 ```
 
 4.手动测试
@@ -79,13 +79,30 @@ cat
 
 1. 测试指令
 
-```
-mount -t hoitfs 0 /mnt/hoit
+```powershell
+mount -t hoitfs 0 /mnt/hoitfs
 mount -t ramfs 10000 /mnt/ram
 umount /mnt/ram
 cd /apps/FileOverWriteTest/
 /apps/FileOverWriteTest/FileOverWriteTest/
 cat /mnt/ram/OverWriteTest
+/*或直接使用指令*/
+hoit -t fot
+```
+
+
+
+### 软硬链接
+
+1.软链接函数
+
+```
+/*
+	pcLinkDst:源文件路径（文件系统中）
+	pcSymPath:软链接路径（文件系统中）
+	似乎是自动查找文件处于哪个文件系统中，然后进行软链接
+*/
+INT  symlink (CPCHAR  pcLinkDst, CPCHAR  pcSymPath)
 ```
 
 

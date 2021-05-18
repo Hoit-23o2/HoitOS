@@ -158,15 +158,15 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_hGCThreadId     = LW_NULL;
 
                                                                         /* GC相关 */
-    _SmpSpinInit(&pfs->HOITFS_GCLock);
-    
-    pfs->HOITFS_curGCSector = LW_NULL;
+    pfs->HOITFS_curGCSector        = LW_NULL;
+    pfs->HOITFS_curGCSuvivorSector  = LW_NULL;
     pfs->HOITFS_erasableSectorList = LW_NULL;
-    pfs->HOITFS_logInfo     = LW_NULL;
+                                                                        /* Log相关 */
+    pfs->HOITFS_logInfo            = LW_NULL;
     //__ram_mount(pramfs);
     hoitEnableCache(GET_SECTOR_SIZE(8), 8, pfs);
     __hoit_mount(pfs);
-    hoitStartGCThread(pfs, 64 * 26 * 1024);
+    hoitStartGCThread(pfs, 64 * 1024);
     
     if (iosDevAddEx(&pfs->HOITFS_devhdrHdr, pcName, _G_iHoitFsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
