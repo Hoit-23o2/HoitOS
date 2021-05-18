@@ -30,7 +30,7 @@
 ** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 #include "./hoitFsTest.h"
-static PHOIT_VOLUME _G_Volumn;
+PHOIT_VOLUME _G_Volumn;
 
 #define DIVIDER                         "================="
 #define GET_ARG(i)                      *(ppcArgV + i)
