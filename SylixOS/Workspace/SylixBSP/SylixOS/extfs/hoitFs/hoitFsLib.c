@@ -780,6 +780,7 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no, INT* hasLog, P
                 PHOIT_RAW_LOG pRawLog = (PHOIT_RAW_LOG)pRawHeader;
                 if (pRawLog->uiLogFirstAddr != -1) {    /* LOG HDR */
                     /* hoitLogOpen(pfs, pRawLog); */
+                    *ppRawLogHdr = (PHOIT_RAW_LOG)lib_malloc(sizeof(HOIT_RAW_LOG));
                     lib_memcpy(*ppRawLogHdr, pRawLog, sizeof(HOIT_RAW_LOG));
                 }
             }
@@ -1761,7 +1762,7 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     INT             hasLog      = 0;
     UINT            phys_addr   = 0;
     UINT8           sector_no   = hoitGetSectorNo(phys_addr);
-    PHOIT_RAW_LOG   pRawLogHdr  = (PHOIT_RAW_LOG)lib_malloc(sizeof(HOIT_RAW_LOG)); 
+    PHOIT_RAW_LOG   pRawLogHdr  = LW_NULL;
     while (hoitGetSectorSize(sector_no) != -1) {
         __hoit_scan_single_sector(pfs, sector_no, &hasLog, &pRawLogHdr);
         sector_no++;
@@ -1772,6 +1773,10 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     if (!hasLog) {
         hoitLogInit(pfs, hoitGetSectorSize(8), 1);
     }
+    if (pRawLogHdr != LW_NULL){
+        hoitLogOpen(pfs, pRawLogHdr);
+    }
+
 
     __hoit_redo_log(pfs);
 

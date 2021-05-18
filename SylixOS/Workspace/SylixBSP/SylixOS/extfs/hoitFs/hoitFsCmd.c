@@ -104,7 +104,7 @@ INT fs_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
         {
             hoitTestFileOverWrite(iArgC - 2, ppcArgV + 2);
         }
-        else if (EQU_ARG("ln", pcFSOption))                             /* hoit -t ln */
+        else if (EQU_ARG("ln", pcFSOption))
         {
             hoitTestLink(iArgC - 2, ppcArgV + 2);
         }

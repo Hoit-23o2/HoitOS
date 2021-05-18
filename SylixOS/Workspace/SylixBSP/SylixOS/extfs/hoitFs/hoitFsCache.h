@@ -114,6 +114,7 @@ static inline BOOL hoiCheckSectorDirty(UINT32 base, UINT8 sector_no){
 PHOIT_CACHE_HDR     hoitEnableCache(UINT32 uiCacheBlockSize, 
                                     UINT32 uiCacheBlockNums, 
                                     PHOIT_VOLUME phoitfs);
+BOOL                hoitFreeCache(PHOIT_CACHE_HDR pcacheHdr);                                    
 PHOIT_CACHE_BLK     hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr, 
                                    UINT32 flashBlkNo, 
                                    UINT32 cacheType, 
