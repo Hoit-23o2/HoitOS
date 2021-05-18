@@ -880,6 +880,11 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
    }
     close(iFd);
     checkOK("");
+    /* 删除文件和链接 */
+    unlink(outer_link);
+    unlink(outer_file_name);
+    unlink(inner_link);
+    unlink(file_name);
 }
 
 
