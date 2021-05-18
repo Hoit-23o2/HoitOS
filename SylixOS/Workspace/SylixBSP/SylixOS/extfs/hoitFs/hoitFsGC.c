@@ -239,7 +239,9 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
         bIsCollectOver = LW_TRUE;
         goto __hoitGCCollectSectorAliveEnd;                                      /* 结束了 */
     }
+#ifdef GC_DEBUG
     printf("[%s]: Fix over the Sector %d\n", __func__, pErasableSector->HOITS_bno);
+#endif //GC_DEBUG
     pRawInfoCurGC   = LW_NULL;
     pRawInfoPrevGC  = LW_NULL;
     pRawInfoNextGC  = LW_NULL;
@@ -304,12 +306,13 @@ __hoitGCCollectSectorAliveEnd:
     if(bIsCollectOver){
         pErasableSector->HOITS_pRawInfoCurGC  = LW_NULL;                  /* 当前Sector中GC的RawInfo为空 */
         pErasableSector->HOITS_pRawInfoPrevGC = LW_NULL;
-
+#ifdef GC_DEBUG
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
         printf("[%s] Sector %d is collected Over, Total Moved %dKB to Survivor Sector %d\n", 
                 __func__, pErasableSector->HOITS_bno, (pfs->HOITFS_curGCSuvivorSector->HOITS_uiUsedSize / 1024), 
                 pfs->HOITFS_curGCSuvivorSector->HOITS_bno);
         API_TShellColorEnd(STD_OUT);
+#endif
     }
 
     return bIsCollectOver;
