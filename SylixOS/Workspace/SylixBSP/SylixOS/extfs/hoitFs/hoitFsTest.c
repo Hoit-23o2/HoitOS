@@ -506,7 +506,7 @@ INT checkData(INT iFd, UCHAR write_data[128]){
     /* 先读取文件查看内容是否一致 */
     lib_bzero(read_data, sizeof(read_data));
     read(iFd, read_data, sizeof(read_data));
-    if (lib_strcmp(read_data, write_data)!= 0) {
+    if (lib_memcmp(read_data, write_data, sizeof(write_data))!= 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("data is not consist\n");
         API_TShellColorEnd(STD_OUT); 
@@ -542,14 +542,15 @@ void checkOK(char const* const _Format) {
 */
 INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     UCHAR   file_name[64]           = "/mnt/hoitfs/A/Test_LinkSourceFile\0";
+    UCHAR   file_temp[64]           = "A/Test_LinkSourceFile\0";
     UCHAR   outer_file_name[64]     = "/mnt/ramfs/Test_OuterFile\0";    /* hoitfs软链接指向ramfs的目标文件 */
     UCHAR   file_dir[64]            = "/mnt/hoitfs/A\0";
 
-    UCHAR   hard_link[64]           = "/mnt/hoitfs/B/Test_HardLinkFile\0";
+    UCHAR   hard_link[64]           = "B/Test_HardLinkFile\0";
     UCHAR   soft_link[64]           = "/mnt/hoitfs/B/Test_SoftLinkFile\0";
     UCHAR   second_soft_link[64]    = "/mnt/hoitfs/B/Test_SoftLinkFile2\0";
     UCHAR   inner_link[64]          = "/mnt/hoitfs/B/Test_InnerLinkFile\0"; /* 从hoitfs指向ramfs的软链接 */
-    UCHAR   outer_link[64]          = "/mnt/ramfs/Test_OuterLinkFile\0";    /* 从hoitfs指向ramfs的软链接 */
+    UCHAR   outer_link[64]          = "/mnt/ramfs/Test_OuterLinkFile\0";    /* 从ramfs指向hoitfs的软链接 */
 
     UCHAR   link_dir[64]            = "/mnt/hoitfs/B\0";
 
@@ -610,10 +611,11 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         printf("can't get the hoitfs header!\n");
         API_TShellColorEnd(STD_OUT); 
     }
-    if (__hoitFsHardlink(_G_Volumn, file_name, hard_link) != ERROR_NONE) {
+    if (__hoitFsHardlink(_G_Volumn, hard_link, file_temp) != ERROR_NONE) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("hard link creating failed!\n");
         API_TShellColorEnd(STD_OUT); 
+        return PX_ERROR;
     }
 
     /******************************* step3 *******************************/
@@ -631,7 +633,6 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         close(iFd);
         return PX_ERROR;
     }
-    close(iFd);
     checkOK("soft link read");
 
     /* 文件前半部'x'改为'y' */
@@ -675,7 +676,6 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         close(iFd);
         return PX_ERROR;
     }
-    close(iFd);
     checkOK("hard link read");
 
     /* 文件后半部'x'改为'z' */
@@ -724,7 +724,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         close(iFd);
         return PX_ERROR;
     }
-    close(iFd);
+
     checkOK("passing link read");
 
     /* 文件数据全改成'0' */
@@ -784,7 +784,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         return PX_ERROR;
     }
     close(iFd);
-    check("");
+    checkOK("");
     /***************************** 删除硬链接 ****************************/
     printf("delete hard link...\n");
     if (unlink(hard_link)==PX_ERROR) {
@@ -809,7 +809,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         return PX_ERROR;
     }
     close(iFd);
-    check("");
+    checkOK("");
     /******************************* step6 *******************************/
     /* 创建ramfs */
     printf("mount ramfs...\n");
@@ -844,16 +844,20 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         return PX_ERROR;
     }
     close(iFd);
-    check("outer link");
+    checkOK("outer link");
     
     /* 检查从hoitfs指向ramfs的软链接 */
-    iFd = open(outer_file_name, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_FILE_PERM); 
+    /* 创建文件 */
+    iFd = open(outer_file_name, O_WRONLY | O_CREAT | O_TRUNC, file_mode); 
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("create \" %s \" error!\n", outer_file_name);
         API_TShellColorEnd(STD_OUT); 
         return PX_ERROR;
-    }    
+    }       
+    for (i=0 ; i<128 ; i++) {
+        write(iFd, &write_data[i], sizeof(data));
+    }
     close(iFd);
 
     if (symlink(outer_file_name, inner_link) != ERROR_NONE) {
@@ -862,7 +866,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         API_TShellColorEnd(STD_OUT); 
     }   
     printf("check inner link...\n");
-    iFd = open(inner_link, O_RDWR, file_mode);
+    iFd = open(inner_link, O_RDONLY, file_mode);
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("open \" %s \" error!\n", inner_link);
@@ -870,10 +874,10 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         return PX_ERROR;
     }
     
-    if (checkData(iFd, write_data)!=ERROR_NONE) {
-        close(iFd);
-        return PX_ERROR;
-    }
+   if (checkData(iFd, write_data)!=ERROR_NONE) {
+       close(iFd);
+       return PX_ERROR;
+   }
     close(iFd);
     checkOK("");
 }
