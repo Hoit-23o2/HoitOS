@@ -154,28 +154,29 @@ VOID __hoitLogHdrCleanUp(PHOIT_VOLUME pfs, PHOIT_LOG_INFO pLogInfo){
 ** 功能描述: 扫描Log Sector，记录相关信息
 ** 输　入  : pfs            HoitFS设备头
 **          pRawLog         Flash上的pRawLog数据实体
+**          pErasableLogSector  Log Sector 
 **          puiEntityNum    记录实体数量
 ** 输　出  : 写偏移
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-UINT __hoitScanLogSector(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog, UINT * puiEntityNum){
-    PCHAR               pcLogSector;
-    UINT                uiSectorNum;
-    UINT                uiSectorSize;
-    UINT                uiOfs;
-    PCHAR               pcCurSectorPos;
-    PHOIT_RAW_HEADER    pRawHeader;
-    PHOIT_RAW_INFO      pRawInfo;
+UINT __hoitScanLogSector(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLogHdr, PHOIT_ERASABLE_SECTOR pErasableLogSector , UINT * puiEntityNum){
+    PCHAR                   pcLogSector;
+    UINT                    uiSectorNum;
+    UINT                    uiSectorSize;
+    UINT                    uiOfs;
+    PCHAR                   pcCurSectorPos;
+    PHOIT_RAW_HEADER        pRawHeader;
+    PHOIT_RAW_INFO          pRawInfo;
 
-    uiSectorNum     = hoitGetSectorNo(pRawLog->uiLogFirstAddr);
+    uiSectorNum     = hoitGetSectorNo(pRawLogHdr->uiLogFirstAddr);
     uiSectorSize    = hoitGetSectorSize(uiSectorNum);
     uiOfs           = 0;
 
     pcLogSector = (PCHAR)lib_malloc(uiSectorSize);
-    hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawLog->uiLogFirstAddr, pcLogSector, uiSectorSize);
+    hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawLogHdr->uiLogFirstAddr, pcLogSector, uiSectorSize);
     pcCurSectorPos = pcLogSector;
-
+    
     while (pcCurSectorPos < pcLogSector + uiSectorSize) {
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pcCurSectorPos;
         if (pRawHeader->magic_num == HOIT_MAGIC_NUM 
@@ -184,12 +185,11 @@ UINT __hoitScanLogSector(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog, UINT * puiEnti
             /* 将初始的pRawLog对应的RawInfo加入到 LOG SECTOR 中 */
             pRawInfo                = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INFO));
             pRawInfo->phys_addr     = pcCurSectorPos;
-            pRawInfo->totlen        = pRawLog->totlen;
+            pRawInfo->totlen        = pRawLogHdr->totlen;
             pRawInfo->is_obsolete   = 0;
             pRawInfo->next_logic    = LW_NULL;
             pRawInfo->next_phys     = LW_NULL;
-            __hoit_add_raw_info_to_sector(pfs->HOITFS_logInfo->pLogSectorList->pErasableSetcor, 
-                                          pRawInfo); 
+            __hoit_add_raw_info_to_sector(pErasableLogSector, pRawInfo); 
             
             pcCurSectorPos += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
             uiOfs = (pcCurSectorPos - pcLogSector); 
@@ -358,10 +358,11 @@ PHOIT_LOG_INFO hoitLogOpen(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog){
 #endif // DEBUG_LOG
         return LW_NULL;
     }
-    uiLogCurOfs = __hoitScanLogSector(pfs, pRawLog, &uiEntityCnt);
+    uiLogCurOfs = __hoitScanLogSector(pfs, pRawLog, pErasableLogSector,  &uiEntityCnt);
 
     pLogSector->pErasableNextLogSector = LW_NULL;
-    lib_memcpy(pLogSector->pErasableSetcor, pErasableLogSector, sizeof(HOIT_LOG_SECTOR));
+    pLogSector->pErasableSetcor = pErasableLogSector;
+
     pLogInfo->pLogSectorList = pLogSector;
     pLogInfo->uiLogCurAddr   = pRawLog->uiLogFirstAddr;
     pLogInfo->uiLogCurOfs    = uiLogCurOfs;

@@ -50,6 +50,9 @@ VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs){
         if(hoitLogCheckIfLog(pfs, pErasableSectorTraverse)){
             printf(DIVIDER "SECTOR %d [*LOG] " DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
         }
+        else if(pErasableSectorTraverse == pfs->HOITFS_now_sector){
+            printf(DIVIDER "SECTOR %d [*CUR] " DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
+        }
         else {
             printf(DIVIDER "SECTOR %d" DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
         }

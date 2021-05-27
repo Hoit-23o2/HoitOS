@@ -360,7 +360,8 @@ __file_open_ok:
         }
     }
 
-    LW_DEV_INC_USE_COUNT(&pfs->HOITFS_devhdrHdr);                     /*  更新计数器                  */
+    if(bRoot != LW_TRUE)
+        LW_DEV_INC_USE_COUNT(&pfs->HOITFS_devhdrHdr);                     /*  更新计数器                  */
     /************************************ END  ************************************/
     __HOIT_VOLUME_UNLOCK(pfs);
 
