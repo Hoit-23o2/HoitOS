@@ -10,7 +10,6 @@
 > 1. [裸机操作S3C2440 NorFlash](https://blog.csdn.net/Mculover666/article/details/104115535)
 > 2. [mini2440 NorFlash芯片手册](../Files/Am29LV160DB.pdf)
 > 3. [S3C2440 NorFlash裸机编程](https://blog.csdn.net/m0_37633745/article/details/103188617)
->
 
 ## 利用U-boot访问Norflash
 
@@ -181,7 +180,7 @@ Am29LV160DB  NorFlash驱动`nor.c`的API访问方式有两种，一是通过命�
 
 **可用方法：**
 
-- **VOID**  **nor_init**(**ENUM_NOR_INIT_FLAG** nor_init_flag)：根据nor_init_flag，初始化`nor flash`；
+- **VOID**  **nor_init**(**ENUM_NOR_INIT_FLAG** nor_init_flag)：![image-20210524172313314](08-SylixOS&Driver&FS-Continue-Part1.assets/image-20210524172313314.png)；
 
   用例：
 

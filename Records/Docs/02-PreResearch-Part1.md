@@ -47,7 +47,7 @@
 
 ### 文件系统的基本结构
 
-![image-20210115123904655](./images/basics-of-fs-structure)
+![image-20210115123904655](./images/basics-of-fs-structure.png)
 
 其中，各个模块的 **宽泛含义** 如下：
 

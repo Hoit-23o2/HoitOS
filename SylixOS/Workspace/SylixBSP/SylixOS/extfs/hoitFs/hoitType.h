@@ -231,7 +231,7 @@ struct HOIT_RAW_INFO{
     PHOIT_RAW_INFO      next_logic;
     UINT                is_obsolete;
 };
-
+                                                                    
 
 struct HOIT_FULL_DNODE{
     PHOIT_FULL_DNODE    HOITFD_next;

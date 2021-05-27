@@ -23,6 +23,7 @@
 #include "hoitFsFDLib.h"
 #include "hoitFsLib.h"
 
+//TODO: GC时，不一定需要一个空快的支持，因为可能某个块中所有数据实体都过期，需要修改逻辑
 //TODO: move_home返回错误值，表示不行了，GC抛出异常
 
 #define IS_MSG_GC_END(acMsg, stLen)             lib_memcmp(acMsg, MSG_GC_END, stLen) == 0
