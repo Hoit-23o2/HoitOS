@@ -59,7 +59,7 @@ cd /apps/FileTreeTest
 ls /mnt/hoit
 /* 或者直接使用指令 */
 hoit -t ftt -h
-hoit -t ftt -t 4 3 2
+hoit -t ftt 4 3 2
 ```
 
 4.手动测试
