@@ -8,7 +8,15 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 
 ## Log
 
-> 这里记录了所有输出文档
+> 这里记录了所有输出文档：
+>
+> `Week0 ~ Week8`均为调研阶段，这个阶段主要用于学习以及熟悉SylixOS；
+>
+> `Week9 ~ Week10`为开发准备阶段，这一阶段搭建好了自底向上的开发环境，HoitFS进入**第一个里程碑**；
+>
+> `Week11 ~ Week17`为开发阶段，这一阶段完成了大量编码工作，并在Week17时交付初稿，HoitFS进入**第二个里程碑**；
+>
+> 待续……
 
 ### Week0
 
@@ -122,6 +130,7 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 对RamFS进行了深入了解，基于FAKE NOR完成LFS FS的基本create、mount操作；
 
 ### Week8
+
 > 本周总结：[第七阶段-NorFlash驱动、基于SylixOS的文件系统设计 - 第二部分(2021-03-16)](./Records/Files/PPT/sylixos-driver-fs-stage2.pptx)
 
 [08-SylixOS&Driver&FS-Continue-Part1](./Records/Docs/08-SylixOS&Driver&FS-Continue-Part1.md)
@@ -136,7 +145,9 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 - GC
 - Adaptive Logging
 - Multi Log
+
 ### Week9 - 里程碑
+
 > 本周总结：[第八阶段-NorFlash驱动、基于SylixOS的文件系统设计 - 第三部分(2021-03-23)](./Records/Files/PPT/sylixos-driver-fs-stage3.pptx)
 
 [09-SylixOS&Driver&FS-Again-Part1](./Records/Docs/09-SylixOS&Driver&FS-Again-Part1.md)
@@ -150,7 +161,9 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 [09-SylixOS&Driver&FS-Again-Part3](./Records/Docs/09-SylixOS&Driver&FS-Again-Part3.md)
 
 基本完成基于Fake Nor的LFS FS，包括了mount、unmount、ls等，**打通SylixOS**构建文件系统的通路；
+
 ### Week10
+
 > 本周总结：[第九阶段-HoitFS正式开发-阶段一(2021-03-29)](./Records/Files/PPT/hoitfs-dev-stage1.pptx)
 
 [10-HoitFsDev-Part1](./Records/Docs/10-HoitFsDev-Part1.md)
@@ -159,12 +172,22 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 [10-HoitFsDev-Part3](./Records/Docs/10-HoitFsDev-Part3.md)
 
 完成LFS的read、write、seek、rename等基本功能，彻底打通文件系统与`SylixOS`的I/O交互流程；
-### Week11
-> 本周总结：[第n阶段-内容(yyyy-mm-dd)](./Records/Files/PPT/xxxx.pptx)
+
+### Week11~17 - 里程碑
+
+> 本周总结：第11~17周处于开发阶段，文档以及会议工作落了下来，由于学校事情也比较多，因此开发时间不是很够……不过好在交出了初稿
+>
+> HoitFS V1.0：[初赛报告文档.pdf](./HoitFS设计开发文档.pdf)
+>
+> HoitFS 答辩：[初赛PPT](./Records/Files/PPT/hoitfs-swb-final-presentation.pptx)
 
 [11-HoitFsDev-Stage2-Part1](./Records/Docs/11-HoitFsDev-Stage2-Part1.md)
 
-在这里填写相关内容
+完成HoitFS FragTree API接口文档；总结GC方法；总结测试方法等；然后便是记录了一些联调坑点；
+
+[11-HoitFsDev-CacheTest-Part3](./Records/Docs/11-HoitFsDev-CacheTest-Part3.md)
+
+完成测试脚本；
 
 
 
@@ -184,6 +207,7 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 
 10. [2021-03-23](./Records/CCB/2021-03-23.md)
 11. [2021-03-29](./Records/CCB/2021-03-29.md)
+12. [2021-05-18](./Records/CCB/2021-05-18.md)
 
 ## Basic Develop Method
 
