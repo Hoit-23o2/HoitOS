@@ -689,6 +689,11 @@ BOOL __hoit_scan_single_sector(PHOIT_VOLUME pfs, UINT8 sector_no, INT* hasLog, P
     PCHAR pNow = pReadBuf;
     while (pNow < pReadBuf + uiSectorSize) {
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pNow;
+        int xx;
+        if(pRawHeader->ino == 2){
+            xx = 123;
+            xx = 333;
+        }
         if (pRawHeader->magic_num == HOIT_MAGIC_NUM && !__HOIT_IS_OBSOLETE(pRawHeader)) {
             /* //TODO:后面这里还需添加CRC校验 */
             PHOIT_RAW_INFO pRawInfo = LW_NULL;
@@ -1707,6 +1712,8 @@ VOID  __hoit_unmount(PHOIT_VOLUME pfs)
         printf("Error in unmount.\n");
         return;
     }
+    hoitFlushCache(pfs->HOITFS_cacheHdr);
+    //hoitFreeCache(pfs->HOITFS_cacheHdr);
     hoitGCClose(pfs);
     __hoit_close(pfs->HOITFS_pRootDir, 0);  /* 先删除根目录 */
 
@@ -1744,7 +1751,6 @@ VOID  __hoit_unmount(PHOIT_VOLUME pfs)
         }
         pTempSector = pNextSector;
     }
-
 }
 /*********************************************************************************************************
 ** 函数名称: __hoit_mount
