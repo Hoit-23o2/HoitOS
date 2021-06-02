@@ -70,6 +70,14 @@ SylixOS/extfs/hoitFs/hoitFsMid.c \
 SylixOS/extfs/hoitFs/hoitFsTest.c \
 SylixOS/extfs/hoitFs/hoitFsTree.c \
 SylixOS/extfs/hoitFs/hoitFsTreeUtil.c \
+SylixOS/extfs/spifFs/spifFs.c \
+SylixOS/extfs/spifFs/spifFsCache.c \
+SylixOS/extfs/spifFs/spifFsGC.c \
+SylixOS/extfs/spifFs/spifFsLib.c \
+SylixOS/extfs/spifFs/spifFsVerify.c \
+SylixOS/extfs/tools/list/iter.c \
+SylixOS/extfs/tools/list/list.c \
+SylixOS/extfs/tools/list/list_test.c \
 SylixOS/user/main.c
 
 

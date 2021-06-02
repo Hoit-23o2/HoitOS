@@ -43,6 +43,15 @@
         "hoittype.h": "c",
         "system_error": "c",
         "cstdio": "cpp",
-        "hoitfstest.h": "c"
+        "hoitfstest.h": "c",
+        "string": "cpp",
+        "typeinfo": "cpp",
+        "deque": "cpp",
+        "vector": "cpp",
+        "iter.h": "c",
+        "common.h": "c",
+        "memory": "cpp",
+        "istream": "cpp",
+        "list_interface.h": "c"
     }
 }
