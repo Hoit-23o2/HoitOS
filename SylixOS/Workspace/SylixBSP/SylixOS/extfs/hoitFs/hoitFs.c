@@ -48,7 +48,7 @@ static ssize_t  __hoitFsReadlink();
 /*********************************************************************************************************
   裁剪宏
 *********************************************************************************************************/
-#if LW_CFG_MAX_VOLUMES > 0 //&& LW_CFG_RAMFS_EN > 0
+//#if LW_CFG_MAX_VOLUMES > 0 //&& LW_CFG_RAMFS_EN > 0
 #include "HoitFsLib.h"
 /*********************************************************************************************************
 ** 函数名称: API_HoitFsDrvInstall
@@ -107,6 +107,7 @@ INT  API_HoitFsDrvInstall(VOID)
 ** 调用模块:
                                            API 函数
 *********************************************************************************************************/
+USE_LIST_TEMPLATE(hoitFs, HOIT_ERASABLE_SECTOR);
 LW_API
 INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 {
@@ -1668,5 +1669,5 @@ INT  __hoitFsHardlink(PHOIT_VOLUME   pfs,
     return  (ERROR_NONE);
 }
 
-#endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
+//#endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
 #endif // HOITFS_DISABLE

@@ -52,6 +52,7 @@
         "common.h": "c",
         "memory": "cpp",
         "istream": "cpp",
-        "list_interface.h": "c"
+        "list_interface.h": "c",
+        "list_template.h": "c"
     }
 }

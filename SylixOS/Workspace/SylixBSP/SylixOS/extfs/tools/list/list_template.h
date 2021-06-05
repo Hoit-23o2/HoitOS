@@ -43,14 +43,14 @@ typedef struct iter##TYPE\
 
 
 
-#define USE_LIST_TEMPLATE(TYPE)\
+#define USE_LIST_TEMPLATE(NAMESPACE, TYPE)\
 /*********************************************************************************************************\
   列表方法定义，使用前需要声明\
 *********************************************************************************************************/\ 
-UINT listSize##TYPE(struct list##TYPE* self) {\
+UINT NAMESAPCE##listSize##TYPE(struct list##TYPE* self) {\
     return self->uiSize;\
 }\
-BOOL listInsert##TYPE(struct list##TYPE* self, TYPE* data, UINT uiIndex) {\
+BOOL NAMESAPCE##listInsert##TYPE(struct list##TYPE* self, TYPE* data, UINT uiIndex) {\
     ListNode##TYPE* traverse = &self->listHeader;\
     ListNode##TYPE* newNode;\
     UINT      uiCounter = 0;\
@@ -84,11 +84,11 @@ BOOL listInsert##TYPE(struct list##TYPE* self, TYPE* data, UINT uiIndex) {\
     return LW_TRUE;\
 }\
 \
-BOOL listAppend##TYPE(struct list##TYPE* self, TYPE* data) {\
-    return listInsert##TYPE(self, data, self->uiSize);\
+BOOL NAMESAPCE##listAppend##TYPE(struct list##TYPE* self, TYPE* data) {\
+    return NAMESAPCE##listInsert##TYPE(self, data, self->uiSize);\
 }\
 \
-BOOL listRemoveObject##TYPE(struct list##TYPE* self, TYPE* data) {\
+BOOL NAMESAPCE##listRemoveObject##TYPE(struct list##TYPE* self, TYPE* data) {\
     ListNode##TYPE* traverse = self->listHeader.next;\
     while (traverse != LW_NULL)\
     {\
@@ -107,7 +107,7 @@ BOOL listRemoveObject##TYPE(struct list##TYPE* self, TYPE* data) {\
     return LW_FALSE;\
 }\
 \
-BOOL listRemoveIndex##TYPE(struct list##TYPE* self, UINT uiIndex){\
+BOOL NAMESAPCE##listRemoveIndex##TYPE(struct list##TYPE* self, UINT uiIndex){\
     ListNode##TYPE* traverse = self->listHeader.next;\
     UINT      uiCounter = 0;\
     if(uiIndex >= self->uiSize){\
@@ -132,24 +132,24 @@ BOOL listRemoveIndex##TYPE(struct list##TYPE* self, UINT uiIndex){\
 /*********************************************************************************************************\
   迭代器方法\
 *********************************************************************************************************/\                       
-VOID freeIterator##TYPE(Iterator##TYPE* iter){\
+VOID NAMESAPCE##freeIterator##TYPE(Iterator##TYPE* iter){\
     lib_free(iter);\
 }\
 \
-VOID iterBegin##TYPE(struct iter##TYPE* self, List##TYPE* list##TYPE){\
+VOID NAMESAPCE##iterBegin##TYPE(struct iter##TYPE* self, List##TYPE* list##TYPE){\
     self->traverse = list##TYPE->listHeader.next;\
 }\
 \
-BOOL iterNext##TYPE(struct iter##TYPE* self){\
+BOOL NAMESAPCE##iterNext##TYPE(struct iter##TYPE* self){\
     self->traverse = self->traverse == LW_NULL ? LW_NULL : self->traverse->next;\
     return self->traverse == LW_NULL ? LW_FALSE : LW_TRUE;\
 }\
 \
-BOOL iterIsValid##TYPE(struct iter##TYPE* self) {\
+BOOL NAMESAPCE##iterIsValid##TYPE(struct iter##TYPE* self) {\
     return self->traverse == LW_NULL ? LW_FALSE : LW_TRUE;\
 }\
 \
-TYPE* iterGet##TYPE(struct iter##TYPE* self){\
+TYPE* NAMESAPCE##iterGet##TYPE(struct iter##TYPE* self){\
     return self->traverse->listData;\
 }
 

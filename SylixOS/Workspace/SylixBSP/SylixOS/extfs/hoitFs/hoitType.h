@@ -23,7 +23,7 @@
 #define  __SYLIXOS_KERNEL
 #include "stdio.h"
 #include "SylixOS.h"
-#include <extfs/tools/list/list_interface.h>
+#include "../tools/list/list_interface.h"
 /*********************************************************************************************************
   HoitFs Lib 相关测试
 *********************************************************************************************************/
@@ -144,7 +144,6 @@ typedef HOIT_RAW_LOG *                    PHOIT_RAW_LOG;
 DEV_HDR          HOITFS_devhdrHdr;
 
 
-DECLARE_LIST_TEMPLATE(HOIT_ERASABLE_SECTOR);
 /*********************************************************************************************************
   HoitFs super block类型
 *********************************************************************************************************/

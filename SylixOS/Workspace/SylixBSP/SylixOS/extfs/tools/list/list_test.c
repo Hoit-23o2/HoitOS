@@ -6,17 +6,17 @@
  */
 #include "common.h"
 
-USE_LIST_TEMPLATE(TYPE);
+USE_LIST_TEMPLATE(list_test, TYPE);
 
-VOID listTest(List(TYPE) list){
+VOID listTest(){
     INT i;
     // List* list = initList();
     // Iterator* iter = initIterator();
     List(TYPE) list;
     Iterator(TYPE) iter;
 
-    InitList(list, TYPE);
-    InitIterator(iter, TYPE);
+    InitList(list, list_test, TYPE);
+    InitIterator(iter, list_test, TYPE);
 
 
     printf("[LIST TEST]\n");
@@ -27,6 +27,7 @@ VOID listTest(List(TYPE) list){
         data->a = i;
         list->append(list, data);
     }
+    //0 1 2 .. 9
     printf("size now %d\n", list->size(list));
     for (i = 0; i < 10; i += 2)
     {

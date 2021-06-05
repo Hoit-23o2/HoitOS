@@ -12,16 +12,16 @@
   列表接口声明                                                                                          
 *********************************************************************************************************/ 
 #define List(TYPE) List##TYPE*
-#define InitList(list, TYPE)\
+#define InitList(list, NAMESPACE, TYPE)\
 {\
     list = (List##TYPE *)lib_malloc(sizeof(List##TYPE));\
     list->listHeader.next = LW_NULL;\
     list->listHeader.prev = LW_NULL;\
-    list->append = listAppend##TYPE;\
-    list->insert = listInsert##TYPE;\
-    list->removeIndex = listRemoveIndex##TYPE;\
-    list->removeObject = listRemoveObject##TYPE;\
-    list->size = listSize##TYPE;\
+    list->append = NAMESAPCE##listAppend##TYPE;\
+    list->insert = NAMESAPCE##listInsert##TYPE;\
+    list->removeIndex = NAMESAPCE##listRemoveIndex##TYPE;\
+    list->removeObject = NAMESAPCE##listRemoveObject##TYPE;\
+    list->size = NAMESAPCE##listSize##TYPE;\
 }
 #define FreeList(list)\
 {\
@@ -37,13 +37,13 @@
   迭代器声明                                                                                          
 *********************************************************************************************************/ 
 #define Iterator(TYPE) Iterator##TYPE*
-#define InitIterator(iter, TYPE)\
+#define InitIterator(iter,NAMESPACE, TYPE)\
 {\
     iter = (Iterator##TYPE*)lib_malloc(sizeof(Iterator##TYPE));\
-    iter->begin = iterBegin##TYPE;\
-    iter->get = iterGet##TYPE;\
-    iter->isValid = iterIsValid##TYPE;\
-    iter->next = iterNext##TYPE;\
+    iter->begin = NAMESAPCE##iterBegin##TYPE;\
+    iter->get = NAMESAPCE##iterGet##TYPE;\
+    iter->isValid = NAMESAPCE##iterIsValid##TYPE;\
+    iter->next = NAMESAPCE##iterNext##TYPE;\
 }
 #define FreeIterator(iter) lib_free(iter);
 
