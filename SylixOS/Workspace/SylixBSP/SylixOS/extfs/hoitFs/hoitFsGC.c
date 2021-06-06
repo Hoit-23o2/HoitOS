@@ -23,6 +23,7 @@
 #include "hoitFsFDLib.h"
 #include "hoitFsLib.h"
 
+//TODO: GC时，不一定需要一个空快的支持，因为可能某个块中所有数据实体都过期，需要修改逻辑
 //TODO: move_home返回错误值，表示不行了，GC抛出异常
 
 #define IS_MSG_GC_END(acMsg, stLen)             lib_memcmp(acMsg, MSG_GC_END, stLen) == 0
@@ -55,12 +56,12 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
     bIsReset = LW_FALSE;
 
     if((pErasableSector->HOITS_pRawInfoCurGC 
-    && pErasableSector->HOITS_pRawInfoCurGC->is_obsolete) 
+    && pErasableSector->HOITS_pRawInfoCurGC->is_obsolete == HOIT_FLAG_OBSOLETE) 
     || pErasableSector->HOITS_pRawInfoCurGC == LW_NULL){                /* 如果当前GC RawInfo过期，或还不存在当前GC RawInfo，则重新开始RawInfo的GC */
         bIsReset = LW_TRUE;
     }
     
-    while (pRawInfoTraverse && pRawInfoTraverse->is_obsolete)           /* 寻找第一个非obselete的RawInfo，并释放已过期的RawInfo */
+    while (pRawInfoTraverse && pRawInfoTraverse->is_obsolete == HOIT_FLAG_OBSOLETE)           /* 寻找第一个非obselete的RawInfo，并释放已过期的RawInfo */
     {
         pRawInfoObselete = pRawInfoTraverse;
         pRawInfoTraverse = pRawInfoTraverse->next_phys;
@@ -86,7 +87,7 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
         || pRawInfoTraverse == LW_NULL){    /* 扫描完毕 */
             break;
         }
-        if(pRawInfoTraverse->is_obsolete){                                      /* 如果过期 */
+        if(pRawInfoTraverse->is_obsolete == HOIT_FLAG_OBSOLETE){                                      /* 如果过期 */
             pRawInfoObselete                    = pRawInfoTraverse;             
             pRawInfoTrailing->next_phys         = pRawInfoTraverse->next_phys;  /* 修改指针——前一块指向当前块的下一块 */
             pRawInfoTraverse                    = pRawInfoTraverse->next_phys;  /* 置当前块为下一块 */
@@ -239,7 +240,9 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
         bIsCollectOver = LW_TRUE;
         goto __hoitGCCollectSectorAliveEnd;                                      /* 结束了 */
     }
+#ifdef GC_DEBUG
     printf("[%s]: Fix over the Sector %d\n", __func__, pErasableSector->HOITS_bno);
+#endif //GC_DEBUG
     pRawInfoCurGC   = LW_NULL;
     pRawInfoPrevGC  = LW_NULL;
     pRawInfoNextGC  = LW_NULL;
@@ -304,12 +307,13 @@ __hoitGCCollectSectorAliveEnd:
     if(bIsCollectOver){
         pErasableSector->HOITS_pRawInfoCurGC  = LW_NULL;                  /* 当前Sector中GC的RawInfo为空 */
         pErasableSector->HOITS_pRawInfoPrevGC = LW_NULL;
-
+#ifdef GC_DEBUG
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
         printf("[%s] Sector %d is collected Over, Total Moved %dKB to Survivor Sector %d\n", 
                 __func__, pErasableSector->HOITS_bno, (pfs->HOITFS_curGCSuvivorSector->HOITS_uiUsedSize / 1024), 
                 pfs->HOITFS_curGCSuvivorSector->HOITS_bno);
         API_TShellColorEnd(STD_OUT);
+#endif
     }
 
     return bIsCollectOver;

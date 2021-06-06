@@ -367,8 +367,6 @@ BOOL hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, 
 }
 
 
-
-
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeDeleteNode
 ** 功能描述: 在FragTree中删除[iKeyLow, iKeyHigh]的节点，利用ConquerNode进行，因为有些部分不需要被删除
@@ -401,7 +399,6 @@ BOOL hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyH
 #ifdef FT_DEBUG
         printf("count %d\n", uiCount);
 #endif
-        
         //TODO: 验证可行性
         __hoitFragTreeConquerNode(pFTTree, pFTlistNode->pFTn, uiConquerorLow, uiConquerorHigh, 
                                   &pFTnNew, &uiCase, bDoDelete);

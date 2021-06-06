@@ -22,6 +22,54 @@
 #include "hoitFsLib.h"
 #include "hoitFsCache.h"
 /*********************************************************************************************************
+** 函数名称: hoitLogCheckIfLog
+** 功能描述: 查看某个Sector是否是Log Sector
+** 输　入  : pfs                HoitFS设备头
+**          pErasableSector     欲检查的块
+** 输　出  : 是 LW_TRUE， 否 LW_FALSE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+BOOL hoitLogCheckIfLog(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector){
+    PHOIT_LOG_SECTOR    pLogSectorTraverse;
+    if(pfs->HOITFS_logInfo == LW_NULL){
+        return LW_FALSE;
+    }
+    pLogSectorTraverse = pfs->HOITFS_logInfo->pLogSectorList;
+    while (pLogSectorTraverse)
+    {
+        if(pLogSectorTraverse->pErasableSetcor == pErasableSector){
+            return LW_TRUE;
+        }
+        pLogSectorTraverse = pLogSectorTraverse->pErasableNextLogSector;
+    }
+    return LW_FALSE;
+}
+/*********************************************************************************************************
+** 函数名称: __hoitFindAvailableSector
+** 功能描述: 寻找一个全空的Sector
+** 输　入  : pfs            HoitFS设备头
+** 输　出  : 一个全空的Sector
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+PHOIT_ERASABLE_SECTOR hoitFindAvailableSector(PHOIT_VOLUME pfs){
+    UINT                    uiAvaiSectorNum;
+    PHOIT_ERASABLE_SECTOR   pErasableSector;
+    
+    uiAvaiSectorNum = hoitFindNextToWrite(pfs->HOITFS_cacheHdr, HOIT_CACHE_TYPE_DATA_EMPTY, LW_NULL);
+    if(uiAvaiSectorNum == PX_ERROR){
+        return LW_NULL;
+    }
+#ifdef DEBUG_LOG
+    printf("[%s] sector %d will be our log sector \n", __func__ ,uiAvaiSectorNum);
+#endif // DEBUG_LOG
+    pErasableSector = hoitFindSector(pfs->HOITFS_cacheHdr, uiAvaiSectorNum);
+    return pErasableSector;
+}
+
+#ifdef LOG_ENABLE
+/*********************************************************************************************************
 ** 函数名称: __hoitInsertLogSector
 ** 功能描述: 向pLogSectorList插入一个新的LogSector节点
 ** 输　入  : pfs            HoitFS设备头
@@ -102,7 +150,7 @@ VOID __hoitLogSectorCleanUp(PHOIT_VOLUME pfs, PHOIT_LOG_SECTOR pLogSector){
     while (LW_TRUE)
     {
         __hoit_del_raw_data(pfs, pRawInfoTraverse);
-        pRawInfoTraverse->is_obsolete = 1;
+        pRawInfoTraverse->is_obsolete = HOIT_FLAG_OBSOLETE;
         
         if(pRawInfoTraverse == pErasableSector->HOITS_pRawInfoLast){
             break;
@@ -140,7 +188,7 @@ VOID __hoitLogHdrCleanUp(PHOIT_VOLUME pfs, PHOIT_LOG_INFO pLogInfo){
     {
         if(pRawInfoTraverse->phys_addr == uiRawLogHdrAddr){
             __hoit_del_raw_data(pfs, pRawInfoTraverse);
-            pRawInfoTraverse->is_obsolete = 1;
+            pRawInfoTraverse->is_obsolete = HOIT_FLAG_OBSOLETE;
             return;
         }
         pRawInfoTraverse = pRawInfoTraverse->next_phys;
@@ -152,30 +200,33 @@ VOID __hoitLogHdrCleanUp(PHOIT_VOLUME pfs, PHOIT_LOG_INFO pLogInfo){
 /*********************************************************************************************************
 ** 函数名称: __hoitScanLogSector
 ** 功能描述: 扫描Log Sector，记录相关信息
-** 输　入  : pfs            HoitFS设备头
-**          pRawLog         Flash上的pRawLog数据实体
-**          puiEntityNum    记录实体数量
+** 输　入  : pfs                    HoitFS设备头
+**          pRawLog                 Flash上的pRawLog数据实体
+**          pErasableLogSector      当前Log Sector 
+**          puiEntityNum            记录实体数量
 ** 输　出  : 写偏移
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-UINT __hoitScanLogSector(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog, UINT * puiEntityNum){
-    PCHAR               pcLogSector;
-    UINT                uiSectorNum;
-    UINT                uiSectorSize;
-    UINT                uiOfs;
-    PCHAR               pcCurSectorPos;
-    PHOIT_RAW_HEADER    pRawHeader;
-    PHOIT_RAW_INFO      pRawInfo;
+UINT __hoitScanLogSector(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLogHdr, PHOIT_ERASABLE_SECTOR pErasableLogSector , UINT * puiEntityNum){
+    PCHAR                   pcLogSector;
+    UINT                    uiSectorNum;
+    UINT                    uiSectorSize;
+    UINT                    uiSectorAddr;
+    UINT                    uiOfs;
+    PCHAR                   pcCurSectorPos;
+    PHOIT_RAW_HEADER        pRawHeader;
+    PHOIT_RAW_INFO          pRawInfo;
 
-    uiSectorNum     = hoitGetSectorNo(pRawLog->uiLogFirstAddr);
+    uiSectorNum     = hoitGetSectorNo(pRawLogHdr->uiLogFirstAddr);
     uiSectorSize    = hoitGetSectorSize(uiSectorNum);
+    uiSectorAddr    = pRawLogHdr->uiLogFirstAddr;
     uiOfs           = 0;
 
     pcLogSector = (PCHAR)lib_malloc(uiSectorSize);
-    hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawLog->uiLogFirstAddr, pcLogSector, uiSectorSize);
+    hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawLogHdr->uiLogFirstAddr, pcLogSector, uiSectorSize);
     pcCurSectorPos = pcLogSector;
-
+    
     while (pcCurSectorPos < pcLogSector + uiSectorSize) {
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pcCurSectorPos;
         if (pRawHeader->magic_num == HOIT_MAGIC_NUM 
@@ -183,13 +234,12 @@ UINT __hoitScanLogSector(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog, UINT * puiEnti
             
             /* 将初始的pRawLog对应的RawInfo加入到 LOG SECTOR 中 */
             pRawInfo                = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INFO));
-            pRawInfo->phys_addr     = pcCurSectorPos;
-            pRawInfo->totlen        = pRawLog->totlen;
-            pRawInfo->is_obsolete   = 0;
+            pRawInfo->phys_addr     = uiSectorAddr + (pcCurSectorPos - pcLogSector);
+            pRawInfo->totlen        = pRawHeader->totlen;
+            pRawInfo->is_obsolete   = HOIT_FLAG_NOT_OBSOLETE;
             pRawInfo->next_logic    = LW_NULL;
             pRawInfo->next_phys     = LW_NULL;
-            __hoit_add_raw_info_to_sector(pfs->HOITFS_logInfo->pLogSectorList->pErasableSetcor, 
-                                          pRawInfo); 
+            __hoit_add_raw_info_to_sector(pErasableLogSector, pRawInfo); 
             
             pcCurSectorPos += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
             uiOfs = (pcCurSectorPos - pcLogSector); 
@@ -203,28 +253,6 @@ UINT __hoitScanLogSector(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog, UINT * puiEnti
     return uiOfs;
 }
 /*********************************************************************************************************
-** 函数名称: __hoitFindAvailableSector
-** 功能描述: 寻找一个全空的Sector
-** 输　入  : pfs            HoitFS设备头
-** 输　出  : 一个全空的Sector
-** 全局变量:
-** 调用模块:
-*********************************************************************************************************/
-PHOIT_ERASABLE_SECTOR hoitFindAvailableSector(PHOIT_VOLUME pfs){
-    UINT                    uiAvaiSectorNum;
-    PHOIT_ERASABLE_SECTOR   pErasableSector;
-    
-    uiAvaiSectorNum = hoitFindNextToWrite(pfs->HOITFS_cacheHdr, HOIT_CACHE_TYPE_DATA_EMPTY, LW_NULL);
-    if(uiAvaiSectorNum == PX_ERROR){
-        return LW_NULL;
-    }
-#ifdef DEBUG_LOG
-    printf("[%s] sector %d will be our log sector \n", __func__ ,uiAvaiSectorNum);
-#endif // DEBUG_LOG
-    pErasableSector = hoitFindSector(pfs->HOITFS_cacheHdr, uiAvaiSectorNum);
-    return pErasableSector;
-}
-/*********************************************************************************************************
 ** 函数名称: hoitLogInit
 ** 功能描述: Build的时候，如果没有扫描到LOG，就调用InitLOG，初始化一个日志系统
 ** 输　入  : pfs            HoitFS设备头
@@ -236,7 +264,7 @@ PHOIT_ERASABLE_SECTOR hoitFindAvailableSector(PHOIT_VOLUME pfs){
 *********************************************************************************************************/
 PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
     PHOIT_RAW_INFO          pRawInfo;
-    PHOIT_RAW_LOG           pRawLog;
+    PHOIT_RAW_LOG           pRawLogHdr;
     PHOIT_LOG_INFO          pLogInfo;
     
     PHOIT_ERASABLE_SECTOR   pErasableSector;
@@ -255,14 +283,14 @@ PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
         return LW_NULL;
     }
     
-    pRawLog            = (PHOIT_RAW_LOG)lib_malloc(sizeof(HOIT_RAW_LOG));
-    lib_memset(pRawLog, 0, sizeof(HOIT_RAW_LOG));
-    pRawLog->file_type = S_IFLOG;
-    pRawLog->magic_num = HOIT_MAGIC_NUM;
-    pRawLog->flag      = HOIT_FLAG_TYPE_LOG | HOIT_FLAG_OBSOLETE;
-    pRawLog->ino       = __hoit_alloc_ino(pfs);
-    pRawLog->totlen    = sizeof(HOIT_RAW_LOG);
-    pRawLog->version   = pfs->HOITFS_highest_version++;
+    pRawLogHdr            = (PHOIT_RAW_LOG)lib_malloc(sizeof(HOIT_RAW_LOG));
+    lib_memset(pRawLogHdr, 0, sizeof(HOIT_RAW_LOG));
+    pRawLogHdr->file_type = S_IFLOG;
+    pRawLogHdr->magic_num = HOIT_MAGIC_NUM;
+    pRawLogHdr->flag      = HOIT_FLAG_TYPE_LOG | HOIT_FLAG_NOT_OBSOLETE;
+    pRawLogHdr->ino       = __hoit_alloc_ino(pfs);
+    pRawLogHdr->totlen    = sizeof(HOIT_RAW_LOG);
+    pRawLogHdr->version   = pfs->HOITFS_highest_version++;
 
     //TODO: 找到一个空的Sector作为LOG Sector
     pErasableSector    = hoitFindAvailableSector(pfs);
@@ -273,20 +301,20 @@ PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
         pfs->HOITFS_logInfo = LW_NULL;
         return LW_NULL;
     }
-    pRawLog->uiLogFirstAddr = pErasableSector->HOITS_addr;
-    pRawLog->uiLogSize = uiLogSize;
+    pRawLogHdr->uiLogFirstAddr = pErasableSector->HOITS_addr;
+    pRawLogHdr->uiLogSize = uiLogSize;
 
-    uiSectorAddr = hoitWriteToCache(pfs->HOITFS_cacheHdr, (PCHAR)pRawLog, pRawLog->totlen);
+    uiSectorAddr = hoitWriteToCache(pfs->HOITFS_cacheHdr, (PCHAR)pRawLogHdr, pRawLogHdr->totlen);
     hoitFlushCache(pfs->HOITFS_cacheHdr);
     
     printf("[%s] our LOG HDR' version is %d, inode no is %d, log sector is %d\n", 
-            __func__, pRawLog->version, pRawLog->ino, pErasableSector->HOITS_bno);
+            __func__, pRawLogHdr->version, pRawLogHdr->ino, pErasableSector->HOITS_bno);
 
-    /* 将初始的pRawLog对应的RawInfo加入到管理中 */
+    /* 将初始的pRawLogHdr对应的RawInfo加入到管理中 */
     pRawInfo                = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INFO));
     pRawInfo->phys_addr     = uiSectorAddr;
-    pRawInfo->totlen        = pRawLog->totlen;
-    pRawInfo->is_obsolete   = 0;
+    pRawInfo->totlen        = pRawLogHdr->totlen;
+    pRawInfo->is_obsolete   = HOIT_FLAG_NOT_OBSOLETE;
     pRawInfo->next_logic    = LW_NULL;
     pRawInfo->next_phys     = LW_NULL;
     __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pRawInfo); 
@@ -301,7 +329,7 @@ PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
     pLogSector->pErasableNextLogSector = LW_NULL;
 
     pLogInfo->pLogSectorList           = pLogSector;
-    pLogInfo->uiLogCurAddr             = pRawLog->uiLogFirstAddr;
+    pLogInfo->uiLogCurAddr             = pRawLogHdr->uiLogFirstAddr;
     pLogInfo->uiLogCurOfs              = 0;
     pLogInfo->uiLogEntityCnt           = 0;
     pLogInfo->uiLogSize                = uiLogSize;
@@ -325,7 +353,7 @@ PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-PHOIT_LOG_INFO hoitLogOpen(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog){
+PHOIT_LOG_INFO hoitLogOpen(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLogHdr){
     PHOIT_LOG_INFO          pLogInfo;
 
     PHOIT_LOG_SECTOR        pLogSector;
@@ -347,7 +375,7 @@ PHOIT_LOG_INFO hoitLogOpen(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog){
     pErasableSectorTraverse = pfs->HOITFS_erasableSectorList;
     while (pErasableSectorTraverse)
     {
-        if(pErasableSectorTraverse->HOITS_addr == pRawLog->uiLogFirstAddr){
+        if(pErasableSectorTraverse->HOITS_addr == pRawLogHdr->uiLogFirstAddr){
             pErasableLogSector = pErasableSectorTraverse;
             break;
         }
@@ -358,14 +386,15 @@ PHOIT_LOG_INFO hoitLogOpen(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog){
 #endif // DEBUG_LOG
         return LW_NULL;
     }
-    uiLogCurOfs = __hoitScanLogSector(pfs, pRawLog, &uiEntityCnt);
+    uiLogCurOfs = __hoitScanLogSector(pfs, pRawLogHdr, pErasableLogSector,  &uiEntityCnt);
 
     pLogSector->pErasableNextLogSector = LW_NULL;
-    lib_memcpy(pLogSector->pErasableSetcor, pErasableLogSector, sizeof(HOIT_LOG_SECTOR));
+    pLogSector->pErasableSetcor = pErasableLogSector;
+
     pLogInfo->pLogSectorList = pLogSector;
-    pLogInfo->uiLogCurAddr   = pRawLog->uiLogFirstAddr;
+    pLogInfo->uiLogCurAddr   = pRawLogHdr->uiLogFirstAddr;
     pLogInfo->uiLogCurOfs    = uiLogCurOfs;
-    pLogInfo->uiLogSize      = pRawLog->uiLogSize;
+    pLogInfo->uiLogSize      = pRawLogHdr->uiLogSize;
     pLogInfo->uiLogEntityCnt = uiEntityCnt;
     
     pfs->HOITFS_logInfo = pLogInfo;
@@ -474,7 +503,7 @@ INT hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
                                                             /* 声明一个LOG实体头 */                                                                        
     pRawLog                 = (PHOIT_RAW_LOG)lib_malloc(sizeof(HOIT_RAW_LOG));
     pRawLog->file_type      = S_IFLOG;
-    pRawLog->flag           = HOIT_FLAG_TYPE_LOG | HOIT_FLAG_OBSOLETE;
+    pRawLog->flag           = HOIT_FLAG_TYPE_LOG | HOIT_FLAG_NOT_OBSOLETE;
     pRawLog->magic_num      = HOIT_MAGIC_NUM;
     pRawLog->totlen         = uiSize;
     pRawLog->uiLogFirstAddr = PX_ERROR;
@@ -488,7 +517,7 @@ INT hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
     lib_memcpy(pcLogContent + sizeof(HOIT_RAW_LOG), pcEntityContent, uiEntitySize);
 
     pRawInfo                = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INFO));    /* 建立RawInfo */
-    pRawInfo->is_obsolete   = 0;
+    pRawInfo->is_obsolete   = HOIT_FLAG_NOT_OBSOLETE;
     pRawInfo->next_logic    = LW_NULL;
     pRawInfo->next_phys     = LW_NULL;
     pRawInfo->totlen        = uiSize;
@@ -522,27 +551,17 @@ INT hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
 
     return (LOG_APPEND_OK);
 }
-/*********************************************************************************************************
-** 函数名称: hoitLogCheckIfLog
-** 功能描述: 查看某个Sector是否是Log Sector
-** 输　入  : pfs                HoitFS设备头
-**          pErasableSector     欲检查的块
-** 输　出  : 是 LW_TRUE， 否 LW_FALSE
-** 全局变量:
-** 调用模块:
-*********************************************************************************************************/
-BOOL hoitLogCheckIfLog(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector){
-    PHOIT_LOG_SECTOR    pLogSectorTraverse;
-    if(pfs->HOITFS_logInfo == LW_NULL){
-        return LW_FALSE;
-    }
-    pLogSectorTraverse = pfs->HOITFS_logInfo->pLogSectorList;
-    while (pLogSectorTraverse)
-    {
-        if(pLogSectorTraverse->pErasableSetcor == pErasableSector){
-            return LW_TRUE;
-        }
-        pLogSectorTraverse = pLogSectorTraverse->pErasableNextLogSector;
-    }
-    return LW_FALSE;
+#else
+PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
+
 }
+PHOIT_LOG_INFO hoitLogOpen(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLog){
+
+}
+PCHAR hoitLogEntityGet(PHOIT_VOLUME pfs, UINT uiEntityNum){
+
+}
+INT hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
+
+}
+#endif // LOG_ENABLE

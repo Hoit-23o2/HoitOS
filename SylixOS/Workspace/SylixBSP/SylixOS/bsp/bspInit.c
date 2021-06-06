@@ -52,6 +52,7 @@
 #include "extfs/hoitFs/hoitFsTreeUtil.h"                                /*  ºìºÚÊ÷²âÊÔ - PYQ             */
 #include "extfs/hoitFs/hoitFsTree.h"                                    /*  FragÊ÷²âÊÔ - PYQ             */
 #include "extfs/hoitFs/hoitFsCache.h"                                   /*  Cache²âÊÔ  - ZN              */
+#include "extfs/tools/list/common.h"                                    /*  Á´±íÄ£°å²âÊÔ - PYQ */
 /*********************************************************************************************************
   ²Ù×÷ÏµÍ³·ûºÅ±í
 *********************************************************************************************************/
@@ -598,6 +599,8 @@ test_hoit_cache();
     pretty_print("[Frag Tree Test]", "", DO_CENTRAL);
     hoitFTTreeTest();
 #endif // FT_TEST
+    listTest();
+
 
 #else
     nandDevCreateEx("/n");                                              /*  mount nandflash disk(yaffs) */

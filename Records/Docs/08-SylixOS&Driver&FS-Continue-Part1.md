@@ -180,7 +180,7 @@ Am29LV160DB  NorFlash驱动`nor.c`的API访问方式有两种，一是通过命�
 
 **可用方法：**
 
-- **VOID**  **nor_init**(**ENUM_NOR_INIT_FLAG** nor_init_flag)：根据nor_init_flag，初始化`nor flash`；
+- **VOID**  **nor_init**(**ENUM_NOR_INIT_FLAG** nor_init_flag)：![image-20210524172313314](08-SylixOS&Driver&FS-Continue-Part1.assets/image-20210524172313314.png)；
 
   用例：
 

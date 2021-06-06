@@ -98,6 +98,43 @@ PHOIT_CACHE_HDR hoitEnableCache(UINT32 uiCacheBlockSize, UINT32 uiCacheBlockNums
     return pcacheHdr;
 }
 /*    
+** 函数名称:    hoitFreeCache
+** 功能描述:    初始化 hoit cache
+** 输　入  :    uiCacheBlockSize       单个cache大小
+**              uiCacheBlockNums       cache最大数量
+**              phoitfs                hoitfs文件卷结构体
+** 输　出  : LW_NULL 表示失败，PHOIT_CACHE_HDR地址 表示成功
+** 全局变量:
+** 调用模块:    
+*/
+BOOL hoitFreeCache(PHOIT_CACHE_HDR pcacheHdr) {
+    PHOIT_CACHE_BLK pcache;
+    PHOIT_CACHE_BLK pfree;
+    if (pcacheHdr == LW_NULL) {
+        _DebugHandle(__ERRORMESSAGE_LEVEL, "hoitfs cache header is null.\r\n");
+        _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
+        return  (PX_ERROR);        
+    }   
+
+    pcache = pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext;
+    while (pcache != pcacheHdr->HOITCACHE_cacheLineHdr)
+    {
+        pcache->HOITBLK_cacheListPrev->HOITBLK_cacheListNext = pcache->HOITBLK_cacheListNext;   /* 断开pcache */
+        pcache->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache->HOITBLK_cacheListPrev;
+        pfree = pcache;
+        pcache = pcache->HOITBLK_cacheListNext;
+        __SHEAP_FREE(pfree->HOITBLK_buf);
+        __SHEAP_FREE(pfree);        
+    }
+    __SHEAP_FREE(pcache->HOITBLK_buf);  /* 释放循环链表头 */
+    __SHEAP_FREE(pcacheHdr);
+    if(pcacheHdr->HOITCACHE_hLock){
+        API_SemaphoreMDelete(&pcacheHdr->HOITCACHE_hLock);
+    }
+    return ERROR_NONE;
+}
+
+/*    
 ** 函数名称:    hoitAllocCache
 ** 功能描述:    分配cache,读取映射在flash的内容
 ** 输　入  :    pcacheHdr               cache头结构

@@ -59,7 +59,7 @@ VOID nor_init(ENUM_NOR_INIT_FLAG nor_init_flag){
 	}
 	case INIT_TRUE_NOR:
 		TRUE_MODE();
-		NOR_FLASH_BASE = (UINT32)API_VmmIoRemap2(0, 2 * 1024 * 1024);
+		NOR_FLASH_BASE = (UINT32)API_VmmIoRemap2(0, 2 * 1024 * 1024);								
 		break;
 	default:
 		break;
