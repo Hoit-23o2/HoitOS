@@ -53,6 +53,8 @@
         "memory": "cpp",
         "istream": "cpp",
         "list_interface.h": "c",
-        "list_template.h": "c"
+        "list_template.h": "c",
+        "spiffstype.h": "c",
+        "spiffslib.h": "c"
     }
 }
