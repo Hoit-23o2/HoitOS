@@ -48,8 +48,8 @@ void createDir(PUCHAR pFileName, UINT dirNo) {
     lib_memcpy(pEnd, dirname, sizeof(dirname));
 
     mode &= ~S_IFMT;
-    
-    iFd = open(pFileName, O_RDWR | O_CREAT | O_EXCL, S_IFDIR | mode);   /*  排他性创建 */ 
+
+    iFd = open(pFileName, O_RDWR | O_CREAT | O_EXCL, S_IFDIR | mode);   /*  排他性创建 */
     if (iFd < 0) {
         printf("error!\n");
         ERROR_FLAG = 1;
@@ -60,7 +60,7 @@ void createDir(PUCHAR pFileName, UINT dirNo) {
     if (depth <= max_depth) {
         depth ++;
         FileTreeTestStart(pFileName);
-        if (ERROR_FLAG == 1) 
+        if (ERROR_FLAG == 1)
             return;
         depth --;
     }
@@ -89,7 +89,7 @@ void createFile(PUCHAR pFileName, UINT fileNo) {
     }
     lib_memcpy(pEnd, filename, sizeof(filename));
 
-    iFd = open(pFileName, O_WRONLY | O_CREAT | O_TRUNC, mode);   /*  排他性创建 */ 
+    iFd = open(pFileName, O_WRONLY | O_CREAT | O_TRUNC, mode);   /*  排他性创建 */
     if (iFd < 0) {
         printf("%s create error!\n",pFileName);
         ERROR_FLAG = 1;
@@ -97,7 +97,7 @@ void createFile(PUCHAR pFileName, UINT fileNo) {
     }
     /* 文件统一写入"Hello hoitfs" */
     printf("\t%s starts writing.\n", pFileName);
-    for(i=0; i<writetimes ; i++) {        
+    for(i=0; i<writetimes ; i++) {
         writebytes = write(iFd, filewrite, sizeof(filewrite));
     }
     close(iFd);
@@ -139,7 +139,7 @@ void FileTreeTestStart(PUCHAR pFileName) {
         createDir(pFileName, i);
         if (ERROR_FLAG == 1) {
             return;
-        }        
+        }
     }
 }
 /******************************  check part  ******************************/
@@ -159,8 +159,8 @@ void checkDir(PUCHAR pFileName, UINT dirNo) {
     lib_memcpy(pEnd, dirname, sizeof(dirname));
 
     mode &= ~S_IFMT;
-    
-    iFd = open(pFileName, O_RDWR, S_IFDIR | mode);   /*  排他性创建 */ 
+
+    iFd = open(pFileName, O_RDWR, S_IFDIR | mode);   /*  排他性创建 */
     if (iFd < 0) {
         printf("\"%s\" does not exist!\n",pFileName);
         ERROR_FLAG = 1;
@@ -171,7 +171,7 @@ void checkDir(PUCHAR pFileName, UINT dirNo) {
     if (depth <= max_depth) {
         depth ++;
         FileTreeTestCheck(pFileName);
-        if (ERROR_FLAG == 1) 
+        if (ERROR_FLAG == 1)
             return;
         depth --;
     }
@@ -191,7 +191,7 @@ void checkFile(PUCHAR pFileName, UINT fileNo) {
     INT     iFd;
     INT     i;
 
-    
+
     lib_memset(fileread, 0, sizeof(fileread));
     /* 赋予新的名字 */
     filename[7]  = '0'+fileNo;
@@ -201,22 +201,22 @@ void checkFile(PUCHAR pFileName, UINT fileNo) {
         pEnd ++;
     }
     lib_memcpy(pEnd, filename, sizeof(filename));
-    
+
     printf("\tcheck %s content\n", pFileName);
-    iFd = open(pFileName, O_RDONLY, mode);   /*  排他性创建 */ 
+    iFd = open(pFileName, O_RDONLY, mode);   /*  排他性创建 */
     if (iFd < 0) {
         printf("\"%s\" does not exist!\n",pFileName);
         ERROR_FLAG = 1;
         return ;
-    }    
+    }
     /* 查看文件内容 "Hello hoitfs" */
 
-    for(i=0; i < writetimes ; i++) {        
+    for(i=0; i < writetimes ; i++) {
         writebytes = read(iFd, fileread, sizeof(filewrite));
         if (writebytes == 0) {
             printf("\"%s\" is empty!\n");
             ERROR_FLAG = 1;
-            return ;            
+            return ;
         }
         if (lib_strcmp(fileread, filewrite) != 0) {
             printf("\"%s\" read content is not correct!\n");
@@ -245,22 +245,22 @@ void FileTreeTestCheck(PUCHAR pFileName) {
             return;
         }
     }
- 
+
     /* 检查目录 */
     for (i=0 ; i<max_dirNo ; i++) {
         checkDir(pFileName, i);
         if (ERROR_FLAG == 1) {
             return;
-        }        
-    }    
+        }
+    }
 }
-/*    
+/*
 ** 函数名称:    hoitTestFileTree
 ** 功能描述:    文件树测试
-** 输　入  :    
+** 输　入  :
 ** 输　出  :    测试成功返回ERROR_NONE，失败返回PX_ERROR
 ** 全局变量:
-** 调用模块:    
+** 调用模块:
 */
 INT hoitTestFileTree (INT  iArgC, PCHAR  ppcArgV[])
 {
@@ -270,7 +270,7 @@ INT hoitTestFileTree (INT  iArgC, PCHAR  ppcArgV[])
     lib_strcpy(filename, "/mnt/hoitfs/\0");
 
     if (iArgC != 2 && iArgC != 4) {
-        fprintf(stderr, "arguments error!\n");
+        fprintf(STD_ERR, "arguments error!\n");
         return  (-ERROR_TSHELL_EPARAM);
     }
 
@@ -282,7 +282,7 @@ INT hoitTestFileTree (INT  iArgC, PCHAR  ppcArgV[])
             printf("thrid argc  :   max dir number in a directory\n");
             return ERROR_NONE;
         } else {
-            fprintf(stderr, "arguments error!\n");
+            fprintf(STD_ERR, "arguments error!\n");
             return  (-ERROR_TSHELL_EPARAM);
         }
     } else if (iArgC == 4) {
@@ -297,11 +297,11 @@ INT hoitTestFileTree (INT  iArgC, PCHAR  ppcArgV[])
         temp = lib_atoi(ppcArgV[3]);
         if (temp < max_dirNo)
             max_dirNo = temp;
-     
+
     } else {
-            fprintf(stderr, "arguments error!\n");
+            fprintf(STD_ERR, "arguments error!\n");
             return  (-ERROR_TSHELL_EPARAM);
-    }  
+    }
 
     printf("===========  File Tree Test!         ===========\n");
     printf("===========  Create File And Dir!    ===========\n");
@@ -322,11 +322,11 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     INT     iFd;
     UCHAR   data    = '1';
     INT     i;
-    
+
     lib_memset(writeData, 0, sizeof(writeData));
 
     printf("===========  File Overwrite Test!       ===========\n");
-    iFd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_FILE_PERM);   /*  排他性创建 */ 
+    iFd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, DEFAULT_FILE_PERM);   /*  排他性创建 */
     lib_memset(readData, 0, sizeof(readData));
     /* 初始写入64个'1' */
     for (i=0 ; i<64 ; i++) {
@@ -342,12 +342,12 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     if (lib_strcmp(writeData,readData) == 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
         printf("\tcheck No.%c ok\n", data);
-        API_TShellColorEnd(STD_OUT);        
+        API_TShellColorEnd(STD_OUT);
     } else {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("\tcheck No.%c failed\n", data);
-        API_TShellColorEnd(STD_OUT);  
-        goto __fot_end;       
+        API_TShellColorEnd(STD_OUT);
+        goto __fot_end;
     }
 
     /* 关闭文件再打开，追加写36个'2' */
@@ -367,12 +367,12 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     if (lib_strcmp(writeData,readData) == 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
         printf("\tcheck No.%c ok\n", data);
-        API_TShellColorEnd(STD_OUT);        
+        API_TShellColorEnd(STD_OUT);
     } else {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("\tcheck No.%c failed\n", data);
-        API_TShellColorEnd(STD_OUT);  
-        goto __fot_end;       
+        API_TShellColorEnd(STD_OUT);
+        goto __fot_end;
     }
 
     /* 覆盖修改前32个字为"3" */
@@ -387,17 +387,17 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     printf("\nNo.%c result:\n", data);
     close(iFd);
     iFd = open(filename, O_RDONLY, DEFAULT_FILE_PERM);
-    read(iFd, readData, sizeof(readData));    
+    read(iFd, readData, sizeof(readData));
     printf("%s\n",readData);
     if (lib_strcmp(writeData,readData) == 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
         printf("\tcheck No.%c ok\n", data);
-        API_TShellColorEnd(STD_OUT);        
+        API_TShellColorEnd(STD_OUT);
     } else {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("\tcheck No.%c failed\n", data);
-        API_TShellColorEnd(STD_OUT);  
-        goto __fot_end;       
+        API_TShellColorEnd(STD_OUT);
+        goto __fot_end;
     }
 
     /* 从64位开始写64个'4' */
@@ -417,12 +417,12 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     if (lib_strcmp(writeData,readData) == 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
         printf("\tcheck No.%c ok\n", data);
-        API_TShellColorEnd(STD_OUT);        
+        API_TShellColorEnd(STD_OUT);
     } else {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("\tcheck No.%c failed\n", data);
-        API_TShellColorEnd(STD_OUT);  
-        goto __fot_end;       
+        API_TShellColorEnd(STD_OUT);
+        goto __fot_end;
     }
     /* 从1024位开始中间空128字节，然后写128个'5' */
 //    data ++;
@@ -461,12 +461,12 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     if (lib_strcmp(writeData,readData) == 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
         printf("\tcheck No.%c ok\n", 'x');
-        API_TShellColorEnd(STD_OUT);        
+        API_TShellColorEnd(STD_OUT);
     } else {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("\tcheck No.%c failed\n", 'x');
-        API_TShellColorEnd(STD_OUT);  
-        goto __fot_end;       
+        API_TShellColorEnd(STD_OUT);
+        goto __fot_end;
     }
 
     data ++;
@@ -477,7 +477,7 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     write(iFd, "yyyyyyyy", 8);
     for (i=0 ; i<8; i++) {
         writeData[i] = 'y';
-    }    
+    }
     printf("\nNo.%c result:\n", data);
     close(iFd);
     iFd = open(filename, O_RDONLY, DEFAULT_FILE_PERM);
@@ -487,12 +487,12 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     if (lib_strcmp(writeData,readData) == 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
         printf("\tcheck No.%c ok\n", 'y');
-        API_TShellColorEnd(STD_OUT);        
+        API_TShellColorEnd(STD_OUT);
     } else {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("\tcheck No.%c failed\n", 'y');
-        API_TShellColorEnd(STD_OUT);  
-        goto __fot_end;       
+        API_TShellColorEnd(STD_OUT);
+        goto __fot_end;
     }
 
 __fot_end:
@@ -515,8 +515,8 @@ INT checkData(INT iFd, UCHAR write_data[128]){
     if (lib_memcmp(read_data, write_data, sizeof(write_data))!= 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("data is not consist\n");
-        API_TShellColorEnd(STD_OUT); 
-        return PX_ERROR;        
+        API_TShellColorEnd(STD_OUT);
+        return PX_ERROR;
     }
     return ERROR_NONE;
 }
@@ -564,17 +564,17 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     mode_t  file_mode               = DEFAULT_FILE_PERM;
 
     UCHAR   write_data[128];
-    UCHAR   read_data[128];  
-    UCHAR   data = 'x';  
+    UCHAR   read_data[128];
+    UCHAR   data = 'x';
     INT     iFd;
     INT     i;
-    
+
     /* 创建目录 */
     iFd = open(file_dir, O_RDWR | O_CREAT | O_EXCL, S_IFDIR | dir_mode);
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("create \" %s \" error!\n", file_dir);
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
     }
     close(iFd);
@@ -582,20 +582,20 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("create \" %s \" error!\n", link_dir);
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
     }
     close(iFd);
 
     /******************************* step1 *******************************/
-    iFd = open(file_name, O_WRONLY | O_CREAT | O_TRUNC, file_mode); 
+    iFd = open(file_name, O_WRONLY | O_CREAT | O_TRUNC, file_mode);
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("create \" %s \" error!\n", file_name);
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
     }
-    
+
     /* 写128个 "x" */
     for (i=0 ; i<128 ; i++) {
         write(iFd, &data, sizeof(data));
@@ -608,19 +608,19 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     if (symlink(file_name, soft_link) != ERROR_NONE) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("soft link creating failed!\n");
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
     }
 
     /* 硬链接 */
     if (_G_Volumn == LW_NULL) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("can't get the hoitfs header!\n");
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
     }
     if (__hoitFsHardlink(_G_Volumn, hard_link, file_temp) != ERROR_NONE) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("hard link creating failed!\n");
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
     }
 
@@ -631,7 +631,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("open \" %s \" error!\n", soft_link);
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
     }
     /* 先读取文件查看内容是否一致 */
@@ -656,7 +656,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("open \" %s \" error!\n", file_name);
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
     }
 
@@ -664,7 +664,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         close(iFd);
         return PX_ERROR;
     }
-    close(iFd);   
+    close(iFd);
     checkOK("soft link write");
 
     /******************************* 硬链接 *******************************/
@@ -673,9 +673,9 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("open \" %s \" error!\n", hard_link);
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
-    }  
+    }
 
     /* 先读取文件查看内容是否一致 */
     if (checkData(iFd, write_data)!=ERROR_NONE) {
@@ -692,14 +692,14 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         write(iFd, &data, sizeof(UCHAR));
         write_data[i] = data;
     }
-    close(iFd);     
-    
+    close(iFd);
+
     /* 通过源文件检查 */
     iFd = open(file_name, O_RDONLY, file_mode);
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("open \" %s \" error!\n", file_name);
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
     }
 
@@ -716,13 +716,13 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     if (symlink(soft_link, second_soft_link) != ERROR_NONE) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("second soft link creating failed!\n");
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
     }
     iFd = open(second_soft_link, O_RDWR, file_mode);
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("open \" %s \" error!\n", second_soft_link);
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
     }
     /* 先读取文件查看内容是否一致 */
@@ -748,7 +748,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("open \" %s \" error!\n", file_name);
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
     }
 
@@ -765,14 +765,14 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     if(unlink(second_soft_link)==PX_ERROR) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("delete soft link failed!\n");
-        API_TShellColorEnd(STD_OUT); 
-        return PX_ERROR;         
+        API_TShellColorEnd(STD_OUT);
+        return PX_ERROR;
     }
     if(unlink(soft_link)==PX_ERROR) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("delete soft link failed!\n");
-        API_TShellColorEnd(STD_OUT); 
-        return PX_ERROR;         
+        API_TShellColorEnd(STD_OUT);
+        return PX_ERROR;
     }
 
     /* 通过源文件检查 */
@@ -781,7 +781,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("open \" %s \" error!\n", file_name);
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
     }
 
@@ -796,8 +796,8 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     if (unlink(hard_link)==PX_ERROR) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("delete hard link failed!\n");
-        API_TShellColorEnd(STD_OUT); 
-        return PX_ERROR;         
+        API_TShellColorEnd(STD_OUT);
+        return PX_ERROR;
     }
 
     /* 通过源文件检查 */
@@ -806,7 +806,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("open \" %s \" error!\n", file_name);
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
     }
 
@@ -824,7 +824,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
         printf("mount ramfs failed!\n");
         API_TShellColorEnd(STD_OUT);
         return (0);
-    }   
+    }
     API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
     printf("mount ramfs OK\n");
     API_TShellColorEnd(STD_OUT);
@@ -833,7 +833,7 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     if (symlink(file_name, outer_link) != ERROR_NONE) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("outer link creating failed!\n");
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
     }
 
     printf("check outer link...\n");
@@ -841,26 +841,26 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("open \" %s \" error!\n", outer_link);
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
     }
-    
+
     if (checkData(iFd, write_data)!=ERROR_NONE) {
         close(iFd);
         return PX_ERROR;
     }
     close(iFd);
     checkOK("outer link");
-    
+
     /* 检查从hoitfs指向ramfs的软链接 */
     /* 创建文件 */
-    iFd = open(outer_file_name, O_WRONLY | O_CREAT | O_TRUNC, file_mode); 
+    iFd = open(outer_file_name, O_WRONLY | O_CREAT | O_TRUNC, file_mode);
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("create \" %s \" error!\n", outer_file_name);
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
-    }       
+    }
     for (i=0 ; i<128 ; i++) {
         write(iFd, &write_data[i], sizeof(data));
     }
@@ -869,17 +869,17 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
     if (symlink(outer_file_name, inner_link) != ERROR_NONE) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("inner link creating failed!\n");
-        API_TShellColorEnd(STD_OUT); 
-    }   
+        API_TShellColorEnd(STD_OUT);
+    }
     printf("check inner link...\n");
     iFd = open(inner_link, O_RDONLY, file_mode);
     if (iFd < 0) {
         API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
         printf("open \" %s \" error!\n", inner_link);
-        API_TShellColorEnd(STD_OUT); 
+        API_TShellColorEnd(STD_OUT);
         return PX_ERROR;
     }
-    
+
    if (checkData(iFd, write_data)!=ERROR_NONE) {
        close(iFd);
        return PX_ERROR;
@@ -907,7 +907,7 @@ INT hoitTestGC(PHOIT_VOLUME pfs){
     UINT  i, j;
     UINT  uiSizeWritten;
     PCHAR pcWriteBuffer;
-    
+
     iFd = open(BIG_FILE, O_RDWR | O_CREAT | O_TRUNC, FILE_MODE);
     if(iFd < 0){
         printf("[Create " BIG_FILE "Fail]");
@@ -926,11 +926,11 @@ INT hoitTestGC(PHOIT_VOLUME pfs){
         }
         write(iFd, pcWriteBuffer, PER_SIZE);
         uiSizeWritten += (PER_SIZE / 1024);
-        printf("write cycle %d ok, %dKB has written, now sector is %d\n" , i, uiSizeWritten, 
+        printf("write cycle %d ok, %dKB has written, now sector is %d\n" , i, uiSizeWritten,
                 pfs->HOITFS_now_sector->HOITS_bno);
         lib_free(pcWriteBuffer);
     }
-    
+
     API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
     printf("Write BigFile OK \n");
     API_TShellColorEnd(STD_OUT);

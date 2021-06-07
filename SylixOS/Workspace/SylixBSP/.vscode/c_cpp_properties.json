@@ -3,22 +3,21 @@
         {
             "name": "Win32",
             "includePath": [
-                "D:\\HUZHISHENG\\HoitOS\\github_project\\HoitOS\\SylixOS\\Workspace\\SylixBSP\\SylixOS",
-                "D:\\HUZHISHENG\\HoitOS\\github_project\\HoitOS\\SylixOS\\Workspace\\SylixBSP\\SylixOS\\bsp",
-                "D:\\HUZHISHENG\\HoitOS\\RealEvo\\compiler\\arm-sylixos-toolchain\\arm-sylixos-eabi\\include",
-                "D:\\HUZHISHENG\\HoitOS\\RealEvo\\compiler\\arm-sylixos-toolchain\\lib\\gcc\\arm-sylixos-eabi\\4.9.3\\include",
-                "D:\\HUZHISHENG\\HoitOS\\github_project\\HoitOS\\SylixOS\\Workspace\\SylixOS\\libcextern\\libcextern\\include",
-                "D:\\HUZHISHENG\\HoitOS\\github_project\\HoitOS\\SylixOS\\Workspace\\SylixOS\\libsylixos\\SylixOS",
-                "D:\\HUZHISHENG\\HoitOS\\github_project\\HoitOS\\SylixOS\\Workspace\\SylixOS\\libsylixos\\SylixOS\\include",
-                "D:\\HUZHISHENG\\HoitOS\\github_project\\HoitOS\\SylixOS\\Workspace\\SylixOS\\libsylixos\\SylixOS\\include\\network"
+                "D:\\MyProject-Temp\\Project.HoitOS\\HoitOS\\SylixOS\\Workspace\\SylixBSP\\SylixOS",
+                "D:\\MyProject-Temp\\Project.HoitOS\\HoitOS\\SylixOS\\Workspace\\SylixBSP\\SylixOS\\bsp",
+                "D:\\RealEvo\\compiler\\arm-sylixos-toolchain\\arm-sylixos-eabi\\include",
+                "D:\\RealEvo\\compiler\\arm-sylixos-toolchain\\lib\\gcc\\arm-sylixos-eabi\\4.9.3\\include",
+                "D:\\MyProject-Temp\\Project.HoitOS\\HoitOS\\SylixOS\\Workspace\\SylixOS\\libcextern\\libcextern\\include",
+                "D:\\MyProject-Temp\\Project.HoitOS\\HoitOS\\SylixOS\\Workspace\\SylixOS\\libsylixos\\SylixOS",
+                "D:\\MyProject-Temp\\Project.HoitOS\\HoitOS\\SylixOS\\Workspace\\SylixOS\\libsylixos\\SylixOS\\include",
+                "D:\\MyProject-Temp\\Project.HoitOS\\HoitOS\\SylixOS\\Workspace\\SylixOS\\libsylixos\\SylixOS\\include\\network"
             ],
             "defines": [
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE"
             ],
-            "cStandard": "c89",
-            "intelliSenseMode": "gcc-x64"
+            "cStandard": "c89"
         }
     ],
     "version": 4

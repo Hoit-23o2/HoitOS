@@ -21,7 +21,6 @@
 #ifndef SYLIXOS_EXTFS_HOITFS_HOITTYPE_H_
 #define SYLIXOS_EXTFS_HOITFS_HOITTYPE_H_
 #define  __SYLIXOS_KERNEL
-#include "stdio.h"
 #include "SylixOS.h"
 #include "../tools/list/list_interface.h"
 /*********************************************************************************************************

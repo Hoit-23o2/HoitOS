@@ -61,6 +61,5 @@ INT32 __spiffs_mount(PSPIFFS_VOLUME pfs, PSPIFFS_CONFIG pConfig, PUCHAR pucWorkB
     pfs->pucLookupWorkBuffer = pucWorkBuffer + SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs);
 
     /* ¶ÔÆëpuiFdSpace */
-    
 }
 

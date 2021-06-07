@@ -55,6 +55,10 @@
         "list_interface.h": "c",
         "list_template.h": "c",
         "spiffstype.h": "c",
-        "spiffslib.h": "c"
+        "spiffslib.h": "c",
+        "lw_class_mp.h": "c",
+        "lw_class_system.h": "c",
+        "lw_class_kernel.h": "c",
+        "uart.h": "c"
     }
 }
