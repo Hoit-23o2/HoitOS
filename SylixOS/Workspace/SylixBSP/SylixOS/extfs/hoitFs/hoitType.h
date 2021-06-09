@@ -24,6 +24,8 @@
 #include "stdio.h"
 #include "SylixOS.h"
 #include "../tools/list/list_interface.h"
+
+//!2021-06-06 修改块级管理结构（三个链表） by zn
 /*********************************************************************************************************
   HoitFs Lib 相关测试
 *********************************************************************************************************/
@@ -82,6 +84,9 @@
 #define __HOIT_VOLUME_LOCK(pfs)             API_SemaphoreMPend(pfs->HOITFS_hVolLock, \
                                             LW_OPTION_WAIT_INFINITE)
 #define __HOIT_VOLUME_UNLOCK(pfs)           API_SemaphoreMPost(pfs->HOITFS_hVolLock)
+#define GET_FREE_LIST(pfs)   pfs->HOITFS_freeSectorList
+#define GET_DIRTY_LIST(pfs)   pfs->HOITFS_dirtySectorList
+#define GET_CLEAN_LIST(pfs)   pfs->HOITFS_cleanSectorList
 #define __HOIT_MIN_4_TIMES(value)           ((value+3)/4*4) /* 将value扩展到4的倍数 */
 
 /*********************************************************************************************************
@@ -143,6 +148,7 @@ typedef HOIT_LOG_INFO *                   PHOIT_LOG_INFO;
 typedef HOIT_RAW_LOG *                    PHOIT_RAW_LOG;
 DEV_HDR          HOITFS_devhdrHdr;
 
+DECLARE_LIST_TEMPLATE(HOIT_ERASABLE_SECTOR);
 
 /*********************************************************************************************************
   HoitFs super block类型
@@ -172,6 +178,10 @@ typedef struct HOIT_VOLUME{
     
                                                                            /*! GC 相关 */
     PHOIT_ERASABLE_SECTOR   HOITFS_erasableSectorList;                     /* 可擦除Sector列表 */
+    List(HOIT_ERASABLE_SECTOR) HOITFS_dirtySectorList;                     /* 含有obsolete的块 */ 
+    List(HOIT_ERASABLE_SECTOR) HOITFS_cleanSectorList;                     /* 不含obsolete的块 */
+    List(HOIT_ERASABLE_SECTOR) HOITFS_freeSectorList;                      /* 啥都不含的块 */
+    
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSuvivorSector;                      /* 目标搬家地址 */
     LW_OBJECT_HANDLE        HOITFS_GCMsgQ;                                 /* GC线程消息队列*/
@@ -229,8 +239,8 @@ struct HOIT_RAW_DIRENT{
 struct HOIT_RAW_INFO{
     UINT                phys_addr;
     UINT                totlen;
-    PHOIT_RAW_INFO      next_phys;
-    PHOIT_RAW_INFO      next_logic;
+    PHOIT_RAW_INFO      next_phys;                                     /* 物理上邻接的下一个 */
+    PHOIT_RAW_INFO      next_logic;                                    /* 同属一个ino的下一个 */
     UINT                is_obsolete;
 };
                                                                     
@@ -292,6 +302,8 @@ struct HOIT_ERASABLE_SECTOR{
     UINT                          HOITS_addr;
     UINT                          HOITS_length;
     UINT                          HOITS_offset;                                   /* 当前在写物理地址 = addr+offset  */
+    UINT                          HOITS_uiObsoleteEntityCount;                    /* sector当前包含过期实体数量 */
+    UINT                          HOITS_uiAvailableEntityCount;                   /* sector当前包含有效实体数量 */
     //TODO: 写入、GC时，需要持有该锁
     spinlock_t                    HOITS_lock;                                     /* 每个Sector持有一个? */ 
 
@@ -305,7 +317,7 @@ struct HOIT_ERASABLE_SECTOR{
     PHOIT_RAW_INFO                HOITS_pRawInfoCurGC;                            /* 当前即将回收的数据实体，注：一次仅回收一个数据实体 */
     PHOIT_RAW_INFO                HOITS_pRawInfoPrevGC;
     PHOIT_RAW_INFO                HOITS_pRawInfoLastGC;                           /* 最后一块应当被GC的Raw Info */
-
+  
     ULONG                         HOITS_tBornAge;                                 /* 当前Sector的出生时间 */                        
 };
 

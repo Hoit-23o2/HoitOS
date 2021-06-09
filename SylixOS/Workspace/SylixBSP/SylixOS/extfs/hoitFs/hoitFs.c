@@ -162,6 +162,10 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_curGCSector        = LW_NULL;
     pfs->HOITFS_curGCSuvivorSector  = LW_NULL;
     pfs->HOITFS_erasableSectorList = LW_NULL;
+
+    InitList(pfs->HOITFS_dirtySectorList,hoitFs, HOIT_ERASABLE_SECTOR); /* 初始化模板链表 */
+    InitList(pfs->HOITFS_cleanSectorList,hoitFs, HOIT_ERASABLE_SECTOR);
+    InitList(pfs->HOITFS_freeSectorList,hoitFs, HOIT_ERASABLE_SECTOR);
                                                                         /* Log相关 */
     pfs->HOITFS_logInfo            = LW_NULL;
     //__ram_mount(pramfs);
@@ -474,7 +478,6 @@ __re_umount_vol:
         iosDevDelete((LW_DEV_HDR *)pfs);                             /*  IO 系统移除设备             */
         API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);
          
-        //TODO __hoit_unmount尚未定义
         __hoit_unmount(pfs);
         __SHEAP_FREE(pfs);
 

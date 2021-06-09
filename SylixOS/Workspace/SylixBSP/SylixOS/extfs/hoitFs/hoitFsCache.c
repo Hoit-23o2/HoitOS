@@ -369,7 +369,13 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
             pSector->HOITS_uiUsedSize   = cacheBlkSize;
         }
     }
-
+    // if(uiSize >= sizeof(HOIT_RAW_HEADER)){  /* 实体头 */
+    //     PHOIT_RAW_HEADER headr = (PHOIT_RAW_HEADER)pContent;
+    //     headr->magic_num == HOIT_MAGIC_NUM
+    //     {
+    //         pSector.usedCount++;               
+    //     }
+    // }
     return LW_TRUE;   
 }
 
@@ -611,7 +617,6 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
         pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
         while (pSector != LW_NULL)
         {
-            //! 2021-05-04 Modified By PYQ
             if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
                && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
                 if(pSector->HOITS_uiFreeSize == pcacheHdr->HOITCACHE_blockSize) {

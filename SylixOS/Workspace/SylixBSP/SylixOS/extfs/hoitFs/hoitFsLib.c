@@ -636,6 +636,8 @@ UINT8 __hoit_get_inode_nodes(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeInfo, PHO
 BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector) {
     pErasableSector->HOITS_next = pfs->HOITFS_erasableSectorList;
     pfs->HOITFS_erasableSectorList = pErasableSector;
+    //!TODO: mount初始化链表，封装链表转移函数
+    __hoit_fix_up_sector_list(pfs, pErasableSector);
     return LW_TRUE;
 }
 /*********************************************************************************************************
@@ -968,8 +970,26 @@ PCHAR __hoit_get_data_after_raw_inode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pInodeInf
 VOID __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO pRawInfo) {
     INTREG iregInterLevel;
     //API_SpinLockQuick(&pSector->HOITS_lock, &iregInterLevel);
-
+    //TODO: Sector的HOITS_uiObsoleteEntityCount和HOITS_uiAvailableEntityCount初始化位置？
+    /*                      
+                          |--------------------------------|
+                          |     Sector                     |      Sector
+                          |    /     \                     |    /       \
+        InodeCache----RawInfo(ino)-----RawInfo(ino2)-----RawInfo(ino)-----RawInfo(ino)
+                        |                   |               |               |
+                ---------------------------------------------------------------------
+                   | [H][Entity]       [H][Entity]  |    [H][Entity]   [H][Entity]  |
+                ------------------------------------------------------------------
+    */
     pRawInfo->next_phys = LW_NULL;
+    if(pRawInfo->is_obsolete){
+        pSector->HOITS_uiObsoleteEntityCount++;
+    }
+    else {
+        pSector->HOITS_uiAvailableEntityCount++;
+    }
+
+    //调用转移函数
 #ifdef LIB_DEBUG
     printf("[%s]:add raw info at %p for sector %d\n", __func__, pRawInfo, pSector->HOITS_bno);
 #endif // LIB_DEBUG
@@ -1869,6 +1889,60 @@ VOID  __hoit_redo_log(PHOIT_VOLUME  pfs) {
         __SHEAP_FREE(p);
     }
 }
+
+/*********************************************************************************************************
+** 函数名称: __hoit_erasable_sector_list_check_exist
+** 功能描述: 检查链表上是否有该sector。
+** 输　入  :
+**          HOITFS_sectorList   将要检查的列表
+**          pErasableSector     需要添加到列表的sector
+** 输　出  : 存在，返回LW_TRUE指针；不存在，返回LW_FALSE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+BOOL __hoit_erasable_sector_list_check_exist(List(HOIT_ERASABLE_SECTOR) HOITFS_sectorList, PHOIT_ERASABLE_SECTOR pErasableSector) {
+    Iterator(HOIT_ERASABLE_SECTOR)      iter;
+    PHOIT_ERASABLE_SECTOR               psector;
+    for(iter->begin(iter, HOITFS_sectorList) ; iter->isValid(iter) ; iter->next(iter)) {
+        psector = iter->get(iter);
+        if (psector == pErasableSector) {
+            return LW_TRUE;
+        }
+    }
+    return LW_FALSE;
+}
+
+
+
+/*********************************************************************************************************
+** 函数名称: __hoit_fix_up_sector_list
+** 功能描述: 检查一个sector的类型（dirty，clean或free），并添加到volume对应链表上。
+**          如果sector已经在对应链表中，则不做处理
+** 输　入  :
+**          pfs                 文件卷
+**          pErasableSector     需要添加到列表的sector
+** 输　出  : 
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector) {
+    if (pErasableSector->HOITS_uiFreeSize == GET_SECTOR_SIZE(pErasableSector->HOITS_bno)) { /* 空sector */
+        if (!__hoit_erasable_sector_list_check_exist(GET_FREE_LIST(pfs), pErasableSector)) {
+            GET_FREE_LIST(pfs)->insert(GET_FREE_LIST(pfs), pErasableSector, 0);
+        }
+    }
+    if (pErasableSector->HOITS_uiObsoleteEntityCount != 0) {
+        /* 目前是只要有脏数据实体，就把sector放到dirty list中 */
+        if (!__hoit_erasable_sector_list_check_exist(GET_DIRTY_LIST(pfs), pErasableSector)) {
+            GET_DIRTY_LIST(pfs)->insert(GET_DIRTY_LIST(pfs), pErasableSector, 0);
+        }
+    } else if (pErasableSector->HOITS_uiAvailableEntityCount != 0) {
+        if (!__hoit_erasable_sector_list_check_exist(GET_CLEAN_LIST(pfs), pErasableSector)) {
+            GET_CLEAN_LIST(pfs)->insert(GET_CLEAN_LIST(pfs), pErasableSector, 0);
+        }
+    }
+}
+
 
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
 #endif //HOITFSLIB_DISABLE
