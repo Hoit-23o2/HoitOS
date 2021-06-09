@@ -59,6 +59,9 @@
         "lw_class_mp.h": "c",
         "lw_class_system.h": "c",
         "lw_class_kernel.h": "c",
-        "uart.h": "c"
+        "uart.h": "c",
+        "spiffscache.h": "c",
+        "spiffsglue.h": "c",
+        "spiffsconfig.h": "c"
     }
 }

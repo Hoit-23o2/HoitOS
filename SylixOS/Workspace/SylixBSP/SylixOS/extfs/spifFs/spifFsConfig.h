@@ -20,10 +20,12 @@
 *********************************************************************************************************/
 #ifndef SYLIXOS_EXTFS_SPIFFS_SPIFFSCONFIG_H_
 #define SYLIXOS_EXTFS_SPIFFS_SPIFFSCONFIG_H_
+#define  __SYLIXOS_KERNEL
+#define  __SYLIXOS_STDIO
 #include "SylixOS.h"
-/********************************************************************************************************* 
-  输出类型声明                                                                                        
-*********************************************************************************************************/ 
+/*********************************************************************************************************
+  输出类型声明
+*********************************************************************************************************/
 // some general signed number
 #ifndef _SPIPRIi
 #define _SPIPRIi   "%d"             /* 带符号数 */
@@ -57,7 +59,7 @@
 #define _SPIPRIfl  "%02x"           /* Flag */
 #endif
 
-/********************************************************************************************************* 
+/*********************************************************************************************************
   垃圾回收器 评分估值
   Reference:
     Garbage collecting examines all pages in a block which and sums up
@@ -68,7 +70,7 @@ whose factor normally is the most positive.
 The larger the score, the more likely it is that the block will
 picked for garbage collection.
 
-*********************************************************************************************************/ 
+*********************************************************************************************************/
 // Garbage collecting heuristics - weight used for deleted pages.
 #ifndef SPIFFS_GC_HEUR_W_DELET
 #define SPIFFS_GC_HEUR_W_DELET          (5)             /* 被删除页面提供5分 */
@@ -83,13 +85,13 @@ picked for garbage collection.
 #define SPIFFS_GC_HEUR_W_ERASE_AGE      (50)            /* 年龄提供50分 */
 #endif
 
-/********************************************************************************************************* 
-  Object名的最大长度，注意：名字字符串长度 = SPIFFS_OBJ_NAME_LEN - 1 = 31                                                                                        
-*********************************************************************************************************/ 
+/*********************************************************************************************************
+  Object名的最大长度，注意：名字字符串长度 = SPIFFS_OBJ_NAME_LEN - 1 = 31
+*********************************************************************************************************/
 #ifndef SPIFFS_OBJ_NAME_LEN
 #define SPIFFS_OBJ_NAME_LEN             (32)
 #endif
-/********************************************************************************************************* 
+/*********************************************************************************************************
   可分配Buffer大小，越小意味着更多的读写次数，但并不意味着它必须大于逻辑页面大小
   Reference:
     Size of buffer allocated on stack used when copying data.
@@ -100,10 +102,10 @@ than logical page size.
 #define SPIFFS_COPY_BUFFER_STACK        (64)
 #endif
 
-/********************************************************************************************************* 
-  设备配置    
-  在SylixOS中我们仅移植Singleton                                                                                   
-*********************************************************************************************************/ 
+/*********************************************************************************************************
+  设备配置
+  在SylixOS中我们仅移植Singleton
+*********************************************************************************************************/
 #ifndef SPIFFS_CFG_PHYS_SZ
 #define SPIFFS_CFG_PHYS_SZ(ignore)        (1024*1024*2)
 #endif
@@ -119,8 +121,8 @@ than logical page size.
 #ifndef SPIFFS_CFG_LOG_BLOCK_SZ
 #define SPIFFS_CFG_LOG_BLOCK_SZ(ignore)   (65536)
 #endif
-/********************************************************************************************************* 
-  是否允许永久的文件缓存？             
+/*********************************************************************************************************
+  是否允许永久的文件缓存？
   Reference:
     Enable this to add a temporal file cache using the fd buffer.
 The effects of the cache is that SPIFFS_open will find the file faster in
@@ -139,28 +141,28 @@ When closed, the fd know the whereabouts of the file. Instead of forgetting
 this, the temporal cache will keep handling updates to that file even if the
 fd is closed. If the file is opened again, the location of the file is found
 directly. If all available descriptors become opened, all cache memory is
-lost.                                                              
+lost.
 （与我的预热区思想一样吗？）
-*********************************************************************************************************/ 
+*********************************************************************************************************/
 #ifndef SPIFFS_TEMPORAL_FD_CACHE
 #define SPIFFS_TEMPORAL_FD_CACHE              1
 #endif
 
-/********************************************************************************************************* 
-  命中得分，寻找最常用文件 =-=，这不差不多一样吗  
+/*********************************************************************************************************
+  命中得分，寻找最常用文件 =-=，这不差不多一样吗
   Reference:
     Temporal file cache hit score. Each time a file is opened, all cached files
 will lose one point. If the opened file is found in cache, that entry will
 gain SPIFFS_TEMPORAL_CACHE_HIT_SCORE points. One can experiment with this
 value for the specific access patterns of the application. However, it must
 be between 1 (no gain for hitting a cached entry often) and 255.
-be between 1 (no gain for hitting a cached entry often) and 255.      
-*********************************************************************************************************/ 
+be between 1 (no gain for hitting a cached entry often) and 255.
+*********************************************************************************************************/
 #ifndef SPIFFS_TEMPORAL_CACHE_HIT_SCORE
 #define SPIFFS_TEMPORAL_CACHE_HIT_SCORE       4
 #endif
 
-/********************************************************************************************************* 
+/*********************************************************************************************************
   是否允许将所有Index页面映射到内存中
   Reference:
     This allows for faster and more deterministic reading if cases of reading
@@ -173,15 +175,15 @@ Whole, parts of, or future parts not being written yet can be mapped. The
 memory array will be owned by spiffs and updated accordingly during garbage
 collecting or when modifying the indices. The latter is invoked by when the
 file is modified in some way. The index buffer is tied to the file
-descriptor.     
-*********************************************************************************************************/ 
-#ifndef SPIFFS_IX_MAP
-#define SPIFFS_IX_MAP                         1
+descriptor.
+*********************************************************************************************************/
+#ifndef SPIFFS_EN_IX_MAP
+#define SPIFFS_EN_IX_MAP                         1
 #endif
 
-/********************************************************************************************************* 
-  一些可视化设置                                                                          
-*********************************************************************************************************/ 
+/*********************************************************************************************************
+  一些可视化设置
+*********************************************************************************************************/
 #ifndef spiffs_printf
 #define spiffs_printf(...)                printf(__VA_ARGS__)
 #endif
@@ -201,9 +203,31 @@ descriptor.
 #ifndef SPIFFS_TEST_VIS_DATA_STR
 #define SPIFFS_TEST_VIS_DATA_STR(id)      "d"       /* 代表DataPage */
 #endif
-/********************************************************************************************************* 
-  SPIFFS内置类型设置                                                                          
-*********************************************************************************************************/ 
+
+
+#ifndef SPIFFS_DBG
+#define SPIFFS_DBG(_f, ...) printf(_f, ## __VA_ARGS__)
+#endif
+// Set spiffs debug output call for garbage collecting.
+#ifndef SPIFFS_GC_DBG
+#define SPIFFS_GC_DBG(_f, ...) printf(_f, ## __VA_ARGS__)
+#endif
+// Set spiffs debug output call for caching.
+#ifndef SPIFFS_CACHE_DBG
+#define SPIFFS_CACHE_DBG(_f, ...) printf(_f, ## __VA_ARGS__)
+#endif
+// Set spiffs debug output call for system consistency checks.
+#ifndef SPIFFS_CHECK_DBG
+#define SPIFFS_CHECK_DBG(_f, ...) printf(_f, ## __VA_ARGS__)
+#endif
+// Set spiffs debug output call for all api invocations.
+#ifndef SPIFFS_API_DBG
+#define SPIFFS_API_DBG(_f, ...) printf(_f, ## __VA_ARGS__)
+#endif
+
+/*********************************************************************************************************
+  SPIFFS内置类型设置
+*********************************************************************************************************/
 typedef UINT16 SPIFFS_BLOCK_IX;                     /* Block Index类型 */
 typedef UINT16 SPIFFS_PAGE_IX;                      /* Page  Index类型 */
 typedef UINT16 SPIFFS_OBJ_ID;                       /* Object   ID类型 */
