@@ -25,12 +25,15 @@
 /*********************************************************************************************************
  * SPIFFS 上层函数定义
 *********************************************************************************************************/
+
+INT32 __spiffs_format(PSPIFFS_VOLUME pfs);
+INT32 __spiffs_probe_fs(PSPIFFS_CONFIG pConfig);
 INT32 __spiffs_mount(PSPIFFS_VOLUME pfs, PSPIFFS_CONFIG pConfig, PUCHAR pucWorkBuffer,
                      UINT8 *puiFdSpace, UINT32 uiFdSpaceSize,
                      PUCHAR pCache, UINT32 uiCacheSize,
                      spiffsCheckCallback checkCallbackFunc);
 
-VOID __spiffs_unmount(PSPIFFS_VOLUME pfs);
-
+VOID  __spiffs_unmount(PSPIFFS_VOLUME pfs);
+INT32 __spiffs_create(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_MODE mode);
 
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFFSGLUE_H_ */

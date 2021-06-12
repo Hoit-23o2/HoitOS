@@ -210,6 +210,7 @@ s32_t spiffs_obj_lu_find_entry_visitor(
         entry_count--;
         cur_entry++;
       } // per entry
+      
       obj_lookup_page++;
     } // per object lookup page
     cur_entry = 0;
@@ -310,6 +311,7 @@ s32_t spiffs_probe(
 #else
     res = cfg->hal_read_f(paddr, sizeof(spiffs_obj_id), (u8_t *)&magic[bix]);
 #endif
+
     bix_count[bix] = magic[bix] ^ SPIFFS_MAGIC(&dummy_fs, 0);
     SPIFFS_CHECK_RES(res);
   }

@@ -51,5 +51,13 @@
 *********************************************************************************************************/
 INT32 spiffsCacheInit(PSPIFFS_VOLUME pfs);
 INT32 spiffsCacheRead(PSPIFFS_VOLUME pfs, UINT8 uiOps, SPIFFS_FILE fileHandler, 
-                     UINT32 uiAddr, UINT32 uiLen, PUCHAR pDst);
+                      UINT32 uiAddr, UINT32 uiLen, PUCHAR pDst);
+INT32 spiffsCacheWrite(PSPIFFS_VOLUME pfs, UINT8 uiOps, SPIFFS_FILE fileHandler, 
+                       UINT32 uiAddr, UINT32 uiLen, PUCHAR pSrc);
+INT32 spiffsEraseBlk(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX);
+
+
+
+INT32 spiffsCacheFflush(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler);
+PSPIFFS_CACHE_PAGE spiffsCachePageGetByFd(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd);
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFSCACHE_H_ */
