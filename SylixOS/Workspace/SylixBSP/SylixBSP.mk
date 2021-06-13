@@ -73,7 +73,6 @@ SylixOS/extfs/hoitFs/hoitFsTreeUtil.c \
 SylixOS/extfs/spifFs/spifFs.c \
 SylixOS/extfs/spifFs/spifFsCache.c \
 SylixOS/extfs/spifFs/spifFsGC.c \
-SylixOS/extfs/spifFs/spifFsGlue.c \
 SylixOS/extfs/spifFs/spifFsLib.c \
 SylixOS/extfs/spifFs/spifFsVerify.c \
 SylixOS/extfs/tools/list/iter.c \

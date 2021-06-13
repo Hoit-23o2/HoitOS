@@ -21,6 +21,9 @@
 
 #ifndef SYLIXOS_EXTFS_SPIFFS_SPIFFS_H_
 #define SYLIXOS_EXTFS_SPIFFS_SPIFFS_H_
+
+#define  __SYLIXOS_STDIO
+#define  __SYLIXOS_KERNEL
 #include "SylixOS.h"
 
 

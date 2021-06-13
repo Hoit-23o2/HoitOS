@@ -17,7 +17,8 @@
                 "UNICODE",
                 "_UNICODE"
             ],
-            "cStandard": "c89"
+            "cStandard": "c89",
+            "intelliSenseMode": "gcc-x64"
         }
     ],
     "version": 4

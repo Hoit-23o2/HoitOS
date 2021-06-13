@@ -91,7 +91,7 @@ VOID nor_show_cfi(){
 
 结果如图所示：
 
-![image-20210312151304969](./images\mini2440-nor.png)
+![image-20210312151304969](G:\MyProject\Project.HoitOS\HoitOS\Records\Docs\images\mini2440-nor.png)
 
 ## NorFlash驱动设计
 
@@ -112,11 +112,11 @@ mw.w 00 f0			# 退出CFI模式
 
 通过查阅mini2440手册可以发现，我们是Am29LV160DB NorFlash；
 
-![image-20210312163601714](.\images\mini2440-nroflash-analysis.png)
+![image-20210312163601714](G:\MyProject\Project.HoitOS\HoitOS\Records\Docs\images\mini2440-nroflash-analysis.png)
 
 另外，这里再P24的地方是芯片指令说明，根据指令集，我们可以很容易知道mini2440的读写、擦除时序。根据这个时序，再加上参考[S3C2440 NorFlash裸机编程](https://blog.csdn.net/m0_37633745/article/details/103188617)代码，就可以开始着手在SylixOS中进行NorFlash驱动开发了。
 
-![image-20210312165016203](.\images\mini2440-instruction-set.png)
+![image-20210312165016203](G:\MyProject\Project.HoitOS\HoitOS\Records\Docs\images\mini2440-instruction-set.png)
 
 
 
@@ -138,7 +138,7 @@ mw.w 00 f0			# 退出CFI模式
 
 3. 启动后结果如下：
 
-   ![image-20210320140034549](.\images\am29-fake-nor-init.png)
+   ![image-20210320140034549](G:\MyProject\Project.HoitOS\HoitOS\Records\Docs\images\am29-fake-nor-init.png)
 
 ##### 以True方式启动
 
@@ -154,7 +154,7 @@ Am29LV160DB  NorFlash驱动`nor.c`的API访问方式有两种，一是通过命�
 
 无论是FAKE模式还是TRUE模式，`nor.c`的命令前缀均为`fls`，键入`fls -h`即可获取所有命令：
 
-![image-20210320150057189](.\images\am29-nor-help.png)
+![image-20210320150057189](G:\MyProject\Project.HoitOS\HoitOS\Records\Docs\images\am29-nor-help.png)
 
 - **概貌（summary）：**`fls [-s|-S]`、`fls`；
 - **写（write）：**`fls [-w|-W] offset content size`、`fls [-w|-W] offset -o [o|Overwrite]`、`fls [-w|-W] offset -o [k|keep]`；
