@@ -100,8 +100,8 @@
 
 #define SPIFFS_OP_C_DELE      (0<<2)    /* 000/00 */
 #define SPIFFS_OP_C_UPDT      (1<<2)    /* 001/00 */
-#define SPIFFS_OP_C_MOVS      (2<<2)    /* 010/00 */
-#define SPIFFS_OP_C_MOVD      (3<<2)    /* 011/00 */
+#define SPIFFS_OP_C_MOVS      (2<<2)    /* 010/00 Move Src*/
+#define SPIFFS_OP_C_MOVD      (3<<2)    /* 011/00 Move To Dest*/
 #define SPIFFS_OP_C_FLSH      (4<<2)    /* 100/00 */
 #define SPIFFS_OP_C_READ      (5<<2)    /* 101/00 */
 #define SPIFFS_OP_C_WRTHRU    (6<<2)    /* 110/00 */
@@ -455,7 +455,7 @@ typedef struct spiffs_page_object_ix {
  SPIFFS_PAGE_HEADER pageHdr;
  UINT8 __align[4 - ((sizeof(SPIFFS_PAGE_HEADER) & 3) == 0 ? 4 : (sizeof(SPIFFS_PAGE_HEADER) & 3))];
 } SPIFFS_PAGE_OBJECT_IX;
-
+typedef SPIFFS_PAGE_OBJECT_IX * PSPIFFS_PAGE_OBJECT_IX;
 /*********************************************************************************************************
  * 寻找FreeObjId时运用到状态结构体
 *********************************************************************************************************/
@@ -485,6 +485,7 @@ typedef SPIFFS_FREE_OBJ_ID_STATE * PSPIFFS_FREE_OBJ_ID_STATE;
 /* 每个块有不同的 MAGIC NUM */
 #define SPIFFS_MAGIC(pfs, blkIX)                    ((SPIFFS_OBJ_ID)(SPIFFS_CONFIG_MAGIC ^ SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) ^\
                                                     ((pfs)->uiBlkCount - (blkIX))))
+#define SPIFFS_UNDEFINED_LEN            (UINT32)(-1)
 /*********************************************************************************************************
  * SPIFFS 地址转换相关宏
 *********************************************************************************************************/
@@ -495,14 +496,14 @@ typedef SPIFFS_FREE_OBJ_ID_STATE * PSPIFFS_FREE_OBJ_ID_STATE;
 
 #define SPIFFS_BLOCK_TO_PADDR(pfs, blkIX)               (SPIFFS_CFG_PHYS_ADDR(pfs) + (blkIX)* SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs))
 #define SPIFFS_PAGES_PER_BLOCK(pfs)                     (SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs) / SPIFFS_CFG_LOGIC_PAGE_SZ(pfs))
-
-
+/* 将页面转化为所在块号 */
+#define SPIFFS_BLOCK_FOR_PAGE(pfs, pageIX)              ((pageIX) / SPIFFS_PAGES_PER_BLOCK(pfs))
 /*********************************************************************************************************
  * SPIFFS Look Up Page相关
 *********************************************************************************************************/
 /* LOOK UP page占有的页数 */
-#define SPIFFS_OBJ_LOOKUP_PAGES(pfs)                    (MAX(1, (SPIFFS_PAGES_PER_BLOCK(pfs) * sizeof(SPIFFS_OBJ_ID)) /\
-                                                        SPIFFS_CFG_LOGIC_PAGE_SZ(pfs)) )
+#define SPIFFS_OBJ_LOOKUP_PAGES(pfs)                    (MAX(1, (SPIFFS_PAGES_PER_BLOCK(pfs) * sizeof(SPIFFS_OBJ_ID)) \
+                                                        / SPIFFS_CFG_LOGIC_PAGE_SZ(pfs)) )
 /* 一个Blk的最大Entry数 */
 #define SPIFFS_OBJ_LOOKUP_MAX_ENTRIES(pfs)              (SPIFFS_PAGES_PER_BLOCK(pfs) - SPIFFS_OBJ_LOOKUP_PAGES(pfs))
 #define SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(pfs, blkIX, iEntry)\
@@ -513,17 +514,26 @@ typedef SPIFFS_FREE_OBJ_ID_STATE * PSPIFFS_FREE_OBJ_ID_STATE;
 /* 倒数第二个Lookup Entry为Blk的MagicNum */
 #define SPIFFS_MAGIC_PADDR(pfs, blkIX)                  (SPIFFS_BLOCK_TO_PADDR(pfs, blkIX) + SPIFFS_OBJ_LOOKUP_PAGES(pfs) *\
                                                         SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_OBJ_ID) * 2)
-
+/* 对于给定的data page span index或者entry找到Object Index类型的span index */
+#define SPIFFS_OBJ_IX_ENTRY_SPAN_IX(pfs, spanIX)        ((spanIX) < SPIFFS_OBJ_HDR_IX_LEN(pfs) ? 0 :\
+                                                        (1 + ((spanIX) - SPIFFS_OBJ_HDR_IX_LEN(pfs)) / SPIFFS_OBJ_IX_LEN(pfs)))
+/* 将page转化为Entry号 */
+#define SPIFFS_OBJ_LOOKUP_ENTRY_FOR_PAGE(pfs, pageIX)   ((pageIX) % SPIFFS_PAGES_PER_BLOCK(pfs) - SPIFFS_OBJ_LOOKUP_PAGES(pfs))
 /*********************************************************************************************************
  * SPIFFS IX Page相关
 *********************************************************************************************************/
 // entries in an object header page index
-#define SPIFFS_OBJ_HDR_IX_LEN(pfs)  ((SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER)) / sizeof(SPIFFS_PAGE_IX))
+#define SPIFFS_OBJ_HDR_IX_LEN(pfs)  ((SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER)) \
+                                    / sizeof(SPIFFS_PAGE_IX))
 // entries in an object page index
-#define SPIFFS_OBJ_IX_LEN(pfs)      ((SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_OBJECT_IX)) / sizeof(SPIFFS_PAGE_IX))
-
-
-
+#define SPIFFS_OBJ_IX_LEN(pfs)      ((SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_OBJECT_IX)) \
+                                    / sizeof(SPIFFS_PAGE_IX))
+#define SPIFFS_OBJ_IX_ENTRY(pfs, spanIX) ((spanIX) < SPIFFS_OBJ_HDR_IX_LEN(pfs) ? (spanIX) \
+                                         : (((spanIX) - SPIFFS_OBJ_HDR_IX_LEN(pfs)) % SPIFFS_OBJ_IX_LEN(pfs)))
+/*********************************************************************************************************
+ * SPIFFS Data Page相关
+*********************************************************************************************************/
+#define SPIFFS_DATA_PAGE_SIZE(pfs)  (SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_HEADER))
 
 
 #define SPIFFS_CHECK_RES(res) \

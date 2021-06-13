@@ -234,9 +234,9 @@ INT32 __spiffs_create(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_MODE mode) 
     if (lib_strlen(pcPath) > SPIFFS_OBJ_NAME_LEN - 1) {
         SPIFFS_API_CHECK_RES(pfs, SPIFFS_ERR_NAME_TOO_LONG);
     }
-    iRes = spiffsObjLookUpFindFreeObjId()
+    iRes = spiffsObjLookUpFindFreeObjId(pfs, &objId, pcPath);
     SPIFFS_CHECK_RES(iRes);
-    iRes = spiffsObjectCreate()
+    iRes = spiffsObjectCreate();
     return 0;
 }
 
