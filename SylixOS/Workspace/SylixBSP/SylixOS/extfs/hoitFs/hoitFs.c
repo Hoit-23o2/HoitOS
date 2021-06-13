@@ -48,7 +48,7 @@ static ssize_t  __hoitFsReadlink();
 /*********************************************************************************************************
   ²Ã¼ôºê
 *********************************************************************************************************/
-//#if LW_CFG_MAX_VOLUMES > 0 //&& LW_CFG_RAMFS_EN > 0
+#if LW_CFG_MAX_VOLUMES > 0 //&& LW_CFG_RAMFS_EN > 0
 #include "HoitFsLib.h"
 /*********************************************************************************************************
 ** º¯ÊýÃû³Æ: API_HoitFsDrvInstall
@@ -1672,5 +1672,5 @@ INT  __hoitFsHardlink(PHOIT_VOLUME   pfs,
     return  (ERROR_NONE);
 }
 
-//#endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
+#endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
 #endif // HOITFS_DISABLE
