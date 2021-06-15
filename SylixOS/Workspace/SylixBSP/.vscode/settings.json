@@ -53,6 +53,18 @@
         "memory": "cpp",
         "istream": "cpp",
         "list_interface.h": "c",
-        "list_template.h": "c"
+        "list_template.h": "c",
+        "spiffstype.h": "c",
+        "spiffslib.h": "c",
+        "lw_class_mp.h": "c",
+        "lw_class_system.h": "c",
+        "lw_class_kernel.h": "c",
+        "uart.h": "c",
+        "spiffscache.h": "c",
+        "spiffsglue.h": "c",
+        "spiffsconfig.h": "c",
+        "initializer_list": "c",
+        "spiffsfdlib.h": "c",
+        "spiffsgc.h": "c"
     }
 }
