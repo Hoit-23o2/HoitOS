@@ -1133,7 +1133,7 @@ static INT  __hoitFsStatfs (PLW_FD_ENTRY  pfdentry, struct statfs *pstatfs)
     }
 
     //TODO __hoit_statfs尚未完工
-    /*__hoit_statfs(pfs, pstatfs);*/
+    __hoit_statfs(pfs, pstatfs);
 
     __HOIT_VOLUME_UNLOCK(pfs);
 
@@ -1567,6 +1567,7 @@ static INT  __hoitFsIoctl(PLW_FD_ENTRY  pfdentry,
     case FIOSYNC:                                                       /*  将文件缓存回写              */
     case FIOFLUSH:
     case FIODATASYNC:
+        hoitFlushCache(pfs->HOITFS_cacheHdr);
         return  (ERROR_NONE);
         
     case FIOCHMOD:
