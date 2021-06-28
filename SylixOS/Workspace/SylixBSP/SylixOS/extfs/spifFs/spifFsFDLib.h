@@ -23,8 +23,10 @@
 #define SYLIXOS_EXTFS_SPIFFS_SPIFFSFDLIB_H_
 #include "spifFsType.h"
 
-INT32 spiffsFdGet(PSPIFFS_VOLUME pfs, SPIFFS_FILE file, PSPIFFS_FD *pfd);
-VOID spiffsCBObjectEvent(PSPIFFS_VOLUME pfs, PSPIFFS_PAGE_OBJECT_IX objIX, INT ev,
-                         SPIFFS_OBJ_ID objIdRaw, SPIFFS_SPAN_IX spanIX, SPIFFS_PAGE_IX pageIXNew,
-                         UINT uiNewSize);
+INT32 spiffsFdGet(PSPIFFS_VOLUME pfs, SPIFFS_FILE file, PSPIFFS_FD *ppfd);
+INT32 spiffsFdReturn(PSPIFFS_VOLUME pfs, SPIFFS_FILE file);
+INT32 spiffsFdFindNew(PSPIFFS_VOLUME pfs, PSPIFFS_FD *ppfd, const PCHAR pcName); 
+VOID  spiffsCBObjectEvent(PSPIFFS_VOLUME pfs, PSPIFFS_PAGE_OBJECT_IX objIX, INT ev,
+                          SPIFFS_OBJ_ID objIdRaw, SPIFFS_SPAN_IX spanIX, SPIFFS_PAGE_IX pageIXNew,
+                          UINT uiNewSize);
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFFSFDLIB_H_ */

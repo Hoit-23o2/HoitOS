@@ -59,6 +59,10 @@ typedef INT32 (*spiffsVisitorFunc)(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, SPIF
 /*********************************************************************************************************
  * SPIFFS 库函数定义
 *********************************************************************************************************/
+
+/*********************************************************************************************************
+ * SPIFFS Lookup Vistor相关
+*********************************************************************************************************/
 INT32 spiffsObjLookUpFindEntryVisitor(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIXStarting, INT iLookUpEntryStarting,
                                       UINT8 flags, SPIFFS_OBJ_ID objId, spiffsVisitorFunc vistor,
                                       const PVOID pUserConst, PVOID pUserVar, SPIFFS_BLOCK_IX *pBlkIX, INT *piLookUpEntry);
@@ -70,8 +74,15 @@ INT32 spiffsObjLookUpFindFreeEntry(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIXStar
                                    SPIFFS_BLOCK_IX *pBlkIX, INT *piLookUpEntry);
 INT32 spiffsObjLookUpFindIdAndSpan(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, SPIFFS_SPAN_IX spanIX,
                                    SPIFFS_PAGE_IX pageIXExclusion, SPIFFS_PAGE_IX *pPageIX);
+INT32 spiffsObjectFindObjectIndexHeaderByName(PSPIFFS_VOLUME pfs, UCHAR ucName[SPIFFS_OBJ_NAME_LEN], SPIFFS_PAGE_IX *pPageIX);
 
-
+/*********************************************************************************************************
+ * SPIFFS Object 相关
+*********************************************************************************************************/
 INT32 spiffsObjectCreate(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId,
                          const UCHAR cPath[], SPIFFS_OBJ_TYPE type, SPIFFS_PAGE_IX* pObjIndexHdrPageIX);
+INT32 spiffsObjectTruncate(PSPIFFS_FD pFd, UINT32 uiNewSize, BOOL bIsRemoveFull); 
+INT32 spiffsObjectUpdateIndexHdr(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd, SPIFFS_OBJ_ID objId, SPIFFS_PAGE_IX pageIXObjIXHdr,
+                                 PUCHAR pucNewObjIXHdrData , const UCHAR ucName[], UINT32 uiSize, SPIFFS_PAGE_IX *pageIXNew);
+INT32 spiffsObjectOpenByPage(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX, PSPIFFS_FD pFd, SPIFFS_FLAGS flags, SPIFFS_MODE mode); 
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFFSLIB_H_ */

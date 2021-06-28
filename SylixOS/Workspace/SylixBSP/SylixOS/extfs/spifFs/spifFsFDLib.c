@@ -22,20 +22,107 @@
 #include "spifFsFDLib.h"
 #include "spifFsLib.h"
 #include "spifFsCache.h"
+#include "../tools/hash/hash_template.h"
 
-INT32 spiffsFdGet(PSPIFFS_VOLUME pfs, SPIFFS_FILE file, PSPIFFS_FD *pfd) {
-		if (file <= 0 || file > (INT16)pfs->uiFdCount) {
-			return SPIFFS_ERR_BAD_DESCRIPTOR;
-		}
-		PSPIFFS_FD pFds = (PSPIFFS_FD)pfs->pucFdSpace;
-		*pfd = &pFds[file - 1];
-		if ((*pfd)->fileN == 0) {
-			return SPIFFS_ERR_FILE_CLOSED;
-		}
-		return SPIFFS_OK;
+INT32 spiffsFdGet(PSPIFFS_VOLUME pfs, SPIFFS_FILE file, PSPIFFS_FD *ppfd) {
+  if (file <= 0 || file > (INT16)pfs->uiFdCount) {
+    return SPIFFS_ERR_BAD_DESCRIPTOR;
+  }
+  PSPIFFS_FD pFds = (PSPIFFS_FD)pfs->pucFdSpace;
+  *ppfd = &pFds[file - 1];
+  if ((*ppfd)->fileN == 0) {
+    return SPIFFS_ERR_FILE_CLOSED;
+  }
+  return SPIFFS_OK;
+}
+/*********************************************************************************************************
+** 函数名称: spiffsFdReturn
+** 功能描述: 检查文件描述符，并返回
+** 输　入  : pfs          文件头
+**           file         文件号
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 spiffsFdReturn(PSPIFFS_VOLUME pfs, SPIFFS_FILE file){
+  PSPIFFS_FD pFds = (PSPIFFS_FD)pfs->pucFdSpace;
+  PSPIFFS_FD pFd = &pFds[file - 1];
+  if (file <= 0 || file > (INT16)pfs->uiFdCount) {
+    return SPIFFS_ERR_BAD_DESCRIPTOR;
+  }
+  if (pFd->fileN == 0) {
+    return SPIFFS_ERR_FILE_CLOSED;
+  }
+  pFd->fileN = 0;
+  return SPIFFS_OK;
 }
 
+INT32 spiffsFdFindNew(PSPIFFS_VOLUME pfs, PSPIFFS_FD *ppfd, const PCHAR pcName){
+  UINT32 i;
+  UINT16 uiMinScore = INT16_MAX;
+  UINT32 uiCandidateIX = (UINT32)-1;
+  UINT32 uiNameHash = pcName ? hash(pcName, SPIFFS_OBJ_NAME_LEN) : LW_NULL;
+  PSPIFFS_FD pFds = (PSPIFFS_FD)pfs->pucFdSpace;
+  PSPIFFS_FD pCurFd;
 
+  if (pcName) {
+    // first, decrease score of all closed descriptors
+    for (i = 0; i < pfs->uiFdCount; i++) {
+      pCurFd = &pFds[i];
+      if (pCurFd->fileN == 0) {
+        if (pCurFd->uiScore > 1) { // score == 0 indicates never used fd
+          pCurFd->uiScore--;
+        }
+      }
+    }
+  }
+
+  // find the free fd with least score or name match
+  for (i = 0; i < pfs->uiFdCount; i++) {
+    pCurFd = &pFds[i];
+    if (pCurFd->fileN == 0) {                             /* 表明该fd为空 */
+      if (pcName && pCurFd->uiNameHash == uiNameHash) {   /* 名字匹配 */
+        uiCandidateIX = i;
+        break;
+      }
+      if (pCurFd->uiScore < uiMinScore) {                 /* 找到得分最小的fd */
+        uiMinScore = pCurFd->uiScore;
+        uiCandidateIX = i;
+      }
+    }
+  }
+
+  if (uiCandidateIX != (UINT32)-1) {
+    pCurFd = &pFds[uiCandidateIX];
+    if (pcName) {
+      if (pCurFd->uiNameHash == uiNameHash && pCurFd->uiScore > 0) {
+        // opened an fd with same name hash, assume same file
+        // set search point to saved obj index page and hope we have a correct match directly
+        // when start searching - if not, we will just keep searching until it is found
+        pfs->blkIXCursor          = SPIFFS_BLOCK_FOR_PAGE(pfs, pCurFd->pageIXObjIXHdr);
+        pfs->objLookupEntryCursor = SPIFFS_OBJ_LOOKUP_ENTRY_FOR_PAGE(pfs, pCurFd->pageIXObjIXHdr);
+        // update score
+        if (pCurFd->uiScore < INT16_MAX - SPIFFS_TEMPORAL_CACHE_HIT_SCORE) {
+          pCurFd->uiScore += SPIFFS_TEMPORAL_CACHE_HIT_SCORE;
+        } 
+        else {
+          pCurFd->uiScore = INT16_MAX;
+        }
+      } 
+      else {
+        // no hash hit, restore this fd to initial state
+        pCurFd->uiScore = SPIFFS_TEMPORAL_CACHE_HIT_SCORE;
+        pCurFd->uiNameHash = uiNameHash;
+      }
+    }
+    pCurFd->fileN = uiCandidateIX + 1;
+    *ppfd = pCurFd;
+    return SPIFFS_OK;
+  } 
+  else {
+    return SPIFFS_ERR_OUT_OF_FILE_DESCS;
+  }
+}
 /*********************************************************************************************************
 ** 函数名称: spiffsCBObjectEvent
 ** 功能描述: 用于注册事件回调

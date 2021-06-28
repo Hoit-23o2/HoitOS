@@ -40,6 +40,9 @@ typedef struct spiffs_gc{
   UINT8 uiObjIdFound;
 } SPIFFS_GC;
 
+INT32 spiffsPageMove(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PUCHAR pucPageData,
+                     SPIFFS_OBJ_ID objId, PSPIFFS_PAGE_HEADER pPageHeader, SPIFFS_PAGE_IX pageIXSrc,
+                     SPIFFS_PAGE_IX *pPageIXDst);
 INT32 spiffsGCCheck(PSPIFFS_VOLUME pfs, UINT32 uiLen);
 INT32 spiffsGCClean(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX);
 INT32 spiffsGCQuick(PSPIFFS_VOLUME pfs, UINT16 uiMaxFreePages);

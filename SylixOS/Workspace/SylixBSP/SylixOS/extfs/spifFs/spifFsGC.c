@@ -21,6 +21,7 @@
 #include "spifFsGC.h"
 #include "spifFsCache.h"
 #include "spifFsLib.h"
+#include "spifFsFDLib.h"
 /*********************************************************************************************************
 ** 函数名称: __spiffsPhysCpy
 ** 功能描述: 将uiSrcAddr处长uiLen的内容拷贝到uiDstAddr处
@@ -80,7 +81,7 @@ INT32 __spiffsPageDelete(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX){
     return iRes;
 }
 /*********************************************************************************************************
-** 函数名称: __spiffsPageMove
+** 函数名称: spiffsPageMove
 ** 功能描述: 移动页面到空闲处
 ** 输　入  : pfs          文件头
 **           uiLen        申请创建长度
@@ -88,9 +89,9 @@ INT32 __spiffsPageDelete(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX){
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-INT32 __spiffsPageMove(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PUCHAR pucPageData,
-                       SPIFFS_OBJ_ID objId, PSPIFFS_PAGE_HEADER pPageHeader, SPIFFS_PAGE_IX pageIXSrc,
-                       SPIFFS_PAGE_IX *pPageIXDst){
+INT32 spiffsPageMove(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PUCHAR pucPageData,
+                     SPIFFS_OBJ_ID objId, PSPIFFS_PAGE_HEADER pPageHeader, SPIFFS_PAGE_IX pageIXSrc,
+                     SPIFFS_PAGE_IX *pPageIXDst){
     INT32 iRes;
     BOOL bIsFinal = 0;
     SPIFFS_PAGE_HEADER *pPageHeaderRef;
@@ -99,7 +100,7 @@ INT32 __spiffsPageMove(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PUCHAR pucPa
     SPIFFS_PAGE_IX pageIXFree;
 
     /* 寻找一个空闲的Entry*/
-    iRes = spiffsObjLookUpFindFreeObjId(pfs, pfs->blkIXFreeCursor, pfs->objLookupEntryFreeCursor, &blkIX, &iEntry);
+    iRes = spiffsObjLookUpFindFreeEntry(pfs, pfs->blkIXFreeCursor, pfs->objLookupEntryFreeCursor, &blkIX, &iEntry);
     SPIFFS_CHECK_RES(iRes);
     /* 根据该Entry找到相应的Page */
     pageIXFree = SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(pfs, blkIX, iEntry);
@@ -376,7 +377,7 @@ INT32 spiffsGCClean(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX){
                         else {
                             if (pageHeader.flags & SPIFFS_PH_FLAG_DELET) {  /* 页面有效 */
                                 // move page
-                                iRes = __spiffsPageMove(pfs, 0, LW_NULL, objId, &pageHeader, 
+                                iRes = spiffsPageMove(pfs, 0, LW_NULL, objId, &pageHeader, 
                                                         pageIXCur, &pageIXNewDataPage);
                                 SPIFFS_GC_DBG("gc_clean: MOVE_DATA move objix "_SPIPRIid":"_SPIPRIsp" page "_SPIPRIpg" to "_SPIPRIpg"\n", 
                                               gc.objIdCur, pageHeader.spanIX, pageIXCur, pageIXNewDataPage);
@@ -399,7 +400,7 @@ INT32 spiffsGCClean(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX){
                             }
                             // update memory representation of object index page with new data page
                             /* 更新在内存中的lookup */
-                            //TODO:当pageHeader.flags & SPIFFS_PH_FLAG_DELET时应该已经不用搞这一手了
+                            //TODO: 当pageHeader.flags & SPIFFS_PH_FLAG_DELET时应该已经不用搞这一手了
                             if (gc.spanIXObjIXCur == 0) {
                                 // update object index header page
                                 /* 
@@ -435,7 +436,7 @@ INT32 spiffsGCClean(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX){
                         SPIFFS_CHECK_RES(iRes);
                         if (pageHeader.flags & SPIFFS_PH_FLAG_DELET) {  /* 页面有效 */
                             // move page
-                            iRes = __spiffsPageMove(pfs, 0, 0, objId, &pageHeader, pageIXCur, &pageIXNewDataPage);
+                            iRes = spiffsPageMove(pfs, 0, 0, objId, &pageHeader, pageIXCur, &pageIXNewDataPage);
                             SPIFFS_GC_DBG("gc_clean: MOVE_OBJIX move objix "_SPIPRIid":"_SPIPRIsp" page "_SPIPRIpg" to "_SPIPRIpg"\n", 
                                           objId, pageHeader.spanIX, pageIXCur, pageIXNewDataPage);
                             SPIFFS_CHECK_RES(iRes);
@@ -480,15 +481,16 @@ INT32 spiffsGCClean(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX){
             if (gc.uiObjIdFound) {
                 // handle found data page -
                 // find out corresponding obj ix page and load it to memory
+                /* 处理数据页面 */
                 gc.iStoredScanEntryIndex = iEntryCur; // push cursor
                 iEntryCur = 0; // restart scan from start
                 gc.state = MOVE_OBJ_DATA;
                 iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_LU2 | SPIFFS_OP_C_READ, 0, 
-                                       SPIFFS_PAGE_TO_PADDR(pfs, pageIXCur), sizeof(SPIFFS_PAGE_HEADER), (PUCHAR)&pageHeader);
+                                       SPIFFS_PAGE_TO_PADDR(pfs, gc.pageIXDataCur), sizeof(SPIFFS_PAGE_HEADER), (PUCHAR)&pageHeader);
                 SPIFFS_CHECK_RES(iRes);
                 gc.spanIXObjIXCur = SPIFFS_OBJ_IX_ENTRY_SPAN_IX(pfs, pageHeader.spanIX);
                 SPIFFS_GC_DBG("gc_clean: FIND_DATA find objix span_ix:"_SPIPRIsp"\n", gc.spanIXObjIXCur);
-                iRes = spiffs_obj_lu_find_id_and_span(pfs, gc.objIdCur | SPIFFS_OBJ_ID_IX_FLAG, gc.spanIXObjIXCur, 0, &pageIXObjIX);
+                iRes = spiffsObjLookUpFindIdAndSpan(pfs, gc.objIdCur | SPIFFS_OBJ_ID_IX_FLAG, gc.spanIXObjIXCur, 0, &pageIXObjIX);
                 if (iRes == SPIFFS_ERR_NOT_FOUND) {
                     // on borked systems we might get an ERR_NOT_FOUND here -
                     // this is handled by simply deleting the page as it is not referenced
@@ -503,13 +505,13 @@ INT32 spiffsGCClean(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX){
                 }
                 SPIFFS_CHECK_RES(iRes);
                 SPIFFS_GC_DBG("gc_clean: FIND_DATA found object index at page "_SPIPRIpg"\n", pageIXObjIX);
-                iRes = _spiffs_rd(pfs, SPIFFS_OP_T_OBJ_LU2 | SPIFFS_OP_C_READ,
-                    0, SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjIX), SPIFFS_CFG_LOG_PAGE_SZ(pfs), pfs->work);
+                iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_LU2 | SPIFFS_OP_C_READ, 0, 
+                                       SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjIX), SPIFFS_CFG_LOG_PAGE_SZ(pfs), pfs->pucWorkBuffer);
                 SPIFFS_CHECK_RES(iRes);
                 // cannot allow a gc if the presumed index in fact is no index, a
                 // check must run or lot of data may be lost
-                SPIFFS_VALIDATE_OBJIX(objIX->p_hdr, gc.cur_obj_id | SPIFFS_OBJ_ID_IX_FLAG, gc.cur_objix_spix);
-                gc.cur_objix_pix = pageIXObjIX;
+                SPIFFS_VALIDATE_OBJIX(objIX->pageHdr, gc.objIdCur | SPIFFS_OBJ_ID_IX_FLAG, gc.spanIXObjIXCur);
+                gc.pageIXObjIXCur = pageIXObjIX;
             } 
             else {
                 // no more data pages found, passed thru all block, start evacuating object indices
@@ -523,19 +525,25 @@ INT32 spiffsGCClean(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX){
             // we want to evacuate
             SPIFFS_PAGE_IX new_objix_pix;
             gc.state = FIND_OBJ_DATA;
-            iEntryCur = gc.stored_scan_entry_index; // pop cursor
-            if (gc.cur_objix_spix == 0) {
+            iEntryCur = gc.iStoredScanEntryIndex; // pop cursor
+            if (gc.spanIXObjIXCur == 0) {
                 // store object index header page
-                iRes = spiffs_object_update_index_hdr(pfs, 0, gc.cur_obj_id | SPIFFS_OBJ_ID_IX_FLAG, gc.cur_objix_pix, pfs->work, 0, 0, 0, &new_objix_pix);
-                SPIFFS_GC_DBG("gc_clean: MOVE_DATA store modified objix_hdr page, "_SPIPRIpg":"_SPIPRIsp"\n", new_objix_pix, 0);
+                iRes = spiffsObjectUpdateIndexHdr(pfs, 0, gc.objIdCur | SPIFFS_OBJ_ID_IX_FLAG, 
+                                                  gc.pageIXObjIXCur, pfs->pucWorkBuffer, LW_NULL, 
+                                                  LW_NULL, &pageIXObjIX);
+                SPIFFS_GC_DBG("gc_clean: MOVE_DATA store modified objix_hdr page, "_SPIPRIpg":"_SPIPRIsp"\n"
+                              , pageIXObjIX, 0);
                 SPIFFS_CHECK_RES(iRes);
             } else {
                 // store object index page
-                iRes = spiffs_page_move(pfs, 0, pfs->work, gc.cur_obj_id | SPIFFS_OBJ_ID_IX_FLAG, 0, gc.cur_objix_pix, &new_objix_pix);
-                SPIFFS_GC_DBG("gc_clean: MOVE_DATA store modified objix page, "_SPIPRIpg":"_SPIPRIsp"\n", new_objix_pix, objIX->p_hdr.span_ix);
+                iRes = spiffsPageMove(pfs, 0, pfs->pucWorkBuffer, gc.objIdCur | SPIFFS_OBJ_ID_IX_FLAG, 
+                                      LW_NULL, gc.pageIXObjIXCur, &pageIXObjIX);
+                SPIFFS_GC_DBG("gc_clean: MOVE_DATA store modified objix page, "_SPIPRIpg":"_SPIPRIsp"\n"
+                              , pageIXObjIX, objIX->pageHdr.spanIX);
                 SPIFFS_CHECK_RES(iRes);
-                spiffs_cb_object_event(pfs, (SPIFFS_PAGE_OBJECT_IX *)pfs->work,
-                    SPIFFS_EV_IX_UPD, gc.cur_obj_id, objIX->p_hdr.span_ix, new_objix_pix, 0);
+                spiffsCBObjectEvent(pfs, (SPIFFS_PAGE_OBJECT_IX *)pfs->pucWorkBuffer,
+                                    SPIFFS_EV_IX_UPD, gc.objIdCur, objIX->pageHdr.spanIX, 
+                                    pageIXObjIX, 0);
             }
         }
             break;

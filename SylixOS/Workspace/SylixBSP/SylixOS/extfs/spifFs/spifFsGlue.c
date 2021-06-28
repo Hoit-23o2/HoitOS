@@ -21,6 +21,7 @@
 #include "spifFsGlue.h"
 #include "spifFsCache.h"
 #include "spifFsLib.h"
+#include "spifFsFDLib.h"
 #include "../driver/mtd/nor/nor.h"
 
 #define __spiffsAlign8Byte(pMem, uiMemSZ) \
@@ -224,8 +225,9 @@ VOID __spiffs_unmount(PSPIFFS_VOLUME pfs){
 ** 调用模块:
 *********************************************************************************************************/
 INT32 __spiffs_create(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_MODE mode) {
+    
     SPIFFS_API_DBG("%s '%s'\n", __func__, pcPath);
-    //TODO: mode为何没有
+    //TODO: 1. mode为何没有 2. Lock/Unlock
     (VOID)          mode; 
     SPIFFS_OBJ_ID   objId;
     INT32           iRes;
@@ -234,8 +236,98 @@ INT32 __spiffs_create(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_MODE mode) 
     if (lib_strlen(pcPath) > SPIFFS_OBJ_NAME_LEN - 1) {
         SPIFFS_API_CHECK_RES(pfs, SPIFFS_ERR_NAME_TOO_LONG);
     }
+    
     iRes = spiffsObjLookUpFindFreeObjId(pfs, &objId, pcPath);
     SPIFFS_CHECK_RES(iRes);
-    iRes = spiffsObjectCreate();
-    return 0;
+    iRes = spiffsObjectCreate(pfs,objId, pcPath, SPIFFS_TYPE_FILE, LW_NULL);
+    SPIFFS_CHECK_RES(iRes);
+
+    return iRes;
+}
+/*********************************************************************************************************
+** 函数名称: __spiffs_open
+** 功能描述: 打开/创建一个新文件
+** 输　入  : pfs          文件头
+**           pcPath        文件路径
+**           mode          文件模式: SPIFFS_O_APPEND, SPIFFS_O_TRUNC, SPIFFS_O_CREAT, SPIFFS_O_RDONLY,
+**                                  SPIFFS_O_WRONLY, SPIFFS_O_RDWR, SPIFFS_O_DIRECT, SPIFFS_O_EXCL, Ignored
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+SPIFFS_FILE __spiffs_open(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_FLAGS flags, SPIFFS_MODE mode){
+    (VOID)mode;
+    PSPIFFS_FD      pFd;
+    SPIFFS_PAGE_IX  pageIX;
+    INT32           iRes;
+    SPIFFS_OBJ_ID   objId;
+
+    SPIFFS_API_CHECK_MOUNT(pfs);
+    SPIFFS_API_DBG("%s '%s' "_SPIPRIfl "\n", __func__, pcPath, flags);
+    if (strlen(pcPath) > SPIFFS_OBJ_NAME_LEN - 1) {
+        return SPIFFS_ERR_NAME_TOO_LONG;
+    }
+    iRes = spiffsFdFindNew(pfs, &pFd, pcPath);                              /* 获取一个fd */
+    //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+    SPIFFS_CHECK_RES(iRes);
+
+    iRes = spiffsObjectFindObjectIndexHeaderByName(pfs, pcPath, &pageIX);   /* 根据Name找到IndexHeader */
+    if ((flags & SPIFFS_O_CREAT) == 0) {                                    /* 检查文件合法性 */
+        if (iRes < SPIFFS_OK) {
+            spiffsFdReturn(pfs, pFd->fileN);
+        }
+        SPIFFS_CHECK_RES(iRes);
+    }
+
+    if (iRes == SPIFFS_OK &&                                                /* 只有SPIFFS_O_CREAT 、 SPIFFS_O_EXCL，错误了？ */
+        (flags & (SPIFFS_O_CREAT | SPIFFS_O_EXCL)) == (SPIFFS_O_CREAT | SPIFFS_O_EXCL)) {
+        // creat and excl and file exists - fail
+        iRes = SPIFFS_ERR_FILE_EXISTS;
+        spiffsFdReturn(pfs, pFd->fileN);
+        SPIFFS_CHECK_RES(iRes);
+    }
+
+    if ((flags & SPIFFS_O_CREAT) && iRes == SPIFFS_ERR_NOT_FOUND) {         /* 创建文件 */
+        // no need to enter conflicting name here, already looked for it above
+        iRes = spiffsObjLookUpFindFreeObjId(pfs, &objId, LW_NULL);          /* 找到一个空的 Obj Id*/
+        if (iRes < SPIFFS_OK) {
+            spiffsFdReturn(pfs, pFd->fileN);
+        }
+        SPIFFS_CHECK_RES(iRes);
+        iRes = spiffsObjectCreate(pfs, objId, pcPath, SPIFFS_TYPE_FILE, &pageIX);   /* 创建一个OBJECT */
+        if (iRes < SPIFFS_OK) {
+            spiffsFdReturn(pfs, pFd->fileN);
+        }
+        //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+        SPIFFS_CHECK_RES(iRes);
+        flags &= ~SPIFFS_O_TRUNC;
+    } 
+    else {
+        if (iRes < SPIFFS_OK) {
+            spiffsFdReturn(pfs, pFd->fileN);
+        }
+        //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+        SPIFFS_CHECK_RES(iRes);
+    }
+    iRes = spiffsObjectOpenByPage(pfs, pageIX, pFd, flags, mode);
+    if (iRes < SPIFFS_OK) {
+        spiffsFdReturn(pfs, pFd->fileN);
+    }
+    //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+    SPIFFS_CHECK_RES(iRes);
+    
+    if (flags & SPIFFS_O_TRUNC) {
+        iRes = spiffs_object_truncate(pFd, 0, 0);
+        if (iRes < SPIFFS_OK) {
+            spiffsFdReturn(pfs, pFd->fileN);
+        }
+        //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+        SPIFFS_CHECK_RES(iRes);
+    }
+
+    pFd->uiFdOffset = 0;
+
+    //SPIFFS_UNLOCK(pfs);
+
+    return (SPIFFS_FILE)pFd->fileN; //SPIFFS_FH_OFFS(pfs, pFd->fileN);
 }

@@ -177,7 +177,7 @@ file is modified in some way. The index buffer is tied to the file
 descriptor.
 *********************************************************************************************************/
 #ifndef SPIFFS_EN_IX_MAP
-#define SPIFFS_EN_IX_MAP                         1
+#define SPIFFS_EN_IX_MAP                         0
 #endif
 
 /*********************************************************************************************************

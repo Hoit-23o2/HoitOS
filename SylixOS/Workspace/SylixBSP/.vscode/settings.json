@@ -64,6 +64,8 @@
         "spiffsglue.h": "c",
         "spiffsconfig.h": "c",
         "initializer_list": "c",
-        "spiffsfdlib.h": "c"
+        "spiffsfdlib.h": "c",
+        "spiffsgc.h": "c",
+        "string_view": "c"
     }
 }

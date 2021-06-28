@@ -111,7 +111,7 @@
  * 页面标志位
 *********************************************************************************************************/
 // if 0, this page is written to, else clean
-#define SPIFFS_PH_FLAG_USED   (1<<0)
+#define SPIFFS_PH_FLAG_USED   (1<<0)    /* PH 代表 pageHeader */
 // if 0, writing is finalized, else under modification
 #define SPIFFS_PH_FLAG_FINAL  (1<<1)
 // if 0, this is an index page, else a data page
@@ -159,7 +159,7 @@
 /*********************************************************************************************************
  * SPIFFS基本数据类型
 *********************************************************************************************************/
-typedef INT16   SPIFFS_FILE;        /* SPIFFS文件描述符，必须为带符号 */
+typedef INT16   SPIFFS_FILE;        /* SPIFFS文件，必须为带符号 */
 typedef UINT16  SPIFFS_FLAGS;       /* SPIFFS标志位 */
 typedef UINT16  SPIFFS_MODE;        /* SPIFFS文件类型 */
 typedef UINT8   SPIFFS_OBJ_TYPE;    //TODO: SPIFFS Object类型，可为File，Index，Data等 ?????
@@ -222,13 +222,13 @@ typedef struct spiffs_config{
     // physical size of the spi flash
     UINT32 uiPhysSize;                  /* 物理硬件大小 */
     // physical offset in spi flash used for spiffs,
-    // must be on block boundary
+    // must be on blkIX boundary
     UINT32 uiPhysAddr;                  /* 物理硬件起始偏移 */
-    // physical size when erasing a block
+    // physical size when erasing a blkIX
     UINT32 uiPhysEraseBlkSize;          /* 物理硬件擦除块大小 */
-    // logical size of a block, must be on physical
-    // block size boundary and must never be less than
-    // a physical block
+    // logical size of a blkIX, must be on physical
+    // blkIX size boundary and must never be less than
+    // a physical blkIX
     UINT32 uiLogicBlkSize;              /* 逻辑块大小 */
     // logical size of a page, must be at least
     // log_block_size / 8
@@ -245,13 +245,13 @@ typedef struct spiffs_volume
     // number of logical blocks
     LW_OBJECT_HANDLE    hVolLock;               /*  卷操作锁                    */
     UINT32              uiBlkCount;                  /* 逻辑块个数 */
-    // cursor for free blocks, block index
+    // cursor for free blocks, blkIX index
     SPIFFS_BLOCK_IX     blkIXFreeCursor;    /* Free Block的索引 */
-    // cursor for free blocks, entry index (lu => lookup)
+    // cursor for free blocks, iEntry index (lu => lookup)
     INT                 objLookupEntryFreeCursor;       /* Free Block的LookUp Entry索引 */
-    // cursor when searching, block index
+    // cursor when searching, blkIX index
     SPIFFS_BLOCK_IX     blkIXCursor;        /* Block遍历索引 */
-    // cursor when searching, entry index
+    // cursor when searching, iEntry index
     INT                 objLookupEntryCursor;           /* Lookup Entry遍历索引 */
 
     // primary work buffer, size of a logical page
@@ -394,7 +394,7 @@ typedef SPIFFS_CACHE * PSPIFFS_CACHE;
 typedef struct spiffs_fd{
     // the filesystem of this descriptor
     PSPIFFS_VOLUME pfs;
-    // number of file descriptor - if 0, the file descriptor is closed
+    // number of file descriptor - if 0, the file descriptor is closed, 下标？
     SPIFFS_FILE fileN;
     // object id - if SPIFFS_OBJ_ID_ERASED, the file was deleted
     SPIFFS_OBJ_ID objId;
@@ -449,6 +449,7 @@ typedef struct spiffs_page_object_ix_header         /* SpanIndex为0时，即Index h
   // name of object
   UCHAR ucName[SPIFFS_OBJ_NAME_LEN];
 } SPIFFS_PAGE_OBJECT_IX_HEADER;
+typedef SPIFFS_PAGE_OBJECT_IX_HEADER * PSPIFFS_PAGE_OBJECT_IX_HEADER;
 
 // object index page header
 typedef struct spiffs_page_object_ix {
@@ -463,7 +464,7 @@ typedef struct spiffs_free_obj_id_state{
   SPIFFS_OBJ_ID objIdMin;
   SPIFFS_OBJ_ID objIdMax;
   UINT32 uiCompaction;
-  const PUCHAR pucConflictingName;
+  PUCHAR pucConflictingName;
 } SPIFFS_FREE_OBJ_ID_STATE;
 typedef SPIFFS_FREE_OBJ_ID_STATE * PSPIFFS_FREE_OBJ_ID_STATE;
 /*********************************************************************************************************
@@ -508,6 +509,9 @@ typedef SPIFFS_FREE_OBJ_ID_STATE * PSPIFFS_FREE_OBJ_ID_STATE;
 #define SPIFFS_OBJ_LOOKUP_MAX_ENTRIES(pfs)              (SPIFFS_PAGES_PER_BLOCK(pfs) - SPIFFS_OBJ_LOOKUP_PAGES(pfs))
 #define SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(pfs, blkIX, iEntry)\
                                                         ((blkIX)*SPIFFS_PAGES_PER_BLOCK(pfs) + (SPIFFS_OBJ_LOOKUP_PAGES(pfs) + iEntry))
+#define SPIFFS_OBJ_LOOKUP_ENTRY_TO_PADDR(pfs, blkIX, iEntry) \
+                                                        (SPIFFS_BLOCK_TO_PADDR(pfs, blkIX) + (SPIFFS_OBJ_LOOKUP_PAGES(pfs) + iEntry) \ 
+                                                        * SPIFFS_CFG_LOGIC_PAGE_SZ(pfs))
 /* 倒数第二个Lookup Entry为块的擦写次数 */
 #define SPIFFS_ERASE_COUNT_PADDR(pfs, blkIX)            (SPIFFS_BLOCK_TO_PADDR(pfs, blkIX) + SPIFFS_OBJ_LOOKUP_PAGES(pfs) *\
                                                         SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_OBJ_ID))
@@ -535,19 +539,32 @@ typedef SPIFFS_FREE_OBJ_ID_STATE * PSPIFFS_FREE_OBJ_ID_STATE;
 *********************************************************************************************************/
 #define SPIFFS_DATA_PAGE_SIZE(pfs)  (SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_HEADER))
 
-
+/*********************************************************************************************************
+ * SPIFFS 检查相关
+*********************************************************************************************************/
 #define SPIFFS_CHECK_RES(res) \
 do { \
     if ((res) < SPIFFS_OK) return (res); \
 } while (0);
+
 #define SPIFFS_API_CHECK_MOUNT(pfs) \
 if (!SPIFFS_CHECK_MOUNT((pfs))) { \
     (pfs)->uiErrorCode = SPIFFS_ERR_NOT_MOUNTED; \
     return SPIFFS_ERR_NOT_MOUNTED; \
 }
+
 #define SPIFFS_API_CHECK_RES(pfs, res) \
 if ((res) < SPIFFS_OK) { \
     (pfs)->uiErrorCode = (res); \
     return (res); \
 }
+
+#define SPIFFS_VALIDATE_OBJIX(pageHeader, objId, _spanIX) \
+    if (((pageHeader).flags & SPIFFS_PH_FLAG_USED) != 0) return SPIFFS_ERR_IS_FREE; \
+    if (((pageHeader).flags & SPIFFS_PH_FLAG_DELET) == 0) return SPIFFS_ERR_DELETED; \
+    if (((pageHeader).flags & SPIFFS_PH_FLAG_FINAL) != 0) return SPIFFS_ERR_NOT_FINALIZED; \
+    if (((pageHeader).flags & SPIFFS_PH_FLAG_INDEX) != 0) return SPIFFS_ERR_NOT_INDEX; \
+    if (((objId) & SPIFFS_OBJ_ID_IX_FLAG) == 0) return SPIFFS_ERR_NOT_INDEX; \
+    if ((pageHeader).spanIX != (_spanIX)) return SPIFFS_ERR_INDEX_SPAN_MISMATCH;
+  
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFFSTYPE_H_ */
