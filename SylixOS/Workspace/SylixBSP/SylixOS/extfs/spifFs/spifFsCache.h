@@ -21,7 +21,7 @@
 #ifndef SYLIXOS_EXTFS_SPIFFS_SPIFFSCACHE_H_
 #define SYLIXOS_EXTFS_SPIFFS_SPIFFSCACHE_H_
 
-
+#include "spifFsType.h"
 
 INT32 spiffsCacheFflush(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler);
 PSPIFFS_CACHE_PAGE spiffsCachePageGetByFd(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd);

@@ -19,7 +19,7 @@
 ** 描        述: Spiffs文件系统缓存层
 *********************************************************************************************************/
 
-
+#include "spifFsCache.h"
 #define SPIFFS_CHECK_CACHE_EXIST(pCache)            !((pCache->uiCpageUseMap & pCache->uiCpageUseMask) \
                                                     == 0)                                             /* 检查Cache是否存有页面 */       
 #define SPIFFS_CHECK_CACHE_FREE(pCache)             ((pCache->uiCpageUseMap & pCache->uiCpageUseMask) \
