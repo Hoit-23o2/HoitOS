@@ -401,34 +401,6 @@ PSPIFFS_CACHE_PAGE spiffsCachePageGetByFd(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd){
     }
     return LW_NULL;
 }
-
-/*********************************************************************************************************
-** 函数名称: spiffsCacheFdRelease
-** 功能描述:  unrefers all fds that this cache page refers to and releases the cache page
-** 输　入  : pfs          文件头
-**          pCachePage    缓存页
-** 输　出  : None
-** 全局变量:
-** 调用模块:
-*********************************************************************************************************/
-VOID spiffsCacheFdRelease(PSPIFFS_VOLUME pfs, PSPIFFS_CACHE_PAGE pCachePage){
-    UINT i;
-    PSPIFFS_FD *pFds;
-    PSPIFFS_FD  pFdCur;
-    if(pCachePage == LW_NULL)
-        return;
-    pFds = (PSPIFFS_FD)pfs->pucFdSpace;
-    for (i = 0; i < pfs->uiFdCount; i++) {
-        pFdCur = &pFds[i];
-        if (pFdCur->fileN != 0 && pFdCur->pCachePage == pCachePage) {
-            pFdCur->pCachePage = LW_NULL;
-        }
-    }
-    __spiffsCachePageFree(pfs, pCachePage->uiIX, 0);
-    pCachePage->objId = 0;
-    return;
-}
-
 /*********************************************************************************************************
 ** 函数名称: spiffsCacheFflush
 ** 功能描述: 把与文件fileHandler相关的CacheWrite都写回介质

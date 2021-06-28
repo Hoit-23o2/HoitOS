@@ -360,14 +360,11 @@ typedef struct {
   int stored_scan_entry_index;
   u8_t obj_id_found;
 } spiffs_gc;
-/* 
 
-    lookup 
- */
 // Empties given block by moving all data into free pages of another block
 // Strategy:
 //   loop:
-//   scan object lookup for [object data pages]
+//   scan object lookup for object data pages
 //   for first found id, check spix and load corresponding object index page to memory
 //   push object scan lookup entry index
 //     rescan object lookup, find data pages with same id and referenced by same object index
