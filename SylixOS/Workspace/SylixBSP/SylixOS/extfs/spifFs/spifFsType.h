@@ -18,11 +18,9 @@
 **
 ** 描        述: Spiffs文件系统类型
 *********************************************************************************************************/
-
 #ifndef SYLIXOS_EXTFS_SPIFFS_SPIFFSTYPE_H_
 #define SYLIXOS_EXTFS_SPIFFS_SPIFFSTYPE_H_
-
-#include "SylixOS.h"
+#include "spifFsConfig.h"
 /*********************************************************************************************************
  * 相关宏定义
 *********************************************************************************************************/
@@ -102,8 +100,8 @@
 
 #define SPIFFS_OP_C_DELE      (0<<2)    /* 000/00 */
 #define SPIFFS_OP_C_UPDT      (1<<2)    /* 001/00 */
-#define SPIFFS_OP_C_MOVS      (2<<2)    /* 010/00 */
-#define SPIFFS_OP_C_MOVD      (3<<2)    /* 011/00 */
+#define SPIFFS_OP_C_MOVS      (2<<2)    /* 010/00 Move Src*/
+#define SPIFFS_OP_C_MOVD      (3<<2)    /* 011/00 Move To Dest*/
 #define SPIFFS_OP_C_FLSH      (4<<2)    /* 100/00 */
 #define SPIFFS_OP_C_READ      (5<<2)    /* 101/00 */
 #define SPIFFS_OP_C_WRTHRU    (6<<2)    /* 110/00 */
@@ -161,37 +159,132 @@
 /*********************************************************************************************************
  * SPIFFS基本数据类型
 *********************************************************************************************************/
-typedef INT16   SpiffsFile;       /* SPIFFS文件描述符，必须为带符号 */
-typedef UINT16  SpiffsFlags;      /* SPIFFS标志位 */
-typedef UINT16  SpiffsMode;       /* SPIFFS文件类型 */
-typedef UINT8   SpiffsObjType;    /* SPIFFS Object类型，可为File，Index，Data等 */
+typedef INT16   SPIFFS_FILE;        /* SPIFFS文件描述符，必须为带符号 */
+typedef UINT16  SPIFFS_FLAGS;       /* SPIFFS标志位 */
+typedef UINT16  SPIFFS_MODE;        /* SPIFFS文件类型 */
+typedef UINT8   SPIFFS_OBJ_TYPE;    //TODO: SPIFFS Object类型，可为File，Index，Data等 ?????
+
+struct spiffs_volume;
+struct spiffs_config;
+
+/* 一些函数指针 */
+/* spi read call function type */
+typedef INT32 (*spiffsRead)(UINT32 uiAddr, UINT32 uiSize, PUCHAR pucDst);
+/* spi write call function type */
+typedef INT32 (*spiffsWrite)(UINT32 uiAddr, UINT32 uiSize, PUCHAR pucSrc);
+/* spi erase call function type */
+typedef INT32 (*spiffsErase)(UINT32 uiAddr, UINT32 uiSize);
 
 /* 文件系统定义类型检查 */
 typedef enum spiffs_check_type
 {
-    SPIFFS_CHECK_LOOKUP,
+    SPIFFS_CHECK_LOOKUP = 0,
     SPIFFS_CHECK_INDEX,
     SPIFFS_CHECK_PAGE
 } SPIFFS_CHECK_TYPE;
 
+/* 文件系统检查返回值 */
+typedef enum spiffs_check_report{
+    SPIFFS_CHECK_PROGRESS = 0,
+    SPIFFS_CHECK_ERROR,
+    SPIFFS_CHECK_FIX_INDEX,
+    SPIFFS_CHECK_FIX_LOOKUP,
+    SPIFFS_CHECK_DELETE_ORPHANED_INDEX,
+    SPIFFS_CHECK_DELETE_PAGE,
+    SPIFFS_CHECK_DELETE_BAD_FILE
+} SPIFFS_CHECK_REPORT;
 
+typedef enum spiffs_fileop_type{
+    /* the file has been created */
+    SPIFFS_CB_CREATED = 0,
+    /* the file has been updated or moved to another page */
+    SPIFFS_CB_UPDATED,
+    /* the file has been deleted */
+    SPIFFS_CB_DELETED
+} SPIFFS_FILEOP_TYPE;
 
-struct AS
+typedef VOID (*spiffsCheckCallback)(SPIFFS_CHECK_TYPE type, SPIFFS_CHECK_REPORT report,
+                                    UINT32 arg1, UINT32 arg2);
+
+typedef VOID (*spiffsFileCallback)(struct spiffs_volume* pfs, SPIFFS_FILEOP_TYPE op, 
+                                   SPIFFS_OBJ_ID objID, SPIFFS_PAGE_IX pageIX);
+
+/*********************************************************************************************************
+ * SPIFFS配置信息
+*********************************************************************************************************/
+typedef struct spiffs_config{
+    // physical read function
+    spiffsRead halReadFunc;             /* 硬件读函数 */
+    // physical write function
+    spiffsWrite halWriteFunc;           /* 硬件写函数 */
+    // physical erase function
+    spiffsErase halEraseFunc;           /* 硬件擦函数 */
+    // physical size of the spi flash
+    UINT32 uiPhysSize;                  /* 物理硬件大小 */
+    // physical offset in spi flash used for spiffs,
+    // must be on block boundary
+    UINT32 uiPhysAddr;                  /* 物理硬件起始偏移 */
+    // physical size when erasing a block
+    UINT32 uiPhysEraseBlkSize;          /* 物理硬件擦除块大小 */
+    // logical size of a block, must be on physical
+    // block size boundary and must never be less than
+    // a physical block
+    UINT32 uiLogicBlkSize;              /* 逻辑块大小 */
+    // logical size of a page, must be at least
+    // log_block_size / 8
+    UINT32 uiLogicPageSize;             /* 逻辑页面大小 */
+} SPIFFS_CONFIG;
+typedef SPIFFS_CONFIG * PSPIFFS_CONFIG;
+/*********************************************************************************************************
+ * SPIFFS文件头等信息定义
+*********************************************************************************************************/
+typedef struct spiffs_volume
 {
-    int a;
-    int b;
-    int c;
-};
+    // file system configuration
+    SPIFFS_CONFIG       cfg;                    /* 配置文件 */
+    // number of logical blocks
+    LW_OBJECT_HANDLE    hVolLock;               /*  卷操作锁                    */
+    UINT32              uiBlkCount;                  /* 逻辑块个数 */
+    // cursor for free blocks, block index
+    SPIFFS_BLOCK_IX     blkIXFreeCursor;    /* Free Block的索引 */
+    // cursor for free blocks, entry index (lu => lookup)
+    INT                 objLookupEntryFreeCursor;       /* Free Block的LookUp Entry索引 */
+    // cursor when searching, block index
+    SPIFFS_BLOCK_IX     blkIXCursor;        /* Block遍历索引 */
+    // cursor when searching, entry index
+    INT                 objLookupEntryCursor;           /* Lookup Entry遍历索引 */
 
-#define INIT_NODE(type) struct node##type \
-{   \
-    struct node * next;  \
-    int b; \
-    type data;\
-} ;
-INIT_NODE(PCHAR);
+    // primary work buffer, size of a logical page
+    PUCHAR              pucLookupWorkBuffer;         /* 缓存LookUp Entry，大小为一个逻辑页面 */
+    // secondary work buffer, size of a logical page
+    PUCHAR              pucWorkBuffer;               /* 缓存各种页面，大小为一个逻辑页面 */
+    // file descriptor memory area
+    PUCHAR              pucFdSpace;                  /* 文件描述符存储位置 */
+    // available file descriptors
+    UINT32              uiFdCount;                   /* 可用的文件描述符 */
 
+    // last error
+    INT32               uiErrorCode;                  /* SPIFFS上一个错误码 */
 
+    // current number of free blocks
+    UINT32              uiFreeBlks;                  /* 空闲块 */
+    // current number of busy pages
+    UINT32              uiStatsPageAllocated;        /* 当前已分配的页面数 */
+    // current number of deleted pages
+    UINT32              uiStatsPageDeleted;          /* 当前已删除的页面数 */
+    // flag indicating that garbage collector is cleaning
+    UINT8               uiCleaningFlag;               /* 标志干净，GC使用? */
+    // max erase count amongst all blocks
+    SPIFFS_OBJ_ID       uiMaxEraseCount;      /* 所有Block中最大的EraseCount */
+    //TODO:干嘛的？
+    UINT32              uiStatsGCRuns;               //! ???
+    
+    // cache memory
+    PVOID               pCache;                       /* Cache内存空间 */           
+    // cache size
+    UINT32              uiCacheSize;                 /* Cache大小 */
+    UINT32              uiCacheHits;                 /* Cache命中次数 */
+    UINT32              uiCacheMisses;               /* Cache缺失次数 */
 
     //TODO:暂时没发现有什么用
     // check callback function       
@@ -362,7 +455,7 @@ typedef struct spiffs_page_object_ix {
  SPIFFS_PAGE_HEADER pageHdr;
  UINT8 __align[4 - ((sizeof(SPIFFS_PAGE_HEADER) & 3) == 0 ? 4 : (sizeof(SPIFFS_PAGE_HEADER) & 3))];
 } SPIFFS_PAGE_OBJECT_IX;
-
+typedef SPIFFS_PAGE_OBJECT_IX * PSPIFFS_PAGE_OBJECT_IX;
 /*********************************************************************************************************
  * 寻找FreeObjId时运用到状态结构体
 *********************************************************************************************************/
@@ -392,6 +485,7 @@ typedef SPIFFS_FREE_OBJ_ID_STATE * PSPIFFS_FREE_OBJ_ID_STATE;
 /* 每个块有不同的 MAGIC NUM */
 #define SPIFFS_MAGIC(pfs, blkIX)                    ((SPIFFS_OBJ_ID)(SPIFFS_CONFIG_MAGIC ^ SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) ^\
                                                     ((pfs)->uiBlkCount - (blkIX))))
+#define SPIFFS_UNDEFINED_LEN            (UINT32)(-1)
 /*********************************************************************************************************
  * SPIFFS 地址转换相关宏
 *********************************************************************************************************/
@@ -399,23 +493,17 @@ typedef SPIFFS_FREE_OBJ_ID_STATE * PSPIFFS_FREE_OBJ_ID_STATE;
 #define SPIFFS_PADDR_TO_PAGE_OFFSET(pfs, uiPhysAddr)    (((uiPhysAddr) - SPIFFS_CFG_PHYS_ADDR(pfs)) % SPIFFS_CFG_LOGIC_PAGE_SZ(pfs))
 #define SPIFFS_PAGE_TO_PADDR(pfs, pageIX)               (SPIFFS_CFG_PHYS_ADDR(pfs) + (pageIX) * SPIFFS_CFG_LOGIC_PAGE_SZ(pfs))
 
-#define NODE_CAST(dst,src,type) struct node##type \
-{   \
-    struct node * next;  \
-    int b; \
-    type data;\
-}; dst = (struct node##type *)src
 
 #define SPIFFS_BLOCK_TO_PADDR(pfs, blkIX)               (SPIFFS_CFG_PHYS_ADDR(pfs) + (blkIX)* SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs))
 #define SPIFFS_PAGES_PER_BLOCK(pfs)                     (SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs) / SPIFFS_CFG_LOGIC_PAGE_SZ(pfs))
-
-
+/* 将页面转化为所在块号 */
+#define SPIFFS_BLOCK_FOR_PAGE(pfs, pageIX)              ((pageIX) / SPIFFS_PAGES_PER_BLOCK(pfs))
 /*********************************************************************************************************
  * SPIFFS Look Up Page相关
 *********************************************************************************************************/
 /* LOOK UP page占有的页数 */
-#define SPIFFS_OBJ_LOOKUP_PAGES(pfs)                    (MAX(1, (SPIFFS_PAGES_PER_BLOCK(pfs) * sizeof(SPIFFS_OBJ_ID)) /\
-                                                        SPIFFS_CFG_LOGIC_PAGE_SZ(pfs)) )
+#define SPIFFS_OBJ_LOOKUP_PAGES(pfs)                    (MAX(1, (SPIFFS_PAGES_PER_BLOCK(pfs) * sizeof(SPIFFS_OBJ_ID)) \
+                                                        / SPIFFS_CFG_LOGIC_PAGE_SZ(pfs)) )
 /* 一个Blk的最大Entry数 */
 #define SPIFFS_OBJ_LOOKUP_MAX_ENTRIES(pfs)              (SPIFFS_PAGES_PER_BLOCK(pfs) - SPIFFS_OBJ_LOOKUP_PAGES(pfs))
 #define SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(pfs, blkIX, iEntry)\
@@ -426,17 +514,40 @@ typedef SPIFFS_FREE_OBJ_ID_STATE * PSPIFFS_FREE_OBJ_ID_STATE;
 /* 倒数第二个Lookup Entry为Blk的MagicNum */
 #define SPIFFS_MAGIC_PADDR(pfs, blkIX)                  (SPIFFS_BLOCK_TO_PADDR(pfs, blkIX) + SPIFFS_OBJ_LOOKUP_PAGES(pfs) *\
                                                         SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_OBJ_ID) * 2)
-
+/* 对于给定的data page span index或者entry找到Object Index类型的span index */
+#define SPIFFS_OBJ_IX_ENTRY_SPAN_IX(pfs, spanIX)        ((spanIX) < SPIFFS_OBJ_HDR_IX_LEN(pfs) ? 0 :\
+                                                        (1 + ((spanIX) - SPIFFS_OBJ_HDR_IX_LEN(pfs)) / SPIFFS_OBJ_IX_LEN(pfs)))
+/* 将page转化为Entry号 */
+#define SPIFFS_OBJ_LOOKUP_ENTRY_FOR_PAGE(pfs, pageIX)   ((pageIX) % SPIFFS_PAGES_PER_BLOCK(pfs) - SPIFFS_OBJ_LOOKUP_PAGES(pfs))
 /*********************************************************************************************************
  * SPIFFS IX Page相关
 *********************************************************************************************************/
 // entries in an object header page index
-#define SPIFFS_OBJ_HDR_IX_LEN(pfs)  ((SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER)) / sizeof(SPIFFS_PAGE_IX))
+#define SPIFFS_OBJ_HDR_IX_LEN(pfs)  ((SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER)) \
+                                    / sizeof(SPIFFS_PAGE_IX))
 // entries in an object page index
-#define SPIFFS_OBJ_IX_LEN(pfs)      ((SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_OBJECT_IX)) / sizeof(SPIFFS_PAGE_IX))
+#define SPIFFS_OBJ_IX_LEN(pfs)      ((SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_OBJECT_IX)) \
+                                    / sizeof(SPIFFS_PAGE_IX))
+#define SPIFFS_OBJ_IX_ENTRY(pfs, spanIX) ((spanIX) < SPIFFS_OBJ_HDR_IX_LEN(pfs) ? (spanIX) \
+                                         : (((spanIX) - SPIFFS_OBJ_HDR_IX_LEN(pfs)) % SPIFFS_OBJ_IX_LEN(pfs)))
+/*********************************************************************************************************
+ * SPIFFS Data Page相关
+*********************************************************************************************************/
+#define SPIFFS_DATA_PAGE_SIZE(pfs)  (SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_HEADER))
 
 
-
-
-
+#define SPIFFS_CHECK_RES(res) \
+do { \
+    if ((res) < SPIFFS_OK) return (res); \
+} while (0);
+#define SPIFFS_API_CHECK_MOUNT(pfs) \
+if (!SPIFFS_CHECK_MOUNT((pfs))) { \
+    (pfs)->uiErrorCode = SPIFFS_ERR_NOT_MOUNTED; \
+    return SPIFFS_ERR_NOT_MOUNTED; \
+}
+#define SPIFFS_API_CHECK_RES(pfs, res) \
+if ((res) < SPIFFS_OK) { \
+    (pfs)->uiErrorCode = (res); \
+    return (res); \
+}
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFFSTYPE_H_ */

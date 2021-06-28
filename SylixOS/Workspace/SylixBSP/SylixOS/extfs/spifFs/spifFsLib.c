@@ -20,12 +20,54 @@
 *********************************************************************************************************/
 #include "spifFsLib.h"
 #include "spifFsCache.h"
+#include "spifFsGC.h"
+INT32 __spiffsObjLookUpFindIdAndSpanVistor(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, SPIFFS_BLOCK_IX blkIX, INT iLookUpEntryIX, 
+                                           const PVOID pUserConst, PVOID pUserVar){
+    INT32 iRes;
+    SPIFFS_PAGE_HEADER pageHeader;
+    SPIFFS_PAGE_IX pageIX = SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(pfs, blkIX, iLookUpEntryIX);
+    iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_LU2 | SPIFFS_OP_C_READ, 0, 
+                           SPIFFS_PAGE_TO_PADDR(pfs, pageIX), 
+                           sizeof(SPIFFS_PAGE_HEADER), (PUCHAR)&pageHeader);
+    SPIFFS_CHECK_RES(iRes);
+    //TODO:什么意思？？？
+    if(pageHeader.objId == objId &&
+       pageHeader.spanIX == *((SPIFFS_SPAN_IX *)pUserVar) &&
+       (pageHeader.flags & (SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_DELET | SPIFFS_PH_FLAG_USED)) == SPIFFS_PH_FLAG_DELET &&
+       !((objId & SPIFFS_OBJ_ID_IX_FLAG) &&                                             /* 不是Obj IX */
+       (pageHeader.flags & SPIFFS_PH_FLAG_IXDELE) == 0 && pageHeader.spanIX == 0) &&    /* 被删了吗？ */
+       (pUserConst == LW_NULL || *((const SPIFFS_PAGE_IX *)pUserConst) != pageIX)){     
+        return SPIFFS_OK;
+    }
+    else {
+        return SPIFFS_VIS_COUNTINUE;
+    }
+}
+/*********************************************************************************************************
+** 函数名称: __spiffsObjLookUpScanVistor
+** 功能描述: 扫描并统计Page信息的Vistor
+** 输　入  : pfs          文件头
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
 INT32 __spiffsObjLookUpScanVistor(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, SPIFFS_BLOCK_IX blkIX, INT iLookUpEntryIX, 
                                   const PVOID pUserConst, PVOID pUserVar){
     (VOID) blkIX;
     (VOID) pUserConst;
     (VOID) pUserVar;
 
+    if(objId == SPIFFS_OBJ_ID_FREE){
+        if(iLookUpEntryIX == 0){        /* 一个块的首objID为空，默认该块为空，如何理解？事实上很简单，LFS使然*/
+            pfs->uiFreeBlks++;
+        }
+    }
+    else if(objId == SPIFFS_OBJ_ID_DELETED){
+        pfs->uiStatsPageDeleted++;
+    }
+    else {
+        pfs->uiStatsPageAllocated++;
+    }
 
     return SPIFFS_VIS_COUNTINUE;
 }
@@ -84,7 +126,7 @@ INT32 __spiffsObjLookUpFindFreeObjIdBitmapVistor(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_
 ** 调用模块:
 *********************************************************************************************************/
 INT32 __spiffsObjLookUpFindFreeObjIdCompactVistor(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, SPIFFS_BLOCK_IX blkIX, INT iLookUpEntryIX, 
-                                                const PVOID pUserConst, PVOID pUserVar){
+                                                  const PVOID pUserConst, PVOID pUserVar){
     (VOID) pUserVar;
     INT32 iRes = SPIFFS_OK;
     const PSPIFFS_FREE_OBJ_ID_STATE pState = (const PSPIFFS_FREE_OBJ_ID_STATE)pUserConst;
@@ -111,7 +153,7 @@ INT32 __spiffsObjLookUpFindFreeObjIdCompactVistor(PSPIFFS_VOLUME pfs, SPIFFS_OBJ
             if(objId >= pState->objIdMin && objId <= pState->objIdMax){
                 pucObjBitMap = (PUCHAR)(pfs->pucWorkBuffer);
                 /* (id - min) * page_sz  / (max - min)*/
-                uiIX = (objId - pState->objIdMin) / pState->uiCompaction;
+                uiIX = (objId - pState->objIdMin) / pState->uiCompaction;   /* 重叠的第几个页 */
                 SPIFFS_DBG("free_obj_id: add ix "_SPIPRIi" for id "_SPIPRIid" min"_SPIPRIid" max"_SPIPRIid" comp:"_SPIPRIi"\n", 
                            uiIX, objId, pState->objIdMin, pState->objIdMax, pState->uiCompaction);
                 pucObjBitMap[uiIX]++;
@@ -309,12 +351,12 @@ INT32 spiffsObjLookUpScan(PSPIFFS_VOLUME pfs){
     SPIFFS_CHECK_RES(iRes);
     return iRes;
 }
-
-
 /*********************************************************************************************************
 ** 函数名称: spiffsObjLookUpFindFreeObjId
-** 功能描述: 
+** 功能描述: 用于寻找Free Obj ID
 ** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
 ** 输　出  : None
 ** 全局变量:
 ** 调用模块:
@@ -332,6 +374,7 @@ INT32 spiffsObjLookUpFindFreeObjId(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID *pObjId, co
 
     UINT8                    uiMask8;
     //TODO: State是用来干嘛的？
+    //!用于打包
     state.objIdMin = 1;
     state.objIdMax = uiMaxObjects + 1;
     if(state.objIdMax & SPIFFS_OBJ_ID_IX_FLAG){
@@ -342,7 +385,7 @@ INT32 spiffsObjLookUpFindFreeObjId(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID *pObjId, co
 
     while (iRes == SPIFFS_OK && objIdFree == SPIFFS_OBJ_ID_FREE)
     {   
-        /* 可以装在一个页面里 */
+        /* 可以装在一个页面里，一个字节8位 */
         if(state.objIdMax - state.objIdMin 
            <= (SPIFFS_OBJ_ID)SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) * 8){
             /* 可以放在一个bitmap里 */
@@ -393,12 +436,30 @@ INT32 spiffsObjLookUpFindFreeObjId(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID *pObjId, co
                     }
                 }
 
-                if(uiMinCount == state.uiCompaction){
-                    
+                if(uiMinCount == state.uiCompaction){       /* 没有空闲OBJ了 */
+                    SPIFFS_DBG("free_obj_id: compacted table is full\n");
+                    return SPIFFS_ERR_FULL;
                 }
                 
+                SPIFFS_DBG("free_obj_id: COMP select index:"_SPIPRIi" min_count:"_SPIPRIi" min:"_SPIPRIid" max:"_SPIPRIid" compact:"_SPIPRIi"\n", uiMinIndex, uiMinCount, state.objIdMin, state.objIdMax, state.uiCompaction);
+                if(uiMinCount == 0){
+                    *pObjId = uiMinIndex * state.uiCompaction + state.objIdMin;
+                    return SPIFFS_OK;
+                }
+                else {
+                    /* 减少压缩范围 */
+                    SPIFFS_DBG("free_obj_id: COMP SEL chunk:"_SPIPRIi" min:"_SPIPRIid" -> "_SPIPRIid"\n", state.uiCompaction, state.objIdMin, state.objIdMin + uiMinIndex *  state.uiCompaction);
+                    state.objIdMin += (uiMinIndex * state.uiCompaction);
+                    state.objIdMax = state.objIdMin + state.uiCompaction;
+                }
+
+                if(state.objIdMax - state.objIdMin 
+                    <= (SPIFFS_OBJ_ID)SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) * 8){
+                    /* 可以用一页装了，那就直接装，不用压缩了 */
+                    continue;
+                }
             }
-            state.uiCompaction = (state.objIdMax - state.objIdMin) / ((SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) / sizeof(UINT8)));
+            state.uiCompaction = (state.objIdMax - state.objIdMin) / ((SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) / sizeof(UINT8))); /* 页面总数 */
             SPIFFS_DBG("free_obj_id: COMP min:"_SPIPRIid" max:"_SPIPRIid" compact:"_SPIPRIi"\n", state.objIdMin, 
                        state.objIdMax, state.uiCompaction);
             lib_memset(pfs->pucWorkBuffer, 0, SPIFFS_CFG_LOGIC_PAGE_SZ(pfs));
@@ -411,5 +472,94 @@ INT32 spiffsObjLookUpFindFreeObjId(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID *pObjId, co
             state.pucConflictingName = LW_NULL; /* 找一次就够了 */
         }
     }
+}
+/*********************************************************************************************************
+** 函数名称: spiffsObjLookUpFindId
+** 功能描述: 用于寻找给定的ObjId
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 spiffsObjLookUpFindId(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIXStarting, INT iLookUpEntryStarting,
+                            SPIFFS_OBJ_ID objId, SPIFFS_BLOCK_IX *pBlkIX, INT *piLookUpEntry){
+    INT32 iRes = spiffsObjLookUpFindEntryVisitor(pfs, blkIXStarting, iLookUpEntryStarting, 
+                                                SPIFFS_VIS_CHECK_ID, objId, LW_NULL, LW_NULL, LW_NULL, 
+                                                pBlkIX, piLookUpEntry);
+    if(iRes == SPIFFS_VIS_END) {
+        iRes = SPIFFS_ERR_NOT_FOUND;
+    }
+    return iRes;
+}
+/*********************************************************************************************************
+** 函数名称: spiffsObjLookUpFindFreeEntry
+** 功能描述: 用于寻找Free Look Up Entry
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 spiffsObjLookUpFindFreeEntry(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIXStarting, INT iLookUpEntryStarting,
+                                   SPIFFS_BLOCK_IX *pBlkIX, INT *piLookUpEntry){
+    INT32 iRes;
+    if (!pfs->uiCleaningFlag && pfs->uiFreeBlks < 2) {
+        iRes = spiffsGCQuick(pfs, 0);
+        if (iRes == SPIFFS_ERR_NO_DELETED_BLOCKS) {
+            iRes = SPIFFS_OK;
+        }
+        SPIFFS_CHECK_RES(iRes);
+        if (pfs->uiFreeBlks < 2) {
+            return SPIFFS_ERR_FULL;
+        }
+    }
+    /* 找到一个Id为111的Entry */
+    iRes = spiffsObjLookUpFindId(pfs, blkIXStarting, iLookUpEntryStarting,
+                                 SPIFFS_OBJ_ID_FREE, pBlkIX, piLookUpEntry);
+    if (iRes == SPIFFS_OK) {
+        pfs->blkIXFreeCursor = *pBlkIX;
+        pfs->objLookupEntryFreeCursor = (*piLookUpEntry) + 1;
+        if (*piLookUpEntry == 0) {
+            pfs->uiFreeBlks--;
+        }
+    }
+    if (iRes == SPIFFS_ERR_FULL) {
+        SPIFFS_DBG("fs full\n");
+    }
+    return iRes;
+}
+
+INT32 spiffsObjLookUpFindIdAndSpan(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, SPIFFS_SPAN_IX spanIX,
+                                   SPIFFS_PAGE_IX pageIXExclusion, SPIFFS_PAGE_IX *pPageIX){
+    INT32 iRes;
+    SPIFFS_BLOCK_IX blkIX;
+    INT iEntry;
+
+    iRes = spiffsObjLookUpFindEntryVisitor(pfs, pfs->blkIXCursor, pfs->objLookupEntryCursor, SPIFFS_VIS_CHECK_ID, objId,
+                                           __spiffsObjLookUpFindIdAndSpanVistor, pageIXExclusion ? &pageIXExclusion : LW_NULL,
+                                           &spanIX, &blkIX, &iEntry);
+}
+
+/*********************************************************************************************************
+** 函数名称: spiffsObjLookUpFindFreeObjId
+** 功能描述: 用于寻找Free Obj ID
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 spiffsObjectCreate(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId,
+                         const UCHAR ucPath[], SPIFFS_OBJ_TYPE type, SPIFFS_PAGE_IX* pPageIXObjIndexHdr)
+{
+    INT32 iRes = SPIFFS_OK;
+    SPIFFS_BLOCK_IX blkIX;
+    SPIFFS_PAGE_OBJECT_IX_HEADER  pageObjIXHdr;
+    INT iEntry;
+
     
 }
