@@ -60,6 +60,8 @@ typedef INT32 (*spiffsVisitorFunc)(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, SPIF
  * SPIFFS 库函数定义
 *********************************************************************************************************/
 
+INT32 spiffsPhysCpy(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, UINT32 uiDst,
+                    UINT32 uiSrc, UINT32 uiLen);
 /*********************************************************************************************************
  * SPIFFS Lookup Vistor相关
 *********************************************************************************************************/
@@ -77,12 +79,31 @@ INT32 spiffsObjLookUpFindIdAndSpan(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, SPIF
 INT32 spiffsObjectFindObjectIndexHeaderByName(PSPIFFS_VOLUME pfs, UCHAR ucName[SPIFFS_OBJ_NAME_LEN], SPIFFS_PAGE_IX *pPageIX);
 
 /*********************************************************************************************************
+ * SPIFFS 页面工具
+*********************************************************************************************************/
+INT32 spiffsPageIndexCheck(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd, SPIFFS_PAGE_IX pageIX, SPIFFS_SPAN_IX spanIX);
+INT32 spiffsPageDataCheck(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd,  SPIFFS_PAGE_IX pageIX, SPIFFS_SPAN_IX spanIX);
+INT32 spiffsPageDelete(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX);
+INT32 spiffsPageAllocateData(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, PSPIFFS_PAGE_HEADER pPageHeader,
+                             PUCHAR pData, UINT32 uiLen, UINT32 uiPageOffs, BOOL bIsFinalize,
+                             SPIFFS_PAGE_IX *pageIX);
+/*********************************************************************************************************
  * SPIFFS Object 相关
 *********************************************************************************************************/
 INT32 spiffsObjectCreate(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId,
                          const UCHAR cPath[], SPIFFS_OBJ_TYPE type, SPIFFS_PAGE_IX* pObjIndexHdrPageIX);
 INT32 spiffsObjectTruncate(PSPIFFS_FD pFd, UINT32 uiNewSize, BOOL bIsRemoveFull); 
+//TODO：spiffsObjectAppend、spiffsObjectModify、spiffsObjectRead、 spiffsFileWrite、 spiffsFileRead
+INT32 spiffsObjectAppend(PSPIFFS_FD pFd, UINT32 uiNewSize, BOOL bIsRemoveFull, UINT32 uiLen);
+INT32 spiffsObjectModify(PSPIFFS_FD pFd, UINT32 uiOffset, PUCHAR pContent, UINT32 uiLen);
+INT32 spiffsObjectRead(PSPIFFS_FD fd, UINT32 uiOffset, UINT32 uiLen, PUCHAR puDst);
+
 INT32 spiffsObjectUpdateIndexHdr(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd, SPIFFS_OBJ_ID objId, SPIFFS_PAGE_IX pageIXObjIXHdr,
                                  PUCHAR pucNewObjIXHdrData , const UCHAR ucName[], UINT32 uiSize, SPIFFS_PAGE_IX *pageIXNew);
 INT32 spiffsObjectOpenByPage(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX, PSPIFFS_FD pFd, SPIFFS_FLAGS flags, SPIFFS_MODE mode); 
+/*********************************************************************************************************
+ * SPIFFS 读写相关
+*********************************************************************************************************/
+INT32 spiffsFileWrite(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, UINT32 uiOffset, INT32 iLen);
+INT32 spiffsFileRead(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, INT32 iLen);
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFFSLIB_H_ */

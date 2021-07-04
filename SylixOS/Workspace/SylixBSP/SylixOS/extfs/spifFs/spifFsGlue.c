@@ -317,7 +317,7 @@ SPIFFS_FILE __spiffs_open(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_FLAGS f
     SPIFFS_CHECK_RES(iRes);
     
     if (flags & SPIFFS_O_TRUNC) {
-        iRes = spiffs_object_truncate(pFd, 0, 0);
+        iRes = spiffsObjectTruncate(pFd, 0, 0);
         if (iRes < SPIFFS_OK) {
             spiffsFdReturn(pfs, pFd->fileN);
         }
@@ -330,4 +330,67 @@ SPIFFS_FILE __spiffs_open(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_FLAGS f
     //SPIFFS_UNLOCK(pfs);
 
     return (SPIFFS_FILE)pFd->fileN; //SPIFFS_FH_OFFS(pfs, pFd->fileN);
+}
+/*********************************************************************************************************
+** 函数名称: __spiffs_open_by_dirent
+** 功能描述: 打开一个新目录
+** 输　入  : pfs          文件头
+**           pcPath        文件路径
+**           mode          文件模式: SPIFFS_O_APPEND, SPIFFS_O_TRUNC, SPIFFS_O_CREAT, SPIFFS_O_RDONLY,
+**                                  SPIFFS_O_WRONLY, SPIFFS_O_RDWR, SPIFFS_O_DIRECT, SPIFFS_O_EXCL, Ignored
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+SPIFFS_FILE __spiffs_open_by_dirent(PSPIFFS_VOLUME pfs, PSPIFFS_DIRENT pDirent, 
+                                    SPIFFS_FLAGS flags, SPIFFS_MODE mode){
+    PSPIFFS_FD pFd;
+    INT32 iRes;
+    SPIFFS_API_DBG("%s '%s':"_SPIPRIid " "_SPIPRIfl "\n", 
+                   __func__, pDirent->name, pDirent->objID, flags);
+    //SPIFFS_API_CHECK_CFG(pfs);
+    SPIFFS_API_CHECK_MOUNT(pfs);
+    //SPIFFS_LOCK(pfs);
+
+
+    iRes = spiffsFdFindNew(pfs, &pFd, 0);
+    
+    //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+
+    iRes = spiffsObjectOpenByPage(pfs, pDirent->pageIX, pFd, flags, mode);
+    if (iRes < SPIFFS_OK) {
+        spiffsFdReturn(pfs, pFd->fileN);
+    }
+
+    //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+    
+    if (flags & SPIFFS_O_TRUNC) {
+        iRes = spiffsObjectTruncate(pFd, 0, LW_FALSE);
+        if (iRes < SPIFFS_OK) {
+            spiffsFdReturn(pfs, pFd->fileN);
+        }
+        //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+    }
+    pFd->uiFdOffset = 0;
+    //SPIFFS_UNLOCK(pfs);
+    return pFd->fileN;
+}
+/*********************************************************************************************************
+** 函数名称: __spiffs_read
+** 功能描述: 读文件
+** 输　入  : pfs          文件头
+**           pcPath        文件路径
+**           mode          文件模式: SPIFFS_O_APPEND, SPIFFS_O_TRUNC, SPIFFS_O_CREAT, SPIFFS_O_RDONLY,
+**                                  SPIFFS_O_WRONLY, SPIFFS_O_RDWR, SPIFFS_O_DIRECT, SPIFFS_O_EXCL, Ignored
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 __spiffs_read(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, INT32 iLen){
+    SPIFFS_API_DBG("%s "_SPIPRIfd " "_SPIPRIi "\n", __func__, fileHandler, iLen);
+    s32_t res = spiffsFileRead(fs, fh, buf, len);
+    if (res == SPIFFS_ERR_END_OF_OBJECT) {
+    res = 0;
+    }
+    return res;
 }

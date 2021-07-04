@@ -36,4 +36,6 @@ INT32       __spiffs_mount(PSPIFFS_VOLUME pfs, PSPIFFS_CONFIG pConfig, PUCHAR pu
 VOID        __spiffs_unmount(PSPIFFS_VOLUME pfs);
 INT32       __spiffs_create(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_MODE mode);
 SPIFFS_FILE __spiffs_open(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_FLAGS flags, SPIFFS_MODE mode);
+SPIFFS_FILE __spiffs_open_by_dirent(PSPIFFS_VOLUME pfs, PSPIFFS_DIRENT pDirent, SPIFFS_FLAGS flags, SPIFFS_MODE mode);
+INT32       __spiffs_read(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, INT32 iLen);
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFFSGLUE_H_ */

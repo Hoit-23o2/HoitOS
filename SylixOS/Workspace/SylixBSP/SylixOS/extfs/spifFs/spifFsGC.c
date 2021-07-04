@@ -573,12 +573,12 @@ INT32 spiffsGCClean(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX){
 INT32 spiffsGCCheck(PSPIFFS_VOLUME pfs, UINT32 uiLen){
     INT32  iFreePages;
     UINT32 uiNeededPages;
-    INT32 iRes   = SPIFFS_OK;
-    INT   iTries = 0;
+    INT32  iRes   = SPIFFS_OK;
+    INT    iTries = 0;
     SPIFFS_BLOCK_IX blkIXCandidate;
     SPIFFS_BLOCK_IX* pBlkIXCandidates;
-    UINT  uiCount;
-    INT32 iPreFreePages;
+    UINT   uiCount;
+    INT32  iPreFreePages;
 
     iFreePages = (SPIFFS_PAGES_PER_BLOCK(pfs) - SPIFFS_OBJ_LOOKUP_PAGES(pfs)) * (pfs->uiBlkCount - 2)   /* Ô¤Áô2¸öBlk£¿£¿£¿ */
                  - pfs->uiStatsPageAllocated - pfs->uiStatsPageDeleted;
@@ -595,8 +595,7 @@ INT32 spiffsGCCheck(PSPIFFS_VOLUME pfs, UINT32 uiLen){
         return SPIFFS_ERR_FULL;
     }
 
-    do
-    {
+    do {
         SPIFFS_GC_DBG("\ngc_check #"_SPIPRIi": run gc free_blocks:"_SPIPRIi" pfree:"_SPIPRIi" pallo:"_SPIPRIi" pdele:"_SPIPRIi" ["_SPIPRIi"] len:"_SPIPRIi" of "_SPIPRIi"\n",
                       iTries,
                       pfs->uiFreeBlks, iFreePages, pfs->uiStatsPageAllocated, pfs->uiStatsPageDeleted, (iFreePages + pfs->uiStatsPageAllocated + pfs->uiStatsPageDeleted),
@@ -621,7 +620,18 @@ INT32 spiffsGCCheck(PSPIFFS_VOLUME pfs, UINT32 uiLen){
 
     } while (++iTries < SPIFFS_GC_MAX_RUNS && (pfs->uiFreeBlks <= 2 ||
              (INT32)uiLen > iFreePages * (INT32)SPIFFS_DATA_PAGE_SIZE(pfs)));
-    
+             
+    iFreePages = (SPIFFS_PAGES_PER_BLOCK(pfs) - SPIFFS_OBJ_LOOKUP_PAGES(pfs)) * (pfs->uiBlkCount - 2)
+                  - pfs->uiStatsPageAllocated - pfs->uiStatsPageDeleted;
+    if ((INT32)uiLen > iFreePages *(INT32)SPIFFS_DATA_PAGE_SIZE(pfs)) {
+        iRes = SPIFFS_ERR_FULL;
+    }
+
+    SPIFFS_GC_DBG("gc_check: finished, "_SPIPRIi" dirty, blocks "_SPIPRIi" free, "_SPIPRIi" pages free, "_SPIPRIi" tries, iRes "_SPIPRIi"\n",
+                   pfs->uiStatsPageAllocated + pfs->uiStatsPageDeleted,
+                   pfs->uiFreeBlks, iFreePages, iTries, iRes);
+
+    return iRes;
 }
 
 /*********************************************************************************************************

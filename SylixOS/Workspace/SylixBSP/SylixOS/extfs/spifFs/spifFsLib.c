@@ -23,6 +23,33 @@
 #include "spifFsGC.h"
 #include "spifFsFDLib.h"
 
+INT32 spiffsPhysCpy(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, UINT32 uiDst,
+                    UINT32 uiSrc, UINT32 uiLen) {
+    (void)fileHandler;
+    INT32 iRes;
+    UCHAR ucBuffer[SPIFFS_COPY_BUFFER_STACK];
+    while (uiLen > 0) {
+        UINT32 uiChunkSize = MIN(SPIFFS_COPY_BUFFER_STACK, uiLen);
+        iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_MOVS, fileHandler, 
+                               uiSrc, uiChunkSize, ucBuffer);
+        SPIFFS_CHECK_RES(iRes);
+        iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_MOVD,  fileHandler, 
+                                uiDst, uiChunkSize, ucBuffer);
+        SPIFFS_CHECK_RES(iRes);
+        uiLen -= uiChunkSize;
+        uiSrc += uiChunkSize;
+        uiDst += uiChunkSize;
+    }
+    return SPIFFS_OK;
+}
+/*********************************************************************************************************
+** 函数名称: __spiffsObjLookUpFindIdAndSpanVistor
+** 功能描述: 寻找ID，及其对应的Span
+** 输　入  : pfs          文件头
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
 INT32 __spiffsObjLookUpFindIdAndSpanVistor(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, SPIFFS_BLOCK_IX blkIX, INT iLookUpEntryIX, 
                                            const PVOID pUserConst, PVOID pUserVar){
     INT32 iRes;
@@ -37,7 +64,7 @@ INT32 __spiffsObjLookUpFindIdAndSpanVistor(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID obj
        pageHeader.spanIX == *((SPIFFS_SPAN_IX *)pUserVar) &&
        (pageHeader.flags & (SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_DELET | SPIFFS_PH_FLAG_USED)) == SPIFFS_PH_FLAG_DELET &&
        !((objId & SPIFFS_OBJ_ID_IX_FLAG) &&                                             /* 不是Obj IX */
-       (pageHeader.flags & SPIFFS_PH_FLAG_IXDELE) == 0 && pageHeader.spanIX == 0) &&    /* 被删了吗？ */
+       (pageHeader.flags & SPIFFS_PH_FLAG_IXDELE) == 0 && pageHeader.spanIX == 0) &&    /* 且没有被删，且不是第0个Span */
        (pUserConst == LW_NULL || *((const SPIFFS_PAGE_IX *)pUserConst) != pageIX)){     
         return SPIFFS_OK;
     }
@@ -610,6 +637,175 @@ INT32 spiffsObjectFindObjectIndexHeaderByName(PSPIFFS_VOLUME pfs, UCHAR ucName[S
     return iRes;
 }
 /*********************************************************************************************************
+** 函数名称: spiffsPageIndexCheck
+** 功能描述: 检查页面索引
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 spiffsPageIndexCheck(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd, 
+                           SPIFFS_PAGE_IX pageIX, SPIFFS_SPAN_IX spanIX){
+    UINT32 iRes = SPIFFS_OK;
+    SPIFFS_PAGE_HEADER pageHeader;
+    if (pageIX == (SPIFFS_PAGE_IX)-1) {
+        // referring to page 0xffff...., bad object index
+        return SPIFFS_ERR_INDEX_FREE;
+    }
+    if (pageIX % SPIFFS_PAGES_PER_BLOCK(pfs) < SPIFFS_OBJ_LOOKUP_PAGES(pfs)) {
+        /* 页面不能指向LookUp page */
+        // referring to an object lookup page, bad object index
+        return SPIFFS_ERR_INDEX_LU;
+    }
+    if (pageIX > SPIFFS_MAX_PAGES(pfs)) {
+        // referring to a bad page
+        return SPIFFS_ERR_INDEX_INVALID;
+    }
+
+    /* Check Page */
+    iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ, pFd->fileN,
+                           SPIFFS_PAGE_TO_PADDR(pfs, pageIX), sizeof(SPIFFS_PAGE_HEADER), 
+                           (PUCHAR)&pageHeader);
+    SPIFFS_CHECK_RES(iRes);
+    SPIFFS_VALIDATE_OBJIX(pageHeader, pFd->objId, spanIX);
+    
+    return iRes;
+}
+/*********************************************************************************************************
+** 函数名称: spiffsPageDataCheck
+** 功能描述: 检查数据页面
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 spiffsPageDataCheck(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd,  
+                          SPIFFS_PAGE_IX pageIX, SPIFFS_SPAN_IX spanIX){
+    UINT32 iRes = SPIFFS_OK;
+    SPIFFS_PAGE_HEADER pageHeader;
+    if (pageIX == (SPIFFS_PAGE_IX)-1) {
+        // referring to page 0xffff...., bad object index
+        return SPIFFS_ERR_INDEX_REF_FREE;
+    }
+    if (pageIX % SPIFFS_PAGES_PER_BLOCK(pfs) < SPIFFS_OBJ_LOOKUP_PAGES(pfs)) {
+        // referring to an object lookup page, bad object index
+        return SPIFFS_ERR_INDEX_REF_LU;
+    }
+    if (pageIX > SPIFFS_MAX_PAGES(pfs)) {
+        // referring to a bad page
+        return SPIFFS_ERR_INDEX_REF_INVALID;
+    }
+    /* Check Page */
+    iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_READ, pFd->fileN, 
+                           SPIFFS_PAGE_TO_PADDR(pfs, pageIX),
+                           sizeof(SPIFFS_PAGE_HEADER),(PUCHAR)&pageHeader);
+    SPIFFS_CHECK_RES(iRes);
+    /* 保证不是Index页面 */
+    SPIFFS_VALIDATE_DATA(pageHeader, pFd->objId & ~SPIFFS_OBJ_ID_IX_FLAG, spanIX);
+    return iRes;
+}
+/*********************************************************************************************************
+** 函数名称: spiffsPageDelete
+** 功能描述: 删除指定页面（标记删除即可）
+** 输　入  : pfs          文件头
+**           pageIX         页面IX
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 spiffsPageDelete(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX){
+    INT32 iRes;
+    // mark deleted iEntry in source object lookup
+    /* 先标记LookUp Entry */
+    SPIFFS_OBJ_ID d_obj_id = SPIFFS_OBJ_ID_DELETED;
+    iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_DELE, 0,
+                            SPIFFS_BLOCK_TO_PADDR(pfs, SPIFFS_BLOCK_FOR_PAGE(pfs, pageIX)) + 
+                            SPIFFS_OBJ_LOOKUP_ENTRY_FOR_PAGE(pfs, pageIX) * sizeof(SPIFFS_PAGE_IX),
+                            sizeof(SPIFFS_OBJ_ID), (PUCHAR)&d_obj_id);
+    SPIFFS_CHECK_RES(iRes);
+
+    pfs->uiStatsPageAllocated--;
+    pfs->uiStatsPageDeleted++;
+
+
+    // mark deleted in source page
+    /* 再标记待删除页面 */
+    UINT8 flags = 0xff;
+    flags &= ~(SPIFFS_PH_FLAG_DELET | SPIFFS_PH_FLAG_USED);
+    iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_DELE, 0,
+                            SPIFFS_PAGE_TO_PADDR(pfs, pageIX) + offsetof(SPIFFS_PAGE_HEADER, flags),
+                            sizeof(flags), &flags);
+    return iRes;
+}
+/*********************************************************************************************************
+** 函数名称: spiffsPageDelete
+** 功能描述: 删除指定页面（标记删除即可）
+** 输　入  : pfs          文件头
+**           pageIX         页面IX
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 spiffsPageAllocateData(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, PSPIFFS_PAGE_HEADER pPageHeader,
+                             PUCHAR pData, UINT32 uiLen, UINT32 uiPageOffs, BOOL bIsFinalize,
+                             SPIFFS_PAGE_IX *pageIX) {
+    INT32 iRes = SPIFFS_OK;
+    SPIFFS_BLOCK_IX blkIX;
+    INT iEntry;
+
+    // find free iEntry
+    /* 找到一个空闲的Entry */
+    iRes = spiffsObjLookUpFindFreeEntry(pfs, pfs->blkIXFreeCursor, 
+                                        pfs->objLookupEntryFreeCursor, &blkIX, &iEntry);
+    SPIFFS_CHECK_RES(iRes);
+
+    // occupy page in object lookup
+    /* 用当前数据页面的objID占用这个entry */
+    iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_UPDT, 0, 
+                            SPIFFS_BLOCK_TO_PADDR(pfs, blkIX) + iEntry * sizeof(SPIFFS_OBJ_ID), 
+                            sizeof(SPIFFS_OBJ_ID), (PUCHAR)&objId);
+    SPIFFS_CHECK_RES(iRes);
+
+    pfs->uiStatsPageAllocated++;
+
+    // write page header
+    pPageHeader->flags &= ~SPIFFS_PH_FLAG_USED;
+    iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_UPDT, 0, 
+                            SPIFFS_OBJ_LOOKUP_ENTRY_TO_PADDR(pfs, blkIX, iEntry), 
+                            sizeof(SPIFFS_PAGE_HEADER), (PUCHAR)pPageHeader);
+    SPIFFS_CHECK_RES(iRes);
+
+    // write page data
+    if (pData) {
+        iRes = spiffsCacheWrite(pfs,  SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_UPDT, 0, 
+                                SPIFFS_OBJ_LOOKUP_ENTRY_TO_PADDR(pfs, blkIX, iEntry) + sizeof(SPIFFS_PAGE_HEADER) + uiPageOffs, 
+                                uiLen, pData);
+        SPIFFS_CHECK_RES(iRes);
+    }
+
+    // finalize header if necessary
+    /* 结束写入 */
+    if (bIsFinalize && (pPageHeader->flags & SPIFFS_PH_FLAG_FINAL)) {
+        pPageHeader->flags &= ~SPIFFS_PH_FLAG_FINAL;
+        iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_UPDT, 0, 
+                                SPIFFS_OBJ_LOOKUP_ENTRY_TO_PADDR(pfs, blkIX, iEntry) + offsetof(SPIFFS_PAGE_HEADER, flags),  
+                                sizeof(UINT8),(PUCHAR)&pPageHeader->flags);
+        SPIFFS_CHECK_RES(iRes);
+    }
+
+    // return written page
+    /* 返回当前写入的页面 */
+    if (pageIX) {
+        *pageIX = SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(pfs, blkIX, iEntry);
+    }
+
+    return iRes;
+}
+/*********************************************************************************************************
 ** 函数名称: spiffsObjectUpdateIndexHdr
 ** 功能描述: 更新索引页头
 ** 输　入  : pfs          文件头
@@ -625,13 +821,15 @@ INT32 spiffsObjectUpdateIndexHdr(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd, SPIFFS_OBJ_
     PSPIFFS_PAGE_OBJECT_IX_HEADER objIXHdr;
     SPIFFS_PAGE_IX pageIXObjIXHdrNew;
 
+    /* 获取对应索引页的ObjID */
     objId |=  SPIFFS_OBJ_ID_IX_FLAG;
 
     /* 获取Index页面的Hdr */
     if (pucNewObjIXHdrData) {
         // object index header page already given to us, no need to load it
         objIXHdr = (PSPIFFS_PAGE_OBJECT_IX_HEADER)pucNewObjIXHdrData;
-    } else {
+    } 
+    else {
         // read object index header page
         iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ, pFd->fileN, 
                                SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjIXHdr), SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), pfs->pucWorkBuffer);
@@ -652,6 +850,7 @@ INT32 spiffsObjectUpdateIndexHdr(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd, SPIFFS_OBJ_
     }
 
     // move and update page
+    //TODO: 为什么要移动页面
     iRes = spiffsPageMove(pfs, pFd == LW_NULL ? LW_NULL : pFd->fileN, 
                           (PUCHAR)objIXHdr, objId, 0, pageIXObjIXHdr, &pageIXObjIXHdrNew);
 
@@ -818,211 +1017,351 @@ INT32 spiffsObjectTruncate(PSPIFFS_FD pFd, UINT32 uiNewSize, BOOL bIsRemoveFull)
     SPIFFS_PAGE_IX                  newPageIXObjIXHdr;
 
     // before truncating, check if object is to be fully removed and mark this
+    /* 检查是否全部删除，如果是，则给出以下标记
+       ~( SPIFFS_PH_FLAG_USED | SPIFFS_PH_FLAG_INDEX | SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_IXDELE ) 
+    */
     if (bIsRemoveFull && uiNewSize == 0) {
-    UINT8 flags = ~( SPIFFS_PH_FLAG_USED | SPIFFS_PH_FLAG_INDEX | SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_IXDELE);
-    iRes = _spiffs_wr(pfs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_UPDT,
-        pFd->fileN, SPIFFS_PAGE_TO_PADDR(pfs, pFd->pageIXObjIXHdr) + offsetof(SPIFFS_PAGE_HEADER, flags),
-        sizeof(UINT8),
-        (UINT8 *)&flags);
-    SPIFFS_CHECK_RES(iRes);
+        UINT8 flags = ~( SPIFFS_PH_FLAG_USED | SPIFFS_PH_FLAG_INDEX | SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_IXDELE);
+        iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_UPDT, pFd->fileN, 
+                                SPIFFS_PAGE_TO_PADDR(pfs, pFd->pageIXObjIXHdr) + offsetof(SPIFFS_PAGE_HEADER, flags),
+                                sizeof(UINT8), (UINT8 *)&flags);
+        SPIFFS_CHECK_RES(iRes);
     }
 
-    // delete from end of object until desired len is reached
+    // delete from end of object until desired uiLen is reached
+    /* 从后往前删 */
     while (uiCurSize > uiNewSize) {
-    spanIXObjIXCur = SPIFFS_OBJ_IX_ENTRY_SPAN_IX(pfs, spanIXData);
+        spanIXObjIXCur = SPIFFS_OBJ_IX_ENTRY_SPAN_IX(pfs, spanIXData);      /* 当前 SpanIX Data 对应于那个Object IX的Span */
+        // put object index for current data span index in pucWorkBuffer buffer
+        if (spanIXObjIXPrev != spanIXObjIXCur) {            /* 之前的与现在的不同 */
+            if (spanIXObjIXPrev != (SPIFFS_SPAN_IX)-1) {    /* 前一个页面非无效页面 */
+                // remove previous object index page
+                /* 移除前一页 */
+                SPIFFS_DBG("truncate: delete pObjIX page "_SPIPRIpg":"_SPIPRIsp"\n", pageIXObjIX, spanIXObjIXPrev);
 
-    // put object index for current data span index in pucWorkBuffer buffer
-    if (spanIXObjIXPrev != spanIXObjIXCur) {
-        if (spanIXObjIXPrev != (SPIFFS_SPAN_IX)-1) {
-        // remove previous object index page
-        SPIFFS_DBG("truncate: delete pObjIX page "_SPIPRIpg":"_SPIPRIsp"\n", pageIXObjIX, spanIXObjIXPrev);
+                iRes = spiffsPageIndexCheck(pfs, pFd, pageIXObjIX, spanIXObjIXPrev);
+                SPIFFS_CHECK_RES(iRes);
 
-        iRes = spiffs_page_index_check(pfs, pFd, pageIXObjIX, spanIXObjIXPrev);
-        SPIFFS_CHECK_RES(iRes);
-
-        iRes = spiffs_page_delete(pfs, pageIXObjIX);
-        SPIFFS_CHECK_RES(iRes);
-        spiffs_cb_object_event(pfs, (SPIFFS_PAGE_OBJECT_IX *)0,
-            SPIFFS_EV_IX_DEL, pFd->objId, pObjIX->p_hdr.span_ix, pageIXObjIX, 0);
-        if (spanIXObjIXPrev > 0) {
-            // Update object index header page, unless we totally want to remove the file.
-            // If fully removing, we're not keeping consistency as good as when storing the header between chunks,
-            // would we be aborted. But when removing full files, a crammed system may otherwise
-            // report ERR_FULL a la windows. We cannot have that.
-            // Hence, take the risk - if aborted, a file check would free the lost pages and mend things
-            // as the file is marked as fully deleted in the beginning.
-            if (bIsRemoveFull == 0) {
-            SPIFFS_DBG("truncate: update pObjIX hdr page "_SPIPRIpg":"_SPIPRIsp" to uiSize "_SPIPRIi"\n", pFd->pageIXObjIXHdr, spanIXObjIXPrev, uiCurSize);
-            iRes = spiffs_object_update_index_hdr(pfs, pFd, pFd->objId,
-                pFd->pageIXObjIXHdr, 0, 0, 0, uiCurSize, &newPageIXObjIXHdr);
-            SPIFFS_CHECK_RES(iRes);
+                iRes = spiffsPageDelete(pfs, pageIXObjIX);
+                SPIFFS_CHECK_RES(iRes);
+                spiffsCBObjectEvent(pfs, (SPIFFS_PAGE_OBJECT_IX *)0, SPIFFS_EV_IX_DEL, 
+                                    pFd->objId, pObjIX->pageHdr.spanIX, pageIXObjIX, 0);
+                if (spanIXObjIXPrev > 0) {  /* 普通Index Page头部 */
+                    // Update object index header page, unless we totally want to remove the file.
+                    // If fully removing, we're not keeping consistency as good as when storing the header between chunks,
+                    // would we be aborted. But when removing full files, a crammed system may otherwise
+                    // report ERR_FULL a la windows. We cannot have that.
+                    // Hence, take the risk - if aborted, a file check would free the lost pages and mend things
+                    // as the file is marked as fully deleted in the beginning.
+                    if (bIsRemoveFull == LW_FALSE) {
+                        SPIFFS_DBG("truncate: update pObjIX hdr page "_SPIPRIpg":"_SPIPRIsp" to uiSize "_SPIPRIi"\n", 
+                                   pFd->pageIXObjIXHdr, spanIXObjIXPrev, uiCurSize);
+                        iRes = spiffsObjectUpdateIndexHdr(pfs, pFd, pFd->objId, pFd->pageIXObjIXHdr, 
+                                                          LW_NULL, LW_NULL, uiCurSize, &newPageIXObjIXHdr);
+                        SPIFFS_CHECK_RES(iRes);
+                    }
+                    pFd->uiSize = uiCurSize;
+                }
             }
+            // load current object index (header) page
+            /* 加载当前Index Page */
+            if (spanIXObjIXCur == 0) {      /* 这是头部IndexPage */
+                pageIXObjIX = pFd->pageIXObjIXHdr;
+            }
+            else {                          /* 非头部IndexPage */
+                /* 加载当前页面 */
+                iRes = spiffsObjLookUpFindIdAndSpan(pfs, pFd->objId | SPIFFS_OBJ_ID_IX_FLAG, 
+                                                    spanIXObjIXCur, 0, &pageIXObjIX);
+                SPIFFS_CHECK_RES(iRes);
+            }
+
+            SPIFFS_DBG("truncate: load pObjIX page "_SPIPRIpg":"_SPIPRIsp" for data spix:"_SPIPRIsp"\n", 
+                       pageIXObjIX, spanIXObjIXCur, spanIXData);
+            /* 读入Work Buffer */
+            iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ, pFd->fileN, 
+                                   SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjIX), SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), 
+                                   pfs->pucWorkBuffer);
+            SPIFFS_CHECK_RES(iRes);
+            SPIFFS_VALIDATE_OBJIX(pObjIXHdr->pageHdr, pFd->objId, spanIXObjIXCur);
+            pFd->pageIXObjIXCursor = pageIXObjIX;
+            pFd->spanIXObjIXCursor = spanIXObjIXCur;
+            pFd->uiOffset = uiCurSize;
+
+            spanIXObjIXPrev = spanIXObjIXCur;
+        }
+
+        //TODO: 为什么要标记为free ? 先标记Free？下一轮再进行删除？
+        if (spanIXObjIXCur == 0) {      /* 当前页面是首部Index，即SpanIndex = 0 */
+            // get data page from object index header page
+            pageIXData = ((SPIFFS_PAGE_IX*)((UINT8 *)pObjIXHdr + sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER)))[spanIXData];
+            ((SPIFFS_PAGE_IX*)((UINT8 *)pObjIXHdr + sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER)))[spanIXData] = SPIFFS_OBJ_ID_FREE;
+        } 
+        else {
+            // get data page from object index page
+            pageIXData = ((SPIFFS_PAGE_IX*)((UINT8 *)pObjIX + sizeof(SPIFFS_PAGE_OBJECT_IX)))[SPIFFS_OBJ_IX_ENTRY(pfs, spanIXData)];
+            ((SPIFFS_PAGE_IX*)((UINT8 *)pObjIX + sizeof(SPIFFS_PAGE_OBJECT_IX)))[SPIFFS_OBJ_IX_ENTRY(pfs, spanIXData)] = SPIFFS_OBJ_ID_FREE;
+        }
+
+        SPIFFS_DBG("truncate: got data pageIX "_SPIPRIpg"\n", pageIXData);
+
+        if (uiNewSize == 0 || bIsRemoveFull 
+         || uiCurSize - uiNewSize >= SPIFFS_DATA_PAGE_SIZE(pfs)) {
+            // delete full data page
+            //TODO：为啥这里还要再删除呢？前面不是已经删除了
+            /* 可以删除一整个页面 */
+            iRes = spiffsPageDataCheck(pfs, pFd, pageIXData, spanIXData);
+            if (iRes != SPIFFS_ERR_DELETED 
+                && iRes != SPIFFS_OK 
+                && iRes != SPIFFS_ERR_INDEX_REF_FREE) {
+                SPIFFS_DBG("truncate: err validating data pageIX "_SPIPRIi"\n", iRes);
+                break;
+            }
+
+            if (iRes == SPIFFS_OK) {
+                iRes = spiffsPageDelete(pfs, pageIXData);
+                if (iRes != SPIFFS_OK) {
+                    SPIFFS_DBG("truncate: err deleting data pageIX "_SPIPRIi"\n", iRes);
+                    break;
+                }
+            } 
+            else if (iRes == SPIFFS_ERR_DELETED || iRes == SPIFFS_ERR_INDEX_REF_FREE) {
+                iRes = SPIFFS_OK;
+            }
+
+            // update current uiSize
+            /* 更新当前大小 */
+            if (uiCurSize % SPIFFS_DATA_PAGE_SIZE(pfs) == 0) {
+                uiCurSize -= SPIFFS_DATA_PAGE_SIZE(pfs);
+            } 
+            else {
+                uiCurSize -= uiCurSize % SPIFFS_DATA_PAGE_SIZE(pfs);
+            }
+            
             pFd->uiSize = uiCurSize;
-        }
-        }
-        // load current object index (header) page
-        if (spanIXObjIXCur == 0) {
-        pageIXObjIX = pFd->pageIXObjIXHdr;
-        } else {
-        iRes = spiffs_obj_lu_find_id_and_span(pfs, pFd->objId | SPIFFS_OBJ_ID_IX_FLAG, spanIXObjIXCur, 0, &pageIXObjIX);
-        SPIFFS_CHECK_RES(iRes);
-        }
+            pFd->uiOffset = uiCurSize;
+            SPIFFS_DBG("truncate: delete data page "_SPIPRIpg" for data spix:"_SPIPRIsp", uiCurSize:"_SPIPRIi"\n", 
+                       pageIXData, spanIXData, uiCurSize);
+        } 
+        else {
+            // delete last page, partially
+            /* 最后一个页面不一定全部删除 */
+            SPIFFS_PAGE_HEADER pageHeader;
+            SPIFFS_PAGE_IX pageIXDataNew;
+            UINT32 uiBytesToRemove = SPIFFS_DATA_PAGE_SIZE(pfs) - (uiNewSize % SPIFFS_DATA_PAGE_SIZE(pfs));
+            
+            SPIFFS_DBG("truncate: delete "_SPIPRIi" bytes from data page "_SPIPRIpg" for data spix:"_SPIPRIsp", uiCurSize:"_SPIPRIi"\n", 
+                       uiBytesToRemove, pageIXData, spanIXData, uiCurSize);
 
-        SPIFFS_DBG("truncate: load pObjIX page "_SPIPRIpg":"_SPIPRIsp" for data spix:"_SPIPRIsp"\n", pageIXObjIX, spanIXObjIXCur, spanIXData);
-        iRes = _spiffs_rd(pfs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ,
-            pFd->fileN, SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjIX), SPIFFS_CFG_LOG_PAGE_SZ(pfs), pfs->pucWorkBuffer);
-        SPIFFS_CHECK_RES(iRes);
-        SPIFFS_VALIDATE_OBJIX(pObjIXHdr->p_hdr, pFd->objId, spanIXObjIXCur);
-        pFd->cursor_objix_pix = pageIXObjIX;
-        pFd->cursor_objix_spix = spanIXObjIXCur;
-        pFd->uiOffset = uiCurSize;
+            iRes = spiffsPageDataCheck(pfs, pFd, pageIXData, spanIXData);
+            if (iRes != SPIFFS_OK) 
+                break;
 
-        spanIXObjIXPrev = spanIXObjIXCur;
-    }
+            pageHeader.objId = pFd->objId & ~SPIFFS_OBJ_ID_IX_FLAG;
+            pageHeader.spanIX = spanIXData;
+            pageHeader.flags = 0xff;
+            // allocate new page and copy unmodified data
+            //TODO: 直接传入pData不可以吗？
+            iRes = spiffsPageAllocateData(pfs, pFd->objId & ~SPIFFS_OBJ_ID_IX_FLAG,
+                                          &pageHeader, LW_NULL, 0, 0, LW_FALSE, &pageIXDataNew);
+            if (iRes != SPIFFS_OK) 
+                break;
+            iRes = spiffsPhysCpy(pfs, 0,
+                                 SPIFFS_PAGE_TO_PADDR(pfs, pageIXDataNew) + sizeof(SPIFFS_PAGE_HEADER),
+                                 SPIFFS_PAGE_TO_PADDR(pfs, pageIXData) + sizeof(SPIFFS_PAGE_HEADER),
+                                 SPIFFS_DATA_PAGE_SIZE(pfs) - uiBytesToRemove);
+            if (iRes != SPIFFS_OK) 
+                break;
+            // delete original data page
+            /* 直接删除原来的数据页面，因为有用的已经拷贝了 */
+            iRes = spiffsPageDelete(pfs, pageIXData);
+            if (iRes != SPIFFS_OK) 
+                break;
+            pageHeader.flags &= ~SPIFFS_PH_FLAG_FINAL;
+            iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_UPDT, pFd->fileN,
+                                    SPIFFS_PAGE_TO_PADDR(pfs, pageIXDataNew) + offsetof(SPIFFS_PAGE_HEADER, flags),
+                                    sizeof(UINT8), (PUCHAR)&pageHeader.flags);
+            if (iRes != SPIFFS_OK) 
+                break;
 
-    if (spanIXObjIXCur == 0) {
-        // get data page from object index header page
-        pageIXData = ((SPIFFS_PAGE_IX*)((UINT8 *)pObjIXHdr + sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER)))[spanIXData];
-        ((SPIFFS_PAGE_IX*)((UINT8 *)pObjIXHdr + sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER)))[spanIXData] = SPIFFS_OBJ_ID_FREE;
-    } else {
-        // get data page from object index page
-        pageIXData = ((SPIFFS_PAGE_IX*)((UINT8 *)pObjIX + sizeof(SPIFFS_PAGE_OBJECT_IX)))[SPIFFS_OBJ_IX_ENTRY(pfs, spanIXData)];
-        ((SPIFFS_PAGE_IX*)((UINT8 *)pObjIX + sizeof(SPIFFS_PAGE_OBJECT_IX)))[SPIFFS_OBJ_IX_ENTRY(pfs, spanIXData)] = SPIFFS_OBJ_ID_FREE;
-    }
-
-    SPIFFS_DBG("truncate: got data pix "_SPIPRIpg"\n", pageIXData);
-
-    if (uiNewSize == 0 || bIsRemoveFull || uiCurSize - uiNewSize >= SPIFFS_DATA_PAGE_SIZE(pfs)) {
-        // delete full data page
-        iRes = spiffs_page_data_check(pfs, pFd, pageIXData, spanIXData);
-        if (iRes != SPIFFS_ERR_DELETED && iRes != SPIFFS_OK && iRes != SPIFFS_ERR_INDEX_REF_FREE) {
-        SPIFFS_DBG("truncate: err validating data pix "_SPIPRIi"\n", iRes);
-        break;
-        }
-
-        if (iRes == SPIFFS_OK) {
-        iRes = spiffs_page_delete(pfs, pageIXData);
-        if (iRes != SPIFFS_OK) {
-            SPIFFS_DBG("truncate: err deleting data pix "_SPIPRIi"\n", iRes);
+            // update memory representation of object index page with new data page
+            /* 更新内存 IX Obj */
+            if (spanIXObjIXCur == 0) {
+                /* 如果是IX OBJ的第0页 */
+                // update object index header page
+                ((SPIFFS_PAGE_IX*)((UINT8 *)pObjIXHdr + sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER)))[spanIXData] = pageIXDataNew;
+                SPIFFS_DBG("truncate: wrote page "_SPIPRIpg" to pObjIXHdr iEntry "_SPIPRIsp" in mem\n", 
+                           pageIXDataNew, (SPIFFS_SPAN_IX)SPIFFS_OBJ_IX_ENTRY(pfs, spanIXData));
+            } 
+            else {
+                /* 如果是IX OBJ的非第0页 */
+                // update object index page
+                ((SPIFFS_PAGE_IX*)((UINT8 *)pObjIX + sizeof(SPIFFS_PAGE_OBJECT_IX)))[SPIFFS_OBJ_IX_ENTRY(pfs, spanIXData)] = pageIXDataNew;
+                SPIFFS_DBG("truncate: wrote page "_SPIPRIpg" to pObjIX iEntry "_SPIPRIsp" in mem\n", pageIXDataNew, (SPIFFS_SPAN_IX)SPIFFS_OBJ_IX_ENTRY(pfs, spanIXData));
+            }
+            uiCurSize = uiNewSize;
+            pFd->uiSize = uiNewSize;
+            pFd->uiOffset = uiCurSize;
             break;
         }
-        } else if (iRes == SPIFFS_ERR_DELETED || iRes == SPIFFS_ERR_INDEX_REF_FREE) {
-        iRes = SPIFFS_OK;
-        }
-
-        // update current uiSize
-        if (uiCurSize % SPIFFS_DATA_PAGE_SIZE(pfs) == 0) {
-        uiCurSize -= SPIFFS_DATA_PAGE_SIZE(pfs);
-        } else {
-        uiCurSize -= uiCurSize % SPIFFS_DATA_PAGE_SIZE(pfs);
-        }
-        pFd->uiSize = uiCurSize;
-        pFd->uiOffset = uiCurSize;
-        SPIFFS_DBG("truncate: delete data page "_SPIPRIpg" for data spix:"_SPIPRIsp", uiCurSize:"_SPIPRIi"\n", pageIXData, spanIXData, uiCurSize);
-    } else {
-        // delete last page, partially
-        SPIFFS_PAGE_HEADER p_hdr;
-        SPIFFS_PAGE_IX new_data_pix;
-        UINT32 bytes_to_remove = SPIFFS_DATA_PAGE_SIZE(pfs) - (uiNewSize % SPIFFS_DATA_PAGE_SIZE(pfs));
-        SPIFFS_DBG("truncate: delete "_SPIPRIi" bytes from data page "_SPIPRIpg" for data spix:"_SPIPRIsp", uiCurSize:"_SPIPRIi"\n", bytes_to_remove, pageIXData, spanIXData, uiCurSize);
-
-        iRes = spiffs_page_data_check(pfs, pFd, pageIXData, spanIXData);
-        if (iRes != SPIFFS_OK) break;
-
-        p_hdr.objId = pFd->objId & ~SPIFFS_OBJ_ID_IX_FLAG;
-        p_hdr.span_ix = spanIXData;
-        p_hdr.flags = 0xff;
-        // allocate new page and copy unmodified data
-        iRes = spiffs_page_allocate_data(pfs, pFd->objId & ~SPIFFS_OBJ_ID_IX_FLAG,
-            &p_hdr, 0, 0, 0, 0, &new_data_pix);
-        if (iRes != SPIFFS_OK) break;
-        iRes = spiffs_phys_cpy(pfs, 0,
-            SPIFFS_PAGE_TO_PADDR(pfs, new_data_pix) + sizeof(SPIFFS_PAGE_HEADER),
-            SPIFFS_PAGE_TO_PADDR(pfs, pageIXData) + sizeof(SPIFFS_PAGE_HEADER),
-            SPIFFS_DATA_PAGE_SIZE(pfs) - bytes_to_remove);
-        if (iRes != SPIFFS_OK) break;
-        // delete original data page
-        iRes = spiffs_page_delete(pfs, pageIXData);
-        if (iRes != SPIFFS_OK) break;
-        p_hdr.flags &= ~SPIFFS_PH_FLAG_FINAL;
-        iRes = _spiffs_wr(pfs, SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_UPDT,
-            pFd->fileN,
-            SPIFFS_PAGE_TO_PADDR(pfs, new_data_pix) + offsetof(SPIFFS_PAGE_HEADER, flags),
-            sizeof(UINT8),
-            (UINT8 *)&p_hdr.flags);
-        if (iRes != SPIFFS_OK) break;
-
-        // update memory representation of object index page with new data page
-        if (spanIXObjIXCur == 0) {
-        // update object index header page
-        ((SPIFFS_PAGE_IX*)((UINT8 *)pObjIXHdr + sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER)))[spanIXData] = new_data_pix;
-        SPIFFS_DBG("truncate: wrote page "_SPIPRIpg" to pObjIXHdr entry "_SPIPRIsp" in mem\n", new_data_pix, (SPIFFS_SPAN_IX)SPIFFS_OBJ_IX_ENTRY(pfs, spanIXData));
-        } else {
-        // update object index page
-        ((SPIFFS_PAGE_IX*)((UINT8 *)pObjIX + sizeof(SPIFFS_PAGE_OBJECT_IX)))[SPIFFS_OBJ_IX_ENTRY(pfs, spanIXData)] = new_data_pix;
-        SPIFFS_DBG("truncate: wrote page "_SPIPRIpg" to pObjIX entry "_SPIPRIsp" in mem\n", new_data_pix, (SPIFFS_SPAN_IX)SPIFFS_OBJ_IX_ENTRY(pfs, spanIXData));
-        }
-        uiCurSize = uiNewSize;
-        pFd->uiSize = uiNewSize;
-        pFd->uiOffset = uiCurSize;
-        break;
-    }
-    spanIXData--;
+        spanIXData--;
     } // while all data
 
     // update object indices
     if (spanIXObjIXCur == 0) {
-    // update object index header page
-    if (uiCurSize == 0) {
-        if (bIsRemoveFull) {
-        // remove object altogether
-        SPIFFS_DBG("truncate: remove object index header page "_SPIPRIpg"\n", pageIXObjIX);
-
-        iRes = spiffs_page_index_check(pfs, pFd, pageIXObjIX, 0);
-        SPIFFS_CHECK_RES(iRes);
-
-        iRes = spiffs_page_delete(pfs, pageIXObjIX);
-        SPIFFS_CHECK_RES(iRes);
-        spiffs_cb_object_event(pfs, (SPIFFS_PAGE_OBJECT_IX *)0,
-            SPIFFS_EV_IX_DEL, pFd->objId, 0, pageIXObjIX, 0);
-        } else {
-        // make uninitialized object
-        SPIFFS_DBG("truncate: reset pObjIXHdr page "_SPIPRIpg"\n", pageIXObjIX);
-        memset(pfs->pucWorkBuffer + sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER), 0xff,
-            SPIFFS_CFG_LOG_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER));
-        iRes = spiffs_object_update_index_hdr(pfs, pFd, pFd->objId,
-            pageIXObjIX, pfs->pucWorkBuffer, 0, 0, SPIFFS_UNDEFINED_LEN, &newPageIXObjIXHdr);
-        SPIFFS_CHECK_RES(iRes);
-        }
-    } else {
         // update object index header page
-        SPIFFS_DBG("truncate: update object index header page with indices and uiSize\n");
-        iRes = spiffs_object_update_index_hdr(pfs, pFd, pFd->objId,
-            pageIXObjIX, pfs->pucWorkBuffer, 0, 0, uiCurSize, &newPageIXObjIXHdr);
+        if (uiCurSize == 0) {
+            if (bIsRemoveFull) {
+                // remove object altogether
+                SPIFFS_DBG("truncate: remove object index header page "_SPIPRIpg"\n", pageIXObjIX);
+
+                iRes = spiffsPageIndexCheck(pfs, pFd, pageIXObjIX, 0);
+                SPIFFS_CHECK_RES(iRes);
+
+                iRes = spiffsPageDelete(pfs, pageIXObjIX);
+                SPIFFS_CHECK_RES(iRes);
+                spiffsCBObjectEvent(pfs, (SPIFFS_PAGE_OBJECT_IX *)0,
+                                    SPIFFS_EV_IX_DEL, pFd->objId, 0, pageIXObjIX, 0);
+            } 
+            else {
+                // make uninitialized object
+                SPIFFS_DBG("truncate: reset pObjIXHdr page "_SPIPRIpg"\n", pageIXObjIX);
+                memset(pfs->pucWorkBuffer + sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER), 0xff,
+                       SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER));
+                iRes = spiffsObjectUpdateIndexHdr(pfs, pFd, pFd->objId, pageIXObjIX, 
+                                                  pfs->pucWorkBuffer, LW_NULL, SPIFFS_UNDEFINED_LEN, 
+                                                  &newPageIXObjIXHdr);
+                SPIFFS_CHECK_RES(iRes);
+            }
+        } 
+        else {
+            // update object index header page
+            SPIFFS_DBG("truncate: update object index header page with indices and uiSize\n");
+            iRes = spiffsObjectUpdateIndexHdr(pfs, pFd, pFd->objId, pageIXObjIX, pfs->pucWorkBuffer, 
+                                              LW_NULL, uiCurSize, &newPageIXObjIXHdr);
+            SPIFFS_CHECK_RES(iRes);
+        }
+    } 
+    else {
+        // update both current object index page and object index header page
+        SPIFFS_PAGE_IX pageIXObjIXNew;
+
+        iRes = spiffsPageIndexCheck(pfs, pFd, pageIXObjIX, spanIXObjIXCur);
         SPIFFS_CHECK_RES(iRes);
-    }
-    } else {
-    // update both current object index page and object index header page
-    SPIFFS_PAGE_IX new_objix_pix;
 
-    iRes = spiffs_page_index_check(pfs, pFd, pageIXObjIX, spanIXObjIXCur);
-    SPIFFS_CHECK_RES(iRes);
-
-    // move and update object index page
-    iRes = spiffs_page_move(pfs, pFd->fileN, (UINT8*)pObjIXHdr, pFd->objId, 0, pageIXObjIX, &new_objix_pix);
-    SPIFFS_CHECK_RES(iRes);
-    spiffs_cb_object_event(pfs, (SPIFFS_PAGE_OBJECT_IX *)pObjIXHdr,
-        SPIFFS_EV_IX_UPD, pFd->objId, pObjIX->p_hdr.span_ix, new_objix_pix, 0);
-    SPIFFS_DBG("truncate: store modified pObjIX page, "_SPIPRIpg":"_SPIPRIsp"\n", new_objix_pix, spanIXObjIXCur);
-    pFd->cursor_objix_pix = new_objix_pix;
-    pFd->cursor_objix_spix = spanIXObjIXCur;
-    pFd->uiOffset = uiCurSize;
-    // update object index header page with new uiSize
-    iRes = spiffs_object_update_index_hdr(pfs, pFd, pFd->objId,
-        pFd->pageIXObjIXHdr, 0, 0, 0, uiCurSize, &newPageIXObjIXHdr);
-    SPIFFS_CHECK_RES(iRes);
+        // move and update object index page
+        iRes = spiffsPageMove(pfs, pFd->fileN, (UINT8*)pObjIXHdr, pFd->objId, LW_NULL, 
+                              pageIXObjIX, &pageIXObjIXNew);
+        SPIFFS_CHECK_RES(iRes);
+        spiffsCBObjectEvent(pfs, (SPIFFS_PAGE_OBJECT_IX *)pObjIXHdr, SPIFFS_EV_IX_UPD, 
+                            pFd->objId, pObjIX->pageHdr.spanIX, pageIXObjIXNew, 0);
+        SPIFFS_DBG("truncate: store modified pObjIX page, "_SPIPRIpg":"_SPIPRIsp"\n", pageIXObjIXNew, spanIXObjIXCur);
+        pFd->pageIXObjIXCursor = pageIXObjIXNew;
+        pFd->spanIXObjIXCursor = spanIXObjIXCur;
+        pFd->uiOffset = uiCurSize;
+        // update object index header page with new uiSize
+        iRes = spiffsObjectUpdateIndexHdr(pfs, pFd, pFd->objId, pFd->pageIXObjIXHdr, 
+                                          LW_NULL, LW_NULL, uiCurSize, &newPageIXObjIXHdr);
+        SPIFFS_CHECK_RES(iRes);
     }
     pFd->uiSize = uiCurSize;
-
     return iRes;
+}
+/*********************************************************************************************************
+** 函数名称: spiffsFileWrite
+** 功能描述: 向一个文件中写入
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 spiffsFileWrite(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, 
+                      UINT32 uiOffset, INT32 iLen){
+    (VOID)pfs;
+    INT32       iRes = SPIFFS_OK;
+    INT32       iRemaining = iLen;
+    PSPIFFS_FD  pFd;
+    PUCHAR      pData = (PUCHAR)pContent; 
+    
+    spiffsFdGet(pfs, fileHandler, &pFd);
+    
+    if (pFd->uiSize != SPIFFS_UNDEFINED_LEN && 
+        uiOffset < pFd->uiSize) {
+        INT32 iMinLen = MIN((INT32)(pFd->uiSize - uiOffset), iLen);
+        iRes = spiffsObjectModify(pFd, uiOffset, pData, iMinLen);
+        SPIFFS_CHECK_RES(iRes);
+        iRemaining -= iMinLen;
+        pData += iMinLen;
+        uiOffset += iMinLen;
+    }
+    if (iRemaining > 0) {
+        iRes = spiffsObjectAppend(pFd, uiOffset, pData, iRemaining);
+        SPIFFS_CHECK_RES(iRes);
+    }
+    return iLen;
+}
+/*********************************************************************************************************
+** 函数名称: spiffsObjectTruncate
+** 功能描述: 用于截断一个Object
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 spiffsFileRead(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, INT32 iLen) {
+    //SPIFFS_API_CHECK_CFG(pfs);
+    SPIFFS_API_CHECK_MOUNT(pfs);
+    //SPIFFS_LOCK(pfs);
+
+    PSPIFFS_FD pFd;
+    INT32 iRes;
+
+    fileHandler = fileHandler;
+    iRes = spiffsFdGet(pfs, fileHandler, &pFd);
+
+    //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+
+    if ((pFd->flags & SPIFFS_O_RDONLY) == 0) {
+        iRes = SPIFFS_ERR_NOT_READABLE;
+        //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+    }
+
+    if (pFd->uiSize == SPIFFS_UNDEFINED_LEN 
+        && iLen > 0) {
+        // special case for zero sized files
+        iRes = SPIFFS_ERR_END_OF_OBJECT;
+        //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+    }
+
+    spiffsCacheFflush(pfs, fileHandler);
+
+
+    if (pFd->fdoffset + iLen >= pFd->uiSize) {
+    // reading beyond file uiSize
+    INT32 avail = pFd->uiSize - pFd->fdoffset;
+    if (avail <= 0) {
+        SPIFFS_API_CHECK_RES_UNLOCK(pfs, SPIFFS_ERR_END_OF_OBJECT);
+    }
+    iRes = spiffs_object_read(pFd, pFd->fdoffset, avail, (u8_t*)pContent);
+    if (iRes == SPIFFS_ERR_END_OF_OBJECT) {
+        pFd->fdoffset += avail;
+        SPIFFS_UNLOCK(pfs);
+        return avail;
+    } else {
+        SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+        iLen = avail;
+    }
+    } else {
+    // reading within file uiSize
+    iRes = spiffs_object_read(pFd, pFd->fdoffset, iLen, (u8_t*)pContent);
+    SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+    }
+    pFd->fdoffset += iLen;
+
+    SPIFFS_UNLOCK(pfs);
+
+    return iLen;
 }

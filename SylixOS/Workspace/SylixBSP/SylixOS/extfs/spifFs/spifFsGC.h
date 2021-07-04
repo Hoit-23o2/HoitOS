@@ -40,6 +40,7 @@ typedef struct spiffs_gc{
   UINT8 uiObjIdFound;
 } SPIFFS_GC;
 
+
 INT32 spiffsPageMove(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PUCHAR pucPageData,
                      SPIFFS_OBJ_ID objId, PSPIFFS_PAGE_HEADER pPageHeader, SPIFFS_PAGE_IX pageIXSrc,
                      SPIFFS_PAGE_IX *pPageIXDst);

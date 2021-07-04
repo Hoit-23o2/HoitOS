@@ -20,6 +20,7 @@
 *********************************************************************************************************/
 #include "spifFsCache.h"
 #include "spifFsFDLib.h"
+#include "spifFsLib.h"
 #include "../SylixOS/driver/mtd/nor/nor.h"
 
 #define WRITE_BACK 1
@@ -398,7 +399,7 @@ PSPIFFS_CACHE_PAGE spiffsCachePageGetByFd(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd){
         pCachePage = SPIFFS_GET_CACHE_PAGE_HDR(pfs, pCache, i);
         if(SPIFFS_CHECK_CACHE_PAGE_VALID(pCache, i) &&
            (pCachePage->flags & SPIFFS_CACHE_FLAG_TYPE_WR) &&
-           pCachePage->objId == pFd->objId){
+            pCachePage->objId == pFd->objId){
             return pCachePage;
         }
     }
@@ -431,7 +432,6 @@ VOID spiffsCacheFdRelease(PSPIFFS_VOLUME pfs, PSPIFFS_CACHE_PAGE pCachePage){
     pCachePage->objId = 0;
     return;
 }
-
 /*********************************************************************************************************
 ** 函数名称: spiffsCacheFflush
 ** 功能描述: 把与文件fileHandler相关的CacheWrite都写回介质
@@ -442,21 +442,30 @@ VOID spiffsCacheFdRelease(PSPIFFS_VOLUME pfs, PSPIFFS_CACHE_PAGE pCachePage){
 ** 调用模块:
 *********************************************************************************************************/
 INT32 spiffsCacheFflush(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler){
+    (VOID)pfs;
+    (VOID)fileHandler;
     INT32 iRes = SPIFFS_OK;
-    PSPIFFS_FD pFd;
 
+    PSPIFFS_FD  pFd;
     iRes = spiffsFdGet(pfs, fileHandler, &pFd);
-    SPIFFS_CHECK_RES(iRes);
+    
+    SPIFFS_API_CHECK_RES(pfs, iRes);
 
-    if((pFd->flags & SPIFFS_O_DIRECT) == 0){
-        if(pFd->pCachePage == LW_NULL){
+    if ((pFd->flags & SPIFFS_O_DIRECT) == 0) {
+        if (pFd->pCachePage == LW_NULL) {
+            // see if object id is associated with cache already
             pFd->pCachePage = spiffsCachePageGetByFd(pfs, pFd);
         }
-
-        if(pFd->pCachePage){
-            SPIFFS_CACHE_DBG("CACHE_WR_DUMP: dumping cache page "_SPIPRIi" for fd "_SPIPRIfd":"_SPIPRIid", flush, offs:"_SPIPRIi" size:"_SPIPRIi"\n",
-                              pFd->pCachePage->uiIX, pFd->fileN,  pFd->objId, pFd->pCachePage->uiOffset, pFd->pCachePage->uiSize);
-            //TODO: 还未揭开面纱
+        if (pFd->pCachePage) {
+            SPIFFS_CACHE_DBG("CACHE_WR_DUMP: dumping cache page "_SPIPRIi" for pFd "_SPIPRIfd":"_SPIPRIid", flush, offs:"_SPIPRIi" size:"_SPIPRIi"\n",
+                             pFd->pCachePage->uiIX, pFd->fileN,  pFd->objId, pFd->pCachePage->uiOffset, pFd->pCachePage->uiSize);
+            iRes = spiffsFileWrite(pfs, fileHandler, SPIFFS_GET_CACHE_PAGE_CONTENT(pfs, SPIFFS_GET_CACHE_HDR(pfs), pFd->pCachePage->uiIX),
+                                   pFd->pCachePage->uiOffset, pFd->pCachePage->uiSize);
+            if (iRes < SPIFFS_OK) {
+                pfs->uiErrorCode = iRes;
+            }
+            spiffsCacheFdRelease(pfs, pFd->pCachePage);
         }
     }
+    return iRes;
 }

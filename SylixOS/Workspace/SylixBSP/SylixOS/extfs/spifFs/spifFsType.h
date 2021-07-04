@@ -436,6 +436,7 @@ typedef SPIFFS_PAGE_HEADER * PSPIFFS_PAGE_HEADER;
 /*********************************************************************************************************
  * SPIFFS IX页面内容头部
 *********************************************************************************************************/
+/* spanIX = 0的Index Page头部 */
 typedef struct spiffs_page_object_ix_header         /* SpanIndex为0时，即Index header */
 {
   // common page header
@@ -452,6 +453,7 @@ typedef struct spiffs_page_object_ix_header         /* SpanIndex为0时，即Index h
 typedef SPIFFS_PAGE_OBJECT_IX_HEADER * PSPIFFS_PAGE_OBJECT_IX_HEADER;
 
 // object index page header
+/* 普通Index 页面头部 */
 typedef struct spiffs_page_object_ix {
  SPIFFS_PAGE_HEADER pageHdr;
  UINT8 __align[4 - ((sizeof(SPIFFS_PAGE_HEADER) & 3) == 0 ? 4 : (sizeof(SPIFFS_PAGE_HEADER) & 3))];
@@ -483,6 +485,7 @@ typedef SPIFFS_FREE_OBJ_ID_STATE * PSPIFFS_FREE_OBJ_ID_STATE;
 #define SPIFFS_CFG_PHYS_ERASE_SZ(pfs)               ((pfs)->cfg.uiPhysEraseBlkSize)
 #define SPIFFS_CFG_PHYS_ADDR(pfs)                   ((pfs)->cfg.uiPhysAddr)
 
+#define SPIFFS_MAX_PAGES(pfs)                            (SPIFFS_CFG_PHYS_SZ(pfs)/SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) )
 /* 每个块有不同的 MAGIC NUM */
 #define SPIFFS_MAGIC(pfs, blkIX)                    ((SPIFFS_OBJ_ID)(SPIFFS_CONFIG_MAGIC ^ SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) ^\
                                                     ((pfs)->uiBlkCount - (blkIX))))
@@ -523,8 +526,9 @@ typedef SPIFFS_FREE_OBJ_ID_STATE * PSPIFFS_FREE_OBJ_ID_STATE;
                                                         (1 + ((spanIX) - SPIFFS_OBJ_HDR_IX_LEN(pfs)) / SPIFFS_OBJ_IX_LEN(pfs)))
 /* 将page转化为Entry号 */
 #define SPIFFS_OBJ_LOOKUP_ENTRY_FOR_PAGE(pfs, pageIX)   ((pageIX) % SPIFFS_PAGES_PER_BLOCK(pfs) - SPIFFS_OBJ_LOOKUP_PAGES(pfs))
+
 /*********************************************************************************************************
- * SPIFFS IX Page相关
+ * SPIFFS IX 相关
 *********************************************************************************************************/
 // entries in an object header page index
 #define SPIFFS_OBJ_HDR_IX_LEN(pfs)  ((SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER)) \
@@ -559,6 +563,7 @@ if ((res) < SPIFFS_OK) { \
     return (res); \
 }
 
+/* 检查objIX是否合法 */
 #define SPIFFS_VALIDATE_OBJIX(pageHeader, objId, _spanIX) \
     if (((pageHeader).flags & SPIFFS_PH_FLAG_USED) != 0) return SPIFFS_ERR_IS_FREE; \
     if (((pageHeader).flags & SPIFFS_PH_FLAG_DELET) == 0) return SPIFFS_ERR_DELETED; \
@@ -566,5 +571,13 @@ if ((res) < SPIFFS_OK) { \
     if (((pageHeader).flags & SPIFFS_PH_FLAG_INDEX) != 0) return SPIFFS_ERR_NOT_INDEX; \
     if (((objId) & SPIFFS_OBJ_ID_IX_FLAG) == 0) return SPIFFS_ERR_NOT_INDEX; \
     if ((pageHeader).spanIX != (_spanIX)) return SPIFFS_ERR_INDEX_SPAN_MISMATCH;
-  
+/* 检查objData是否合法 */
+#define SPIFFS_VALIDATE_DATA(pageHeader, objId, _spanIX) \
+    if (((pageHeader).flags & SPIFFS_PH_FLAG_USED) != 0) return SPIFFS_ERR_IS_FREE; \
+    if (((pageHeader).flags & SPIFFS_PH_FLAG_DELET) == 0) return SPIFFS_ERR_DELETED; \
+    if (((pageHeader).flags & SPIFFS_PH_FLAG_FINAL) != 0) return SPIFFS_ERR_NOT_FINALIZED; \
+    if (((pageHeader).flags & SPIFFS_PH_FLAG_INDEX) == 0) return SPIFFS_ERR_IS_INDEX; \
+    if ((objId) & SPIFFS_OBJ_ID_IX_FLAG) return SPIFFS_ERR_IS_INDEX; \
+    if ((pageHeader).spanIX != (_spanIX)) return SPIFFS_ERR_DATA_SPAN_MISMATCH;
+
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFFSTYPE_H_ */
