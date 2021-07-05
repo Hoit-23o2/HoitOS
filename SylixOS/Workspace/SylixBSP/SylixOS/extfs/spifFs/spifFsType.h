@@ -393,32 +393,33 @@ typedef SPIFFS_CACHE * PSPIFFS_CACHE;
 // spiffs nucleus file descriptor
 typedef struct spiffs_fd{
     // the filesystem of this descriptor
-    PSPIFFS_VOLUME pfs;
+    PSPIFFS_VOLUME pfs;                 /* 文件头 */
     // number of file descriptor - if 0, the file descriptor is closed, 下标？
-    SPIFFS_FILE fileN;
+    SPIFFS_FILE fileN;                  /* 文件描述符编号，理解为文件句柄 */
     // object id - if SPIFFS_OBJ_ID_ERASED, the file was deleted
-    SPIFFS_OBJ_ID objId;
-    // size of the file
-    UINT32 uiSize;
+    SPIFFS_OBJ_ID objId;                /* 该文件的ObjID */
+    // size of the file         
+    UINT32 uiSize;                      /* 文件大小 */
     // cached object index header page index
-    SPIFFS_PAGE_IX pageIXObjIXHdr;
+    SPIFFS_PAGE_IX pageIXObjIXHdr;      /* 第0个IndexPage的Page IX */
     // cached offset object index page index
-    SPIFFS_PAGE_IX pageIXObjIXCursor;
+    SPIFFS_PAGE_IX pageIXObjIXCursor;   /* 当前最后一个Page的Page IX？ */
     // cached offset object index span index
-    SPIFFS_SPAN_IX spanIXObjIXCursor;
+    SPIFFS_SPAN_IX spanIXObjIXCursor;   /* 当前最后一个Page的Span IX */
     // current absolute offset
-    UINT32 uiOffset;
+    UINT32 uiOffset;                    /* 当前的绝对偏移 */
     // current file descriptor offset (cached)
-    UINT32 uiFdOffset;
+    UINT32 uiFdOffset;                  /* 相对偏移吗？ */
     // fd flags
-    SPIFFS_FLAGS flags;
-    PSPIFFS_CACHE_PAGE pCachePage;
+    SPIFFS_FLAGS flags;                 /* 文件标志位 */
+    PSPIFFS_CACHE_PAGE pCachePage;      /* 缓存的页面 */
     // djb2 hash of filename
-    UINT32 uiNameHash;
+    UINT32 uiNameHash;                  /* 文件名Hash */
     // hit score (score == 0 indicates never used fd)
-    UINT16 uiScore;
+    UINT16 uiScore;                     /* 得分 */
     // spiffs index map, if 0 it means unmapped
-    PSPIFFS_IX_MAP pIXMap;
+    //TODO: Map
+    PSPIFFS_IX_MAP pIXMap;              /* Fast Map，暂时未 */
 } SPIFFS_FD;
 typedef SPIFFS_FD * PSPIFFS_FD;
 /*********************************************************************************************************

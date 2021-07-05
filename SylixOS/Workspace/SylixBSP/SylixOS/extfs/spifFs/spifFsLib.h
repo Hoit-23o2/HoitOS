@@ -93,7 +93,7 @@ INT32 spiffsPageAllocateData(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, PSPIFFS_PA
 INT32 spiffsObjectCreate(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId,
                          const UCHAR cPath[], SPIFFS_OBJ_TYPE type, SPIFFS_PAGE_IX* pObjIndexHdrPageIX);
 INT32 spiffsObjectTruncate(PSPIFFS_FD pFd, UINT32 uiNewSize, BOOL bIsRemoveFull); 
-//TODO£ºspiffsObjectAppend¡¢spiffsObjectModify¡¢spiffsObjectRead¡¢ spiffsFileWrite¡¢ spiffsFileRead
+//TODO£ºspiffsObjectAppend¡¢--spiffsObjectModify(Íê³É)--¡¢spiffsObjectRead¡¢ spiffsFileWrite¡¢ spiffsFileRead
 INT32 spiffsObjectAppend(PSPIFFS_FD pFd, UINT32 uiNewSize, BOOL bIsRemoveFull, UINT32 uiLen);
 INT32 spiffsObjectModify(PSPIFFS_FD pFd, UINT32 uiOffset, PUCHAR pContent, UINT32 uiLen);
 INT32 spiffsObjectRead(PSPIFFS_FD fd, UINT32 uiOffset, UINT32 uiLen, PUCHAR puDst);

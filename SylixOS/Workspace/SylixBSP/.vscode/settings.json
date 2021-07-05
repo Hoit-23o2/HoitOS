@@ -67,5 +67,6 @@
         "spiffsfdlib.h": "c",
         "spiffsgc.h": "c",
         "string_view": "c"
-    }
+    },
+    "workbench.preferredDarkColorTheme": "Solarized Dark"
 }
