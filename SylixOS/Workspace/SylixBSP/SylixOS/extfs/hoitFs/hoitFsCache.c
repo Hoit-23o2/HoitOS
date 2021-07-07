@@ -33,9 +33,6 @@
                                                 LW_OPTION_WAIT_INFINITE)
 #define __HOITFS_CACHE_UNLOCK(pcacheHdr)        API_SemaphoreMPost(pcacheHdr->HOITCACHE_hLock)
 
-#define HOIT_FILTER_EBS_ENTRY_SIZE                  (sizeof(PHOIT_EBS_ENTRY))               /* 即8B */
-#define HOIT_FILTER_PAGE_SIZE                       (sizeof(PHOIT_EBS_ENTRY) * ( 8 - 1 ))   /* 即56B，7倍的EBS entry size */
-#define HOIT_FILTER_EBS_AREA_SIZE(pcacheHdr)        (pcacheHdr->HOITCACHE_PageAmount * HOIT_FILTER_EBS_ENTRY_SIZE)
 /*********************************************************************************************************
                                            API 函数
 *********************************************************************************************************/
@@ -314,6 +311,7 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
     PHOIT_CACHE_BLK         pcache;
     PHOIT_ERASABLE_SECTOR   pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
     
+    //! 22021-07-07 既然这个写函数主要用于标记过期，改成写不分配以及FIFO比较好
     while(uiSize != 0) {
         size_t  stBufSize = (cacheBlkSize - stStart);
         i = (uiOfs + writeBytes)/cacheBlkSize;
@@ -325,24 +323,25 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
         pcache = hoitCheckCacheHit(pcacheHdr, i);
         if (stBufSize > uiSize) { /* 不用写满整个sector */
             if (pcache == LW_NULL) { /* 未命中 */
-                pcache = hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA, pSector);
-                if (pcache == LW_NULL) { /* 未成功分配cache，直接写入flash */                      
-                    write_nor(writeAddr, pContent, uiSize, WRITE_KEEP);
-                }
-                else { /* 成功分配cache，则写入cache */
-                    lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, uiSize);
-                }
+                // pcache = hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA, pSector);
+                // if (pcache == LW_NULL) { /* 未成功分配cache，直接写入flash */                      
+                //     write_nor(writeAddr, pContent, uiSize, WRITE_KEEP);
+                // }
+                // else { /* 成功分配cache，则写入cache */
+                //     lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, uiSize);
+                // }
+                write_nor(writeAddr, pContent, uiSize, WRITE_KEEP);
             } else {    /* cache命中则直接写入数据，并将链表提前到链表头 */
                 lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, uiSize);
                 //! 2021-07-04 ZN cache替换修改为LRU
-                pcache->HOITBLK_cacheListPrev->HOITBLK_cacheListNext = pcache->HOITBLK_cacheListNext;
-                pcache->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache->HOITBLK_cacheListPrev;
+                // pcache->HOITBLK_cacheListPrev->HOITBLK_cacheListNext = pcache->HOITBLK_cacheListNext;
+                // pcache->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache->HOITBLK_cacheListPrev;
                 
-                pcache->HOITBLK_cacheListPrev = pcacheHdr->HOITCACHE_cacheLineHdr;
-                pcache->HOITBLK_cacheListNext = pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext;
+                // pcache->HOITBLK_cacheListPrev = pcacheHdr->HOITCACHE_cacheLineHdr;
+                // pcache->HOITBLK_cacheListNext = pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext;
                 
-                pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache;
-                pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext = pcache;                
+                // pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache;
+                // pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext = pcache;                
             }
 
             writeBytes += uiSize;
@@ -357,24 +356,25 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
             break;
         } else { /* 写满整个sector */
             if (pcache == LW_NULL) { /* 未命中 */
-                pcache = hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA, pSector);
-                if (pcache == LW_NULL) { /* 未成功分配cache，直接写入flash */
-                    write_nor(writeAddr, pContent, stBufSize, WRITE_KEEP);
-                }
-                else { /* 成功分配cache，则写入cache */
-                    lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, stBufSize);
-                }
+                // pcache = hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA, pSector);
+                // if (pcache == LW_NULL) { /* 未成功分配cache，直接写入flash */
+                //     write_nor(writeAddr, pContent, stBufSize, WRITE_KEEP);
+                // }
+                // else { /* 成功分配cache，则写入cache */
+                //     lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, stBufSize);
+                // }
+                write_nor(writeAddr, pContent, uiSize, WRITE_KEEP);
             } else {
                 lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, stBufSize);
                 //! 2021-07-04 ZN cache替换修改为LRU
-                pcache->HOITBLK_cacheListPrev->HOITBLK_cacheListNext = pcache->HOITBLK_cacheListNext;
-                pcache->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache->HOITBLK_cacheListPrev;
+                // pcache->HOITBLK_cacheListPrev->HOITBLK_cacheListNext = pcache->HOITBLK_cacheListNext;
+                // pcache->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache->HOITBLK_cacheListPrev;
                 
-                pcache->HOITBLK_cacheListPrev = pcacheHdr->HOITCACHE_cacheLineHdr;
-                pcache->HOITBLK_cacheListNext = pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext;
+                // pcache->HOITBLK_cacheListPrev = pcacheHdr->HOITCACHE_cacheLineHdr;
+                // pcache->HOITBLK_cacheListNext = pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext;
                 
-                pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache;
-                pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext = pcache;                 
+                // pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache;
+                // pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext = pcache;                 
             }
 
             pucDest     += stBufSize;
@@ -431,7 +431,7 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
         return PX_ERROR;
     }
     
-    if ((size_t)uiSize > pcacheHdr->HOITCACHE_blockSize - pcacheHdr->HOITCACHE_EBSStartAddr) {
+    if ((size_t)uiSize > pcacheHdr->HOITCACHE_blockSize ) {
         return PX_ERROR;
     }
 
@@ -488,7 +488,7 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
 
     /* 当前写的块满了，则去找下一个仍有空闲的块 */
     //! 减去EBS区域
-    if (pSector->HOITS_uiFreeSize - pcacheHdr->HOITCACHE_EBSStartAddr == 0) {
+    if (pSector->HOITS_uiFreeSize  == 0) {
         pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
         i = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA, sizeof(HOIT_RAW_HEADER));
         if (i != PX_ERROR) {
@@ -606,7 +606,7 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
     case HOIT_CACHE_TYPE_DATA:
         pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector;
         /* 如果当前块写不下，找下一块 */
-        if (pSector->HOITS_uiFreeSize - pcacheHdr->HOITCACHE_EBSStartAddr < (size_t)uiSize) {
+        if (pSector->HOITS_uiFreeSize  < (size_t)uiSize) {
             pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
         } else {
             return pSector->HOITS_bno;
@@ -615,7 +615,7 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
         while (pSector != LW_NULL) {
             if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
                && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
-                if(pSector->HOITS_uiFreeSize - pcacheHdr->HOITCACHE_EBSStartAddr >= (size_t)uiSize) {
+                if(pSector->HOITS_uiFreeSize  >= (size_t)uiSize) {
                     return pSector->HOITS_bno;
                 }
             }
@@ -631,7 +631,7 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
         while (pSector != LW_NULL) {
             if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
                && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
-                if(pSector->HOITS_uiFreeSize - pcacheHdr->HOITCACHE_EBSStartAddr >= (size_t)uiSize) {
+                if(pSector->HOITS_uiFreeSize  >= (size_t)uiSize) {
                     return pSector->HOITS_bno;
                 }
             }
@@ -747,10 +747,8 @@ UINT32 hoitInitFilter(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiCacheBlockSize) {
     if (!pcacheHdr || uiCacheBlockSize < (HOIT_FILTER_EBS_ENTRY_SIZE+HOIT_FILTER_PAGE_SIZE)) {
         return PX_ERROR;
     }
-    pcacheHdr->HOITCACHE_EBSEntrySize   = HOIT_FILTER_EBS_ENTRY_SIZE;
-    pcacheHdr->HOITCACHE_PageSize       = HOIT_FILTER_PAGE_SIZE;
-    pcacheHdr->HOITCACHE_PageAmount     = uiCacheBlockSize/(pcacheHdr->HOITCACHE_EBSEntrySize+pcacheHdr->HOITCACHE_PageSize);
-    pcacheHdr->HOITCACHE_EBSStartAddr   = pcacheHdr->HOITCACHE_PageSize * pcacheHdr->HOITCACHE_PageAmount;
+    pcacheHdr->HOITCACHE_PageAmount     = uiCacheBlockSize/(HOIT_FILTER_EBS_ENTRY_SIZE+HOIT_FILTER_PAGE_SIZE);
+    pcacheHdr->HOITCACHE_EBSStartAddr   = HOIT_FILTER_PAGE_SIZE * pcacheHdr->HOITCACHE_PageAmount;
     return ERROR_NONE;
 }
 /*    

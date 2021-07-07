@@ -424,9 +424,9 @@ typedef struct HOIT_CACHE_HDR
     UINT32                  HOITCACHE_nextBlkToWrite;/* 下一个要输出的块 */
 
     //! 2021-07-04 ZN filter层
-    size_t                  HOITCACHE_EBSEntrySize; /* EBS enty大小 */
+    // size_t                  HOITCACHE_EBSEntrySize; /* EBS enty大小 */
     size_t                  HOITCACHE_EBSStartAddr; /* EBS 在sector中起始地址 */
-    size_t                  HOITCACHE_PageSize;     /* 单页大小 */
+    // size_t                  HOITCACHE_PageSize;     /* 单页大小 */
     size_t                  HOITCACHE_PageAmount;     /* 单个cache页数量 */
 }HOIT_CACHE_HDR;
 
