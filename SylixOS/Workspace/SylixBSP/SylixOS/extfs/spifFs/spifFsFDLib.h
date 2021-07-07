@@ -29,4 +29,5 @@ INT32 spiffsFdFindNew(PSPIFFS_VOLUME pfs, PSPIFFS_FD *ppfd, const PCHAR pcName);
 VOID  spiffsCBObjectEvent(PSPIFFS_VOLUME pfs, PSPIFFS_PAGE_OBJECT_IX objIX, INT ev,
                           SPIFFS_OBJ_ID objIdRaw, SPIFFS_SPAN_IX spanIX, SPIFFS_PAGE_IX pageIXNew,
                           UINT uiNewSize);
+VOID  spiffsFdTemporalCacheRehash(PSPIFFS_VOLUME pfs, const PCHAR pcOldPath, const PCHAR pcNewPath);
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFFSFDLIB_H_ */

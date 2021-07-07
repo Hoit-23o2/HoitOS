@@ -38,5 +38,13 @@ INT32       __spiffs_create(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_MODE 
 SPIFFS_FILE __spiffs_open(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_FLAGS flags, SPIFFS_MODE mode);
 SPIFFS_FILE __spiffs_open_by_dirent(PSPIFFS_VOLUME pfs, PSPIFFS_DIRENT pDirent, SPIFFS_FLAGS flags, SPIFFS_MODE mode);
 INT32       __spiffs_read(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, INT32 iLen);
+INT32       __spiffs_lseek(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, UINT32 uiOffset, INT iSeekFlag);
 
+INT32       __spiffs_remove(PSPIFFS_VOLUME pfs, const PCHAR pcPath);
+INT32       __spiffs_fremove(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler);
+
+INT32       __spiffs_stat(PSPIFFS_VOLUME pfs, const PCHAR pcPath, PSPIFFS_STAT pStat); 
+INT32       __spiffs_fstat(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PSPIFFS_STAT pStat);
+INT32       __spiffs_fflush(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler);
+INT32       __spiffs_close(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler);
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFFSGLUE_H_ */

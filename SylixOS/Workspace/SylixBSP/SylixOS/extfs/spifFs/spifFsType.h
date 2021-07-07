@@ -304,12 +304,12 @@ typedef SPIFFS_VOLUME * PSPIFFS_VOLUME;
 /*********************************************************************************************************
  * SPIFFS文件状态描述
 *********************************************************************************************************/
-typedef struct spiffs_stat{
+typedef struct spiffs_stat {
     SPIFFS_OBJ_ID objID;
     UINT32 uiSize;
     SPIFFS_OBJ_TYPE objType;
     SPIFFS_PAGE_IX pageIX;
-    UCHAR name[SPIFFS_OBJ_NAME_LEN];
+    UCHAR ucName[SPIFFS_OBJ_NAME_LEN];
 } SPIFFS_STAT;
 typedef SPIFFS_STAT * PSPIFFS_STAT;
 /*********************************************************************************************************
@@ -320,7 +320,7 @@ typedef struct spiffs_dirent{
     UINT32 uiSize;
     SPIFFS_OBJ_TYPE objType;
     SPIFFS_PAGE_IX pageIX;
-    UCHAR name[SPIFFS_OBJ_NAME_LEN];
+    UCHAR ucName[SPIFFS_OBJ_NAME_LEN];
 } SPIFFS_DIRENT;
 typedef SPIFFS_DIRENT * PSPIFFS_DIRENT;
 /*********************************************************************************************************
@@ -401,7 +401,7 @@ typedef struct spiffs_fd{
     // size of the file         
     UINT32 uiSize;                      /* 文件大小 */
     // cached object index header page index
-    SPIFFS_PAGE_IX pageIXObjIXHdr;      /* 第0个IndexPage的Page IX */
+    SPIFFS_PAGE_IX pageIXObjIXHdr;      /* 第0个（SpanIX = 0）IndexPage的Page IX */
     // cached offset object index page index
     SPIFFS_PAGE_IX pageIXObjIXCursor;   /* 当前最后一个Page的Page IX？ */
     // cached offset object index span index
@@ -409,7 +409,7 @@ typedef struct spiffs_fd{
     // current absolute offset
     UINT32 uiOffset;                    /* 当前的绝对偏移 */
     // current file descriptor offset (cached)
-    UINT32 uiFdOffset;                  /* 相对偏移吗？ */
+    UINT32 uiFdOffset;                  /* 相对偏移吗？（可能是文件内部指针） */
     // fd flags
     SPIFFS_FLAGS flags;                 /* 文件标志位 */
     PSPIFFS_CACHE_PAGE pCachePage;      /* 缓存的页面 */

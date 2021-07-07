@@ -37,7 +37,7 @@ INT32 spiffsFdGet(PSPIFFS_VOLUME pfs, SPIFFS_FILE file, PSPIFFS_FD *ppfd) {
 }
 /*********************************************************************************************************
 ** 函数名称: spiffsFdReturn
-** 功能描述: 检查文件描述符，并返回
+** 功能描述: 释放一个文件描述符
 ** 输　入  : pfs          文件头
 **           file         文件号
 ** 输　出  : None
@@ -79,7 +79,7 @@ INT32 spiffsFdFindNew(PSPIFFS_VOLUME pfs, PSPIFFS_FD *ppfd, const PCHAR pcName){
 			pCurFd = &pFds[i];
 			if (pCurFd->fileN == 0) {
 				if (pCurFd->uiScore > 1) { // score == 0 indicates never used fd
-				pCurFd->uiScore--;
+					pCurFd->uiScore--;
 				}
 			}
 		}
@@ -111,10 +111,10 @@ INT32 spiffsFdFindNew(PSPIFFS_VOLUME pfs, PSPIFFS_FD *ppfd, const PCHAR pcName){
 				pfs->objLookupEntryCursor = SPIFFS_OBJ_LOOKUP_ENTRY_FOR_PAGE(pfs, pCurFd->pageIXObjIXHdr);
 				// update score
 				if (pCurFd->uiScore < INT16_MAX - SPIFFS_TEMPORAL_CACHE_HIT_SCORE) {
-				pCurFd->uiScore += SPIFFS_TEMPORAL_CACHE_HIT_SCORE;
+					pCurFd->uiScore += SPIFFS_TEMPORAL_CACHE_HIT_SCORE;
 				} 
 				else {
-				pCurFd->uiScore = INT16_MAX;
+					pCurFd->uiScore = INT16_MAX;
 				}
 			} 
 			else {
@@ -245,5 +245,27 @@ VOID spiffsCBObjectEvent(PSPIFFS_VOLUME pfs, PSPIFFS_PAGE_OBJECT_IX objIX, INT e
 					return; // bail out
 			}
 			pfs->fileCallbackFunc(pfs, op, objId, pageIXNew);
+	}
+}
+/*********************************************************************************************************
+** 函数名称: spiffsFdTemporalCacheRehash
+** 功能描述: 修改内存中的Fd对应名字的hash
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID spiffsFdTemporalCacheRehash(PSPIFFS_VOLUME pfs, const PCHAR pcOldPath, const PCHAR pcNewPath) {
+	UINT32 i;
+	UINT32 uiOldHash = hash((const PUCHAR)pcOldPath, SPIFFS_OBJ_NAME_LEN);
+	UINT32 uiNewHash = hash((const PUCHAR)pcNewPath, SPIFFS_OBJ_NAME_LEN);
+	PSPIFFS_FD pFds = (PSPIFFS_FD)pfs->pucFdSpace;
+	for (i = 0; i < pfs->uiFdCount; i++) {
+		PSPIFFS_FD pFdCur = &pFds[i];
+		if (pFdCur->uiScore > 0 && pFdCur->uiNameHash == uiOldHash) {
+			pFdCur->uiNameHash = uiNewHash;
+		}
 	}
 }

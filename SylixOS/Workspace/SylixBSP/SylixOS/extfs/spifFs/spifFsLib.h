@@ -90,17 +90,22 @@ INT32 spiffsPageAllocateData(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, PSPIFFS_PA
 /*********************************************************************************************************
  * SPIFFS Object 相关
 *********************************************************************************************************/
+INT32 spiffsObjectUpdateIndexHdr(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd, SPIFFS_OBJ_ID objId, SPIFFS_PAGE_IX pageIXObjIXHdr,
+                                 PUCHAR pucNewObjIXHdrData , const UCHAR ucName[], UINT32 uiSize, SPIFFS_PAGE_IX *pageIXNew);
+INT32 spiffsObjectOpenByPage(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX, PSPIFFS_FD pFd, SPIFFS_FLAGS flags, SPIFFS_MODE mode);
+
 INT32 spiffsObjectCreate(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId,
                          const UCHAR cPath[], SPIFFS_OBJ_TYPE type, SPIFFS_PAGE_IX* pObjIndexHdrPageIX);
 INT32 spiffsObjectTruncate(PSPIFFS_FD pFd, UINT32 uiNewSize, BOOL bIsRemoveFull); 
-//TODO：spiffsObjectAppend、--spiffsObjectModify(完成)--、spiffsObjectRead、 spiffsFileWrite、 spiffsFileRead
-INT32 spiffsObjectAppend(PSPIFFS_FD pFd, UINT32 uiNewSize, BOOL bIsRemoveFull, UINT32 uiLen);
+//DONE：--spiffsObjectAppend(完成)--、--spiffsObjectModify(完成)--、--spiffsObjectRead(完成)--、 
+//DONE: --spiffsFileWrite(完成)--、 --spiffsFileRead(完成)--
+INT32 spiffsObjectAppend(PSPIFFS_FD pFd, UINT32 uiOffset, PUCHAR pContent, UINT32 uiLen);
 INT32 spiffsObjectModify(PSPIFFS_FD pFd, UINT32 uiOffset, PUCHAR pContent, UINT32 uiLen);
-INT32 spiffsObjectRead(PSPIFFS_FD fd, UINT32 uiOffset, UINT32 uiLen, PUCHAR puDst);
-
-INT32 spiffsObjectUpdateIndexHdr(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd, SPIFFS_OBJ_ID objId, SPIFFS_PAGE_IX pageIXObjIXHdr,
-                                 PUCHAR pucNewObjIXHdrData , const UCHAR ucName[], UINT32 uiSize, SPIFFS_PAGE_IX *pageIXNew);
-INT32 spiffsObjectOpenByPage(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX, PSPIFFS_FD pFd, SPIFFS_FLAGS flags, SPIFFS_MODE mode); 
+INT32 spiffsObjectRead(PSPIFFS_FD pFd, UINT32 uiOffset, UINT32 uiLen, PUCHAR puDst);
+/*********************************************************************************************************
+ * SPIFFS 其他工具
+*********************************************************************************************************/
+INT32 spiffsStatPageIX(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX, SPIFFS_FILE fileHandler, PSPIFFS_STAT pStat);
 /*********************************************************************************************************
  * SPIFFS 读写相关
 *********************************************************************************************************/

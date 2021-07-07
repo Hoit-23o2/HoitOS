@@ -585,7 +585,16 @@ INT32 spiffsObjLookUpFindFreeEntry(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIXStar
     }
     return iRes;
 }
-
+/*********************************************************************************************************
+** 函数名称: spiffsObjLookUpFindIdAndSpan
+** 功能描述: 用于寻找给定的ObjID与SpanIX，返回PageIX
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None 
+** 全局变量: 
+** 调用模块:
+*********************************************************************************************************/
 INT32 spiffsObjLookUpFindIdAndSpan(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, SPIFFS_SPAN_IX spanIX,
                                    SPIFFS_PAGE_IX pageIXExclusion, SPIFFS_PAGE_IX *pPageIX){
     INT32 iRes;
@@ -595,6 +604,20 @@ INT32 spiffsObjLookUpFindIdAndSpan(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, SPIF
     iRes = spiffsObjLookUpFindEntryVisitor(pfs, pfs->blkIXCursor, pfs->objLookupEntryCursor, SPIFFS_VIS_CHECK_ID, objId,
                                            __spiffsObjLookUpFindIdAndSpanVistor, pageIXExclusion ? &pageIXExclusion : LW_NULL,
                                            &spanIX, &blkIX, &iEntry);
+    if (iRes == SPIFFS_VIS_END) {
+        iRes = SPIFFS_ERR_NOT_FOUND;
+    }
+
+    SPIFFS_CHECK_RES(iRes);
+
+    if (pPageIX) {
+        *pPageIX = SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(pfs, blkIX, iEntry);
+    }
+
+    pfs->blkIXCursor = blkIX;
+    pfs->objLookupEntryCursor = iEntry;
+
+    return iRes;
 }
 /*********************************************************************************************************
 ** 函数名称: spiffsObjectFindObjectIndexHeaderByName
@@ -849,7 +872,7 @@ INT32 spiffsObjectUpdateIndexHdr(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd, SPIFFS_OBJ_
     if (uiSize) {
         objIXHdr->uiSize = uiSize;
     }
-
+    
     // move and update page
     //TODO: 为什么要移动页面，因为页面更新了
     iRes = spiffsPageMove(pfs, pFd == LW_NULL ? LW_NULL : pFd->fileN, 
@@ -1267,6 +1290,293 @@ INT32 spiffsObjectTruncate(PSPIFFS_FD pFd, UINT32 uiNewSize, BOOL bIsRemoveFull)
     pFd->uiSize = uiCurSize;
     return iRes;
 }
+//TODO:代码优化 + 思路整理
+/*********************************************************************************************************
+** 函数名称: spiffsObjectAppend
+** 功能描述: 用于追加写一个Object
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 spiffsObjectAppend(PSPIFFS_FD pFd, UINT32 uiOffset, PUCHAR pContent, UINT32 uiLen){
+    PSPIFFS_VOLUME pfs = pFd->pfs;
+    INT32 iRes = SPIFFS_OK;
+    UINT32 uiByteHasWritten = 0;
+
+    SPIFFS_DBG("append: "_SPIPRIi" bytes @ offs "_SPIPRIi" of uiSize "_SPIPRIi"\n", 
+                uiLen, uiOffset, pFd->uiSize);
+
+    if (uiOffset > pFd->uiSize) {
+        SPIFFS_DBG("append: uiOffset reversed to uiSize\n");
+        uiOffset = pFd->uiSize;
+    }
+
+    iRes = spiffsGCCheck(pfs, uiLen + SPIFFS_DATA_PAGE_SIZE(pfs)); // add an extra page of data worth for meta
+    if (iRes != SPIFFS_OK) {
+        SPIFFS_DBG("append: gc check fail "_SPIPRIi"\n", iRes);
+    }
+    SPIFFS_CHECK_RES(iRes);
+
+    PSPIFFS_PAGE_OBJECT_IX_HEADER objIXHdr = (PSPIFFS_PAGE_OBJECT_IX_HEADER)pfs->pucWorkBuffer;
+    PSPIFFS_PAGE_OBJECT_IX objIX = (PSPIFFS_PAGE_OBJECT_IX)pfs->pucWorkBuffer;
+    SPIFFS_PAGE_HEADER pageHeader;
+
+    SPIFFS_SPAN_IX spanIXObjIXCur = 0;
+    SPIFFS_SPAN_IX spanIXObjIXPrev = (SPIFFS_SPAN_IX)-1;
+    SPIFFS_PAGE_IX pageIXObjIXCur = pFd->pageIXObjIXHdr;
+    SPIFFS_PAGE_IX pageIXObjIXHdrNew;
+
+    SPIFFS_SPAN_IX spanIXObjData = uiOffset / SPIFFS_DATA_PAGE_SIZE(pfs);
+    SPIFFS_PAGE_IX pageIXObjData;
+    UINT32 uiPageOffset = uiOffset % SPIFFS_DATA_PAGE_SIZE(pfs);
+
+    // write all data
+    while (iRes == SPIFFS_OK && uiByteHasWritten < uiLen) {
+        // calculate object index page span index
+        spanIXObjIXCur = SPIFFS_OBJ_IX_ENTRY_SPAN_IX(pfs, spanIXObjData);   /* 根据当前Data页面的SpanIX获取当前Index页面的SpanIX */
+
+        // handle storing and loading of object indices
+        if (spanIXObjIXCur != spanIXObjIXPrev) {
+            // new object index page
+            // within this clause we return directly if something fails, object index mess-up
+            if (uiByteHasWritten > 0) {
+                // store previous object index page, unless first pass
+                SPIFFS_DBG("append: "_SPIPRIid" store objIX "_SPIPRIpg":"_SPIPRIsp", uiByteHasWritten "_SPIPRIi"\n", 
+                            pFd->objId,pageIXObjIXCur, spanIXObjIXPrev, uiByteHasWritten);
+                if (spanIXObjIXPrev == 0) {         /* 上一个Index页面的SpanIX = 0*/
+                    // this is an update to object index header page
+                    objIXHdr->uiSize = uiOffset + uiByteHasWritten;
+                    if (uiOffset == 0) {
+                        // was an empty object, update same page (uiSize was 0xffffffff)
+                        iRes = spiffsPageIndexCheck(pfs, pFd, pageIXObjIXCur, 0);
+                        SPIFFS_CHECK_RES(iRes);
+                        iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_UPDT, pFd->fileN, 
+                                                SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjIXCur), 
+                                                SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), pfs->pucWorkBuffer);
+                        SPIFFS_CHECK_RES(iRes);
+                    } 
+                    else {
+                        // was a nonempty object, update to new page
+                        iRes = spiffsObjectUpdateIndexHdr(pfs, pFd, pFd->objId, pFd->pageIXObjIXHdr, 
+                                                          pfs->pucWorkBuffer, LW_NULL, uiOffset + uiByteHasWritten, 
+                                                          &pageIXObjIXHdrNew);
+                        SPIFFS_CHECK_RES(iRes);
+                        SPIFFS_DBG("append: "_SPIPRIid" store new objIXHdr, "_SPIPRIpg":"_SPIPRIsp", uiByteHasWritten "_SPIPRIi"\n", 
+                                    pFd->objId, pageIXObjIXHdrNew, 0, uiByteHasWritten);
+                    }
+                } 
+                else {                              /* 上一个Index页面的SpanIX != 0*/
+                    // this is an update to an object index page
+                    iRes = spiffsPageIndexCheck(pfs, pFd, pageIXObjIXCur, spanIXObjIXPrev);
+                    SPIFFS_CHECK_RES(iRes);
+
+                    iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_UPDT, pFd->fileN, 
+                                            SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjIXCur), 
+                                            SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), pfs->pucWorkBuffer);
+                    SPIFFS_CHECK_RES(iRes);
+                    spiffsCBObjectEvent(pfs, (PSPIFFS_PAGE_OBJECT_IX)pfs->pucWorkBuffer, SPIFFS_EV_IX_UPD,
+                                        pFd->objId, objIX->pageHdr.spanIX, pageIXObjIXCur, 0);
+                    // update length in object index header page
+                    iRes = spiffsObjectUpdateIndexHdr(pfs, pFd, pFd->objId, pFd->pageIXObjIXHdr, 
+                                                      LW_NULL, LW_NULL, 
+                                                      uiOffset + uiByteHasWritten, &pageIXObjIXHdrNew);
+                    SPIFFS_CHECK_RES(iRes);
+                    SPIFFS_DBG("append: "_SPIPRIid" store new uiSize I "_SPIPRIi" in objIXHdr, "_SPIPRIpg":"_SPIPRIsp", uiByteHasWritten "_SPIPRIi"\n", 
+                                pFd->objId, uiOffset + uiByteHasWritten, pageIXObjIXHdrNew, 0, uiByteHasWritten);
+                }
+                pFd->uiSize = uiOffset + uiByteHasWritten;
+                pFd->uiOffset = uiOffset + uiByteHasWritten;
+            }
+
+            // create or load new object index page
+            if (spanIXObjIXCur == 0) {      /* 当前Index 页面的SpanIX = 0 */
+                // load object index header page, must always exist
+                SPIFFS_DBG("append: "_SPIPRIid" load objixhdr page "_SPIPRIpg":"_SPIPRIsp"\n", 
+                            pFd->objId, pageIXObjIXCur, spanIXObjIXCur);
+                /* 将其加载进内存 */    
+                iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ, pFd->fileN, 
+                                    SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjIXCur), 
+                                    SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), pfs->pucWorkBuffer);
+                SPIFFS_CHECK_RES(iRes);
+                SPIFFS_VALIDATE_OBJIX(objIXHdr->pageHdr, pFd->objId, spanIXObjIXCur);
+            }   
+            else {                          /* 当前Index 页面的SpanIX != 0 */
+                SPIFFS_SPAN_IX spanIXObjIXLen = SPIFFS_OBJ_IX_ENTRY_SPAN_IX(pfs, (pFd->uiSize - 1) / SPIFFS_DATA_PAGE_SIZE(pfs));
+                // on subsequent passes, create a new object index page
+                if (uiByteHasWritten > 0 || spanIXObjIXCur > spanIXObjIXLen) {
+                    pageHeader.objId = pFd->objId | SPIFFS_OBJ_ID_IX_FLAG;
+                    pageHeader.spanIX = spanIXObjIXCur;
+                    pageHeader.flags = 0xff & ~(SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_INDEX);
+                    iRes = spiffsPageAllocateData(pfs, pFd->objId | SPIFFS_OBJ_ID_IX_FLAG, &pageHeader, 
+                                                  LW_NULL, 0, 0, LW_TRUE, &pageIXObjIXCur);
+                    SPIFFS_CHECK_RES(iRes);
+                    // quick "load" of new object index page
+                    memset(pfs->pucWorkBuffer, 0xff, SPIFFS_CFG_LOGIC_PAGE_SZ(pfs));
+                    lib_memcpy(pfs->pucWorkBuffer, &pageHeader, sizeof(SPIFFS_PAGE_HEADER));
+                    spiffsCBObjectEvent(pfs, (PSPIFFS_PAGE_OBJECT_IX)pfs->pucWorkBuffer, SPIFFS_EV_IX_NEW, 
+                                        pFd->objId, spanIXObjIXCur, pageIXObjIXCur, 0);
+                    SPIFFS_DBG("append: "_SPIPRIid" create objIX page, "_SPIPRIpg":"_SPIPRIsp", uiByteHasWritten "_SPIPRIi"\n", 
+                                pFd->objId, pageIXObjIXCur, spanIXObjIXCur, uiByteHasWritten);
+                } 
+                else {
+                    // on first pass, we load existing object index page
+                    SPIFFS_PAGE_IX pageIX;
+                    SPIFFS_DBG("append: "_SPIPRIid" find objIX spanIX:"_SPIPRIsp"\n", 
+                                pFd->objId, spanIXObjIXCur);
+                    if (pFd->spanIXObjIXCursor == spanIXObjIXCur) {
+                        pageIX = pFd->pageIXObjIXCursor;
+                    } 
+                    else {
+                        iRes = spiffsObjLookUpFindIdAndSpan(pfs, pFd->objId | SPIFFS_OBJ_ID_IX_FLAG, 
+                                                            spanIXObjIXCur, 0, &pageIX);
+                        SPIFFS_CHECK_RES(iRes);
+                    }
+                    SPIFFS_DBG("append: "_SPIPRIid" found object index at page "_SPIPRIpg" [pFd uiSize "_SPIPRIi"]\n", 
+                                pFd->objId, pageIX, pFd->uiSize);
+                    iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ, pFd->fileN, 
+                                           SPIFFS_PAGE_TO_PADDR(pfs, pageIX), 
+                                           SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), pfs->pucWorkBuffer);
+                    SPIFFS_CHECK_RES(iRes);
+                    SPIFFS_VALIDATE_OBJIX(objIXHdr->pageHdr, pFd->objId, spanIXObjIXCur);
+                    pageIXObjIXCur = pageIX;
+                }
+                pFd->pageIXObjIXCursor = pageIXObjIXCur;
+                pFd->spanIXObjIXCursor = spanIXObjIXCur;
+                pFd->uiOffset          = uiOffset+uiByteHasWritten;
+                pFd->uiSize            = uiOffset+uiByteHasWritten;
+            }
+            spanIXObjIXPrev = spanIXObjIXCur;
+        }
+
+        // write data
+        UINT32 uiByteToWrite = MIN(uiLen - uiByteHasWritten, SPIFFS_DATA_PAGE_SIZE(pfs) - uiPageOffset);
+        if (uiPageOffset == 0) {
+            /* 直接写在一个新的数据页 */
+            // at beginning of a page, allocate and write a new page of data
+            pageHeader.objId = pFd->objId & ~SPIFFS_OBJ_ID_IX_FLAG;
+            pageHeader.spanIX = spanIXObjData;
+            pageHeader.flags = 0xff & ~(SPIFFS_PH_FLAG_FINAL);  // finalize immediately
+            iRes = spiffsPageAllocateData(pfs, pFd->objId & ~SPIFFS_OBJ_ID_IX_FLAG, &pageHeader, 
+                                          &pContent[uiByteHasWritten], uiByteToWrite, uiPageOffset, 
+                                          LW_TRUE, &pageIXObjData);
+            SPIFFS_DBG("append: "_SPIPRIid" store new data page, "_SPIPRIpg":"_SPIPRIsp" uiOffset:"_SPIPRIi", uiLen "_SPIPRIi", uiByteHasWritten "_SPIPRIi"\n",
+                        pFd->objId,pageIXObjData, spanIXObjData, uiPageOffset, uiByteToWrite, uiByteHasWritten);
+        } 
+        else {
+            // append to existing page, fill out free data in existing page
+            /* 追加写在已有的数据页之后 */
+            if (spanIXObjIXCur == 0) {
+                // get data page from object index header page
+                pageIXObjData = ((SPIFFS_PAGE_IX*)((PUCHAR)objIXHdr + sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER)))[spanIXObjData];
+            } 
+            else {
+                // get data page from object index page
+                pageIXObjData = ((SPIFFS_PAGE_IX*)((PUCHAR)objIX + sizeof(SPIFFS_PAGE_OBJECT_IX)))[SPIFFS_OBJ_IX_ENTRY(pfs, spanIXObjData)];
+            }
+
+            iRes = spiffsPageDataCheck(pfs, pFd, pageIXObjData, spanIXObjData);
+            SPIFFS_CHECK_RES(iRes);
+
+            iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_UPDT, pFd->fileN, 
+                                    SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjData) + sizeof(SPIFFS_PAGE_HEADER) + uiPageOffset, 
+                                    uiByteToWrite, &pContent[uiByteHasWritten]);
+            SPIFFS_DBG("append: "_SPIPRIid" store to existing data page, "_SPIPRIpg":"_SPIPRIsp" uiOffset:"_SPIPRIi", uiLen "_SPIPRIi", uiByteHasWritten "_SPIPRIi"\n", 
+                        pFd->objId , pageIXObjData, spanIXObjData, uiPageOffset, uiByteToWrite, uiByteHasWritten);
+        }
+
+        if (iRes != SPIFFS_OK) 
+            break;
+
+        // update memory representation of object index page with new data page
+        /* 根据当前内存中缓存的Index页面来更新Entry */
+        if (spanIXObjIXCur == 0) {
+            // update object index header page
+            ((SPIFFS_PAGE_IX*)((PUCHAR)objIXHdr + sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER)))[spanIXObjData] = pageIXObjData;
+            SPIFFS_DBG("append: "_SPIPRIid" wrote page "_SPIPRIpg" to objIXHdr entry "_SPIPRIsp" in mem\n", 
+                        pFd->objId, pageIXObjData, spanIXObjData);
+            objIXHdr->uiSize = uiOffset + uiByteHasWritten;
+        } 
+        else {
+            // update object index page
+            ((SPIFFS_PAGE_IX*)((PUCHAR)objIX + sizeof(SPIFFS_PAGE_OBJECT_IX)))[SPIFFS_OBJ_IX_ENTRY(pfs, spanIXObjData)] = pageIXObjData;
+            SPIFFS_DBG("append: "_SPIPRIid" wrote page "_SPIPRIpg" to objIX entry "_SPIPRIsp" in mem\n", 
+                        pFd->objId, pageIXObjData, (SPIFFS_SPAN_IX)SPIFFS_OBJ_IX_ENTRY(pfs, spanIXObjData));
+        }
+
+        // update internals
+        uiPageOffset = 0;
+        spanIXObjData++;
+        uiByteHasWritten += uiByteToWrite;
+    } // while all data
+
+    pFd->uiSize = uiOffset + uiByteHasWritten;
+    pFd->uiOffset = uiOffset + uiByteHasWritten;
+    pFd->pageIXObjIXCursor = pageIXObjIXCur;    /* 更新当前的写指针 */
+    pFd->spanIXObjIXCursor = spanIXObjIXCur;
+
+    // finalize updated object indices
+    INT32 iRes2 = SPIFFS_OK;
+    /* 最后再次更新索引 */
+    if (spanIXObjIXCur != 0) {
+        // wrote beyond object index header page
+        // write last modified object index page, unless object header index page
+        SPIFFS_DBG("append: "_SPIPRIid" store objIX page, "_SPIPRIpg":"_SPIPRIsp", uiByteHasWritten "_SPIPRIi"\n", 
+                    pFd->objId,pageIXObjIXCur, spanIXObjIXCur, uiByteHasWritten);
+
+        iRes2 = spiffsPageIndexCheck(pfs, pFd, pageIXObjIXCur, spanIXObjIXCur);
+        SPIFFS_CHECK_RES(iRes2);
+
+        iRes2 = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_UPDT, pFd->fileN, 
+                                 SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjIXCur), 
+                                 SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), pfs->pucWorkBuffer);
+        SPIFFS_CHECK_RES(iRes2);
+        spiffsCBObjectEvent(pfs, (PSPIFFS_PAGE_OBJECT_IX)pfs->pucWorkBuffer, SPIFFS_EV_IX_UPD, 
+                            pFd->objId, objIX->pageHdr.spanIX, pageIXObjIXCur, 0);
+
+        // update uiSize in object header index page
+        iRes2 = spiffsObjectUpdateIndexHdr(pfs, pFd, pFd->objId, pFd->pageIXObjIXHdr, 
+                                          LW_NULL, LW_NULL, uiOffset+uiByteHasWritten, &pageIXObjIXHdrNew);
+        SPIFFS_DBG("append: "_SPIPRIid" store new uiSize II "_SPIPRIi" in objIXHdr, "_SPIPRIpg":"_SPIPRIsp", uiByteHasWritten "_SPIPRIi", iRes "_SPIPRIi"\n", 
+                    pFd->objId, uiOffset + uiByteHasWritten, pageIXObjIXHdrNew, 0, uiByteHasWritten, iRes2);
+        SPIFFS_CHECK_RES(iRes2);
+    } 
+    else {  /* spanIXObjIXCur == 0 */
+        // wrote within object index header page
+        if (uiOffset == 0) {
+            // wrote to empty object - simply update uiSize and write whole page
+            /* uiOffset = 0预示这是一个新的Obj，因此我们调用CacheWrite即可 */
+            objIXHdr->uiSize = uiOffset + uiByteHasWritten;
+            SPIFFS_DBG("append: "_SPIPRIid" store fresh objIXHdr page, "_SPIPRIpg":"_SPIPRIsp", uiByteHasWritten "_SPIPRIi"\n", 
+                        pFd->objId, pageIXObjIXCur, spanIXObjIXCur, uiByteHasWritten);
+
+            iRes2 = spiffsPageIndexCheck(pfs, pFd, pageIXObjIXCur, spanIXObjIXCur);
+            SPIFFS_CHECK_RES(iRes2);
+
+            iRes2 = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_UPDT, pFd->fileN, 
+                                     SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjIXCur), 
+                                     SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), pfs->pucWorkBuffer);
+            SPIFFS_CHECK_RES(iRes2);
+            // callback on object index update
+            spiffsCBObjectEvent(pfs, (PSPIFFS_PAGE_OBJECT_IX)pfs->pucWorkBuffer, SPIFFS_EV_IX_UPD_HDR, 
+                                pFd->objId, objIXHdr->pageHdr.spanIX, pageIXObjIXCur, objIXHdr->uiSize);
+        } 
+        else {
+            /* uiOffset != 0预示这是一个已经存在的Obj，我们需要异地更新它的大小，因此调用spiffsObjectUpdateIndexHdr */
+            // modifying object index header page, update uiSize and make new copy
+            iRes2 = spiffsObjectUpdateIndexHdr(pfs, pFd, pFd->objId, pFd->pageIXObjIXHdr, 
+                                               pfs->pucWorkBuffer, LW_NULL, 
+                                               uiOffset + uiByteHasWritten, &pageIXObjIXHdrNew);
+            SPIFFS_DBG("append: "_SPIPRIid" store modified objIXHdr page, "_SPIPRIpg":"_SPIPRIsp", uiByteHasWritten "_SPIPRIi"\n", 
+                        pFd->objId , pageIXObjIXHdrNew, 0, uiByteHasWritten);
+            SPIFFS_CHECK_RES(iRes2);
+        }
+    }
+
+    return iRes;
+}
 /*********************************************************************************************************
 ** 函数名称: spiffsObjectModify
 ** 功能描述: 用于截断一个Object
@@ -1350,7 +1660,7 @@ INT32 spiffsObjectModify(PSPIFFS_FD pFd, UINT32 uiOffset, PUCHAR pContent, UINT3
             else {
                 // load existing object index page on first pass
                 SPIFFS_PAGE_IX pageIX;
-                SPIFFS_DBG("modify: find objIX span_ix:"_SPIPRIsp"\n", spanIXObjIXCur);
+                SPIFFS_DBG("modify: find objIX spanIX:"_SPIPRIsp"\n", spanIXObjIXCur);
                 if (pFd->spanIXObjIXCursor == spanIXObjIXCur) {
                     pageIX = pFd->pageIXObjIXCursor;
                 } 
@@ -1396,7 +1706,7 @@ INT32 spiffsObjectModify(PSPIFFS_FD pFd, UINT32 uiOffset, PUCHAR pContent, UINT3
             iRes = spiffsPageAllocateData(pfs, pageHeader.objId, &pageHeader, 
                                           &pContent[uiByteHasWritten], uiByteToWrite, 
                                           uiPageOffset, LW_TRUE, &pageIXObjData);
-            SPIFFS_DBG("modify: store new data page, "_SPIPRIpg":"_SPIPRIsp" uiOffset:"_SPIPRIi", uiLen "_SPIPRIi", written "_SPIPRIi"\n", 
+            SPIFFS_DBG("modify: store new data page, "_SPIPRIpg":"_SPIPRIsp" uiOffset:"_SPIPRIi", uiLen "_SPIPRIi", uiByteHasWritten "_SPIPRIi"\n", 
                         pageIXObjData, spanIXObjData, uiPageOffset, uiByteToWrite, uiByteHasWritten);
         } 
         else {
@@ -1506,6 +1816,114 @@ INT32 spiffsObjectModify(PSPIFFS_FD pFd, UINT32 uiOffset, PUCHAR pContent, UINT3
     return iRes;
 }
 /*********************************************************************************************************
+** 函数名称: spiffsObjectRead
+** 功能描述: 从一个Object中读取内容至puDst
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 spiffsObjectRead(PSPIFFS_FD pFd, UINT32 uiOffset, UINT32 uiLen, PUCHAR puDst){
+    INT32          iRes = SPIFFS_OK;
+    PSPIFFS_VOLUME pfs = pFd->pfs;                                               /* 文件头 */                                                   
+    SPIFFS_PAGE_IX pageIXObjIX;                                                 /* 当前Index页面的page index */
+    SPIFFS_PAGE_IX pageIXObjData;                                               /* 当前Data页面的page index */
+    SPIFFS_SPAN_IX spanIXObjData = uiOffset / SPIFFS_DATA_PAGE_SIZE(pfs);       /* 当前Data页面的Span index */
+    UINT32         uiCurOffset = uiOffset;                                      /* 当前文件Obj的读偏移 */
+    SPIFFS_SPAN_IX spanIXObjIXCur;                                              /* 当前Index页面的Span Index */
+    SPIFFS_SPAN_IX spanIXObjIXPrev = (SPIFFS_SPAN_IX)-1;                        /* 先前Index页面的Span Index */
+    
+    PSPIFFS_PAGE_OBJECT_IX_HEADER objIXHdr = (PSPIFFS_PAGE_OBJECT_IX_HEADER)pfs->pucWorkBuffer;
+    PSPIFFS_PAGE_OBJECT_IX        objIX = (PSPIFFS_PAGE_OBJECT_IX)pfs->pucWorkBuffer;
+
+    while (uiCurOffset < uiOffset + uiLen) {
+        //TODO: SPIFFS_IX_MAP
+    // #if SPIFFS_IX_MAP
+    // // check if we have a memory, index map and if so, if we're within index map'pStat range
+    // // and if so, if the entry is populated
+    // if (pFd->ix_map && spanIXObjData >= pFd->ix_map->start_spix && spanIXObjData <= pFd->ix_map->end_spix
+    //     && pFd->ix_map->map_buf[spanIXObjData - pFd->ix_map->start_spix]) {
+    //     pageIXObjData = pFd->ix_map->map_buf[spanIXObjData - pFd->ix_map->start_spix];
+    // } else {
+    // #endif
+        spanIXObjIXCur = SPIFFS_OBJ_IX_ENTRY_SPAN_IX(pfs, spanIXObjData);
+        if (spanIXObjIXPrev != spanIXObjIXCur) {
+            // load current object index (header) page
+            if (spanIXObjIXCur == 0) {
+                pageIXObjIX = pFd->pageIXObjIXHdr;
+            } 
+            else {
+                SPIFFS_DBG("read: find objIX "_SPIPRIid":"_SPIPRIsp"\n", 
+                            pFd->objId, spanIXObjIXCur);
+                if (pFd->spanIXObjIXCursor == spanIXObjIXCur) {
+                    pageIXObjIX = pFd->pageIXObjIXCursor;
+                } 
+                else {
+                    iRes = spiffsObjLookUpFindIdAndSpan(pfs, pFd->objId | SPIFFS_OBJ_ID_IX_FLAG, spanIXObjIXCur, 
+                                                        0, &pageIXObjIX);
+                    SPIFFS_CHECK_RES(iRes);
+                }
+            }
+            SPIFFS_DBG("read: load objIX page "_SPIPRIpg":"_SPIPRIsp" for data spix:"_SPIPRIsp"\n", pageIXObjIX, spanIXObjIXCur, spanIXObjData);
+            iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ, pFd->fileN, 
+                                   SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjIX), 
+                                   SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), pfs->pucWorkBuffer);
+            SPIFFS_CHECK_RES(iRes);
+            SPIFFS_VALIDATE_OBJIX(objIX->pageHdr, pFd->objId, spanIXObjIXCur);
+
+            pFd->uiOffset = uiCurOffset;
+            pFd->pageIXObjIXCursor = pageIXObjIX;
+            pFd->spanIXObjIXCursor = spanIXObjIXCur;
+
+            spanIXObjIXPrev = spanIXObjIXCur;
+        }
+
+        /* 获取数据页面的索引 */
+        if (spanIXObjIXCur == 0) {
+            // get data page from object index header page
+            /* Index Header中的内容就是一个个的页面 */
+            pageIXObjData = ((SPIFFS_PAGE_IX*)((PUCHAR)objIXHdr + sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER)))[spanIXObjData];
+        } else {
+            // get data page from object index page
+            pageIXObjData = ((SPIFFS_PAGE_IX*)((PUCHAR)objIX + sizeof(SPIFFS_PAGE_OBJECT_IX)))[SPIFFS_OBJ_IX_ENTRY(pfs, spanIXObjData)];
+        }
+    // #if SPIFFS_IX_MAP
+    // }
+    // #endif
+        // all remaining data
+        UINT32 uiByteToRead = uiOffset + uiLen - uiCurOffset;
+        // remaining data in page
+        uiByteToRead = MIN(uiByteToRead, SPIFFS_DATA_PAGE_SIZE(pfs) - (uiCurOffset % SPIFFS_DATA_PAGE_SIZE(pfs)));
+        // remaining data in file
+        uiByteToRead = MIN(uiByteToRead, pFd->uiSize - uiCurOffset);
+        SPIFFS_DBG("read: uiOffset:"_SPIPRIi" rd:"_SPIPRIi" data spix:"_SPIPRIsp" is pageIXObjData:"_SPIPRIpg" addr:"_SPIPRIad"\n", 
+                    uiCurOffset, uiByteToRead, spanIXObjData, pageIXObjData, (UINT32)(SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjData) + sizeof(SPIFFS_PAGE_HEADER) + (uiCurOffset % SPIFFS_DATA_PAGE_SIZE(pfs))));
+        if (uiByteToRead <= 0) {
+            iRes = SPIFFS_ERR_END_OF_OBJECT;
+            break;
+        }
+        iRes = spiffsPageDataCheck(pfs, pFd, pageIXObjData, spanIXObjData);
+        SPIFFS_CHECK_RES(iRes);
+        
+        iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_READ, pFd->fileN, 
+                               (SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjData) + 
+                               sizeof(SPIFFS_PAGE_HEADER) + 
+                               (uiCurOffset % SPIFFS_DATA_PAGE_SIZE(pfs))),             /* 获取偏移地址 */
+                               uiByteToRead,
+                               puDst);
+
+        SPIFFS_CHECK_RES(iRes);
+        puDst += uiByteToRead;
+        uiCurOffset += uiByteToRead;
+        pFd->uiOffset = uiCurOffset;
+        spanIXObjData++;
+    }
+
+    return iRes;
+}
+/*********************************************************************************************************
 ** 函数名称: spiffsFileWrite
 ** 功能描述: 向一个文件中写入
 ** 输　入  : pfs          文件头
@@ -1517,16 +1935,15 @@ INT32 spiffsObjectModify(PSPIFFS_FD pFd, UINT32 uiOffset, PUCHAR pContent, UINT3
 *********************************************************************************************************/
 INT32 spiffsFileWrite(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, 
                       UINT32 uiOffset, INT32 iLen){
-    (VOID)pfs;
     INT32       iRes = SPIFFS_OK;
     INT32       iRemaining = iLen;
     PSPIFFS_FD  pFd;
     PUCHAR      pData = (PUCHAR)pContent; 
     
-    spiffsFdGet(pfs, fileHandler, &pFd);
+    spiffsFdGet(pfs, fileHandler, &pFd);            /* 获取文件描述符 */
     
     if (pFd->uiSize != SPIFFS_UNDEFINED_LEN && 
-        uiOffset < pFd->uiSize) {
+        uiOffset < pFd->uiSize) {                   /* 属于修改一部分 */
         INT32 iMinLen = MIN((INT32)(pFd->uiSize - uiOffset), iLen);
         iRes = spiffsObjectModify(pFd, uiOffset, pData, iMinLen);
         SPIFFS_CHECK_RES(iRes);
@@ -1534,7 +1951,7 @@ INT32 spiffsFileWrite(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pConten
         pData += iMinLen;
         uiOffset += iMinLen;
     }
-    if (iRemaining > 0) {
+    if (iRemaining > 0) {                           /* 剩下的追加写即可 */
         iRes = spiffsObjectAppend(pFd, uiOffset, pData, iRemaining);
         SPIFFS_CHECK_RES(iRes);
     }
@@ -1558,13 +1975,15 @@ INT32 spiffsFileRead(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent
     PSPIFFS_FD pFd;
     INT32 iRes;
 
-    iRes = spiffsFdGet(pfs, fileHandler, &pFd);
+    iRes = spiffsFdGet(pfs, fileHandler, &pFd);     /* 根据FileHander获取Fd */
 
     //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+    SPIFFS_CHECK_RES(iRes);
 
     if ((pFd->flags & SPIFFS_O_RDONLY) == 0) {
         iRes = SPIFFS_ERR_NOT_READABLE;
         //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+        SPIFFS_CHECK_RES(iRes);
     }
 
     if (pFd->uiSize == SPIFFS_UNDEFINED_LEN 
@@ -1572,36 +1991,79 @@ INT32 spiffsFileRead(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent
         // special case for zero sized files
         iRes = SPIFFS_ERR_END_OF_OBJECT;
         //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+        iRes = SPIFFS_ERR_END_OF_OBJECT;
+        SPIFFS_CHECK_RES(iRes);
     }
 
+    /* 把Cache里的内容刷回Flash，保证写后读一致性 */
     spiffsCacheFflush(pfs, fileHandler);
 
 
-    if (pFd->uiFdOffset + iLen >= pFd->uiSize) {
+    if (pFd->uiFdOffset + iLen >= pFd->uiSize) {        /* 当前文件内偏移 + 长度 > 文件大小 */
         // reading beyond file uiSize
-        INT32 iAvail = pFd->uiSize - pFd->uiFdOffset;
+        INT32 iAvail = pFd->uiSize - pFd->uiFdOffset;   /* 只可以读iAvail这么多 */
         if (iAvail <= 0) {
             //SPIFFS_API_CHECK_RES_UNLOCK(pfs, SPIFFS_ERR_END_OF_OBJECT);
+            iRes = SPIFFS_ERR_END_OF_OBJECT;
+            SPIFFS_CHECK_RES(iRes);
         }
         iRes = spiffsObjectRead(pFd, pFd->uiFdOffset, iAvail, (PUCHAR)pContent);
-        if (iRes == SPIFFS_ERR_END_OF_OBJECT) {
+        if (iRes == SPIFFS_ERR_END_OF_OBJECT) {     /* 正常现象 */
             pFd->uiFdOffset += iAvail;
             //SPIFFS_UNLOCK(pfs);
             return iAvail;
         } 
         else {
             //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+            SPIFFS_CHECK_RES(iRes);
             iLen = iAvail;
         }
     } 
     else {
+        /* 可以读完，GG */
         // reading within file uiSize
         iRes = spiffsObjectRead(pFd, pFd->uiFdOffset, iLen, (PUCHAR)pContent);
         //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+        SPIFFS_CHECK_RES(iRes);
     }
+    /* 更新文件指针 */
     pFd->uiFdOffset += iLen;
-
     //SPIFFS_UNLOCK(pfs);
 
     return iLen;
+}
+/*********************************************************************************************************
+** 函数名称: spiffsStatPageIX
+** 功能描述: 用于描述页面状态
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 spiffsStatPageIX(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX, SPIFFS_FILE fileHandler, PSPIFFS_STAT pStat) {
+    (VOID)fileHandler;
+    SPIFFS_PAGE_OBJECT_IX_HEADER objIXHdr;
+    SPIFFS_OBJ_ID objId;
+    /* 需要保证pageIX的spanIX为0 */
+    INT32 iRes = spiffsCacheRead(pfs,  SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ, fileHandler,
+                                SPIFFS_PAGE_TO_PADDR(pfs, pageIX), 
+                                sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER), (PUCHAR)&objIXHdr);
+    SPIFFS_API_CHECK_RES(pfs, iRes);
+    //TODO:为啥需要计算ObjID对应的地址呢？objIXHdr.pageHdr.objId不是可以直接获取吗
+    UINT32 uiObjIdAddr = SPIFFS_BLOCK_TO_PADDR(pfs, SPIFFS_BLOCK_FOR_PAGE(pfs , pageIX)) +
+                                               SPIFFS_OBJ_LOOKUP_ENTRY_FOR_PAGE(pfs, pageIX) * sizeof(SPIFFS_OBJ_ID);
+    iRes = spiffsCacheRead(pfs,  SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ, fileHandler,
+                           uiObjIdAddr, sizeof(SPIFFS_OBJ_ID), 
+                           (PUCHAR)&objId);
+    SPIFFS_API_CHECK_RES(pfs, iRes);
+
+    pStat->objID = objId & ~SPIFFS_OBJ_ID_IX_FLAG;          /* 取消索引号 */
+    pStat->objType = objIXHdr.type;
+    pStat->uiSize = objIXHdr.uiSize == SPIFFS_UNDEFINED_LEN ? 0 : objIXHdr.uiSize;
+    pStat->pageIX = pageIX;
+    strncpy((PCHAR)pStat->ucName, (PCHAR)objIXHdr.ucName, SPIFFS_OBJ_NAME_LEN);
+
+    return iRes;
 }

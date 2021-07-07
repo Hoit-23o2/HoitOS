@@ -2363,8 +2363,8 @@ void spiffs_fd_temporal_cache_rehash(
     const char *old_path,
     const char *new_path) {
   u32_t i;
-  u32_t old_hash = spiffs_hash(fs, (const u8_t *)old_path);
-  u32_t new_hash = spiffs_hash(fs, (const u8_t *)new_path);
+  u32_t old_hash = hash((const PUCHAR)old_path, SPIFFS_OBJ_NAME_LEN);
+  u32_t new_hash = hash((const PUCHAR)new_path, SPIFFS_OBJ_NAME_LEN);
   spiffs_fd *fds = (spiffs_fd *)fs->fd_space;
   for (i = 0; i < fs->fd_count; i++) {
     spiffs_fd *cur_fd = &fds[i];
