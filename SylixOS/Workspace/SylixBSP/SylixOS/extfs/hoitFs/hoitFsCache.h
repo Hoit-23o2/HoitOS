@@ -109,7 +109,7 @@ static inline BOOL hoiCheckSectorDirty(UINT32 base, UINT8 sector_no){
 
 
 /*********************************************************************************************************
- * ????
+ * cache²ãº¯Êý
 *********************************************************************************************************/
 PHOIT_CACHE_HDR     hoitEnableCache(UINT32 uiCacheBlockSize, 
                                     UINT32 uiCacheBlockNums, 
@@ -119,14 +119,12 @@ PHOIT_CACHE_BLK     hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr,
                                    UINT32 flashBlkNo, 
                                    UINT32 cacheType, 
                                    PHOIT_ERASABLE_SECTOR pSector);
-
 PHOIT_CACHE_BLK     hoitCheckCacheHit(PHOIT_CACHE_HDR pcacheHdr, 
                                       UINT32 flashBlkNo);
 BOOL                hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, 
                                       UINT32 uiOfs, 
                                       PCHAR pContent, 
                                       UINT32 uiSize);
-
 UINT32              hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr);
 UINT32              hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, 
                                         UINT32 cacheType,
@@ -138,11 +136,16 @@ BOOL                hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr,
 UINT32              hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr,
                                      PCHAR pContent, 
                                      UINT32 uiSize);
-
 PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, 
                                      UINT32 sector_no);
 VOID                hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr, 
-                                         PHOIT_ERASABLE_SECTOR pErasableSector);                    
+                                         PHOIT_ERASABLE_SECTOR pErasableSector);        
+
+/*********************************************************************************************************
+ * filter²ãº¯Êý
+*********************************************************************************************************/
+UINT32              hoitInitFilter(PHOIT_CACHE_HDR pcacheHdr, 
+                                    UINT32 uiCacheBlockSize);
 #ifdef HOIT_CACHE_TEST
 BOOL    test_hoit_cache();
 #endif
