@@ -66,6 +66,11 @@
         "initializer_list": "c",
         "spiffsfdlib.h": "c",
         "spiffsgc.h": "c",
-        "string_view": "c"
-    }
+        "string_view": "c",
+        "numeric": "c",
+        "fstream": "c",
+        "iostream": "c",
+        "ostream": "c"
+    },
+    "workbench.preferredDarkColorTheme": "Solarized Dark"
 }

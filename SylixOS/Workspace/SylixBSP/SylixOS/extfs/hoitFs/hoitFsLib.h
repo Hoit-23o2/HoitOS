@@ -93,6 +93,7 @@ VOID                    __hoit_redo_log(PHOIT_VOLUME  pfs);
 UINT8                   __hoit_get_inode_nodes(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeInfo, PHOIT_FULL_DIRENT* ppDirentList, PHOIT_FULL_DNODE* ppDnodeList);
 VOID                    __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag);
 
+//! Added By ZN
 VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector);
 BOOL __hoit_erasable_sector_list_check_exist(List(HOIT_ERASABLE_SECTOR) HOITFS_sectorList, PHOIT_ERASABLE_SECTOR pErasableSector);
 

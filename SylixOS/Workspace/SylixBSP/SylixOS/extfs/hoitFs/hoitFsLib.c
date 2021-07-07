@@ -1913,7 +1913,7 @@ BOOL __hoit_erasable_sector_list_check_exist(List(HOIT_ERASABLE_SECTOR) HOITFS_s
 }
 
 
-
+//TODO: 只在初始化阶段调用，其他写入或GC操作部分也应该调用
 /*********************************************************************************************************
 ** 函数名称: __hoit_fix_up_sector_list
 ** 功能描述: 检查一个sector的类型（dirty，clean或free），并添加到volume对应链表上。
