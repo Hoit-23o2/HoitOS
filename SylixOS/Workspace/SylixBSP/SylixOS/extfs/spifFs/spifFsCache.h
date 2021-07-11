@@ -58,7 +58,9 @@ INT32 spiffsEraseBlk(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX);
 
 
 
-INT32 spiffsCacheFflush(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler);
-PSPIFFS_CACHE_PAGE spiffsCachePageGetByFd(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd);
-VOID spiffsCacheFdRelease(PSPIFFS_VOLUME pfs, PSPIFFS_CACHE_PAGE pCachePage);
+INT32               spiffsCacheFflush(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler);
+PSPIFFS_CACHE_PAGE  spiffsCachePageGetByFd(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd);
+VOID                spiffsCacheFdRelease(PSPIFFS_VOLUME pfs, PSPIFFS_CACHE_PAGE pCachePage);
+VOID                spiffsCacheDropPage(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX);
+PSPIFFS_CACHE_PAGE  spiffsCachePageAllocateByFd(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd);
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFSCACHE_H_ */

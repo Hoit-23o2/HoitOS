@@ -207,7 +207,7 @@ typedef VOID (*spiffsCheckCallback)(SPIFFS_CHECK_TYPE type, SPIFFS_CHECK_REPORT 
                                     UINT32 arg1, UINT32 arg2);
 
 typedef VOID (*spiffsFileCallback)(struct spiffs_volume* pfs, SPIFFS_FILEOP_TYPE op, 
-                                   SPIFFS_OBJ_ID objID, SPIFFS_PAGE_IX pageIX);
+                                   SPIFFS_OBJ_ID objId, SPIFFS_PAGE_IX pageIX);
 
 /*********************************************************************************************************
  * SPIFFS配置信息
@@ -305,7 +305,7 @@ typedef SPIFFS_VOLUME * PSPIFFS_VOLUME;
  * SPIFFS文件状态描述
 *********************************************************************************************************/
 typedef struct spiffs_stat {
-    SPIFFS_OBJ_ID objID;
+    SPIFFS_OBJ_ID objId;
     UINT32 uiSize;
     SPIFFS_OBJ_TYPE objType;
     SPIFFS_PAGE_IX pageIX;
@@ -315,8 +315,8 @@ typedef SPIFFS_STAT * PSPIFFS_STAT;
 /*********************************************************************************************************
  * SPIFFS目录文件状态
 *********************************************************************************************************/
-typedef struct spiffs_dirent{
-    SPIFFS_OBJ_ID objID;
+typedef struct spiffs_dirent {
+    SPIFFS_OBJ_ID objId;
     UINT32 uiSize;
     SPIFFS_OBJ_TYPE objType;
     SPIFFS_PAGE_IX pageIX;
@@ -327,7 +327,7 @@ typedef SPIFFS_DIRENT * PSPIFFS_DIRENT;
  * SPIFFS目录描述
 *********************************************************************************************************/
 typedef struct spiffs_DIR{
-    PSPIFFS_VOLUME *pfs;
+    PSPIFFS_VOLUME pfs;
     SPIFFS_BLOCK_IX blkIX;
     INT uiEntry;
 } SPIFFS_DIR;
@@ -498,7 +498,6 @@ typedef SPIFFS_FREE_OBJ_ID_STATE * PSPIFFS_FREE_OBJ_ID_STATE;
 #define SPIFFS_PADDR_TO_PAGE_OFFSET(pfs, uiPhysAddr)    (((uiPhysAddr) - SPIFFS_CFG_PHYS_ADDR(pfs)) % SPIFFS_CFG_LOGIC_PAGE_SZ(pfs))
 #define SPIFFS_PAGE_TO_PADDR(pfs, pageIX)               (SPIFFS_CFG_PHYS_ADDR(pfs) + (pageIX) * SPIFFS_CFG_LOGIC_PAGE_SZ(pfs))
 
-
 #define SPIFFS_BLOCK_TO_PADDR(pfs, blkIX)               (SPIFFS_CFG_PHYS_ADDR(pfs) + (blkIX)* SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs))
 #define SPIFFS_PAGES_PER_BLOCK(pfs)                     (SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs) / SPIFFS_CFG_LOGIC_PAGE_SZ(pfs))
 /* 将页面转化为所在块号 */
@@ -542,11 +541,14 @@ typedef SPIFFS_FREE_OBJ_ID_STATE * PSPIFFS_FREE_OBJ_ID_STATE;
 /*********************************************************************************************************
  * SPIFFS Data Page相关
 *********************************************************************************************************/
-#define SPIFFS_DATA_PAGE_SIZE(pfs)  (SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_HEADER))
-
+#define SPIFFS_DATA_PAGE_SIZE(pfs)        (SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_PAGE_HEADER))
+#define SPIFFS_PAGE_FOR_BLOCK(pfs, blkIX) ((blkIX) * SPIFFS_PAGES_PER_BLOCK(pfs) )
 /*********************************************************************************************************
  * SPIFFS 检查相关
 *********************************************************************************************************/
+#define SPIFFS_CHECK_MOUNT(pfs) \
+((pfs)->uiMountedFlag != 0)
+
 #define SPIFFS_CHECK_RES(res) \
 do { \
     if ((res) < SPIFFS_OK) return (res); \
@@ -580,5 +582,55 @@ if ((res) < SPIFFS_OK) { \
     if (((pageHeader).flags & SPIFFS_PH_FLAG_INDEX) == 0) return SPIFFS_ERR_IS_INDEX; \
     if ((objId) & SPIFFS_OBJ_ID_IX_FLAG) return SPIFFS_ERR_IS_INDEX; \
     if ((pageHeader).spanIX != (_spanIX)) return SPIFFS_ERR_DATA_SPAN_MISMATCH;
+/*********************************************************************************************************
+ * ANCHOR: SylixOS适配
+*********************************************************************************************************/
+#define SYLIX_TO_SPIFFS_PFS(pfs)        (pfs->pfs)
+#define SYLIX_TO_SPIFFS_FD(pspifn)      (pspifn->pFd->fileN)
+
+typedef struct spif_volume {
+    LW_DEV_HDR          SPIFFS_devhdrHdr;                                /*  spiffs 文件系统设备头        */
+    LW_OBJECT_HANDLE    SPIFFS_hVolLock;                                 /*  卷操作锁                    */
+    LW_LIST_LINE_HEADER SPIFFS_plineFdNodeHeader;                        /*  fd_node 链表                */
+    
+    BOOL                SPIFFS_bForceDelete;                             /*  是否允许强制卸载卷          */
+    BOOL                SPIFFS_bValid;
+    
+    uid_t               SPIFFS_uid;                                      /*  用户 id                     */
+    gid_t               SPIFFS_gid;                                      /*  组   id                     */
+    mode_t              SPIFFS_mode;                                     /*  文件 mode                   */
+    time_t              SPIFFS_time;                                     /*  创建时间                    */
+    ULONG               SPIFFS_ulCurBlk;                                 /*  当前消耗内存大小            */
+    ULONG               SPIFFS_ulMaxBlk;                                 /*  最大内存消耗量              */
+    
+    PSPIFFS_VOLUME      pfs;                                             /*  Spiffs需要的文件头 */
+} SPIF_VOLUME;
+typedef SPIF_VOLUME     *PSPIF_VOLUME;
+
+typedef struct spif_node {
+    PSPIF_VOLUME        pfs;                                             /*  文件系统                    */
+
+    BOOL                SPIFN_bChanged;                                  /*  文件内容是否更改            */
+    mode_t              SPIFN_mode;                                      /*  文件 mode                   */
+    time_t              SPIFN_timeCreate;                                /*  创建时间                    */
+    time_t              SPIFN_timeAccess;                                /*  最后访问时间                */
+    time_t              SPIFN_timeChange;                                /*  最后修改时间                */
+    
+    size_t              SPIFN_stSize;                                    /*  当前文件大小 (可能大于缓冲) */
+    size_t              SPIFN_stVSize;                                   /*  lseek 出的虚拟大小          */
+    
+    uid_t               SPIFN_uid;                                       /*  用户 id                     */
+    gid_t               SPIFN_gid;                                       /*  组   id                     */
+    PCHAR               SPIFN_pcName;                                    /*  文件名称                    */
+    PCHAR               SPIFN_pcLink;                                    /*  链接目标                    */
+    
+    PSPIFFS_FD          pFd;                                              /*  Spiffs文件描述 */
+} SPIFN_NODE;
+typedef SPIFN_NODE       *PSPIFN_NODE;
+/*********************************************************************************************************
+  检测路径字串是否为根目录或者直接指向设备
+*********************************************************************************************************/
+#define __STR_IS_ROOT(pcName)               ((pcName[0] == PX_EOS) || (lib_strcmp(PX_STR_ROOT, pcName) == 0))
+
 
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFFSTYPE_H_ */

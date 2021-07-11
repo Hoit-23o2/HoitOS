@@ -22,33 +22,17 @@
 #include "spifFsCache.h"
 #include "spifFsLib.h"
 #include "spifFsFDLib.h"
-/*********************************************************************************************************
-** 函数名称: __spiffsPhysCpy
-** 功能描述: 将uiSrcAddr处长uiLen的内容拷贝到uiDstAddr处
-** 输　入  : pfs          文件头
-**           uiLen        申请创建长度
-** 输　出  : None
-** 全局变量:
-** 调用模块:
-*********************************************************************************************************/
-INT32 __spiffsPhysCpy(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, UINT32 uiDstAddr,
-                      UINT32 uiSrcAddr, UINT32 uiLen){
-    (VOID) fileHandler;
-    INT32 iRes = SPIFFS_OK;
-    UCHAR uBuffer[SPIFFS_COPY_BUFFER_STACK];
-    UINT32 uiChunkSize;
-    while (uiLen > 0)
-    {
-        uiChunkSize = MIN(SPIFFS_COPY_BUFFER_STACK, uiLen);
-        iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_MOVS, fileHandler, 
-                               uiSrcAddr, uiChunkSize, uBuffer);
-        SPIFFS_CHECK_RES(iRes);
-        iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_MOVD, fileHandler, 
-                                uiDstAddr, uiChunkSize, uBuffer);
-        SPIFFS_CHECK_RES(iRes);
-        uiLen -= uiChunkSize;
-        uiSrcAddr += uiChunkSize;
-        uiDstAddr += uiChunkSize;
+
+INT32 __spiffsGCEraseBlk(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX) {
+    INT32   iRes;
+    UINT32  i;
+
+    SPIFFS_GC_DBG("gc: erase block "_SPIPRIbl"\n", blkIX);
+    iRes = spiffsEraseBlk(pfs, blkIX);
+    SPIFFS_CHECK_RES(iRes);
+
+    for (i = 0; i < SPIFFS_PAGES_PER_BLOCK(pfs); i++) {
+        spiffsCacheDropPage(pfs, SPIFFS_PAGE_FOR_BLOCK(pfs, blkIX) + i);
     }
     return iRes;
 }
@@ -122,8 +106,8 @@ INT32 spiffsPageMove(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PUCHAR pucPage
     } 
     else {
         // copy page data
-        iRes = __spiffsPhysCpy(pfs, fileHandler, SPIFFS_PAGE_TO_PADDR(pfs, pageIXFree), 
-                               SPIFFS_PAGE_TO_PADDR(pfs, pageIXSrc), SPIFFS_CFG_LOG_PAGE_SZ(pfs));
+        iRes = spiffsPhysCpy(pfs, fileHandler, SPIFFS_PAGE_TO_PADDR(pfs, pageIXFree), 
+                             SPIFFS_PAGE_TO_PADDR(pfs, pageIXSrc), SPIFFS_CFG_LOGIC_PAGE_SZ(pfs));
     }
     SPIFFS_CHECK_RES(iRes);
 
@@ -386,7 +370,7 @@ INT32 spiffsGCClean(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX){
                                 /* 重载lookUp Work Buffer，因为lookup entry被move改变了 */
                                 iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ, 0, 
                                                        blkIX * SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs) + SPIFFS_PAGE_TO_PADDR(pfs, pageIXLookUp),
-                                                       SPIFFS_CFG_LOG_PAGE_SZ(pfs), pfs->pucLookupWorkBuffer);
+                                                       SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), pfs->pucLookupWorkBuffer);
                                 SPIFFS_CHECK_RES(iRes);
                             } 
                             else {                  /* 在lookup中找到了一个已经被删除的页面，说明，Data被删，但是lookup没有删 */
@@ -446,7 +430,7 @@ INT32 spiffsGCClean(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX){
                             
                             iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ, 0, 
                                                    blkIX * SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs) + SPIFFS_PAGE_TO_PADDR(pfs, pageIXLookUp),
-                                                   SPIFFS_CFG_LOG_PAGE_SZ(pfs), pfs->pucLookupWorkBuffer);
+                                                   SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), pfs->pucLookupWorkBuffer);
                             SPIFFS_CHECK_RES(iRes);
                         } 
                         else {
@@ -470,7 +454,7 @@ INT32 spiffsGCClean(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX){
                 } // switch gc state
                 iEntryCur++;
             } // per entry
-            pageIXLookUp++; // no need to check scan variable here, obj_lookup_page is set in start of loop
+            pageIXLookUp++; // no need to check scan variable here, iObjLookUpPage is set in start of loop
         } // per object lookup page
         if (iRes != SPIFFS_OK) 
             break;
@@ -506,7 +490,7 @@ INT32 spiffsGCClean(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX){
                 SPIFFS_CHECK_RES(iRes);
                 SPIFFS_GC_DBG("gc_clean: FIND_DATA found object index at page "_SPIPRIpg"\n", pageIXObjIX);
                 iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_LU2 | SPIFFS_OP_C_READ, 0, 
-                                       SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjIX), SPIFFS_CFG_LOG_PAGE_SZ(pfs), pfs->pucWorkBuffer);
+                                       SPIFFS_PAGE_TO_PADDR(pfs, pageIXObjIX), SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), pfs->pucWorkBuffer);
                 SPIFFS_CHECK_RES(iRes);
                 // cannot allow a gc if the presumed index in fact is no index, a
                 // check must run or lot of data may be lost
@@ -563,7 +547,7 @@ INT32 spiffsGCClean(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX){
 }
 /*********************************************************************************************************
 ** 函数名称: spiffsGCCheck
-** 功能描述: 检查是否需要GC
+** 功能描述: 检查是否需要GC，如果需要，则进行GC
 ** 输　入  : pfs          文件头
 **           uiLen        申请创建长度
 ** 输　出  : None
@@ -627,16 +611,15 @@ INT32 spiffsGCCheck(PSPIFFS_VOLUME pfs, UINT32 uiLen){
         iRes = SPIFFS_ERR_FULL;
     }
 
-    SPIFFS_GC_DBG("gc_check: finished, "_SPIPRIi" dirty, blocks "_SPIPRIi" free, "_SPIPRIi" pages free, "_SPIPRIi" tries, iRes "_SPIPRIi"\n",
+    SPIFFS_GC_DBG("gc_check: finished, "_SPIPRIi" dirty, uiBlkCount "_SPIPRIi" free, "_SPIPRIi" pages free, "_SPIPRIi" tries, iRes "_SPIPRIi"\n",
                    pfs->uiStatsPageAllocated + pfs->uiStatsPageDeleted,
                    pfs->uiFreeBlks, iFreePages, iTries, iRes);
 
     return iRes;
 }
-
 /*********************************************************************************************************
 ** 函数名称: spiffsGCQuick
-** 功能描述: 检查是否需要GC
+** 功能描述: 快速GC，这个函数用于干嘛呢？
 ** 输　入  : pfs          文件头
 **           uiLen        申请创建长度
 ** 输　出  : None
@@ -644,5 +627,76 @@ INT32 spiffsGCCheck(PSPIFFS_VOLUME pfs, UINT32 uiLen){
 ** 调用模块:
 *********************************************************************************************************/
 INT32 spiffsGCQuick(PSPIFFS_VOLUME pfs, UINT16 uiMaxFreePages){
+    INT32           iRes = SPIFFS_OK;
+    UINT32          uiBlkCount = pfs->uiBlkCount;
+    SPIFFS_BLOCK_IX blkIXCur = 0;
+    UINT32          uiBlkCurAddr = 0;
+    INT             iEntryCur = 0;
+    SPIFFS_OBJ_ID   *objLookUpBuffer = (SPIFFS_OBJ_ID *)pfs->pucLookupWorkBuffer;
 
+    SPIFFS_GC_DBG("gc_quick: running\n");
+    pfs->uiStatsGCRuns++;
+
+    INT iEntriesPerPage = (SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) / sizeof(SPIFFS_OBJ_ID));
+
+    // find fully deleted uiBlkCount
+    // check each block
+    while (iRes == SPIFFS_OK && uiBlkCount--) {
+        UINT16 uiDeletedPagesInBlk = 0;
+        UINT16 uiFreePagesInBlk = 0;
+        INT    iObjLookUpPage = 0;
+        // check each object lookup page
+        while (iRes == SPIFFS_OK && iObjLookUpPage < (INT)SPIFFS_OBJ_LOOKUP_PAGES(pfs)) {
+            INT iEntryOffset = iObjLookUpPage * iEntriesPerPage;
+            iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ, 0, 
+                                   uiBlkCurAddr + SPIFFS_PAGE_TO_PADDR(pfs, iObjLookUpPage), 
+                                   SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), pfs->pucWorkBuffer);
+            // check each entry
+            while (iRes == SPIFFS_OK &&
+                iEntryCur - iEntryOffset < iEntriesPerPage &&
+                iEntryCur < (INT)(SPIFFS_PAGES_PER_BLOCK(pfs)-SPIFFS_OBJ_LOOKUP_PAGES(pfs))) {
+                SPIFFS_OBJ_ID objId = objLookUpBuffer[iEntryCur - iEntryOffset];
+                if (objId == SPIFFS_OBJ_ID_DELETED) {
+                    uiDeletedPagesInBlk++;
+                } 
+                else if (objId == SPIFFS_OBJ_ID_FREE) {
+                    // kill scan, go for next block
+                    uiFreePagesInBlk++;
+                    if (uiFreePagesInBlk > uiMaxFreePages) {
+                        iObjLookUpPage = SPIFFS_OBJ_LOOKUP_PAGES(pfs);
+                        iRes = 1; // kill object lu loop
+                        break;
+                    }
+                }  
+                else {
+                    // kill scan, go for next block
+                    iObjLookUpPage = SPIFFS_OBJ_LOOKUP_PAGES(pfs);
+                    iRes = 1; // kill object lu loop
+                    break;
+                }
+                iEntryCur++;
+            } // per entry
+            iObjLookUpPage++;
+        } // per object lookup page
+        if (iRes == 1) 
+            iRes = SPIFFS_OK;
+
+        if (iRes == SPIFFS_OK &&
+            uiDeletedPagesInBlk + uiFreePagesInBlk == SPIFFS_PAGES_PER_BLOCK(pfs) - SPIFFS_OBJ_LOOKUP_PAGES(pfs) &&
+            uiFreePagesInBlk <= uiMaxFreePages) {
+            // found a fully deleted block
+            pfs->uiStatsPageDeleted -= uiDeletedPagesInBlk;
+            iRes = __spiffsGCEraseBlk(pfs, blkIXCur);
+            return iRes;
+        }
+
+        iEntryCur = 0;
+        blkIXCur++;
+        uiBlkCurAddr += SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs);
+    } // per block
+
+    if (iRes == SPIFFS_OK) {
+        iRes = SPIFFS_ERR_NO_DELETED_BLOCKS;
+    }
+    return iRes;
 }

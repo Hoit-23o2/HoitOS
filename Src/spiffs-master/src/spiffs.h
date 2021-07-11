@@ -201,7 +201,6 @@ typedef struct {
   // physical read function
   spiffs_read hal_read_f;
   // physical write function
-  spiffs_write hal_write_f;
   // physical erase function
   spiffs_erase hal_erase_f;
 #if SPIFFS_SINGLETON == 0

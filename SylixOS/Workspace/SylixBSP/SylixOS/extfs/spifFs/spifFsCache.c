@@ -54,7 +54,7 @@ INT32 __spiffsCachePageFree(PSPIFFS_VOLUME pfs, UINT uiIX, BOOL bIsWriteBack){
            (pCachePage->flags & SPIFFS_CACHE_FLAG_TYPE_WR) == 0 &&      /*  页面配置是可写的?? */
            (pCachePage->flags & SPIFFS_CACHE_FLAG_DIRTY)){              /* 页面被写脏（被写过了） */
             pPageContent = SPIFFS_GET_CACHE_PAGE_CONTENT(pfs, pCache, uiIX);
-            SPIFFS_CACHE_DBG("CACHE_FREE: write cache page "_SPIPRIi" pix "_SPIPRIpg"\n", uiIX, pCachePage->pageIX);
+            SPIFFS_CACHE_DBG("CACHE_FREE: write cache page "_SPIPRIi" pageIX "_SPIPRIpg"\n", uiIX, pCachePage->pageIX);
             iRes = write_nor(SPIFFS_PAGE_TO_PADDR(pfs, uiIX), pPageContent, 
                              SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), WRITE_KEEP);
         }
@@ -63,7 +63,7 @@ INT32 __spiffsCachePageFree(PSPIFFS_VOLUME pfs, UINT uiIX, BOOL bIsWriteBack){
             SPIFFS_CACHE_DBG("CACHE_FREE: free cache page "_SPIPRIi" objid "_SPIPRIid"\n", uiIX, pCachePage->objId);
         }
         else {
-            SPIFFS_CACHE_DBG("CACHE_FREE: free cache page "_SPIPRIi" pix "_SPIPRIpg"\n", uiIX, pCachePage->pageIX);
+            SPIFFS_CACHE_DBG("CACHE_FREE: free cache page "_SPIPRIi" pageIX "_SPIPRIpg"\n", uiIX, pCachePage->pageIX);
         }
         SPIFFS_MAP_FREE_CACHE_PAGE(pCache, uiIX);
         pCachePage->flags = 0;
@@ -139,6 +139,7 @@ PSPIFFS_CACHE_PAGE __spiffsCachePageHit(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageI
            (pCachePage->flags & SPIFFS_CACHE_FLAG_TYPE_WR) == 0 &&      
            pCachePage->pageIX == pageIX){
             SPIFFS_CACHE_DBG("CACHE_HIT: hit cache page " _SPIPRIi  " for " _SPIPRIpg "\n", i, pageIX);
+            pCachePage->uiLastAccess = pCache->uiLastAccess;
             return pCachePage;
         }
     }
@@ -153,21 +154,21 @@ PSPIFFS_CACHE_PAGE __spiffsCachePageHit(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageI
 ** 调用模块:
 *********************************************************************************************************/
 PSPIFFS_CACHE_PAGE __spiffsCachePageAllocate(PSPIFFS_VOLUME pfs) {
-  PSPIFFS_CACHE pCache = SPIFFS_GET_CACHE_HDR(pfs);
-  PSPIFFS_CACHE_PAGE pCachePage;
-  INT i;
-  if (!SPIFFS_CHECK_CACHE_FREE(pCache)) {   /* 没有空余页面了 */
-    return LW_NULL;
-  }
-  for (i = 0; i < pCache->uiCpageCount ; i++) {
-    if (!SPIFFS_CHECK_CACHE_PAGE_VALID(pCache, i)) {
-      pCachePage = SPIFFS_GET_CACHE_PAGE_HDR(pfs, pCache, i);
-      SPIFFS_MAP_USE_CACHE_PAGE(pCache, i);
-      pCachePage->uiLastAccess = pCache->uiLastAccess;
-      return pCachePage;
+    PSPIFFS_CACHE pCache = SPIFFS_GET_CACHE_HDR(pfs);
+    PSPIFFS_CACHE_PAGE pCachePage;
+    INT i;
+    if (!SPIFFS_CHECK_CACHE_FREE(pCache)) {   /* 没有空余页面了 */
+        return LW_NULL;
     }
-  }
-  return LW_NULL;
+    for (i = 0; i < pCache->uiCpageCount ; i++) {
+        if (!SPIFFS_CHECK_CACHE_PAGE_VALID(pCache, i)) {
+            pCachePage = SPIFFS_GET_CACHE_PAGE_HDR(pfs, pCache, i);
+            SPIFFS_MAP_USE_CACHE_PAGE(pCache, i);
+            pCachePage->uiLastAccess = pCache->uiLastAccess;
+            return pCachePage;
+        }
+    }
+    return LW_NULL;
 }
 /*********************************************************************************************************
 ** 函数名称: spiffsCacheRead
@@ -210,7 +211,7 @@ INT32 spiffsCacheRead(PSPIFFS_VOLUME pfs, UINT8 uiOps, SPIFFS_FILE fileHandler,
             //TODO: 为啥是WRTHRU
             pCachePage->flags   = SPIFFS_CACHE_FLAG_WRTHRU;
             pCachePage->pageIX  = SPIFFS_PADDR_TO_PAGE(pfs, uiAddr);
-            SPIFFS_CACHE_DBG("CACHE_ALLO: allocated cache page "_SPIPRIi" for pix "_SPIPRIpg "\n", pCachePage->uiIX, pCachePage->pageIX);
+            SPIFFS_CACHE_DBG("CACHE_ALLO: allocated cache page "_SPIPRIi" for pageIX "_SPIPRIpg "\n", pCachePage->uiIX, pCachePage->pageIX);
             iRes2 = read_nor(uiAddr - SPIFFS_PADDR_TO_PAGE_OFFSET(pfs, uiAddr), 
                              SPIFFS_GET_CACHE_PAGE_CONTENT(pfs, pCache, pCachePage->uiIX), 
                              SPIFFS_CFG_LOGIC_PAGE_SZ(pfs));
@@ -338,14 +339,14 @@ INT32 spiffsCacheWrite(PSPIFFS_VOLUME pfs, UINT8 uiOps, SPIFFS_FILE fileHandler,
 INT32 spiffsEraseBlk(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX){
     INT32 iRes;
     UINT uiAddr = SPIFFS_BLOCK_TO_PADDR(pfs, blkIX);
-    UINT uiSize = SPIFFS_CFG_LOGIC_PAGE_SZ(pfs);
+    INT  iSize = SPIFFS_CFG_LOGIC_PAGE_SZ(pfs);
     
     UINT uiSectorSize;
     UINT uiSectorNo;
 
     SPIFFS_OBJ_ID objIdMagic;
     
-    while (uiSize > 0) {
+    while (iSize > 0) {
         SPIFFS_DBG("erase "_SPIPRIad":"_SPIPRIi"\n", uiAddr,  SPIFFS_CFG_PHYS_ERASE_SZ(pfs));
         erase_nor(uiAddr, ERASE_SECTOR);
 
@@ -353,7 +354,7 @@ INT32 spiffsEraseBlk(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX){
         uiSectorSize = GET_SECTOR_SIZE(uiSectorNo);
 
         uiAddr += uiSectorSize;
-        uiSize -= uiSectorSize;
+        iSize -= uiSectorSize;
     }
     pfs->uiFreeBlks++;
 
@@ -468,4 +469,45 @@ INT32 spiffsCacheFflush(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler){
         }
     }
     return iRes;
+}
+/*********************************************************************************************************
+** 函数名称: spiffsCacheDropPage
+** 功能描述: 直接扔掉一个页面pageIX
+** 输　入  : pfs          文件头
+**          fileHandler    文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID spiffsCacheDropPage(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX) {
+    PSPIFFS_CACHE_PAGE cachePage =  __spiffsCachePageHit(pfs, pageIX);
+    if (cachePage) {
+        __spiffsCachePageFree(pfs, cachePage->uiIX, 0);
+    }
+}
+/*********************************************************************************************************
+** 函数名称: spiffsCacheDropPage
+** 功能描述: 直接扔掉一个页面pageIX
+** 输　入  : pfs          文件头
+**          fileHandler    文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+PSPIFFS_CACHE_PAGE spiffsCachePageAllocateByFd(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd) {
+    // before this function is called, it is ensured that there is no already existing
+    // cache page with same object id
+    __spiffsCachePageRemoveOldest(pfs, SPIFFS_CACHE_FLAG_TYPE_WR, 0);
+    PSPIFFS_CACHE_PAGE pCachePage = __spiffsCachePageAllocate(pfs);
+    if (pCachePage == 0) {
+        // could not get cache page
+        return 0;
+    }
+
+    pCachePage->flags = SPIFFS_CACHE_FLAG_TYPE_WR;
+    pCachePage->objId = pFd->objId;
+    pFd->pCachePage = pCachePage;
+    SPIFFS_CACHE_DBG("CACHE_ALLO: allocated cache page "_SPIPRIi" for pFd "_SPIPRIfd ":"_SPIPRIid "\n", 
+                     pCachePage->uiIX, pFd->fileN, pFd->objId);
+    return pCachePage;
 }

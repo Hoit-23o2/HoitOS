@@ -21,6 +21,7 @@
 #ifndef SYLIXOS_EXTFS_SPIFFS_SPIFFSLIB_H_
 #define SYLIXOS_EXTFS_SPIFFS_SPIFFSLIB_H_
 #include "spifFsType.h"
+
 /*********************************************************************************************************
  * SPIFFS Vistor相关定义
 *********************************************************************************************************/
@@ -105,10 +106,12 @@ INT32 spiffsObjectRead(PSPIFFS_FD pFd, UINT32 uiOffset, UINT32 uiLen, PUCHAR puD
 /*********************************************************************************************************
  * SPIFFS 其他工具
 *********************************************************************************************************/
-INT32 spiffsStatPageIX(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX, SPIFFS_FILE fileHandler, PSPIFFS_STAT pStat);
+INT32        spiffsStatPageIX(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX, SPIFFS_FILE fileHandler, PSPIFFS_STAT pStat);
+SPIFFS_FLAGS spiffsTranslateToSylixOSFlag(INT iFlag);
 /*********************************************************************************************************
  * SPIFFS 读写相关
 *********************************************************************************************************/
-INT32 spiffsFileWrite(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, UINT32 uiOffset, INT32 iLen);
-INT32 spiffsFileRead(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, INT32 iLen);
+INT32           spiffsFileWrite(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, UINT32 uiOffset, INT32 iLen);
+INT32           spiffsFileRead(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, INT32 iLen);
+PSPIFFS_DIRENT  spiffsDirRead(PSPIFFS_DIR pDir, PSPIFFS_DIRENT pDirent);
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFFSLIB_H_ */

@@ -38,8 +38,10 @@ INT32       __spiffs_create(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_MODE 
 SPIFFS_FILE __spiffs_open(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_FLAGS flags, SPIFFS_MODE mode);
 SPIFFS_FILE __spiffs_open_by_dirent(PSPIFFS_VOLUME pfs, PSPIFFS_DIRENT pDirent, SPIFFS_FLAGS flags, SPIFFS_MODE mode);
 INT32       __spiffs_read(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, INT32 iLen);
+INT32       __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, INT32 iLen);
 INT32       __spiffs_lseek(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, UINT32 uiOffset, INT iSeekFlag);
 
+INT32       __spiffs_rename(PSPIFFS_VOLUME pfs, const PCHAR pcOldPath, const PCHAR pcNewPath);
 INT32       __spiffs_remove(PSPIFFS_VOLUME pfs, const PCHAR pcPath);
 INT32       __spiffs_fremove(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler);
 
@@ -47,4 +49,31 @@ INT32       __spiffs_stat(PSPIFFS_VOLUME pfs, const PCHAR pcPath, PSPIFFS_STAT p
 INT32       __spiffs_fstat(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PSPIFFS_STAT pStat);
 INT32       __spiffs_fflush(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler);
 INT32       __spiffs_close(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler);
+INT32       __spiffs_gc_quick(PSPIFFS_VOLUME pfs, UINT16 uiMaxFreePages);
+INT32       __spiffs_gc(PSPIFFS_VOLUME pfs, UINT32 uiSize);
+INT32       __spiffs_set_file_callback_func(PSPIFFS_VOLUME pfs, spiffsFileCallback fileCallBackFunc);
+
+PSPIFFS_DIR    __spiffs_opendir(PSPIFFS_VOLUME pfs, const PCHAR pcName, PSPIFFS_DIR pDir);
+INT32          __spiffs_closedir(PSPIFFS_DIR pDir);
+PSPIFFS_DIRENT __spiffs_readdir(PSPIFFS_DIR pDir, PSPIFFS_DIRENT pDirent);
+
+/*********************************************************************************************************
+ * SylixOS 适配 
+*********************************************************************************************************/
+INT            __spif_mount(PSPIF_VOLUME pfs);
+INT            __spif_unmount(PSPIF_VOLUME pfs);
+PSPIFN_NODE    __spif_open(PSPIF_VOLUME pfs, PCHAR pcName, INT iFlags, INT iMode, BOOL *pbIsRoot);
+INT            __spif_close(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn);
+INT            __spif_remove(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn);
+INT            __spif_stat(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, struct stat* pstat);
+
+INT            __spif_read(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PVOID pContent, UINT32 uiOffset, UINT32 uiLen);
+INT            __spif_write(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PVOID pContent, UINT32 uiOffset, UINT32 uiLen);
+INT            __spif_rename(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PCHAR  pcNewName);
+INT            __spif_lseek(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, UINT32 uiOffset);
+
+INT            __spif_statfs(PSPIF_VOLUME pfs, struct statfs *pstatfs);
+PSPIFFS_DIR    __spif_opendir(PSPIF_VOLUME pfs, const PCHAR pcName, PSPIFFS_DIR pDir);
+PSPIFFS_DIRENT __spif_readdir(PSPIFFS_DIR pDir, PSPIFFS_DIRENT pDirent);
+INT            __spif_closedir(PSPIF_VOLUME pfs, PSPIFFS_DIR pDir);
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFFSGLUE_H_ */

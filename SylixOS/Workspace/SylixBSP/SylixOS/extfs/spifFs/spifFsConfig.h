@@ -114,11 +114,11 @@ than logical page size.
 #ifndef SPIFFS_CFG_PHYS_ADDR
 #define SPIFFS_CFG_PHYS_ADDR(ignore)      (0)
 #endif
-#ifndef SPIFFS_CFG_LOG_PAGE_SZ
-#define SPIFFS_CFG_LOG_PAGE_SZ(ignore)    (256)
+#ifndef SPIFFS_CFG_LOGIC_PAGE_SZ
+#define SPIFFS_CFG_LOGIC_PAGE_SZ(ignore)    (256)
 #endif
-#ifndef SPIFFS_CFG_LOG_BLOCK_SZ
-#define SPIFFS_CFG_LOG_BLOCK_SZ(ignore)   (65536)
+#ifndef SPIFFS_CFG_LOGIC_BLOCK_SZ
+#define SPIFFS_CFG_LOGIC_BLOCK_SZ(ignore)   (65536)
 #endif
 /*********************************************************************************************************
   是否允许永久的文件缓存？
@@ -212,6 +212,8 @@ descriptor.
 #define SPIFFS_GC_DBG(_f, ...) printf(_f, ## __VA_ARGS__)
 #endif
 // Set spiffs debug output call for caching.
+#define SPIFFS_CACHE_DBG
+
 #ifndef SPIFFS_CACHE_DBG
 #define SPIFFS_CACHE_DBG(_f, ...) printf(_f, ## __VA_ARGS__)
 #endif

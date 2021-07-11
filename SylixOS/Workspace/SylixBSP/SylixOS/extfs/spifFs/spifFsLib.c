@@ -87,7 +87,7 @@ INT32 __spiffsObjLookUpScanVistor(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, SPIFF
     (VOID) pUserVar;
 
     if(objId == SPIFFS_OBJ_ID_FREE){
-        if(iLookUpEntryIX == 0){        /* 一个块的首objID为空，默认该块为空，如何理解？事实上很简单，LFS使然*/
+        if(iLookUpEntryIX == 0){        /* 一个块的首objId为空，默认该块为空，如何理解？事实上很简单，LFS使然*/
             pfs->uiFreeBlks++;
         }
     }
@@ -216,9 +216,40 @@ INT32 __spiffsObjectFindObjectIndexHeaderByNameVisitor(PSPIFFS_VOLUME pfs, SPIFF
 
     return SPIFFS_VIS_COUNTINUE;
 }
+INT32 __spiffsReadDirVisitor(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, SPIFFS_BLOCK_IX blkIX, INT iLookUpEntryIX, 
+                             const PVOID pUserConst, PVOID pUserVar) {
+    (VOID)pUserConst;
+    INT32 iRes;
+    SPIFFS_PAGE_OBJECT_IX_HEADER objIXHdr;
+    if (objId == SPIFFS_OBJ_ID_FREE || objId == SPIFFS_OBJ_ID_DELETED ||
+        (objId & SPIFFS_OBJ_ID_IX_FLAG) == 0) {
+        return SPIFFS_VIS_COUNTINUE;
+    }
+
+    SPIFFS_PAGE_IX pageIX = SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(pfs, blkIX, iLookUpEntryIX);
+    iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_LU2 | SPIFFS_OP_C_READ, 0, 
+                            SPIFFS_PAGE_TO_PADDR(pfs, pageIX), 
+                            sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER), (PUCHAR)&objIXHdr);
+    if (iRes != SPIFFS_OK) 
+        return iRes;
+    if ((objId & SPIFFS_OBJ_ID_IX_FLAG) &&
+        objIXHdr.pageHdr.spanIX == 0 &&
+        (objIXHdr.pageHdr.flags & (SPIFFS_PH_FLAG_DELET | SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_IXDELE)) ==
+        (SPIFFS_PH_FLAG_DELET | SPIFFS_PH_FLAG_IXDELE)) {
+        PSPIFFS_DIRENT pDirent = (PSPIFFS_DIRENT)pUserVar;
+        pDirent->objId = objId;
+        strcpy((PCHAR)pDirent->ucName, (PCHAR)objIXHdr.ucName);
+        pDirent->objType = objIXHdr.type;
+        pDirent->uiSize = objIXHdr.uiSize == SPIFFS_UNDEFINED_LEN ? 0 : objIXHdr.uiSize;
+        pDirent->pageIX = pageIX;
+        return SPIFFS_OK;
+    }
+    return SPIFFS_VIS_COUNTINUE;
+}
+
 /*********************************************************************************************************
 ** 函数名称: spiffsObjLookUpFindEntryVisitor
-** 功能描述: 用Vistor来访问每个Entry，访问到objID时会发生回调，flags也与回调有关
+** 功能描述: 用Vistor来访问每个Entry，访问到objId时会发生回调，flags也与回调有关
 ** 输　入  : pfs          文件头
 ** 输　出  : None
 ** 全局变量:
@@ -263,7 +294,7 @@ INT32 spiffsObjLookUpFindEntryVisitor(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIXS
         {
             iEntryOffset = pageIXOffset * iEntriesPerPage;
             iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ, 0, 
-                                   uiBlkCurAddr + SPIFFS_PAGE_TO_PADDR(pfs, pageIXOffset), 
+                                   uiBlkCurAddr + pageIXOffset * SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), 
                                    SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), pfs->pucLookupWorkBuffer);
 
             /* 查看LookUp Page上的所有Entry */
@@ -289,10 +320,14 @@ INT32 spiffsObjLookUpFindEntryVisitor(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIXS
                         if(iRes == SPIFFS_VIS_COUNTINUE || iRes == SPIFFS_VIS_COUNTINUE_RELOAD) {
                             if(iRes == SPIFFS_VIS_COUNTINUE_RELOAD){
                                 iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ, 0, 
-                                                       uiBlkCurAddr + SPIFFS_PAGE_TO_PADDR(pfs, pageIXOffset), 
+                                                       uiBlkCurAddr + pageIXOffset * SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), 
                                                        SPIFFS_CFG_LOGIC_PAGE_SZ(pfs), pfs->pucLookupWorkBuffer);
                                 SPIFFS_CHECK_RES(iRes);
                             }
+                            iRes = SPIFFS_OK;
+                            iEntryCur++;
+                            iEntryCount--;
+                            continue;
                         }
                         else {
                             return iRes;
@@ -644,7 +679,7 @@ INT32 spiffsObjectFindObjectIndexHeaderByName(PSPIFFS_VOLUME pfs, UCHAR ucName[S
                                            LW_NULL,
                                            &blkIX,
                                            &iEntry);
-
+    
     if (iRes == SPIFFS_VIS_END) {
         iRes = SPIFFS_ERR_NOT_FOUND;
     }
@@ -787,7 +822,7 @@ INT32 spiffsPageAllocateData(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, PSPIFFS_PA
     SPIFFS_CHECK_RES(iRes);
 
     // occupy page in object lookup
-    /* 用当前数据页面的objID占用这个entry */
+    /* 用当前数据页面的objId占用这个entry */
     iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_UPDT, 0, 
                             SPIFFS_BLOCK_TO_PADDR(pfs, blkIX) + iEntry * sizeof(SPIFFS_OBJ_ID), 
                             sizeof(SPIFFS_OBJ_ID), (PUCHAR)&objId);
@@ -942,6 +977,8 @@ INT32 spiffsObjectCreate(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId,
     iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_UPDT, 0, 
                             SPIFFS_OBJ_LOOKUP_ENTRY_TO_PADDR(pfs, blkIX, iEntry), 
                             sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER), (PUCHAR)&objIXHdr);
+
+    //ANCHOR : 读回来看看对不对
 
     SPIFFS_CHECK_RES(iRes);
     spiffsCBObjectEvent(pfs, (SPIFFS_PAGE_OBJECT_IX *)&objIXHdr,
@@ -2059,11 +2096,78 @@ INT32 spiffsStatPageIX(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX, SPIFFS_FILE fi
                            (PUCHAR)&objId);
     SPIFFS_API_CHECK_RES(pfs, iRes);
 
-    pStat->objID = objId & ~SPIFFS_OBJ_ID_IX_FLAG;          /* 取消索引号 */
+    pStat->objId = objId & ~SPIFFS_OBJ_ID_IX_FLAG;          /* 取消索引号 */
     pStat->objType = objIXHdr.type;
     pStat->uiSize = objIXHdr.uiSize == SPIFFS_UNDEFINED_LEN ? 0 : objIXHdr.uiSize;
     pStat->pageIX = pageIX;
     strncpy((PCHAR)pStat->ucName, (PCHAR)objIXHdr.ucName, SPIFFS_OBJ_NAME_LEN);
 
     return iRes;
+}
+/*********************************************************************************************************
+** 函数名称: spiffsTranslateToSylixOSFlag
+** 功能描述: 转换Flag
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+SPIFFS_FLAGS spiffsTranslateToSylixOSFlag(INT iFlag){
+    SPIFFS_FLAGS flags = 0;
+    if(iFlag & O_CREAT){
+        flags |= SPIFFS_O_CREAT;
+    }
+    if(iFlag & O_APPEND){
+        flags |= SPIFFS_O_APPEND;
+    }
+    if(iFlag & O_TRUNC){
+        flags |= SPIFFS_O_TRUNC;
+    }
+    if(iFlag & O_EXCL){
+        flags |= SPIFFS_O_EXCL;
+    }
+    if(iFlag & O_RDONLY){
+        flags |= SPIFFS_O_RDONLY;
+    }
+    if(iFlag & O_RDWR){
+        flags |= SPIFFS_RDWR;
+    }
+    return flags;
+}
+/*********************************************************************************************************
+** 函数名称: spiffsDirRead
+** 功能描述: 用于描述页面状态
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+PSPIFFS_DIRENT spiffsDirRead(PSPIFFS_DIR pDir, PSPIFFS_DIRENT pDirent){
+    SPIFFS_BLOCK_IX blkIX;
+    INT             iEntry;
+    INT32           iRes;
+
+    iRes =  spiffsObjLookUpFindEntryVisitor(pDir->pfs, pDir->blkIX, pDir->uiEntry,
+                                            SPIFFS_VIS_NO_WRAP,
+                                            0,
+                                            __spiffsReadDirVisitor,
+                                            0,
+                                            pDirent,
+                                            &blkIX,
+                                            &iEntry);
+    if (iRes == SPIFFS_OK) {
+        pDir->blkIX = blkIX;
+        pDir->uiEntry = iEntry + 1;
+        pDirent->objId &= ~SPIFFS_OBJ_ID_IX_FLAG;
+        return pDirent;
+    } 
+    else {
+        pDir->pfs->uiErrorCode = iRes;
+    }
+
+    return LW_NULL;
 }
