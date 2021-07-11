@@ -118,6 +118,7 @@ typedef struct hoit_frag_tree_list_header HOIT_FRAG_TREE_LIST_HEADER;
 
 typedef struct HOIT_CACHE_BLK             HOIT_CACHE_BLK;
 typedef struct HOIT_CACHE_HDR             HOIT_CACHE_HDR;
+typedef struct HOIT_EBS_ENTRY             HOIT_EBS_ENTRY;
 
 typedef struct HOIT_LOG_INFO              HOIT_LOG_INFO;
 typedef struct HOIT_RAW_LOG               HOIT_RAW_LOG;
@@ -143,6 +144,7 @@ typedef HOIT_FRAG_TREE_LIST_HEADER *      PHOIT_FRAG_TREE_LIST_HEADER;
 
 typedef HOIT_CACHE_BLK *                  PHOIT_CACHE_BLK;
 typedef HOIT_CACHE_HDR *                  PHOIT_CACHE_HDR;
+typedef HOIT_EBS_ENTRY *                  PHOIT_EBS_ENTRY;
 
 typedef HOIT_LOG_INFO *                   PHOIT_LOG_INFO;
 typedef HOIT_RAW_LOG *                    PHOIT_RAW_LOG;
@@ -418,11 +420,25 @@ typedef struct HOIT_CACHE_HDR
     UINT32                  HOITCACHE_blockNums;    /* 当前cache数量 */
     LW_OBJECT_HANDLE        HOITCACHE_hLock;        /* cache自旋锁? */
     UINT32                  HOITCACHE_flashBlkNum;  /* 将flash分块后的块数 */
-    PHOIT_CACHE_BLK         HOITCACHE_cacheLineHdr;  /* cache链表 */
+    PHOIT_CACHE_BLK         HOITCACHE_cacheLineHdr;  /* cache链表头，注意该节点不保存数据 */
     UINT32                  HOITCACHE_nextBlkToWrite;/* 下一个要输出的块 */
+
+    //! 2021-07-04 ZN filter层
+    // size_t                  HOITCACHE_EBSEntrySize; /* EBS enty大小 */
+    size_t                  HOITCACHE_EBSStartAddr; /* EBS 在sector中起始地址 */
+    // size_t                  HOITCACHE_PageSize;     /* 单页大小 */
+    size_t                  HOITCACHE_PageAmount;     /* 单个cache页数量 */
 }HOIT_CACHE_HDR;
 
-
+//! 2021-7-04 ZN EBS项
+/*********************************************************************************************************
+  HOITFS EBS entry
+*********************************************************************************************************/
+typedef struct HOIT_EBS_ENTRY
+{
+    UINT32  HOIT_EBS_ENTRY_inodeNo;     /* 所属文件inode号 */
+    UINT32  HOIT_EBS_ENTRY_obsolete;    /* 过期标志 */
+}HOIT_EBS_ENTRY;
 
 /*********************************************************************************************************
   HOITFS log 文件头
