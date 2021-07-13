@@ -72,7 +72,8 @@
         "iostream": "c",
         "ostream": "c",
         "*.tcc": "c",
-        "spiffs.h": "c"
+        "spiffs.h": "c",
+        "cstring": "c"
     },
     "workbench.preferredDarkColorTheme": "Solarized Dark"
 }

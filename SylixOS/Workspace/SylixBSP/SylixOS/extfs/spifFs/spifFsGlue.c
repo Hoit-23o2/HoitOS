@@ -172,7 +172,7 @@ INT32 __spiffs_mount(PSPIFFS_VOLUME pfs, PSPIFFS_CONFIG pConfig, PUCHAR pucWorkB
     //TODO: 扫描介质
     iRes = spiffsObjLookUpScan(pfs);
 
-    SPIFFS_DBG("page index byte iLen:         "_SPIPRIi"\n", (UINT32)SPIFFS_CFG_LOGIC_PAGE_SZ(pfs));
+    SPIFFS_DBG("page index byte iLen:        "_SPIPRIi"\n", (UINT32)SPIFFS_CFG_LOGIC_PAGE_SZ(pfs));
     SPIFFS_DBG("object lookup pages:         "_SPIPRIi"\n", (UINT32)SPIFFS_OBJ_LOOKUP_PAGES(pfs));
     SPIFFS_DBG("page pages per block:        "_SPIPRIi"\n", (UINT32)SPIFFS_PAGES_PER_BLOCK(pfs));
     SPIFFS_DBG("page header length:          "_SPIPRIi"\n", (UINT32)sizeof(SPIFFS_PAGE_HEADER));
@@ -182,6 +182,7 @@ INT32 __spiffs_mount(PSPIFFS_VOLUME pfs, PSPIFFS_CONFIG pConfig, PUCHAR pucWorkB
     SPIFFS_DBG("object index entries:        "_SPIPRIi"\n", (UINT32)SPIFFS_OBJ_IX_LEN(pfs));
     /* 配置的最大文件描述符 */
     SPIFFS_DBG("available file descriptors:  "_SPIPRIi"\n", (UINT32)pfs->uiFdCount);
+    SPIFFS_DBG("total blocks:                "_SPIPRIi"\n", (UINT32)(SPIFFS_CFG_PHYS_SZ(pfs) / SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs)));
     SPIFFS_DBG("free blocks:                 "_SPIPRIi"\n", (UINT32)pfs->uiFreeBlks);
 
     pfs->checkCallbackFunc = checkCallbackFunc;
@@ -1030,8 +1031,8 @@ INT __spif_mount(PSPIF_VOLUME pfs){
     pConfig->uiLogicBlkSize     = 64 * 1024;                /* 64KB */
     pConfig->uiLogicPageSize    = 256;                      /* 256B */
     pConfig->uiPhysEraseBlkSize = 64 * 1024;
-    pConfig->uiPhysSize         = 2 * 1024 * 1024;
     pConfig->uiPhysAddr         = NOR_FLASH_START_OFFSET;   /* 其实 */
+    pConfig->uiPhysSize         = NOR_FLASH_SZ - NOR_FLASH_START_OFFSET;
 
     /* 分配各种buffer */
     uiWorkSize                  = pConfig->uiLogicBlkSize * 2;

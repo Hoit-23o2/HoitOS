@@ -106,7 +106,7 @@ than logical page size.
   在SylixOS中我们仅移植Singleton
 *********************************************************************************************************/
 #ifndef SPIFFS_CFG_PHYS_SZ
-#define SPIFFS_CFG_PHYS_SZ(ignore)        (1024*1024*2)
+#define SPIFFS_CFG_PHYS_SZ(ignore)        (1024 * 1024 * 2)
 #endif
 #ifndef SPIFFS_CFG_PHYS_ERASE_SZ
 #define SPIFFS_CFG_PHYS_ERASE_SZ(ignore)  (65536)

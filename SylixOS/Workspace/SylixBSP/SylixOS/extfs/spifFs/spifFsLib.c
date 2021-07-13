@@ -164,14 +164,15 @@ INT32 __spiffsObjLookUpFindFreeObjIdCompactVistor(PSPIFFS_VOLUME pfs, SPIFFS_OBJ
     PUCHAR pucObjBitMap;
     UINT   uiIX;
 
-    if(objId != SPIFFS_OBJ_ID_FREE && objId != SPIFFS_OBJ_ID_DELETED){
+    if(objId != SPIFFS_OBJ_ID_FREE && objId != SPIFFS_OBJ_ID_DELETED 
+       && (objId & SPIFFS_OBJ_ID_IX_FLAG)){
         pageIX = SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(pfs, blkIX, iLookUpEntryIX);
         iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_LU2 | SPIFFS_OP_C_READ, 0, 
                                SPIFFS_PAGE_TO_PADDR(pfs, pageIX), 
                                sizeof(SPIFFS_PAGE_OBJECT_IX_HEADER), &objIXHdr);
         SPIFFS_CHECK_RES(iRes);
         if(objIXHdr.pageHdr.spanIX == 0 &&
-           (objIXHdr.pageHdr.flags & (SPIFFS_PH_FLAG_DELET | SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_IXDELE)) 
+           (objIXHdr.pageHdr.flags & (SPIFFS_PH_FLAG_INDEX | SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_DELET))
            == (SPIFFS_PH_FLAG_DELET)){
             if(pState->pucConflictingName &&
                lib_strcmp((const PCHAR)pUserConst, (PCHAR)objIXHdr.ucName) == 0){       /* 文件名冲突 */
@@ -238,7 +239,7 @@ INT32 __spiffsReadDirVisitor(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId, SPIFFS_BLO
         (SPIFFS_PH_FLAG_DELET | SPIFFS_PH_FLAG_IXDELE)) {
         PSPIFFS_DIRENT pDirent = (PSPIFFS_DIRENT)pUserVar;
         pDirent->objId = objId;
-        strcpy((PCHAR)pDirent->ucName, (PCHAR)objIXHdr.ucName);
+        lib_strcpy((PCHAR)pDirent->ucName, (PCHAR)objIXHdr.ucName);
         pDirent->objType = objIXHdr.type;
         pDirent->uiSize = objIXHdr.uiSize == SPIFFS_UNDEFINED_LEN ? 0 : objIXHdr.uiSize;
         pDirent->pageIX = pageIX;
@@ -384,6 +385,7 @@ INT32 spiffsObjLookUpScan(PSPIFFS_VOLUME pfs){
     /* 完成EraseCount的计数 */
     while (blkIX < pfs->uiBlkCount)
     {
+#ifdef SPIFFS_USE_MAGIC
         iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ, 0, 
                                SPIFFS_MAGIC_PADDR(pfs, blkIX), sizeof(SPIFFS_OBJ_ID), 
                                (PUCHAR)&objIdMagic);
@@ -397,7 +399,7 @@ INT32 spiffsObjLookUpScan(PSPIFFS_VOLUME pfs){
                 SPIFFS_CHECK_RES(SPIFFS_ERR_NOT_A_FS);
             }
         }
-
+#endif
         iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_LU2 | SPIFFS_OP_C_READ, 0, 
                                SPIFFS_ERASE_COUNT_PADDR(pfs, blkIX), sizeof(SPIFFS_OBJ_ID),
                                (PUCHAR)&objIdEraseCount);
@@ -407,6 +409,7 @@ INT32 spiffsObjLookUpScan(PSPIFFS_VOLUME pfs){
             objIdEraseCountMax = MAX(objIdEraseCountMax, objIdEraseCount);
         }
         blkIX++;
+        printf("mount blkix %d\n", blkIX);
     }
 
     //TODO: 搞清楚这个擦除次数是如何计算的
@@ -496,7 +499,7 @@ INT32 spiffsObjLookUpFindFreeObjId(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID *pObjId, co
                 }
                 /* 遍历每个位 */
                 /* 8位掩码 */
-                for (j = 0; i < 8; i++)
+                for (j = 0; j < 8; j++)
                 {
                     if((uiMask8 & (1 << j)) == 0){
                         *pObjId = state.objIdMin + j + (i << 3);
@@ -530,7 +533,8 @@ INT32 spiffsObjLookUpFindFreeObjId(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID *pObjId, co
                     return SPIFFS_ERR_FULL;
                 }
                 
-                SPIFFS_DBG("free_obj_id: COMP select index:"_SPIPRIi" min_count:"_SPIPRIi" min:"_SPIPRIid" max:"_SPIPRIid" compact:"_SPIPRIi"\n", uiMinIndex, uiMinCount, state.objIdMin, state.objIdMax, state.uiCompaction);
+                SPIFFS_DBG("free_obj_id: COMP select index:"_SPIPRIi" min_count:"_SPIPRIi" min:"_SPIPRIid" max:"_SPIPRIid" compact:"_SPIPRIi"\n",
+                            uiMinIndex, uiMinCount, state.objIdMin, state.objIdMax, state.uiCompaction);
                 if(uiMinCount == 0){
                     *pObjId = uiMinIndex * state.uiCompaction + state.objIdMin;
                     return SPIFFS_OK;
@@ -552,7 +556,8 @@ INT32 spiffsObjLookUpFindFreeObjId(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID *pObjId, co
             SPIFFS_DBG("free_obj_id: COMP min:"_SPIPRIid" max:"_SPIPRIid" compact:"_SPIPRIi"\n", state.objIdMin, 
                        state.objIdMax, state.uiCompaction);
             lib_memset(pfs->pucWorkBuffer, 0, SPIFFS_CFG_LOGIC_PAGE_SZ(pfs));
-            iRes = spiffsObjLookUpFindEntryVisitor(pfs,0, 0, 0, 0, __spiffsObjLookUpFindFreeObjIdCompactVistor, 
+            iRes = spiffsObjLookUpFindEntryVisitor(pfs, 0, 0, 0, 0, 
+                                                   __spiffsObjLookUpFindFreeObjIdCompactVistor, 
                                                    &state, LW_NULL, LW_NULL, LW_NULL);
             if(iRes == SPIFFS_VIS_END){
                 iRes = SPIFFS_OK;
@@ -960,6 +965,12 @@ INT32 spiffsObjectCreate(PSPIFFS_VOLUME pfs, SPIFFS_OBJ_ID objId,
     iRes = spiffsCacheWrite(pfs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_UPDT, 0, 
                             SPIFFS_BLOCK_TO_PADDR(pfs, blkIX) + iEntry * sizeof(SPIFFS_OBJ_ID), 
                             sizeof(SPIFFS_OBJ_ID), (PUCHAR)&objId);
+#ifdef SPIFFS_CACHE_TEST
+    objId = 0;
+    iRes = spiffsCacheRead(pfs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ, 0, 
+                            SPIFFS_BLOCK_TO_PADDR(pfs, blkIX) + iEntry * sizeof(SPIFFS_OBJ_ID), 
+                            sizeof(SPIFFS_OBJ_ID), (PUCHAR)&objId);
+#endif
     SPIFFS_CHECK_RES(iRes);
 
     pfs->uiStatsPageAllocated++;

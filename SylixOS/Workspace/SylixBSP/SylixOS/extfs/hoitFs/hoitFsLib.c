@@ -1822,6 +1822,7 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     pfs->HOITFS_highest_ino = 0;
     pfs->HOITFS_highest_version = 0;
 
+    INT                 i;
     INT                 hasLog      = 0;
     UINT                phys_addr   = 0;
     UINT8               sector_no   = hoitGetSectorNo(phys_addr);
@@ -1851,7 +1852,7 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     }
 
 
-    for (int i = 0; i < handleSize; i++) {
+    for (i = 0; i < handleSize; i++) {
         API_ThreadJoin(ulObjectHandle[i], LW_NULL);
     }
     

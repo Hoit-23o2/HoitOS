@@ -156,58 +156,58 @@ VOID spiffsCBObjectEvent(PSPIFFS_VOLUME pfs, PSPIFFS_PAGE_OBJECT_IX objIX, INT e
 							objIdRaw, spanIX, pageIXNew, uiNewSize);
 	/* 更新所有fd */
 	for (i = 0; i < pfs->uiFdCount; i++) {
-			pFdCur = &pFds[i];
-			if ((pFdCur->objId & ~SPIFFS_OBJ_ID_IX_FLAG) != objId) 	/* 该文件描述符与被更新的文件无关 */
-				continue; // fd not related to updated file
+		pFdCur = &pFds[i];
+		if ((pFdCur->objId & ~SPIFFS_OBJ_ID_IX_FLAG) != objId) 	/* 该文件描述符与被更新的文件无关 */
+			continue; // fd not related to updated file
 
-			if (spanIX == 0) { // 更新Index Heaader
-					if (ev != SPIFFS_EV_IX_DEL) {	/* 如果不是删除一个Object Index */
-							SPIFFS_DBG("       callback: setting fd "_SPIPRIfd":"_SPIPRIid"(fdoffs:"_SPIPRIi" offs:"_SPIPRIi") objix_hdr_pix to "_SPIPRIpg", size:"_SPIPRIi"\n",
-												(pFdCur->fileN), pFdCur->objId, pFdCur->uiFdOffset, pFdCur->uiOffset, pageIXNew, uiNewSize);
-							pFdCur->pageIXObjIXHdr = pageIXNew;
-							if (uiNewSize != 0) {
-									// update size and offsets for fds to this file
-									pFdCur->uiSize = uiNewSize;
-									uiActNewSize = uiNewSize == SPIFFS_UNDEFINED_LEN ? 0 : uiNewSize;
-									if (uiActNewSize > 0 && pFdCur->pCachePage) {
-											uiActNewSize = MAX(uiActNewSize, pFdCur->pCachePage->uiOffset + pFdCur->pCachePage->uiSize);
-									}
-									if (pFdCur->uiOffset > uiActNewSize) {
-											pFdCur->uiOffset = uiActNewSize;
-									}
-									if (pFdCur->uiFdOffset > uiActNewSize) {
-											pFdCur->uiFdOffset = uiActNewSize;
-									}
-									/* 文件被截断了 */
-									if (pFdCur->pCachePage && pFdCur->pCachePage->uiOffset > uiActNewSize + 1) {
-											SPIFFS_CACHE_DBG("CACHE_DROP: file trunced, dropping cache page "_SPIPRIi", no writeback\n", 
-																				pFdCur->pCachePage->uiIX);
-											spiffsCacheFdRelease(pfs, pFdCur->pCachePage);
-									}
-							}
-					} 
-					else {
-							// removing file
-							if (pFdCur->fileN && pFdCur->pCachePage) {
-									SPIFFS_CACHE_DBG("CACHE_DROP: file deleted, dropping cache page "_SPIPRIi", no writeback\n", 
-																		pFdCur->pCachePage->uiIX);
-									spiffsCacheFdRelease(pfs, pFdCur->pCachePage);
-							}
-							SPIFFS_DBG("       callback: release fd "_SPIPRIfd":"_SPIPRIid" span:"_SPIPRIsp" objix_pix to "_SPIPRIpg"\n", 
-													pFdCur->fileN, pFdCur->objId, spanIX, pageIXNew);
-							pFdCur->fileN = 0;
-							pFdCur->objId = SPIFFS_OBJ_ID_DELETED;
+		if (spanIX == 0) { // 更新Index Heaader
+			if (ev != SPIFFS_EV_IX_DEL) {	/* 如果不是删除一个Object Index */
+				SPIFFS_DBG("       callback: setting fd "_SPIPRIfd":"_SPIPRIid"(fdoffs:"_SPIPRIi" offs:"_SPIPRIi") objix_hdr_pix to "_SPIPRIpg", size:"_SPIPRIi"\n",
+									(pFdCur->fileN), pFdCur->objId, pFdCur->uiFdOffset, pFdCur->uiOffset, pageIXNew, uiNewSize);
+				pFdCur->pageIXObjIXHdr = pageIXNew;
+				if (uiNewSize != 0) {
+					// update size and offsets for fds to this file
+					pFdCur->uiSize = uiNewSize;
+					uiActNewSize = uiNewSize == SPIFFS_UNDEFINED_LEN ? 0 : uiNewSize;
+					if (uiActNewSize > 0 && pFdCur->pCachePage) {
+							uiActNewSize = MAX(uiActNewSize, pFdCur->pCachePage->uiOffset + pFdCur->pCachePage->uiSize);
 					}
+					if (pFdCur->uiOffset > uiActNewSize) {
+							pFdCur->uiOffset = uiActNewSize;
+					}
+					if (pFdCur->uiFdOffset > uiActNewSize) {
+							pFdCur->uiFdOffset = uiActNewSize;
+					}
+					/* 文件被截断了 */
+					if (pFdCur->pCachePage && pFdCur->pCachePage->uiOffset > uiActNewSize + 1) {
+						SPIFFS_CACHE_DBG("CACHE_DROP: file trunced, dropping cache page "_SPIPRIi", no writeback\n", 
+															pFdCur->pCachePage->uiIX);
+						spiffsCacheFdRelease(pfs, pFdCur->pCachePage);
+					}
+				}
 			} 
-			if (pFdCur->spanIXObjIXCursor == spanIX) {	/* 更新当前Page的指针 */
-					if (ev != SPIFFS_EV_IX_DEL) {
-							SPIFFS_DBG("       callback: setting fd "_SPIPRIfd":"_SPIPRIid" span:"_SPIPRIsp" objix_pix to "_SPIPRIpg"\n", 
-													(pFdCur->fileN), pFdCur->objId, spanIX, pageIXNew);
-							pFdCur->pageIXObjIXCursor = pageIXNew;
-					} else {
-							pFdCur->pageIXObjIXCursor = 0;
-					}
+			else {
+				// removing file
+				if (pFdCur->fileN && pFdCur->pCachePage) {
+					SPIFFS_CACHE_DBG("CACHE_DROP: file deleted, dropping cache page "_SPIPRIi", no writeback\n", 
+														pFdCur->pCachePage->uiIX);
+					spiffsCacheFdRelease(pfs, pFdCur->pCachePage);
+				}
+				SPIFFS_DBG("       callback: release fd "_SPIPRIfd":"_SPIPRIid" span:"_SPIPRIsp" objix_pix to "_SPIPRIpg"\n", 
+										pFdCur->fileN, pFdCur->objId, spanIX, pageIXNew);
+				pFdCur->fileN = 0;
+				pFdCur->objId = SPIFFS_OBJ_ID_DELETED;
 			}
+		} 
+		if (pFdCur->spanIXObjIXCursor == spanIX) {	/* 更新当前Page的指针 */
+			if (ev != SPIFFS_EV_IX_DEL) {
+				SPIFFS_DBG("       callback: setting fd "_SPIPRIfd":"_SPIPRIid" span:"_SPIPRIsp" objix_pix to "_SPIPRIpg"\n", 
+										(pFdCur->fileN), pFdCur->objId, spanIX, pageIXNew);
+				pFdCur->pageIXObjIXCursor = pageIXNew;
+			} else {
+				pFdCur->pageIXObjIXCursor = 0;
+			}
+		}
 	} 
 
 	//TODO: Index Map
