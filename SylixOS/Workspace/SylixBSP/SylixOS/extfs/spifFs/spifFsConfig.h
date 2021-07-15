@@ -203,9 +203,14 @@ descriptor.
 #define SPIFFS_TEST_VIS_DATA_STR(id)      "d"       /* ´ú±íDataPage */
 #endif
 
+#define SPIFFS_GC_DBG
+#define SPIFFS_DBG
+#define SPIFFS_CHECK_DBG
+#define SPIFFS_API_DBG
+
 
 #ifndef SPIFFS_DBG
-#define SPIFFS_DBG(_f, ...) printf(_f, ## __VA_ARGS__)
+#define SPIFFS_DBG(_f, ...)   printf(_f, ## __VA_ARGS__)
 #endif
 // Set spiffs debug output call for garbage collecting.
 #ifndef SPIFFS_GC_DBG

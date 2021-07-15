@@ -37,8 +37,8 @@ VOID        __spiffs_unmount(PSPIFFS_VOLUME pfs);
 INT32       __spiffs_create(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_MODE mode);
 SPIFFS_FILE __spiffs_open(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_FLAGS flags, SPIFFS_MODE mode);
 SPIFFS_FILE __spiffs_open_by_dirent(PSPIFFS_VOLUME pfs, PSPIFFS_DIRENT pDirent, SPIFFS_FLAGS flags, SPIFFS_MODE mode);
-INT32       __spiffs_read(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, INT32 iLen);
-INT32       __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, INT32 iLen);
+INT32       __spiffs_read(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler,  PCHAR pcContent, INT32 iLen);
+INT32       __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler,  PCHAR pcContent, INT32 iLen);
 INT32       __spiffs_lseek(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, UINT32 uiOffset, INT iSeekFlag);
 
 INT32       __spiffs_rename(PSPIFFS_VOLUME pfs, const PCHAR pcOldPath, const PCHAR pcNewPath);
@@ -67,8 +67,8 @@ INT            __spif_close(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn);
 INT            __spif_remove(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn);
 INT            __spif_stat(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, struct stat* pstat);
 
-INT            __spif_read(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PVOID pContent, UINT32 uiOffset, UINT32 uiLen);
-INT            __spif_write(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PVOID pContent, UINT32 uiOffset, UINT32 uiLen);
+INT            __spif_read(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PCHAR pcContent, UINT32 uiOffset, UINT32 uiLen);
+INT            __spif_write(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PCHAR pcContent, UINT32 uiOffset, UINT32 uiLen);
 INT            __spif_rename(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PCHAR  pcNewName);
 INT            __spif_lseek(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, UINT32 uiOffset);
 

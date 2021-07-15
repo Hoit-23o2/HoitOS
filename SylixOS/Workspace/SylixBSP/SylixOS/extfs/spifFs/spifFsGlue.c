@@ -390,9 +390,9 @@ SPIFFS_FILE __spiffs_open_by_dirent(PSPIFFS_VOLUME pfs, PSPIFFS_DIRENT pDirent,
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-INT32 __spiffs_read(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, INT32 iLen){
+INT32 __spiffs_read(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PCHAR pcContent, INT32 iLen){
     SPIFFS_API_DBG("%stat "_SPIPRIfd " "_SPIPRIi "\n", __func__, fileHandler, iLen);
-    INT32 iRes = spiffsFileRead(pfs, fileHandler, pContent, iLen);
+    INT32 iRes = spiffsFileRead(pfs, fileHandler, pcContent, iLen);
     if (iRes == SPIFFS_ERR_END_OF_OBJECT) {
         iRes = 0;
     }
@@ -409,7 +409,7 @@ INT32 __spiffs_read(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent,
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-INT32 __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, INT32 iLen) {
+INT32 __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler,  PCHAR pcContent, INT32 iLen) {
     SPIFFS_API_DBG("%s "_SPIPRIfd " "_SPIPRIi "\n", __func__, fileHandler, iLen);
     //SPIFFS_API_CHECK_CFG(pfs);
     SPIFFS_API_CHECK_MOUNT(pfs);
@@ -478,7 +478,7 @@ INT32 __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent
 
             if (bIsAllocCachePage) {
                 //TODO: spiffs_cache_page_allocate_by_fd
-                pFd->pCachePage = spiffsCachePageAllocateByFd(pfs, pFd);
+                pFd->pCachePage = spiffsCachePageAllocateByFd(pfs, pFd);    /* 为该文件分配一个CachePage */
                 if (pFd->pCachePage) {
                     pFd->pCachePage->uiOffset = uiOffset;
                     pFd->pCachePage->uiSize = 0;
@@ -487,7 +487,7 @@ INT32 __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent
                 }
             }
 
-            if (pFd->pCachePage) {
+            if (pFd->pCachePage) {          /* 若分配成功 */
                 UINT32 uiOffsetInCachePage = uiOffset - pFd->pCachePage->uiOffset;
                 SPIFFS_CACHE_DBG("CACHE_WR_WRITE: storing to pCache page "_SPIPRIi" for pFd "_SPIPRIfd":"_SPIPRIid", offs "_SPIPRIi":"_SPIPRIi" iLen "_SPIPRIi"\n",
                     pFd->pCachePage->uiIX, pFd->fileN, pFd->objId,
@@ -495,14 +495,14 @@ INT32 __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent
                 PSPIFFS_CACHE pCache = SPIFFS_GET_CACHE_HDR(pfs);
                 PUCHAR pPageData = SPIFFS_GET_CACHE_PAGE_CONTENT(pfs, pCache, pFd->pCachePage->uiIX);
 
-                lib_memcpy(&pPageData[uiOffsetInCachePage], pContent, iLen);
+                lib_memcpy(&pPageData[uiOffsetInCachePage], pcContent, iLen);
                 pFd->pCachePage->uiSize = MAX(pFd->pCachePage->uiSize, uiOffsetInCachePage + iLen);
                 pFd->uiFdOffset += iLen;
                 //SPIFFS_UNLOCK(pfs);
                 return iLen;
             } 
-            else {
-                iRes = spiffsFileWrite(pfs, pFd, pContent, uiOffset, iLen);
+            else {                          /* 否则直接写文件 */
+                iRes = spiffsFileWrite(pfs, pFd, pcContent, uiOffset, iLen);
                 //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
                 SPIFFS_API_CHECK_RES(pfs, iRes);
                 pFd->uiFdOffset += iLen;
@@ -527,7 +527,7 @@ INT32 __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent
         }
     }
 
-    iRes = spiffsFileWrite(pfs, pFd, pContent, uiOffset, iLen);
+    iRes = spiffsFileWrite(pfs, pFd, pcContent, uiOffset, iLen);
     //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
     SPIFFS_API_CHECK_RES(pfs, iRes);
     pFd->uiFdOffset += iLen;
@@ -1045,7 +1045,7 @@ INT __spif_mount(PSPIF_VOLUME pfs){
     pFds                        = (PSPIFFS_FD)lib_malloc(uiFdsSize);
 
     return __spiffs_mount(SYLIX_TO_SPIFFS_PFS(pfs), pConfig, pucWorkBuffer, 
-                          (UINT8 *)pFds, uiFdsSize, pCache, uiCachePages, LW_NULL);
+                          (UINT8 *)pFds, uiFdsSize, pCache, uiCacheSize, LW_NULL);
 
 }
 /*********************************************************************************************************
@@ -1211,10 +1211,12 @@ INT  __spif_stat(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, struct stat* pstat) {
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-INT __spif_read(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PVOID pContent, UINT32 uiOffset, UINT32 uiLen){
-    UINT32 uiReadBytes = -1;
+INT __spif_read(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PCHAR pcContent, UINT32 uiOffset, UINT32 uiLen){
+    UINT32 iRes = SPIFFS_OK;
+    UINT32 uiReadBytes = 0;
     __spiffs_lseek(SYLIX_TO_SPIFFS_PFS(pfs),SYLIX_TO_SPIFFS_FD(pspifn), uiOffset, SPIFFS_SEEK_SET);
-    uiReadBytes = __spiffs_read(SYLIX_TO_SPIFFS_PFS(pfs), SYLIX_TO_SPIFFS_FD(pspifn), pContent, uiLen);
+    iRes = __spiffs_read(SYLIX_TO_SPIFFS_PFS(pfs), SYLIX_TO_SPIFFS_FD(pspifn), pcContent, uiLen);
+    uiReadBytes = MIN(pspifn->pFd->uiSize - uiOffset, uiLen);
     return uiReadBytes;
 }
 /*********************************************************************************************************
@@ -1226,11 +1228,11 @@ INT __spif_read(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PVOID pContent, UINT32 uiO
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-INT __spif_write(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PVOID pContent, UINT32 uiOffset, UINT32 uiLen){
-    UINT32 uiWriteBytes = -1;
+INT __spif_write(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PCHAR pcContent, UINT32 uiOffset, UINT32 uiLen){
+    UINT32 iRes = SPIFFS_OK;
     __spiffs_lseek(SYLIX_TO_SPIFFS_PFS(pfs),SYLIX_TO_SPIFFS_FD(pspifn), uiOffset, SPIFFS_SEEK_SET);
-    uiWriteBytes  = __spiffs_write(SYLIX_TO_SPIFFS_PFS(pfs), SYLIX_TO_SPIFFS_FD(pspifn), pContent, uiLen);
-    return uiWriteBytes ;
+    iRes = __spiffs_write(SYLIX_TO_SPIFFS_PFS(pfs), SYLIX_TO_SPIFFS_FD(pspifn), pcContent, uiLen);
+    return uiLen;
 }
 /*********************************************************************************************************
 ** 函数名称: __spif_rename

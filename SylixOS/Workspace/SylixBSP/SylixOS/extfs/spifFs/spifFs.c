@@ -450,7 +450,6 @@ static ssize_t  __spifFsRead (PLW_FD_ENTRY pfdentry,
     PLW_FD_NODE   pfdnode       = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
     PSPIFN_NODE   pspifn        = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
     PSPIF_VOLUME  pfs           = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
-    SPIFFS_FILE   fileHandler   = pspifn->pFd->fileN;
     ssize_t       sstReadNum = PX_ERROR;
     
     if (!pcBuffer) {
@@ -670,7 +669,7 @@ static ssize_t  __spifFsPWrite (PLW_FD_ENTRY  pfdentry,
 static INT  __spifFsNRead (PLW_FD_ENTRY  pfdentry, INT  *piNRead)
 {
     PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PSPIFN_NODE   pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PSPIFN_NODE   pspifn  = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
     
     if (piNRead == LW_NULL) {
         _ErrorHandle(EINVAL);
@@ -1021,7 +1020,7 @@ static INT  __spifFsReadDir (PLW_FD_ENTRY  pfdentry, DIR  *dir)
         //TODO 获取目录项对应的结构体，主要为了获取它的名字
         dir->dir_pos++;
         lib_strlcpy(dir->dir_dirent.d_name, 
-                    pDirent->ucName, 
+                    pDirent->ucName,                                     
                     sizeof(dir->dir_dirent.d_name));
 
         dir->dir_dirent.d_type = DT_REG;
