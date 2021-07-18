@@ -6,7 +6,9 @@
  */
 #include "common.h"
 
-USE_LIST_TEMPLATE(list_test, TYPE);
+#define     NS list_test
+
+USE_LIST_TEMPLATE(NS, TYPE);
 
 VOID listTest(){
     INT i;
@@ -14,11 +16,11 @@ VOID listTest(){
     // Iterator* iter = initIterator();
     List(TYPE) list;
     Iterator(TYPE) iter;
+    
+    InitList(list, NS, TYPE);
+    InitIterator(iter, NS, TYPE);
 
-    InitList(list, list_test, TYPE);
-    InitIterator(iter, list_test, TYPE);
-
-
+    
     printf("[LIST TEST]\n");
     printf("[Test1: Append Test] \n");
     for (i = 0; i < 10; i++)

@@ -1224,7 +1224,7 @@ __find_error:
             *pbLast = LW_TRUE;
         }
         else {
-            *pbLast = LW_FALSE;
+            *pbLast = LW_FALSE; 
         }
     }
     return  (LW_NULL);                                                  /*  无法找到节点                */
@@ -1955,6 +1955,7 @@ VOID  __hoit_redo_log(PHOIT_VOLUME  pfs) {
 *********************************************************************************************************/
 BOOL __hoit_erasable_sector_list_check_exist(List(HOIT_ERASABLE_SECTOR) HOITFS_sectorList, PHOIT_ERASABLE_SECTOR pErasableSector) {
     Iterator(HOIT_ERASABLE_SECTOR)      iter;
+    InitIterator(iter, hoitFsLib, HOIT_ERASABLE_SECTOR);
     PHOIT_ERASABLE_SECTOR               psector;
     for(iter->begin(iter, HOITFS_sectorList) ; iter->isValid(iter) ; iter->next(iter)) {
         psector = iter->get(iter);

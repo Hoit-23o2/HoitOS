@@ -12,16 +12,16 @@
   列表接口声明                                                                                          
 *********************************************************************************************************/ 
 #define List(TYPE) List##TYPE*
-#define InitList(list, NAMESPACE, TYPE)\
+#define InitList_(list, NAMESPACE, TYPE)\
 {\
     list = (List##TYPE *)lib_malloc(sizeof(List##TYPE));\
     list->listHeader.next = LW_NULL;\
     list->listHeader.prev = LW_NULL;\
-    list->append = NAMESAPCE##listAppend##TYPE;\
-    list->insert = NAMESAPCE##listInsert##TYPE;\
-    list->removeIndex = NAMESAPCE##listRemoveIndex##TYPE;\
-    list->removeObject = NAMESAPCE##listRemoveObject##TYPE;\
-    list->size = NAMESAPCE##listSize##TYPE;\
+    list->append = NAMESPACE##listAppend##TYPE;\
+    list->insert = NAMESPACE##listInsert##TYPE;\
+    list->removeIndex = NAMESPACE##listRemoveIndex##TYPE;\
+    list->removeObject = NAMESPACE##listRemoveObject##TYPE;\
+    list->size = NAMESPACE##listSize##TYPE;\
 }
 #define FreeList(list)\
 {\
@@ -33,18 +33,21 @@
     }\
     lib_free(list);\
 }
+
+#define InitList(iter,NAMESPACE, TYPE)    InitList_(iter,NAMESPACE, TYPE)
 /********************************************************************************************************* 
   迭代器声明                                                                                          
 *********************************************************************************************************/ 
 #define Iterator(TYPE) Iterator##TYPE*
-#define InitIterator(iter,NAMESPACE, TYPE)\
+#define InitIterator_(iter,NAMESPACE, TYPE)\
 {\
     iter = (Iterator##TYPE*)lib_malloc(sizeof(Iterator##TYPE));\
-    iter->begin = NAMESAPCE##iterBegin##TYPE;\
-    iter->get = NAMESAPCE##iterGet##TYPE;\
-    iter->isValid = NAMESAPCE##iterIsValid##TYPE;\
-    iter->next = NAMESAPCE##iterNext##TYPE;\
+    iter->begin = NAMESPACE##iterBegin##TYPE;\
+    iter->get = NAMESPACE##iterGet##TYPE;\
+    iter->isValid = NAMESPACE##iterIsValid##TYPE;\
+    iter->next = NAMESPACE##iterNext##TYPE;\
 }
 #define FreeIterator(iter) lib_free(iter);
 
+#define InitIterator(iter,NAMESPACE, TYPE)    InitIterator_(iter,NAMESPACE, TYPE)
 #endif /* SYLIXOS_EXTFS_TOOLS_LIST_LIST_INTERFACE_H_ */
