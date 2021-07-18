@@ -396,7 +396,38 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
     // }
     return LW_TRUE;   
 }
+/*    
+** 函数名称:    hoitUpdateEBS
+** 功能描述:    在写入一个数据实体之后，调用该函数更新相应的EBS entry 
+** 输　入  :    pcache                   cache块结构体
+                inode                   数据实体对应的文件inode号
+                pageNum                 数据实体所占页数
+                offset                  数据实体写入的sector内位置
+** 输　出  :    
+** 全局变量:
+** 调用模块:    
+*/
+UINT32 hoitUpdateEBS(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache, UINT32 inode, UINT32 pageNum, UINT32 offset) {
+    UINT32          startPageNo = offset/HOIT_FILTER_PAGE_SIZE;     /* 起始页号 */
+    UINT32          i;
+    PHOIT_EBS_ENTRY pentry;
+    if(pcacheHdr==LW_NULL || pcache== LW_NULL) {
+        return PX_ERROR;
+    }
 
+    pentry      = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr + (size_t)startPageNo * HOIT_FILTER_EBS_ENTRY_SIZE);
+
+    // if ( (pentry+pageNum-1) > pcacheHdr->HOITCACHE_blockSize ) {    /* 越界检测 */
+    //     return PX_ERROR;
+    // }
+
+    for(i=0 ; i<pageNum ; i++) {        /* 逐项更新EBS entry */
+        pentry->HOIT_EBS_ENTRY_inodeNo  = inode;
+        pentry->HOIT_EBS_ENTRY_obsolete = UINT_MAX;
+        pentry ++;
+    }
+    return ERROR_NONE;
+}
 /*    
 ** 函数名称:    hoitWriteToCache
 ** 功能描述:    将一段给定长度的数据实体写入cache，cache自动查找可以装下该数据实体的位置进行写入
@@ -754,6 +785,7 @@ UINT32 hoitInitFilter(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiCacheBlockSize) {
     pcacheHdr->HOITCACHE_EBSStartAddr   = HOIT_FILTER_PAGE_SIZE * pcacheHdr->HOITCACHE_PageAmount;      /* 减去一个页的空间用于保存EBS校验码 */
     return ERROR_NONE;
 }
+<<<<<<< HEAD
 /*    
 ** 函数名称:    hoitUpdateEBS
 ** 功能描述:    在写入一个数据实体之后，调用该函数更新相应的EBS entry 
@@ -890,6 +922,8 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
     /* 写入位置在介质上 */
 }
  
+=======
+>>>>>>> af625a1699597d6abacac2e227dc9068d215033e
 
 #ifdef HOIT_CACHE_TEST
 /*

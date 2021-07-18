@@ -4,7 +4,7 @@
 **
 **                                   嵌入式实时操作系统
 **
-**                                       SylixOS(TM)
+**                                       SyluiIXOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
@@ -23,6 +23,7 @@
 #include "spifFsLib.h"
 #include "spifFsFDLib.h"
 #include "../driver/mtd/nor/nor.h"
+#include "spifFsGC.h"
 
 #define __spiffsAlign8Byte(pMem, uiMemSZ) \
 do {\
@@ -120,7 +121,7 @@ INT32 __spiffs_probe_fs(PSPIFFS_CONFIG pConfig){
 **          pConfig         配置文件
 **          pucWorkBuffer   分配WorkBuffer
 **          pucFdSpace      分配的文件描述符区域
-**          uiFdSpaceSize   分配的文件描述符区域大小
+**          uiFdSpaceuiSize   分配的文件描述符区域大小
 **          pCache          分配的缓存空间
 **          uiCacheSize     分配的Cached大小
 ** 输　出  : None
@@ -128,7 +129,7 @@ INT32 __spiffs_probe_fs(PSPIFFS_CONFIG pConfig){
 ** 调用模块:
 *********************************************************************************************************/
 INT32 __spiffs_mount(PSPIFFS_VOLUME pfs, PSPIFFS_CONFIG pConfig, PUCHAR pucWorkBuffer,
-                     UINT8 *pucFdSpace, UINT32 uiFdSpaceSize,
+                     UINT8 *pucFdSpace, UINT32 uiFdSpaceuiSize,
                      PUCHAR pCache, UINT32 uiCacheSize,
                      spiffsCheckCallback checkCallbackFunc){
     //TODO:什么意思？
@@ -144,7 +145,7 @@ INT32 __spiffs_mount(PSPIFFS_VOLUME pfs, PSPIFFS_CONFIG pConfig, PUCHAR pucWorkB
     }
 
     lib_memset(pfs, 0, sizeof(SPIFFS_VOLUME));
-    lib_memset(pucFdSpace, 0, uiFdSpaceSize);
+    lib_memset(pucFdSpace, 0, uiFdSpaceuiSize);
     lib_memcpy(&pfs->cfg, pConfig, sizeof(SPIFFS_CONFIG));
 
     pfs->pUserData              = pUserData;
@@ -153,9 +154,9 @@ INT32 __spiffs_mount(PSPIFFS_VOLUME pfs, PSPIFFS_CONFIG pConfig, PUCHAR pucWorkB
     pfs->pucLookupWorkBuffer    = pucWorkBuffer + SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs);
 
     /* 对齐puiFdSpace，8字节对齐 */
-    __spiffsAlign8Byte(pucFdSpace, uiFdSpaceSize);
+    __spiffsAlign8Byte(pucFdSpace, uiFdSpaceuiSize);
     pfs->pucFdSpace = pucFdSpace;
-    pfs->uiFdCount  = uiFdSpaceSize / sizeof(SPIFFS_FD);
+    pfs->uiFdCount  = uiFdSpaceuiSize / sizeof(SPIFFS_FD);
     
     /* 对齐Cache，8字节对齐 */
     __spiffsAlign8Byte(pCache, uiCacheSize);
@@ -171,7 +172,7 @@ INT32 __spiffs_mount(PSPIFFS_VOLUME pfs, PSPIFFS_CONFIG pConfig, PUCHAR pucWorkB
     //TODO: 扫描介质
     iRes = spiffsObjLookUpScan(pfs);
 
-    SPIFFS_DBG("page index byte len:         "_SPIPRIi"\n", (UINT32)SPIFFS_CFG_LOG_PAGE_SZ(pfs));
+    SPIFFS_DBG("page index byte iLen:        "_SPIPRIi"\n", (UINT32)SPIFFS_CFG_LOGIC_PAGE_SZ(pfs));
     SPIFFS_DBG("object lookup pages:         "_SPIPRIi"\n", (UINT32)SPIFFS_OBJ_LOOKUP_PAGES(pfs));
     SPIFFS_DBG("page pages per block:        "_SPIPRIi"\n", (UINT32)SPIFFS_PAGES_PER_BLOCK(pfs));
     SPIFFS_DBG("page header length:          "_SPIPRIi"\n", (UINT32)sizeof(SPIFFS_PAGE_HEADER));
@@ -181,6 +182,7 @@ INT32 __spiffs_mount(PSPIFFS_VOLUME pfs, PSPIFFS_CONFIG pConfig, PUCHAR pucWorkB
     SPIFFS_DBG("object index entries:        "_SPIPRIi"\n", (UINT32)SPIFFS_OBJ_IX_LEN(pfs));
     /* 配置的最大文件描述符 */
     SPIFFS_DBG("available file descriptors:  "_SPIPRIi"\n", (UINT32)pfs->uiFdCount);
+    SPIFFS_DBG("total blocks:                "_SPIPRIi"\n", (UINT32)(SPIFFS_CFG_PHYS_SZ(pfs) / SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs)));
     SPIFFS_DBG("free blocks:                 "_SPIPRIi"\n", (UINT32)pfs->uiFreeBlks);
 
     pfs->checkCallbackFunc = checkCallbackFunc;
@@ -208,7 +210,9 @@ VOID __spiffs_unmount(PSPIFFS_VOLUME pfs){
     {
         pCurFd = &pFds[i];
         if(pCurFd->fileN != 0) {
-            //TODO: 还未揭开面纱
+            ////TODO: 还未揭开面纱
+            spiffsCacheFflush(pfs, pCurFd->fileN);
+            spiffsFdReturn(pfs,  pCurFd->fileN);    /* 释放文件描述符 */
         }
     }
     pfs->uiMountedFlag = 0;
@@ -263,13 +267,13 @@ SPIFFS_FILE __spiffs_open(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_FLAGS f
     SPIFFS_OBJ_ID   objId;
 
     SPIFFS_API_CHECK_MOUNT(pfs);
-    SPIFFS_API_DBG("%stat '%stat' "_SPIPRIfl "\n", __func__, pcPath, flags);
+    SPIFFS_API_DBG("%s '%s' "_SPIPRIfl "\n", __func__, pcPath, flags);
     if (strlen(pcPath) > SPIFFS_OBJ_NAME_LEN - 1) {
         return SPIFFS_ERR_NAME_TOO_LONG;
     }
     iRes = spiffsFdFindNew(pfs, &pFd, pcPath);                              /* 获取一个pFd */
     //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
-    SPIFFS_CHECK_RES(iRes);
+    SPIFFS_API_CHECK_RES(pfs, iRes);
 
     iRes = spiffsObjectFindObjectIndexHeaderByName(pfs, pcPath, &pageIX);   /* 根据Name找到IndexHeader */
     if ((flags & SPIFFS_O_CREAT) == 0) {                                    /* 检查文件合法性 */
@@ -287,9 +291,9 @@ SPIFFS_FILE __spiffs_open(PSPIFFS_VOLUME pfs, const PCHAR pcPath, SPIFFS_FLAGS f
         SPIFFS_CHECK_RES(iRes);
     }
 
-    if ((flags & SPIFFS_O_CREAT) && iRes == SPIFFS_ERR_NOT_FOUND) {         /* 创建文件 */
-        // no need to enter conflicting name here, already looked for it above
-        iRes = spiffsObjLookUpFindFreeObjId(pfs, &objId, LW_NULL);          /* 找到一个空的 Obj Id*/
+    if ((flags & SPIFFS_O_CREAT) && iRes == SPIFFS_ERR_NOT_FOUND) {                 /* 创建文件 */
+        // no need to enter conflicting pcName here, already looked for it above
+        iRes = spiffsObjLookUpFindFreeObjId(pfs, &objId, LW_NULL);                  /* 找到一个空的 Obj Id*/
         if (iRes < SPIFFS_OK) {
             spiffsFdReturn(pfs, pFd->fileN);
         }
@@ -347,7 +351,7 @@ SPIFFS_FILE __spiffs_open_by_dirent(PSPIFFS_VOLUME pfs, PSPIFFS_DIRENT pDirent,
     PSPIFFS_FD pFd;
     INT32 iRes;
     SPIFFS_API_DBG("%stat '%stat':"_SPIPRIid " "_SPIPRIfl "\n", 
-                   __func__, pDirent->ucName, pDirent->objID, flags);
+                   __func__, pDirent->ucName, pDirent->objId, flags);
     //SPIFFS_API_CHECK_CFG(pfs);
     SPIFFS_API_CHECK_MOUNT(pfs);
     //SPIFFS_LOCK(pfs);
@@ -386,12 +390,150 @@ SPIFFS_FILE __spiffs_open_by_dirent(PSPIFFS_VOLUME pfs, PSPIFFS_DIRENT pDirent,
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-INT32 __spiffs_read(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PVOID pContent, INT32 iLen){
+INT32 __spiffs_read(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PCHAR pcContent, INT32 iLen){
     SPIFFS_API_DBG("%stat "_SPIPRIfd " "_SPIPRIi "\n", __func__, fileHandler, iLen);
-    INT32 iRes = spiffsFileRead(pfs, fileHandler, pContent, iLen);
+    INT32 iRes = spiffsFileRead(pfs, fileHandler, pcContent, iLen);
     if (iRes == SPIFFS_ERR_END_OF_OBJECT) {
         iRes = 0;
     }
+    return iRes;
+}
+/*********************************************************************************************************
+** 函数名称: __spiffs_read
+** 功能描述: 读文件
+** 输　入  : pfs          文件头
+**           pcPath        文件路径
+**           mode          文件模式: SPIFFS_O_APPEND, SPIFFS_O_TRUNC, SPIFFS_O_CREAT, SPIFFS_O_RDONLY,
+**                                  SPIFFS_O_WRONLY, SPIFFS_O_RDWR, SPIFFS_O_DIRECT, SPIFFS_O_EXCL, Ignored
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler,  PCHAR pcContent, INT32 iLen) {
+    SPIFFS_API_DBG("%s "_SPIPRIfd " "_SPIPRIi "\n", __func__, fileHandler, iLen);
+    //SPIFFS_API_CHECK_CFG(pfs);
+    SPIFFS_API_CHECK_MOUNT(pfs);
+    //SPIFFS_LOCK(pfs);
+
+    PSPIFFS_FD pFd;
+    INT32 iRes;
+    UINT32 uiOffset;
+
+    iRes = spiffsFdGet(pfs, fileHandler, &pFd);
+    //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+    SPIFFS_API_CHECK_RES(pfs, iRes);
+
+    if ((pFd->flags & SPIFFS_O_WRONLY) == 0) {
+        iRes = SPIFFS_ERR_NOT_WRITABLE;
+        //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+        SPIFFS_API_CHECK_RES(pfs, iRes);
+    }
+
+    if ((pFd->flags & SPIFFS_O_APPEND)) {
+        pFd->uiFdOffset = pFd->uiSize == SPIFFS_UNDEFINED_LEN ? 0 : pFd->uiSize;
+    }
+    uiOffset = pFd->uiFdOffset;
+
+    if (pFd->pCachePage == LW_NULL) {
+        // see if object id is associated with pCache already
+        pFd->pCachePage = spiffsCachePageGetByFd(pfs, pFd);
+    }
+    if (pFd->flags & SPIFFS_O_APPEND) {
+        if (pFd->uiSize == SPIFFS_UNDEFINED_LEN) {
+            uiOffset = 0;
+        } 
+        else {
+            uiOffset = pFd->uiSize;
+        }
+        if (pFd->pCachePage) {
+            uiOffset = MAX(uiOffset, pFd->pCachePage->uiOffset + pFd->pCachePage->uiSize);
+        }
+    }
+
+    if ((pFd->flags & SPIFFS_O_DIRECT) == 0) {
+        if (iLen < (INT32)SPIFFS_CFG_LOGIC_PAGE_SZ(pfs)) {
+            // small write, try to pCache it
+            BOOL bIsAllocCachePage = LW_TRUE;
+            if (pFd->pCachePage) {
+                // have a cached page for this pFd already, check pCache page boundaries
+                if (uiOffset < pFd->pCachePage->uiOffset || // writing before pCache
+                    uiOffset > pFd->pCachePage->uiOffset + pFd->pCachePage->uiSize || // writing after pCache
+                    uiOffset + iLen > pFd->pCachePage->uiOffset + SPIFFS_CFG_LOGIC_PAGE_SZ(pfs)) // writing beyond pCache page
+                {
+                    // boundary violation, write back pCache first and allocate new
+                    SPIFFS_CACHE_DBG("CACHE_WR_DUMP: dumping pCache page "_SPIPRIi" for pFd "_SPIPRIfd":"_SPIPRIid", boundary viol, offs:"_SPIPRIi" uiSize:"_SPIPRIi"\n",
+                                     pFd->pCachePage->uiIX, pFd->fileN, pFd->objId, 
+                                     pFd->pCachePage->uiOffset, pFd->pCachePage->uiSize);
+                    iRes = spiffsFileWrite(pfs, pFd, SPIFFS_GET_CACHE_PAGE_CONTENT(pfs, SPIFFS_GET_CACHE_HDR(pfs), pFd->pCachePage->uiIX),
+                                           pFd->pCachePage->uiOffset, pFd->pCachePage->uiSize);
+                    spiffsCacheFdRelease(pfs, pFd->pCachePage);
+                    //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+
+                } 
+                else {
+                    // writing within pCache
+                    bIsAllocCachePage = LW_FALSE;
+                }
+            }
+
+            if (bIsAllocCachePage) {
+                //TODO: spiffs_cache_page_allocate_by_fd
+                pFd->pCachePage = spiffsCachePageAllocateByFd(pfs, pFd);    /* 为该文件分配一个CachePage */
+                if (pFd->pCachePage) {
+                    pFd->pCachePage->uiOffset = uiOffset;
+                    pFd->pCachePage->uiSize = 0;
+                    SPIFFS_CACHE_DBG("CACHE_WR_ALLO: allocating pCache page "_SPIPRIi" for pFd "_SPIPRIfd":"_SPIPRIid"\n",
+                                     pFd->pCachePage->uiIX, pFd->fileN, pFd->objId);
+                }
+            }
+
+            if (pFd->pCachePage) {          /* 若分配成功 */
+                UINT32 uiOffsetInCachePage = uiOffset - pFd->pCachePage->uiOffset;
+                SPIFFS_CACHE_DBG("CACHE_WR_WRITE: storing to pCache page "_SPIPRIi" for pFd "_SPIPRIfd":"_SPIPRIid", offs "_SPIPRIi":"_SPIPRIi" iLen "_SPIPRIi"\n",
+                    pFd->pCachePage->uiIX, pFd->fileN, pFd->objId,
+                    uiOffset, uiOffsetInCachePage, iLen);
+                PSPIFFS_CACHE pCache = SPIFFS_GET_CACHE_HDR(pfs);
+                PUCHAR pPageData = SPIFFS_GET_CACHE_PAGE_CONTENT(pfs, pCache, pFd->pCachePage->uiIX);
+
+                lib_memcpy(&pPageData[uiOffsetInCachePage], pcContent, iLen);
+                pFd->pCachePage->uiSize = MAX(pFd->pCachePage->uiSize, uiOffsetInCachePage + iLen);
+                pFd->uiFdOffset += iLen;
+                //SPIFFS_UNLOCK(pfs);
+                return iLen;
+            } 
+            else {                          /* 否则直接写文件 */
+                iRes = spiffsFileWrite(pfs, pFd, pcContent, uiOffset, iLen);
+                //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+                SPIFFS_API_CHECK_RES(pfs, iRes);
+                pFd->uiFdOffset += iLen;
+                //SPIFFS_UNLOCK(pfs);
+                return iRes;
+            }
+        } 
+        else {
+        // big write, no need to pCache it - but first check if there is a cached write already
+            if (pFd->pCachePage) {
+                // write back pCache first
+                SPIFFS_CACHE_DBG("CACHE_WR_DUMP: dumping pCache page "_SPIPRIi" for pFd "_SPIPRIfd":"_SPIPRIid", big write, offs:"_SPIPRIi" uiSize:"_SPIPRIi"\n",
+                                 pFd->pCachePage->uiIX, pFd->fileN, pFd->objId, 
+                                 pFd->pCachePage->uiOffset, pFd->pCachePage->uiSize);
+                iRes = spiffsFileWrite(pfs, pFd, SPIFFS_GET_CACHE_PAGE_CONTENT(pfs, SPIFFS_GET_CACHE_HDR(pfs), pFd->pCachePage->uiIX),
+                                       pFd->pCachePage->uiOffset, pFd->pCachePage->uiSize);
+                spiffsCacheFdRelease(pfs, pFd->pCachePage);
+                //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+                SPIFFS_API_CHECK_RES(pfs, iRes);
+                // data written below
+            }
+        }
+    }
+
+    iRes = spiffsFileWrite(pfs, pFd, pcContent, uiOffset, iLen);
+    //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+    SPIFFS_API_CHECK_RES(pfs, iRes);
+    pFd->uiFdOffset += iLen;
+
+    //SPIFFS_UNLOCK(pfs);
+
     return iRes;
 }
 /*********************************************************************************************************
@@ -426,14 +568,14 @@ INT32 __spiffs_lseek(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, UINT32 uiOffse
     // #endif
     spiffsCacheFflush(pfs, fileHandler);            /* 把与该file相关的Cache的内容 */
 
-    INT32 iFileSize = pFd->uiSize == SPIFFS_UNDEFINED_LEN ? 0 : pFd->uiSize;
+    INT32 iFileuiSize = pFd->uiSize == SPIFFS_UNDEFINED_LEN ? 0 : pFd->uiSize;
 
     switch (iSeekFlag) {
     case SPIFFS_SEEK_CUR:           /* 从当前位置开始 */
         uiOffset = pFd->uiFdOffset + uiOffset;
         break;
     case SPIFFS_SEEK_END:           /* 从文件末尾开始 */
-        uiOffset = iFileSize + uiOffset;
+        uiOffset = iFileuiSize + uiOffset;
         break;
     }
     if (uiOffset < 0) {
@@ -441,23 +583,23 @@ INT32 __spiffs_lseek(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, UINT32 uiOffse
         iRes = SPIFFS_ERR_SEEK_BOUNDS; 
         SPIFFS_CHECK_RES(iRes);
     }
-    if (uiOffset > iFileSize) {     /* Offset 大于 文件大小就不行了 */
-        pFd->uiFdOffset = iFileSize;
+    if (uiOffset > iFileuiSize) {     /* Offset 大于 文件大小就不行了 */
+        pFd->uiFdOffset = iFileuiSize;
         iRes = SPIFFS_ERR_END_OF_OBJECT;
     }
     //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
     SPIFFS_CHECK_RES(iRes);
 
-    SPIFFS_SPAN_IX spanIXObjData = (uiOffset > 0 ? (uiOffset - 1) : 0) / SPIFFS_DATA_PAGE_SIZE(pfs);    /* 计算Data Page的Span IX */
-    SPIFFS_SPAN_IX spanIXObjIX = SPIFFS_OBJ_IX_ENTRY_SPAN_IX(pfs, spanIXObjData);                       /* 计算对应Index Page的Span IX */
+    SPIFFS_SPAN_IX spanIXObjData = (uiOffset > 0 ? (uiOffset - 1) : 0) / SPIFFS_DATA_PAGE_SIZE(pfs);    /* 计算Data Page的Span uiIX */
+    SPIFFS_SPAN_IX spanIXObjuiIX = SPIFFS_OBJ_IX_ENTRY_SPAN_IX(pfs, spanIXObjData);                       /* 计算对应Index Page的Span uiIX */
     
-    if (pFd->spanIXObjIXCursor != spanIXObjIX) {    /* 调整文件的 ObjIX 的指针spanIX */
+    if (pFd->spanIXObjIXCursor != spanIXObjuiIX) {    /* 调整文件的 ObjuiIX 的指针spanuiIX */
         SPIFFS_PAGE_IX pageIX;
-        iRes = spiffsObjLookUpFindIdAndSpan(pfs, pFd->objId | SPIFFS_OBJ_ID_IX_FLAG, spanIXObjIX, 
+        iRes = spiffsObjLookUpFindIdAndSpan(pfs, pFd->objId | SPIFFS_OBJ_ID_IX_FLAG, spanIXObjuiIX, 
                                             0, &pageIX);
         //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
         SPIFFS_CHECK_RES(iRes);    
-        pFd->spanIXObjIXCursor = spanIXObjIX;
+        pFd->spanIXObjIXCursor = spanIXObjuiIX;
         pFd->pageIXObjIXCursor = pageIX;
     }
     /* 调整文件内部指针 */
@@ -493,7 +635,7 @@ INT32 __spiffs_remove(PSPIFFS_VOLUME pfs, const PCHAR pcPath) {
     //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
     SPIFFS_CHECK_RES(iRes);
 
-    iRes = spiffsObjectFindObjectIndexHeaderByName(pfs, (PUCHAR)pcPath, &pageIX);    /* 找到pcPath对应的spanIX = 0的Index页面对应的pageIX */
+    iRes = spiffsObjectFindObjectIndexHeaderByName(pfs, (PUCHAR)pcPath, &pageIX);    /* 找到pcPath对应的spanuiIX = 0的Index页面对应的pageIX */
     if (iRes != SPIFFS_OK) {
         spiffsFdReturn(pfs, pFd->fileN);
     }
@@ -626,7 +768,7 @@ INT32 __spiffs_fstat(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PSPIFFS_STAT p
 INT32 __spiffs_fflush(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler) {
     SPIFFS_API_DBG("%s "_SPIPRIfd "\n", __func__, fileHandler);
     (void)fileHandler;
-    SPIFFS_API_CHECK_CFG(pfs);
+    //SPIFFS_API_CHECK_CFG(pfs);
     SPIFFS_API_CHECK_MOUNT(pfs);
     INT32 iRes = SPIFFS_OK;
     //SPIFFS_LOCK(pfs);
@@ -680,8 +822,8 @@ INT32 __spiffs_rename(PSPIFFS_VOLUME pfs, const PCHAR pcOldPath, const PCHAR pcN
 
     //SPIFFS_API_CHECK_CFG(pfs);
     SPIFFS_API_CHECK_MOUNT(pfs);
-    if (strlen(pcNewPath) > SPIFFS_OBJ_NAME_LEN - 1 ||
-        strlen(pcOldPath) > SPIFFS_OBJ_NAME_LEN - 1) {
+    if (lib_strlen(pcNewPath) > SPIFFS_OBJ_NAME_LEN - 1 ||
+        lib_strlen(pcOldPath) > SPIFFS_OBJ_NAME_LEN - 1) {
         SPIFFS_API_CHECK_RES(pfs, SPIFFS_ERR_NAME_TOO_LONG);
     }
     //SPIFFS_LOCK(pfs);
@@ -704,11 +846,11 @@ INT32 __spiffs_rename(PSPIFFS_VOLUME pfs, const PCHAR pcOldPath, const PCHAR pcN
     //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
     SPIFFS_API_CHECK_RES(pfs, iRes);
 
-    iRes = spiffsFdFindNew(pfs, &pFd, LW_NULL);     /* 找一个新的fd */
+    iRes = spiffsFdFindNew(pfs, &pFd, LW_NULL);     /* 找一个新的pFd */
     //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
     SPIFFS_API_CHECK_RES(pfs, iRes);
 
-    iRes = spiffsObjectOpenByPage(pfs, pageIXOld, pFd, 0, 0);       /* 打开原来的页面到fd中 */
+    iRes = spiffsObjectOpenByPage(pfs, pageIXOld, pFd, 0, 0);       /* 打开原来的页面到pFd中 */
     if (iRes != SPIFFS_OK) {
         spiffsFdReturn(pfs, pFd->fileN);
     }
@@ -718,7 +860,7 @@ INT32 __spiffs_rename(PSPIFFS_VOLUME pfs, const PCHAR pcOldPath, const PCHAR pcN
     iRes = spiffsObjectUpdateIndexHdr(pfs, pFd, pFd->objId, pFd->pageIXObjIXHdr, 
                                       LW_NULL, (PUCHAR)pcNewPath, 0, &pageIXDummy); /* 更新一波IndexHdr */
     if (iRes == SPIFFS_OK) {
-        /* 修改对应fd的hash值 */
+        /* 修改对应pFd的hash值 */
         spiffsFdTemporalCacheRehash(pfs, pcOldPath, pcNewPath);
     }
     
@@ -729,4 +871,458 @@ INT32 __spiffs_rename(PSPIFFS_VOLUME pfs, const PCHAR pcOldPath, const PCHAR pcN
     //SPIFFS_UNLOCK(pfs);
 
     return iRes;
+}
+/*********************************************************************************************************
+** 函数名称: __spiffs_opendir
+** 功能描述: 重命名
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+PSPIFFS_DIR __spiffs_opendir(PSPIFFS_VOLUME pfs, const PCHAR pcName, PSPIFFS_DIR pDir) {
+    SPIFFS_API_DBG("%s\n", __func__);
+    (void)pcName;
+
+    // if (!SPIFFS_CHECK_CFG((pfs))) {
+    //     (pfs)->uiErrorCode = SPIFFS_ERR_NOT_CONFIGURED;
+    //     return 0;
+    // }
+
+    if (!SPIFFS_CHECK_MOUNT(pfs)) {
+        pfs->uiErrorCode = SPIFFS_ERR_NOT_MOUNTED;
+        return 0;
+    }
+
+    pDir->pfs = pfs;
+    pDir->blkIX = 0;
+    pDir->uiEntry = 0;
+    return pDir;
+}
+/*********************************************************************************************************
+** 函数名称: __spiffs_closedir
+** 功能描述: 重命名
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 __spiffs_closedir(PSPIFFS_DIR pDir) {
+    SPIFFS_API_DBG("%s\n", __func__);
+    //SPIFFS_API_CHECK_CFG(pDir->pfs);
+    SPIFFS_API_CHECK_MOUNT(pDir->pfs);
+    return 0;
+}
+/*********************************************************************************************************
+** 函数名称: __spiffs_readdir
+** 功能描述: 重命名
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+PSPIFFS_DIRENT __spiffs_readdir(PSPIFFS_DIR pDir, PSPIFFS_DIRENT pDirent) {
+    SPIFFS_API_DBG("%s\n", __func__);
+    if (!SPIFFS_CHECK_MOUNT(pDir->pfs)) {
+        pDir->pfs->uiErrorCode = SPIFFS_ERR_NOT_MOUNTED;
+        return 0;
+    }
+    //SPIFFS_LOCK(pDir->pfs);
+    pDirent = spiffsDirRead(pDir, pDirent);
+    
+    //SPIFFS_UNLOCK(pDir->pfs);
+    return pDirent;
+}
+/*********************************************************************************************************
+** 函数名称: __spiffs_gc_quick
+** 功能描述: 快速GC
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 __spiffs_gc_quick(PSPIFFS_VOLUME pfs, UINT16 uiMaxFreePages){
+    SPIFFS_API_DBG("%s "_SPIPRIi "\n", __func__, uiMaxFreePages);
+    INT32 iRes;
+    SPIFFS_API_CHECK_MOUNT(pfs);
+    //SPIFFS_LOCK(pfs);
+
+    iRes = spiffsGCQuick(pfs, uiMaxFreePages);
+
+    //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+    SPIFFS_API_CHECK_RES(pfs, iRes);
+    //SPIFFS_UNLOCK(pfs);
+    return 0;
+}
+/*********************************************************************************************************
+** 函数名称: __spiffs_gc_quick
+** 功能描述: 快速GC
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 __spiffs_gc(PSPIFFS_VOLUME pfs, UINT32 uiSize) {
+    SPIFFS_API_DBG("%s "_SPIPRIi "\n", __func__, uiSize);
+    INT32 iRes;
+    //SPIFFS_API_CHECK_CFG(pfs);
+    SPIFFS_API_CHECK_MOUNT(pfs);
+    //SPIFFS_LOCK(pfs);
+
+    iRes = spiffsGCCheck(pfs, uiSize);
+
+    //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
+    SPIFFS_API_CHECK_RES(pfs, iRes);
+    //SPIFFS_UNLOCK(pfs);
+    return 0;
+}
+/*********************************************************************************************************
+** 函数名称: __spiffs_gc_quick
+** 功能描述: 快速GC
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT32 __spiffs_set_file_callback_func(PSPIFFS_VOLUME pfs, spiffsFileCallback fileCallBackFunc) {
+    SPIFFS_API_DBG("%s\n", __func__);
+    //SPIFFS_LOCK(pfs);
+    pfs->fileCallbackFunc = fileCallBackFunc;
+    //SPIFFS_UNLOCK(pfs);
+    return 0;
+}
+/*********************************************************************************************************
+ * ANCHOR: SyliXOS 适配小节
+*********************************************************************************************************/
+/*********************************************************************************************************
+** 函数名称: __spif_mount
+** 功能描述: 封装mount过程
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __spif_mount(PSPIF_VOLUME pfs){
+    PSPIFFS_CONFIG  pConfig;
+
+    UINT32          uiWorkSize;
+    PUCHAR          pucWorkBuffer;
+    
+    UINT32          uiCachePages = 8;
+    UINT32          uiCacheSize;
+    PUCHAR          pCache;
+
+    UINT32          uiDescriptors = 16;
+    UINT32          uiFdsSize;     
+    PSPIFFS_FD      pFds; 
+
+     /* 初始化配置*/
+    pConfig                     = (PSPIFFS_CONFIG)lib_malloc(sizeof(SPIFFS_CONFIG));
+    pConfig->halEraseFunc       = LW_NULL;
+    pConfig->halReadFunc        = LW_NULL;
+    pConfig->halWriteFunc       = LW_NULL;
+    pConfig->uiLogicBlkSize     = 64 * 1024;                /* 64KB */
+    pConfig->uiLogicPageSize    = 256;                      /* 256B */
+    pConfig->uiPhysEraseBlkSize = 64 * 1024;
+    pConfig->uiPhysAddr         = NOR_FLASH_START_OFFSET;   /* 其实 */
+    pConfig->uiPhysSize         = NOR_FLASH_SZ - NOR_FLASH_START_OFFSET;
+
+    /* 分配各种buffer */
+    uiWorkSize                  = pConfig->uiLogicBlkSize * 2;
+    uiCacheSize                 = sizeof(SPIFFS_CACHE) + 
+                                  uiCachePages * (sizeof(SPIFFS_CACHE_PAGE) + pConfig->uiLogicPageSize);
+    uiFdsSize                   = uiDescriptors * sizeof(SPIFFS_FD);
+
+    pucWorkBuffer               = (PUCHAR)lib_malloc(uiWorkSize);
+    pCache                      = (PUCHAR)lib_malloc(uiCacheSize);
+    pFds                        = (PSPIFFS_FD)lib_malloc(uiFdsSize);
+
+    return __spiffs_mount(SYLIX_TO_SPIFFS_PFS(pfs), pConfig, pucWorkBuffer, 
+                          (UINT8 *)pFds, uiFdsSize, pCache, uiCacheSize, LW_NULL);
+
+}
+/*********************************************************************************************************
+** 函数名称: __spif_unmount
+** 功能描述: 封装unmount过程
+** 输　入  : pfs          文件头
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __spif_unmount(PSPIF_VOLUME pfs){
+    __spiffs_unmount(SYLIX_TO_SPIFFS_PFS(pfs));
+    return SPIFFS_OK;
+}
+/*********************************************************************************************************
+** 函数名称: __spif_open
+** 功能描述: 封装open过程
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+PSPIFN_NODE __spif_open(PSPIF_VOLUME pfs, PCHAR pcName, INT iFlags, INT iMode, BOOL *pbIsRoot){
+    PSPIFFS_FD          pFd;
+    SPIFFS_FILE         fileHandler;
+    SPIFFS_FLAGS        flags;
+    INT                 iRes;
+    PSPIFN_NODE         pspifn;
+    PSPIFFS_VOLUME      spiffsPfs;
+    
+    CHAR                pcTempName[MAX_FILENAME_LENGTH];
+    INT                 iNameLen;
+
+    if (*pcName == PX_ROOT) {                                           /*  忽略根符号                  */
+        lib_strlcpy(pcTempName, (pcName + 1), PATH_MAX);
+    }
+    else {
+        lib_strlcpy(pcTempName, pcName, PATH_MAX);
+    }
+
+    if (pcTempName[0] == PX_EOS) {
+        if (pbIsRoot) {
+            *pbIsRoot = LW_TRUE;                                          /*  pcName 为根                 */
+        }
+        return  (LW_NULL);
+    }
+    else {
+        if (pbIsRoot) {
+            *pbIsRoot = LW_FALSE;                                         /*  pcName 不为根               */
+        }
+    }
+
+    spiffsPfs   = SYLIX_TO_SPIFFS_PFS(pfs);
+    /* 转换Flag */
+    flags       = spiffsTranslateToSylixOSFlag(iFlags);
+    fileHandler = __spiffs_open(spiffsPfs, pcName, flags, 0);
+    if(fileHandler < 0){
+        return LW_NULL;
+    }
+    iRes        = spiffsFdGet(spiffsPfs, fileHandler, &pFd);
+    if(iRes != SPIFFS_OK){
+        spiffsFdReturn(spiffsPfs, fileHandler);
+        SPIFFS_DBG("Open File Failed, Only Allow %d File Opened\n", spiffsPfs->uiFdCount);
+        return LW_NULL;
+    }
+    iNameLen = lib_strlen(pcName);
+    //TODO: pspifn更多字段填写
+    pspifn                   = (PSPIFN_NODE)__SHEAP_ALLOC(sizeof(SPIFN_NODE));
+    pspifn->pFd              = pFd;
+    pspifn->pfs              = pfs;
+    pspifn->SPIFN_gid        = getgid(); 
+    pspifn->SPIFN_uid        = getuid();
+    pspifn->SPIFN_mode       = pFd->flags;
+    pspifn->SPIFN_pcLink     = LW_NULL;
+    pspifn->SPIFN_pcName     = (PCHAR)__SHEAP_ALLOC(iNameLen * sizeof(CHAR));
+    lib_memcpy(pspifn->SPIFN_pcName, pcName, iNameLen);
+    //pspifn->SPIFN_bChanged = LW_TRUE;
+    return pspifn;
+}   
+/*********************************************************************************************************
+** 函数名称: __spif_close
+** 功能描述: 封装close过程
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __spif_close(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn){
+    SPIFFS_FILE fileHandler = SYLIX_TO_SPIFFS_FD(pspifn);
+    return __spiffs_close(SYLIX_TO_SPIFFS_PFS(pfs), fileHandler);
+}
+/*********************************************************************************************************
+** 函数名称: __spif_remove
+** 功能描述: 封装remove过程
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __spif_remove(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn){
+    SPIFFS_FILE fileHandler = SYLIX_TO_SPIFFS_FD(pspifn);
+    return __spiffs_fremove(SYLIX_TO_SPIFFS_PFS(pfs), fileHandler);
+}
+/*********************************************************************************************************
+** 函数名称: __spif_stat
+** 功能描述: SylixOS描述文件
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT  __spif_stat(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, struct stat* pstat) {
+    SPIFFS_STAT   stat;
+    if(pspifn) {
+        __spiffs_fstat(SYLIX_TO_SPIFFS_PFS(pfs), SYLIX_TO_SPIFFS_FD(pspifn), &stat);
+    }
+    if (pspifn) {
+        pstat->st_dev = LW_DEV_MAKE_STDEV(&pfs->SPIFFS_devhdrHdr);
+        pstat->st_ino = (ino_t)pspifn;
+        pstat->st_mode = pspifn->SPIFN_mode;
+        pstat->st_nlink = 1;
+        pstat->st_uid = pspifn->SPIFN_uid;
+        pstat->st_gid = pspifn->SPIFN_gid;
+        pstat->st_rdev = 1;
+        pstat->st_size = (off_t)stat.uiSize;
+        // pstat->st_atime = pInodeInfo->HOITN_timeAccess;
+        // pstat->st_mtime = pInodeInfo->HOITN_timeChange;
+        // pstat->st_ctime = pInodeInfo->HOITN_timeCreate;
+        pstat->st_blksize = 0;
+        pstat->st_blocks = 0;
+    }
+    else {
+        pstat->st_dev = LW_DEV_MAKE_STDEV(&pfs->SPIFFS_devhdrHdr);
+        pstat->st_ino = (ino_t)LW_NULL;
+        pstat->st_mode = pfs->SPIFFS_mode;
+        pstat->st_nlink = 1;
+        pstat->st_uid = pfs->SPIFFS_uid;
+        pstat->st_gid = pfs->SPIFFS_gid;
+        pstat->st_rdev = 1;
+        pstat->st_size = 0;
+        pstat->st_atime = pfs->SPIFFS_time;
+        pstat->st_mtime = pfs->SPIFFS_time;
+        pstat->st_ctime = pfs->SPIFFS_time;
+        pstat->st_blksize = 0;
+        pstat->st_blocks = 0;
+    }
+
+    pstat->st_resv1 = LW_NULL;
+    pstat->st_resv2 = LW_NULL;
+    pstat->st_resv3 = LW_NULL;
+    return ERROR_NONE;
+}
+/*********************************************************************************************************
+** 函数名称: __spif_read
+** 功能描述: 封装read操作
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __spif_read(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PCHAR pcContent, UINT32 uiOffset, UINT32 uiLen){
+    UINT32 iRes = SPIFFS_OK;
+    UINT32 uiReadBytes = 0;
+    __spiffs_lseek(SYLIX_TO_SPIFFS_PFS(pfs),SYLIX_TO_SPIFFS_FD(pspifn), uiOffset, SPIFFS_SEEK_SET);
+    iRes = __spiffs_read(SYLIX_TO_SPIFFS_PFS(pfs), SYLIX_TO_SPIFFS_FD(pspifn), pcContent, uiLen);
+    uiReadBytes = MIN(pspifn->pFd->uiSize - uiOffset, uiLen);
+    return uiReadBytes;
+}
+/*********************************************************************************************************
+** 函数名称: __spif_write
+** 功能描述: 封装write操作
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __spif_write(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PCHAR pcContent, UINT32 uiOffset, UINT32 uiLen){
+    UINT32 iRes = SPIFFS_OK;
+    __spiffs_lseek(SYLIX_TO_SPIFFS_PFS(pfs),SYLIX_TO_SPIFFS_FD(pspifn), uiOffset, SPIFFS_SEEK_SET);
+    iRes = __spiffs_write(SYLIX_TO_SPIFFS_PFS(pfs), SYLIX_TO_SPIFFS_FD(pspifn), pcContent, uiLen);
+    return uiLen;
+}
+/*********************************************************************************************************
+** 函数名称: __spif_rename
+** 功能描述: 封装rename操作
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __spif_rename(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PCHAR  pcNewName){
+    return __spiffs_rename(SYLIX_TO_SPIFFS_PFS(pfs), pspifn->SPIFN_pcName, pcNewName);
+}
+/*********************************************************************************************************
+** 函数名称: __spif_lseek
+** 功能描述: 封装lseek操作
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __spif_lseek(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, UINT32 uiOffset){
+    return __spiffs_lseek(SYLIX_TO_SPIFFS_PFS(pfs), SYLIX_TO_SPIFFS_FD(pspifn), uiOffset, SPIFFS_SEEK_SET);
+}
+/*********************************************************************************************************
+** 函数名称: __spif_statfs
+** 功能描述: statfs
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __spif_statfs(PSPIF_VOLUME pfs, struct statfs *pstatfs){
+    pstatfs->f_type = SPIFFS_CONFIG_MAGIC;  //需要修改
+    pstatfs->f_bsize = 0;
+    pstatfs->f_blocks = 0;
+    pstatfs->f_bfree = 0;
+    pstatfs->f_bavail = 1;
+
+    pstatfs->f_files = 0;
+    pstatfs->f_ffree = 0;
+
+    #if LW_CFG_CPU_WORD_LENGHT == 64
+    pstatfs->f_fsid.val[0] = (int32_t)((addr_t)pfs >> 32);
+    pstatfs->f_fsid.val[1] = (int32_t)((addr_t)pfs & 0xffffffff);
+    #else
+    pstatfs->f_fsid.val[0] = (int32_t)pfs;
+    pstatfs->f_fsid.val[1] = 0;
+    #endif
+
+    pstatfs->f_flag = 0;
+    pstatfs->f_namelen = PATH_MAX;
+    return ERROR_NONE;
+}
+/*********************************************************************************************************
+** 函数名称: __spif_opendir
+** 功能描述: 封装打开一个目录，目录暂时必须是'/'
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+PSPIFFS_DIR __spif_opendir(PSPIF_VOLUME pfs, const PCHAR pcName, PSPIFFS_DIR pDir){
+    return __spiffs_opendir(SYLIX_TO_SPIFFS_PFS(pfs), pcName, pDir);
+}
+/*********************************************************************************************************
+** 函数名称: __spif_closedir
+** 功能描述: 关闭一个目录文件
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __spif_closedir(PSPIF_VOLUME pfs, PSPIFFS_DIR pDir){
+    (VOID)pfs;
+    return __spiffs_closedir(pDir);
+}
+/*********************************************************************************************************
+** 函数名称: __spif_readdir
+** 功能描述: 封装读一个目录下的内容
+** 输　入  : pfs          文件头
+**           fileHandler   文件句柄
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+PSPIFFS_DIRENT __spif_readdir(PSPIFFS_DIR pDir, PSPIFFS_DIRENT pDirent){
+    return __spiffs_readdir(pDir, pDirent);
 }

@@ -70,7 +70,10 @@
         "numeric": "c",
         "fstream": "c",
         "iostream": "c",
-        "ostream": "c"
+        "ostream": "c",
+        "*.tcc": "c",
+        "spiffs.h": "c",
+        "cstring": "c"
     },
     "workbench.preferredDarkColorTheme": "Solarized Dark"
 }

@@ -472,8 +472,8 @@ TEST(open_by_dirent) {
   struct spiffs_dirent *pe = &e;
 
   int found = 0;
-  SPIFFS_opendir(FS, "/", &d);
-  while ((pe = SPIFFS_readdir(&d, pe))) {
+  SPIFFS_opendir(FS, "/", &d);              /* 打开根目录，名字会被忽略，因为是平面文件系统 */
+  while ((pe = SPIFFS_readdir(&d, pe))) {   /* 读该目录结构 */
     spiffs_file fd = SPIFFS_open_by_dirent(FS, pe, SPIFFS_RDWR, 0);
     TEST_CHECK(fd >= 0);
     res = read_and_verify_fd(fd, (char *)pe->name);

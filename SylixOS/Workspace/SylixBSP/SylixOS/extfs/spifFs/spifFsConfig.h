@@ -106,7 +106,7 @@ than logical page size.
   在SylixOS中我们仅移植Singleton
 *********************************************************************************************************/
 #ifndef SPIFFS_CFG_PHYS_SZ
-#define SPIFFS_CFG_PHYS_SZ(ignore)        (1024*1024*2)
+#define SPIFFS_CFG_PHYS_SZ(ignore)        (1024 * 1024 * 2)
 #endif
 #ifndef SPIFFS_CFG_PHYS_ERASE_SZ
 #define SPIFFS_CFG_PHYS_ERASE_SZ(ignore)  (65536)
@@ -114,11 +114,11 @@ than logical page size.
 #ifndef SPIFFS_CFG_PHYS_ADDR
 #define SPIFFS_CFG_PHYS_ADDR(ignore)      (0)
 #endif
-#ifndef SPIFFS_CFG_LOG_PAGE_SZ
-#define SPIFFS_CFG_LOG_PAGE_SZ(ignore)    (256)
+#ifndef SPIFFS_CFG_LOGIC_PAGE_SZ
+#define SPIFFS_CFG_LOGIC_PAGE_SZ(ignore)    (256)
 #endif
-#ifndef SPIFFS_CFG_LOG_BLOCK_SZ
-#define SPIFFS_CFG_LOG_BLOCK_SZ(ignore)   (65536)
+#ifndef SPIFFS_CFG_LOGIC_BLOCK_SZ
+#define SPIFFS_CFG_LOGIC_BLOCK_SZ(ignore)   (65536)
 #endif
 /*********************************************************************************************************
   是否允许永久的文件缓存？
@@ -203,15 +203,22 @@ descriptor.
 #define SPIFFS_TEST_VIS_DATA_STR(id)      "d"       /* 代表DataPage */
 #endif
 
+#define SPIFFS_GC_DBG
+#define SPIFFS_DBG
+#define SPIFFS_CHECK_DBG
+#define SPIFFS_API_DBG
+
 
 #ifndef SPIFFS_DBG
-#define SPIFFS_DBG(_f, ...) printf(_f, ## __VA_ARGS__)
+#define SPIFFS_DBG(_f, ...)   printf(_f, ## __VA_ARGS__)
 #endif
 // Set spiffs debug output call for garbage collecting.
 #ifndef SPIFFS_GC_DBG
 #define SPIFFS_GC_DBG(_f, ...) printf(_f, ## __VA_ARGS__)
 #endif
 // Set spiffs debug output call for caching.
+#define SPIFFS_CACHE_DBG
+
 #ifndef SPIFFS_CACHE_DBG
 #define SPIFFS_CACHE_DBG(_f, ...) printf(_f, ## __VA_ARGS__)
 #endif

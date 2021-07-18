@@ -70,6 +70,7 @@ SylixOS/extfs/hoitFs/hoitFsMid.c \
 SylixOS/extfs/hoitFs/hoitFsTest.c \
 SylixOS/extfs/hoitFs/hoitFsTree.c \
 SylixOS/extfs/hoitFs/hoitFsTreeUtil.c \
+SylixOS/extfs/hoitFs/hoitWriteBuffer.c \
 SylixOS/extfs/spifFs/spifFs.c \
 SylixOS/extfs/spifFs/spifFsCache.c \
 SylixOS/extfs/spifFs/spifFsFDLib.c \

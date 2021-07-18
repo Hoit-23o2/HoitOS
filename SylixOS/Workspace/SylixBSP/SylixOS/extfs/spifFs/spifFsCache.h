@@ -44,21 +44,23 @@
 
 #define SPIFFS_GET_CACHE_HDR(pfs)                       (PSPIFFS_CACHE)pfs->pCache
 #define SPIFFS_GET_CACHE_PAGE_HDR(pfs, pCache, ix)      ((PSPIFFS_CACHE_PAGE)(&((pCache)->Cpages[(ix) * SPIFFS_GET_CACHE_PAGE_SIZE(pfs)])))
-#define SPIFFS_GET_CACHE_PAGE_CONTENT(pfs, pCache, ix)  ((PUCHAR)(&((pCache)->Cpages[(ix) * SPIFFS_CACHE_PAGE_SIZE(pfs)]) \
+#define SPIFFS_GET_CACHE_PAGE_CONTENT(pfs, pCache, ix)  ((PCHAR)(&((pCache)->Cpages[(ix) * SPIFFS_CACHE_PAGE_SIZE(pfs)]) \
                                                         + sizeof(SPIFFS_CACHE_PAGE)))
 /*********************************************************************************************************
  * SPIFFS CacheÏà¹Øº¯Êý
 *********************************************************************************************************/
 INT32 spiffsCacheInit(PSPIFFS_VOLUME pfs);
 INT32 spiffsCacheRead(PSPIFFS_VOLUME pfs, UINT8 uiOps, SPIFFS_FILE fileHandler, 
-                      UINT32 uiAddr, UINT32 uiLen, PUCHAR pDst);
+                      UINT32 uiAddr, UINT32 uiLen, PCHAR pDst);
 INT32 spiffsCacheWrite(PSPIFFS_VOLUME pfs, UINT8 uiOps, SPIFFS_FILE fileHandler, 
-                       UINT32 uiAddr, UINT32 uiLen, PUCHAR pSrc);
+                       UINT32 uiAddr, UINT32 uiLen, PCHAR pSrc);
 INT32 spiffsEraseBlk(PSPIFFS_VOLUME pfs, SPIFFS_BLOCK_IX blkIX);
 
 
 
-INT32 spiffsCacheFflush(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler);
-PSPIFFS_CACHE_PAGE spiffsCachePageGetByFd(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd);
-VOID spiffsCacheFdRelease(PSPIFFS_VOLUME pfs, PSPIFFS_CACHE_PAGE pCachePage);
+INT32               spiffsCacheFflush(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler);
+PSPIFFS_CACHE_PAGE  spiffsCachePageGetByFd(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd);
+VOID                spiffsCacheFdRelease(PSPIFFS_VOLUME pfs, PSPIFFS_CACHE_PAGE pCachePage);
+VOID                spiffsCacheDropPage(PSPIFFS_VOLUME pfs, SPIFFS_PAGE_IX pageIX);
+PSPIFFS_CACHE_PAGE  spiffsCachePageAllocateByFd(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd);
 #endif /* SYLIXOS_EXTFS_SPIFFS_SPIFSCACHE_H_ */

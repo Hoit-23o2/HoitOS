@@ -27,6 +27,8 @@
 #include "../SylixOS/system/include/s_system.h"
 #include "../SylixOS/fs/fsCommon/fsCommon.h"
 #include "../SylixOS/fs/include/fs_fs.h"
+#include "spifFsLib.h"
+#include "spifFsFDLib.h"
 /*********************************************************************************************************
   内部全局变量
 *********************************************************************************************************/
@@ -49,11 +51,11 @@ static INT                              _G_iSpiffsDrvNum = PX_ERROR;
 /*********************************************************************************************************
   内部函数
 *********************************************************************************************************/
-static LONG     __spifFsOpen(PSPIF_VOLUME     pspiffs,
+static LONG     __spifFsOpen(PSPIF_VOLUME     pfs,
                             PCHAR           pcName,
                             INT             iFlags,
                             INT             iMode);
-static INT      __spifFsRemove(PSPIF_VOLUME   pspiffs,
+static INT      __spifFsRemove(PSPIF_VOLUME   pfs,
                               PCHAR         pcName);
 static INT      __spifFsClose(PLW_FD_ENTRY   pfdentry);
 static ssize_t  __spifFsRead(PLW_FD_ENTRY    pfdentry,
@@ -76,16 +78,16 @@ static INT      __spifFsWhere(PLW_FD_ENTRY pfdentry,
                              off_t       *poftPos);
 static INT      __spifFsStat(PLW_FD_ENTRY  pfdentry, 
                             struct stat  *pstat);
-static INT      __spifFsLStat(PSPIF_VOLUME   pspiffs,
+static INT      __spifFsLStat(PSPIF_VOLUME   pfs,
                              PCHAR         pcName,
                              struct stat  *pstat);
 static INT      __spifFsIoctl(PLW_FD_ENTRY  pfdentry,
                              INT           iRequest,
                              LONG          lArg);
-static INT      __spifFsSymlink(PSPIF_VOLUME   pspiffs,
+static INT      __spifFsSymlink(PSPIF_VOLUME   pfs,
                                PCHAR         pcName,
                                CPCHAR        pcLinkDst);
-static ssize_t  __spifFsReadlink(PSPIF_VOLUME   pspiffs,
+static ssize_t  __spifFsReadlink(PSPIF_VOLUME   pfs,
                                 PCHAR         pcName,
                                 PCHAR         pcLinkDst,
                                 size_t        stMaxSize);
@@ -126,8 +128,8 @@ INT  API_SpifFsDrvInstall (VOID)
     _G_iSpiffsDrvNum = iosDrvInstallEx2(&fileop, LW_DRV_TYPE_NEW_1);     /*  使用 NEW_1 型设备驱动程序   */
 
     DRIVER_LICENSE(_G_iSpiffsDrvNum,     "GPL->Ver 2.0");
-    DRIVER_AUTHOR(_G_iSpiffsDrvNum,      "Han.hui");
-    DRIVER_DESCRIPTION(_G_iSpiffsDrvNum, "spiffs driver.");
+    DRIVER_AUTHOR(_G_iSpiffsDrvNum,      "HITSZ.HoitGroup");
+    DRIVER_DESCRIPTION(_G_iSpiffsDrvNum, "spiffs file system.");
 
     _DebugHandle(__LOGMESSAGE_LEVEL, "spif file system installed.\r\n");
                                      
@@ -148,7 +150,7 @@ INT  API_SpifFsDrvInstall (VOID)
 LW_API
 INT  API_SpifFsDevCreate (PCHAR   pcName, PLW_BLK_DEV  pblkd)
 {
-    PSPIF_VOLUME     pspiffs;
+    PSPIF_VOLUME    pfs;
     size_t          stMax;
 
     if (_G_iSpiffsDrvNum <= 0) {
@@ -171,39 +173,41 @@ INT  API_SpifFsDevCreate (PCHAR   pcName, PLW_BLK_DEV  pblkd)
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
     }
-    
-    pspiffs = (PSPIF_VOLUME)__SHEAP_ALLOC(sizeof(SPIF_VOLUME));
-    if (pspiffs == LW_NULL) {
+   
+    pfs                         = (PSPIF_VOLUME)__SHEAP_ALLOC(sizeof(SPIF_VOLUME));
+
+    if (pfs == LW_NULL) {
         _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
         _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
         return  (PX_ERROR);
     }
-    lib_bzero(pspiffs, sizeof(SPIF_VOLUME));                              /*  清空卷控制块                */
+    lib_bzero(pfs, sizeof(SPIF_VOLUME));                              /*  清空卷控制块                */
     
-    pspiffs->SPIFFS_bValid = LW_TRUE;
+    pfs->SPIFFS_bValid = LW_TRUE;
     
-    pspiffs->SPIFFS_hVolLock = API_SemaphoreMCreate("spifvol_lock", LW_PRIO_DEF_CEILING,
+    pfs->SPIFFS_hVolLock = API_SemaphoreMCreate("spifvol_lock", LW_PRIO_DEF_CEILING,
                                              LW_OPTION_WAIT_PRIORITY | LW_OPTION_DELETE_SAFE | 
                                              LW_OPTION_INHERIT_PRIORITY | LW_OPTION_OBJECT_GLOBAL,
                                              LW_NULL);
-    if (!pspiffs->SPIFFS_hVolLock) {                                      /*  无法创建卷锁                */
-        __SHEAP_FREE(pspiffs);
+    if (!pfs->SPIFFS_hVolLock) {                                      /*  无法创建卷锁                */
+        __SHEAP_FREE(pfs);
         return  (PX_ERROR);
     }
     
-    pspiffs->SPIFFS_mode     = S_IFDIR | DEFAULT_DIR_PERM;
-    pspiffs->SPIFFS_uid      = getuid();
-    pspiffs->SPIFFS_gid      = getgid();
-    pspiffs->SPIFFS_time     = lib_time(LW_NULL);
-    pspiffs->SPIFFS_ulCurBlk = 0ul;
+    pfs->SPIFFS_mode     = S_IFDIR | DEFAULT_DIR_PERM;
+    pfs->SPIFFS_uid      = getuid();
+    pfs->SPIFFS_gid      = getgid();
+    pfs->SPIFFS_time     = lib_time(LW_NULL);
+    pfs->SPIFFS_ulCurBlk = 0ul;
+    pfs->pfs             = (PSPIFFS_VOLUME)__SHEAP_ALLOC(sizeof(SPIFFS_VOLUME));
     
     //TODO 挂载函数
-    __spif_mount(pspiffs);
+    __spif_mount(pfs);
     
-    if (iosDevAddEx(&pspiffs->SPIFFS_devhdrHdr, pcName, _G_iSpiffsDrvNum, DT_DIR)
+    if (iosDevAddEx(&pfs->SPIFFS_devhdrHdr, pcName, _G_iSpiffsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
-        API_SemaphoreMDelete(&pspiffs->SPIFFS_hVolLock);
-        __SHEAP_FREE(pspiffs);
+        API_SemaphoreMDelete(&pfs->SPIFFS_hVolLock);
+        __SHEAP_FREE(pfs);
         return  (PX_ERROR);
     }
     
@@ -234,7 +238,7 @@ INT  API_SpifFsDevDelete (PCHAR   pcName)
 /*********************************************************************************************************
 ** 函数名称: __spifFsOpen
 ** 功能描述: 打开或者创建文件
-** 输　入  : pspiffs           spiffs 文件系统
+** 输　入  : pfs           spiffs 文件系统
 **           pcName           文件名
 **           iFlags           方式
 **           iMode            mode_t
@@ -242,26 +246,24 @@ INT  API_SpifFsDevDelete (PCHAR   pcName)
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-static LONG __spifFsOpen (PSPIF_VOLUME     pspiffs,
-                         PCHAR           pcName,
-                         INT             iFlags,
-                         INT             iMode)
+static LONG __spifFsOpen (PSPIF_VOLUME     pfs,
+                          PCHAR            pcName,
+                          INT              iFlags,
+                          INT              iMode)
 {
-    PLW_FD_NODE pfdnode;
+    PLW_FD_NODE   pfdnode;
     PSPIFN_NODE   pspifn;
-    PSPIFN_NODE   pspifnFather;
-    BOOL        bRoot;
-    BOOL        bLast;
-    PCHAR       pcTail;
-    BOOL        bIsNew;
-    BOOL        bCreate = LW_FALSE;
-    struct stat statGet;
+
+    BOOL          bIsNew;
+    BOOL          bIsRoot;
+    BOOL          bCreate;
+    struct stat   statGet;
     
     if (pcName == LW_NULL) {
         _ErrorHandle(EFAULT);                                           /*  Bad address                 */
         return  (PX_ERROR);
     }
-    
+
     if (iFlags & O_CREAT) {                                             /*  创建操作                    */
         if (__fsCheckFileName(pcName)) {
             _ErrorHandle(ENOENT);
@@ -274,88 +276,20 @@ static LONG __spifFsOpen (PSPIF_VOLUME     pspiffs,
             return  (PX_ERROR);
         }
     }
-    
-    if (__SPIFFS_VOL_LOCK(pspiffs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);                                            /*  设备出错                    */
         return  (PX_ERROR);
     }
     //TODO 文件打开函数
-    /* 
-        pspifnFather    父亲节点，用于之后的文件创建操作
-        详细参考__ram_open
-     */
-    pspifn = __spif_open(pspiffs, pcName, &pspifnFather, &bRoot, &bLast, &pcTail);
-    if (pspifn) {
-        if (!S_ISLNK(pspifn->SPIFN_mode)) {
-            if ((iFlags & O_CREAT) && (iFlags & O_EXCL)) {              /*  排他创建文件                */
-                __SPIFFS_VOL_UNLOCK(pspiffs);
-                _ErrorHandle(EEXIST);                                   /*  已经存在文件                */
-                return  (PX_ERROR);
-            
-            } else if ((iFlags & O_DIRECTORY) && !S_ISDIR(pspifn->SPIFN_mode)) {
-                __SPIFFS_VOL_UNLOCK(pspiffs);
-                _ErrorHandle(ENOTDIR);
-                return  (PX_ERROR);
-            
-            } else {
-                goto    __file_open_ok;
-            }
-        }
-    
-    } else if ((iFlags & O_CREAT) && bLast) {                           /*  创建节点                    */
-        //TODO 创建新的文件节点
-        pspifn = __spif_maken(pspiffs, pcName, pspifnFather, iMode, LW_NULL);
-        if (pspifn) {
-            bCreate = LW_TRUE;
-            goto    __file_open_ok;
-        
-        } else {
-            return  (PX_ERROR);
-        }
-    }
-    
-    if (pspifn) {                                                        /*  符号链接处理                */
-        //! 符号链接部分可忽略
-        // INT     iError;
-        // INT     iFollowLinkType;
-        // PCHAR   pcSymfile = pcTail - lib_strlen(pspifn->SPIFN_pcName) - 1;
-        // PCHAR   pcPrefix;
-        
-        // if (*pcSymfile != PX_DIVIDER) {
-        //     pcSymfile--;
-        // }
-        // if (pcSymfile == pcName) {
-        //     pcPrefix = LW_NULL;                                         /*  没有前缀                    */
-        // } else {
-        //     pcPrefix = pcName;
-        //     *pcSymfile = PX_EOS;
-        // }
-        // if (pcTail && lib_strlen(pcTail)) {
-        //     iFollowLinkType = FOLLOW_LINK_TAIL;                         /*  连接目标内部文件            */
-        // } else {
-        //     iFollowLinkType = FOLLOW_LINK_FILE;                         /*  链接文件本身                */
-        // }
-        
-        // iError = _PathBuildLink(pcName, MAX_FILENAME_LENGTH, 
-        //                         LW_NULL, pcPrefix, pspifn->SPIFN_pcLink, pcTail);
-        // if (iError) {
-        //     __SPIFFS_VOL_UNLOCK(pspiffs);
-        //     return  (PX_ERROR);                                         /*  无法建立被链接目标目录      */
-        // } else {
-        //     __SPIFFS_VOL_UNLOCK(pspiffs);
-        //     return  (iFollowLinkType);
-        // }
-    
-    } else if (bRoot == LW_FALSE) {                                     /*  不是打开根目录              */
-        __SPIFFS_VOL_UNLOCK(pspiffs);
+    pspifn = __spif_open(pfs, pcName, iFlags, iMode, &bIsRoot);
+    if(pspifn == LW_NULL && bIsRoot == LW_FALSE){
+        __SPIFFS_VOL_UNLOCK(pfs);
         _ErrorHandle(ENOENT);                                           /*  没有找到文件                */
         return  (PX_ERROR);
     }
+    __spif_stat(pfs, pspifn, &statGet);
     
-__file_open_ok:
-    //TODO 文件状态获取函数，可直接抄__ram_stat
-    __spif_stat(pspifn, pspiffs, &statGet);
-    pfdnode = API_IosFdNodeAdd(&pspiffs->SPIFFS_plineFdNodeHeader,
+    pfdnode = API_IosFdNodeAdd(&pfs->SPIFFS_plineFdNodeHeader,
                                statGet.st_dev,
                                (ino64_t)statGet.st_ino,
                                iFlags,
@@ -366,133 +300,99 @@ __file_open_ok:
                                (PVOID)pspifn,
                                &bIsNew);                                /*  添加文件节点                */
     if (pfdnode == LW_NULL) {                                           /*  无法创建 fd_node 节点       */
-        __SPIFFS_VOL_UNLOCK(pspiffs);
+        __SPIFFS_VOL_UNLOCK(pfs);
         if (bCreate) {
-            __spif_unlink(pspifn);                                        /*  删除新建的节点              */
+            //__spif_unlink(pspifn);                                      /*  删除新建的节点              */
+            //spiffs
+            __spif_remove(pfs, pspifn);
         }
         return  (PX_ERROR);
     }
     
-    pfdnode->FDNODE_pvFsExtern = (PVOID)pspiffs;                         /*  记录文件系统信息            */
+    pfdnode->FDNODE_pvFsExtern = (PVOID)pfs;                         /*  记录文件系统信息            */
     
-    if ((iFlags & O_TRUNC) && ((iFlags & O_ACCMODE) != O_RDONLY)) {     /*  需要截断                    */
-        if (pspifn) {
-            //TODO 文件数据删减函数
-            __spif_truncate(pspifn, 0);
-            pfdnode->FDNODE_oftSize = 0;
-        }
-    }
+    LW_DEV_INC_USE_COUNT(&pfs->SPIFFS_devhdrHdr);                     /*  更新计数器                  */
     
-    LW_DEV_INC_USE_COUNT(&pspiffs->SPIFFS_devhdrHdr);                     /*  更新计数器                  */
+    __SPIFFS_VOL_UNLOCK(pfs);
     
-    __SPIFFS_VOL_UNLOCK(pspiffs);
-    
-    return  ((LONG)pfdnode);                                            /*  返回文件节点                */
+    return  ((LONG)pfdnode);                                           /*  返回文件节点                */
 }
 /*********************************************************************************************************
 ** 函数名称: __spifFsRemove
 ** 功能描述: spiffs remove 操作
-** 输　入  : pspiffs           卷设备
+** 输　入  : pfs           卷设备
 **           pcName           文件名
 ** 输　出  : < 0 表示错误
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-static INT  __spifFsRemove (PSPIF_VOLUME   pspiffs,
-                           PCHAR         pcName)
+static INT  __spifFsRemove (PSPIF_VOLUME   pfs,
+                            PCHAR         pcName)
 {
     PSPIFN_NODE  pspifn;
-    BOOL       bRoot;
-    PCHAR      pcTail;
-    INT        iError;
+    BOOL         bIsRoot;
+    PCHAR        pcTail;
+    INT          iError;
 
     if (pcName == LW_NULL) {
         _ErrorHandle(ERROR_IO_NO_DEVICE_NAME_IN_PATH);
         return  (PX_ERROR);
     }
         
-    if (__SPIFFS_VOL_LOCK(pspiffs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);                                            /*  设备出错                    */
         return  (PX_ERROR);
     }
     
-    pspifn = __spif_open(pspiffs, pcName, LW_NULL, &bRoot, LW_NULL, &pcTail);
+    pspifn = __spif_open(pfs, pcName, SPIFFS_O_RDWR, 0, &bIsRoot);
     if (pspifn) {
-        //! 符号链接忽略
-        // if (S_ISLNK(pspifn->SPIFN_mode)) {                                /*  符号链接                    */
-        //     size_t  stLenTail = 0;
-        //     if (pcTail) {
-        //         stLenTail = lib_strlen(pcTail);                         /*  确定 tail 长度              */
-        //     }
-        //     if (stLenTail) {                                            /*  指向其他文件                */
-        //         PCHAR   pcSymfile = pcTail - lib_strlen(pspifn->SPIFN_pcName) - 1;
-        //         PCHAR   pcPrefix;
-                
-        //         if (*pcSymfile != PX_DIVIDER) {
-        //             pcSymfile--;
-        //         }
-        //         if (pcSymfile == pcName) {
-        //             pcPrefix = LW_NULL;                                 /*  没有前缀                    */
-        //         } else {
-        //             pcPrefix = pcName;
-        //             *pcSymfile = PX_EOS;
-        //         }
-                
-        //         if (_PathBuildLink(pcName, MAX_FILENAME_LENGTH, 
-        //                            LW_NULL, pcPrefix, pspifn->SPIFN_pcLink, pcTail) < ERROR_NONE) {
-        //             __SPIFFS_VOL_UNLOCK(pspiffs);
-        //             return  (PX_ERROR);                                 /*  无法建立被链接目标目录      */
-        //         } else {
-        //             __SPIFFS_VOL_UNLOCK(pspiffs);
-        //             return  (FOLLOW_LINK_TAIL);
-        //         }
-        //     }
-        // }
         //TODO 文件删除函数
-        iError = __spif_unlink(pspifn);
-        __SPIFFS_VOL_UNLOCK(pspiffs);
+        iError = __spif_remove(pfs, pspifn);  
+        __SPIFFS_VOL_UNLOCK(pfs);
         return  (iError);
             
-    } else if (bRoot) {                                                 /*  删除 spiffs 文件系统         */
-        if (pspiffs->SPIFFS_bValid == LW_FALSE) {
-            __SPIFFS_VOL_UNLOCK(pspiffs);
+    } 
+    else if (bIsRoot) {                                                 /*  删除 spiffs 文件系统         */
+        if (pfs->SPIFFS_bValid == LW_FALSE) {
+            __SPIFFS_VOL_UNLOCK(pfs);
             return  (ERROR_NONE);                                       /*  正在被其他任务卸载          */
         }
         
 __re_umount_vol:
-        if (LW_DEV_GET_USE_COUNT((LW_DEV_HDR *)pspiffs)) {
-            if (!pspiffs->SPIFFS_bForceDelete) {
-                __SPIFFS_VOL_UNLOCK(pspiffs);
+        if (LW_DEV_GET_USE_COUNT((LW_DEV_HDR *)pfs)) {
+            if (!pfs->SPIFFS_bForceDelete) {
+                __SPIFFS_VOL_UNLOCK(pfs);
                 _ErrorHandle(EBUSY);
                 return  (PX_ERROR);
             }
             
-            pspiffs->SPIFFS_bValid = LW_FALSE;
+            pfs->SPIFFS_bValid = LW_FALSE;
             
-            __SPIFFS_VOL_UNLOCK(pspiffs);
+            __SPIFFS_VOL_UNLOCK(pfs);
             
             _DebugHandle(__ERRORMESSAGE_LEVEL, "disk have open file.\r\n");
-            iosDevFileAbnormal(&pspiffs->SPIFFS_devhdrHdr);               /*  将所有相关文件设为异常模式  */
+            iosDevFileAbnormal(&pfs->SPIFFS_devhdrHdr);               /*  将所有相关文件设为异常模式  */
             
-            __SPIFFS_VOL_LOCK(pspiffs);
+            __SPIFFS_VOL_LOCK(pfs);
             goto    __re_umount_vol;
         
-        } else {
-            pspiffs->SPIFFS_bValid = LW_FALSE;
+        } 
+        else {
+            pfs->SPIFFS_bValid = LW_FALSE;
         }
         
-        iosDevDelete((LW_DEV_HDR *)pspiffs);                             /*  IO 系统移除设备             */
-        API_SemaphoreMDelete(&pspiffs->SPIFFS_hVolLock);
+        iosDevDelete((LW_DEV_HDR *)pfs);                             /*  IO 系统移除设备             */
+        API_SemaphoreMDelete(&pfs->SPIFFS_hVolLock);
         //TODO 文件系统卸载函数
-        __spif_unmount(pspiffs);                                          /*  释放所有文件内容            */
-        __SHEAP_FREE(pspiffs);
+        __spif_unmount(pfs);                                          /*  释放所有文件内容            */
+        __SHEAP_FREE(pfs);
         
         _DebugHandle(__LOGMESSAGE_LEVEL, "spiffs unmount ok.\r\n");
         
         return  (ERROR_NONE);
         
     } else {
-        __SPIFFS_VOL_UNLOCK(pspiffs);
+        __SPIFFS_VOL_UNLOCK(pfs);
         _ErrorHandle(ENOENT);
         return  (PX_ERROR);
     }
@@ -508,29 +408,30 @@ __re_umount_vol:
 static INT  __spifFsClose (PLW_FD_ENTRY    pfdentry)
 {
     PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PSPIFN_NODE     pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
-    PSPIF_VOLUME   pspiffs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    PSPIFN_NODE   pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PSPIF_VOLUME  pfs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
     BOOL          bRemove = LW_FALSE;
     
-    if (__SPIFFS_VOL_LOCK(pspiffs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);                                            /*  设备出错                    */
         return  (PX_ERROR);
     }
     
-    if (API_IosFdNodeDec(&pspiffs->SPIFFS_plineFdNodeHeader, 
+    if (API_IosFdNodeDec(&pfs->SPIFFS_plineFdNodeHeader, 
                          pfdnode, &bRemove) == 0) {
         if (pspifn) {
-            __spif_close(pspifn, pfdentry->FDENTRY_iFlag);
-        }
+            __spif_close(pfs, pspifn);
+        }   
     }
     
-    LW_DEV_DEC_USE_COUNT(&pspiffs->SPIFFS_devhdrHdr);
+    LW_DEV_DEC_USE_COUNT(&pfs->SPIFFS_devhdrHdr);
     
     if (bRemove && pspifn) {
-        __spif_unlink(pspifn);
+        //__spif_unlink(pspifn);
+        __spif_remove(pfs, pspifn);
     }
         
-    __SPIFFS_VOL_UNLOCK(pspiffs);
+    __SPIFFS_VOL_UNLOCK(pfs);
 
     return  (ERROR_NONE);
 }
@@ -548,8 +449,9 @@ static ssize_t  __spifFsRead (PLW_FD_ENTRY pfdentry,
                              PCHAR        pcBuffer,
                              size_t       stMaxBytes)
 {
-    PLW_FD_NODE   pfdnode    = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PSPIFN_NODE     pspifn      = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PLW_FD_NODE   pfdnode       = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PSPIFN_NODE   pspifn        = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PSPIF_VOLUME  pfs           = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
     ssize_t       sstReadNum = PX_ERROR;
     
     if (!pcBuffer) {
@@ -562,20 +464,20 @@ static ssize_t  __spifFsRead (PLW_FD_ENTRY pfdentry,
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspifn->SPIFN_pramfs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pspifn->pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
     
     if (S_ISDIR(pspifn->SPIFN_mode)) {
-        __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+        __SPIFFS_VOL_UNLOCK(pspifn->pfs);
         _ErrorHandle(EISDIR);
         return  (PX_ERROR);
     }
     
     if (stMaxBytes) {
         //TODO 文件读函数
-        sstReadNum = __spif_read(pspifn, pcBuffer, stMaxBytes, (size_t)pfdentry->FDENTRY_oftPtr);
+        sstReadNum = __spif_read(pfs, pspifn, pcBuffer, (size_t)pfdentry->FDENTRY_oftPtr, stMaxBytes);
         if (sstReadNum > 0) {
             pfdentry->FDENTRY_oftPtr += (off_t)sstReadNum;              /*  更新文件指针                */
         }
@@ -584,7 +486,7 @@ static ssize_t  __spifFsRead (PLW_FD_ENTRY pfdentry,
         sstReadNum = 0;
     }
     
-    __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+    __SPIFFS_VOL_UNLOCK(pspifn->pfs);
     
     return  (sstReadNum);
 }
@@ -604,8 +506,10 @@ static ssize_t  __spifFsPRead (PLW_FD_ENTRY pfdentry,
                               size_t       stMaxBytes,
                               off_t        oftPos)
 {
-    PLW_FD_NODE   pfdnode    = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PSPIFN_NODE     pspifn      = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PLW_FD_NODE   pfdnode       = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PSPIFN_NODE   pspifn        = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PSPIF_VOLUME  pfs           = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    SPIFFS_FILE   fileHandler   = pspifn->pFd->fileN;
     ssize_t       sstReadNum = PX_ERROR;
     
     if (!pcBuffer || (oftPos < 0)) {
@@ -618,25 +522,24 @@ static ssize_t  __spifFsPRead (PLW_FD_ENTRY pfdentry,
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspifn->SPIFN_pramfs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pspifn->pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
     
     if (S_ISDIR(pspifn->SPIFN_mode)) {
-        __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+        __SPIFFS_VOL_UNLOCK(pspifn->pfs);
         _ErrorHandle(EISDIR);
         return  (PX_ERROR);
     }
     
     if (stMaxBytes) {
-        sstReadNum = __spif_read(pspifn, pcBuffer, stMaxBytes, (size_t)oftPos);
-    
+        sstReadNum = __spif_read(pfs, pspifn, pcBuffer, oftPos, stMaxBytes);
     } else {
         sstReadNum = 0;
     }
     
-    __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+    __SPIFFS_VOL_UNLOCK(pspifn->pfs);
     
     return  (sstReadNum);
 }
@@ -654,8 +557,9 @@ static ssize_t  __spifFsWrite (PLW_FD_ENTRY  pfdentry,
                               PCHAR         pcBuffer,
                               size_t        stNBytes)
 {
-    PLW_FD_NODE   pfdnode     = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PSPIFN_NODE     pspifn       = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PLW_FD_NODE   pfdnode       = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PSPIFN_NODE   pspifn        = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PSPIF_VOLUME  pfs           = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
     ssize_t       sstWriteNum = PX_ERROR;
     
     if (!pcBuffer) {
@@ -668,13 +572,13 @@ static ssize_t  __spifFsWrite (PLW_FD_ENTRY  pfdentry,
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspifn->SPIFN_pramfs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pspifn->pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
     
     if (S_ISDIR(pspifn->SPIFN_mode)) {
-        __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+        __SPIFFS_VOL_UNLOCK(pspifn->pfs);
         _ErrorHandle(EISDIR);
         return  (PX_ERROR);
     }
@@ -685,7 +589,7 @@ static ssize_t  __spifFsWrite (PLW_FD_ENTRY  pfdentry,
     
     if (stNBytes) {
         //TODO 文件写函数
-        sstWriteNum = __spif_write(pspifn, pcBuffer, stNBytes, (size_t)pfdentry->FDENTRY_oftPtr);
+        sstWriteNum = __spif_write(pfs, pspifn, pcBuffer, (size_t)pfdentry->FDENTRY_oftPtr, stNBytes);
         if (sstWriteNum > 0) {
             pfdentry->FDENTRY_oftPtr += (off_t)sstWriteNum;             /*  更新文件指针                */
             pfdnode->FDNODE_oftSize   = (off_t)pspifn->SPIFN_stSize;
@@ -695,7 +599,7 @@ static ssize_t  __spifFsWrite (PLW_FD_ENTRY  pfdentry,
         sstWriteNum = 0;
     }
     
-    __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+    __SPIFFS_VOL_UNLOCK(pspifn->pfs);
     
     return  (sstWriteNum);
 }
@@ -716,7 +620,8 @@ static ssize_t  __spifFsPWrite (PLW_FD_ENTRY  pfdentry,
                                off_t         oftPos)
 {
     PLW_FD_NODE   pfdnode     = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PSPIFN_NODE     pspifn       = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PSPIF_VOLUME  pfs           = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    PSPIFN_NODE   pspifn       = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
     ssize_t       sstWriteNum = PX_ERROR;
     
     if (!pcBuffer || (oftPos < 0)) {
@@ -729,19 +634,19 @@ static ssize_t  __spifFsPWrite (PLW_FD_ENTRY  pfdentry,
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspifn->SPIFN_pramfs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pspifn->pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
     
     if (S_ISDIR(pspifn->SPIFN_mode)) {
-        __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+        __SPIFFS_VOL_UNLOCK(pspifn->pfs);
         _ErrorHandle(EISDIR);
         return  (PX_ERROR);
     }
     
     if (stNBytes) {
-        sstWriteNum = __spif_write(pspifn, pcBuffer, stNBytes, (size_t)oftPos);
+        sstWriteNum = __spif_write(pfs, pspifn, pcBuffer, (size_t)oftPos, stNBytes);
         if (sstWriteNum > 0) {
             pfdnode->FDNODE_oftSize = (off_t)pspifn->SPIFN_stSize;
         }
@@ -750,7 +655,7 @@ static ssize_t  __spifFsPWrite (PLW_FD_ENTRY  pfdentry,
         sstWriteNum = 0;
     }
     
-    __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+    __SPIFFS_VOL_UNLOCK(pspifn->pfs);
     
     return  (sstWriteNum);
 }
@@ -766,7 +671,7 @@ static ssize_t  __spifFsPWrite (PLW_FD_ENTRY  pfdentry,
 static INT  __spifFsNRead (PLW_FD_ENTRY  pfdentry, INT  *piNRead)
 {
     PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PSPIFN_NODE     pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PSPIFN_NODE   pspifn  = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
     
     if (piNRead == LW_NULL) {
         _ErrorHandle(EINVAL);
@@ -778,20 +683,20 @@ static INT  __spifFsNRead (PLW_FD_ENTRY  pfdentry, INT  *piNRead)
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspifn->SPIFN_pramfs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pspifn->pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
     
     if (S_ISDIR(pspifn->SPIFN_mode)) {
-        __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+        __SPIFFS_VOL_UNLOCK(pspifn->pfs);
         _ErrorHandle(EISDIR);
         return  (PX_ERROR);
     }
     
     *piNRead = (INT)(pspifn->SPIFN_stSize - (size_t)pfdentry->FDENTRY_oftPtr);
     
-    __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+    __SPIFFS_VOL_UNLOCK(pspifn->pfs);
     
     return  (ERROR_NONE);
 }
@@ -807,27 +712,27 @@ static INT  __spifFsNRead (PLW_FD_ENTRY  pfdentry, INT  *piNRead)
 static INT  __spifFsNRead64 (PLW_FD_ENTRY  pfdentry, off_t  *poftNRead)
 {
     PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PSPIFN_NODE     pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PSPIFN_NODE   pspifn  = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
     
     if (pspifn == LW_NULL) {
         _ErrorHandle(EISDIR);
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspifn->SPIFN_pramfs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pspifn->pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
     
     if (S_ISDIR(pspifn->SPIFN_mode)) {
-        __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+        __SPIFFS_VOL_UNLOCK(pspifn->pfs);
         _ErrorHandle(EISDIR);
         return  (PX_ERROR);
     }
     
     *poftNRead = (off_t)(pspifn->SPIFN_stSize - (size_t)pfdentry->FDENTRY_oftPtr);
     
-    __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+    __SPIFFS_VOL_UNLOCK(pspifn->pfs);
     
     return  (ERROR_NONE);
 }
@@ -842,11 +747,13 @@ static INT  __spifFsNRead64 (PLW_FD_ENTRY  pfdentry, off_t  *poftNRead)
 *********************************************************************************************************/
 static INT  __spifFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
 {
-    PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PSPIFN_NODE     pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
-    PSPIF_VOLUME   pspiffs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    PLW_FD_NODE    pfdnode  = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PSPIFN_NODE    pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PSPIF_VOLUME   pfs      = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
     PSPIF_VOLUME   pspiffsNew;
-    CHAR          cNewPath[PATH_MAX + 1];
+    CHAR           cNewPath[PATH_MAX + 1];
+    //TODO: Old Name
+    //PCHAR         pcOldName;
     INT           iError;
     
     if (pspifn == LW_NULL) {                                             /*  检查是否为设备文件          */
@@ -864,7 +771,7 @@ static INT  __spifFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
         return (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspifn->SPIFN_pramfs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pspifn->pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
@@ -872,19 +779,19 @@ static INT  __spifFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
     if (ioFullFileNameGet(pcNewName, 
                           (LW_DEV_HDR **)&pspiffsNew, 
                           cNewPath) != ERROR_NONE) {                    /*  获得新目录路径              */
-        __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+        __SPIFFS_VOL_UNLOCK(pspifn->pfs);
         return  (PX_ERROR);
     }
     
-    if (pspiffsNew != pspiffs) {                                          /*  必须为同一设备节点          */
-        __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+    if (pspiffsNew != pfs) {                                          /*  必须为同一设备节点          */
+        __SPIFFS_VOL_UNLOCK(pspifn->pfs);
         _ErrorHandle(EXDEV);
         return  (PX_ERROR);
     }
     //TODO 重命名函数，需要做到文件移动功能
-    iError = __spif_move(pspifn, cNewPath);
-    
-    __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+    __spif_rename(pfs, pspifn, pcNewName);
+
+    __SPIFFS_VOL_UNLOCK(pspifn->pfs);
     
     return  (iError);
 }
@@ -900,8 +807,9 @@ static INT  __spifFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
 static INT  __spifFsSeek (PLW_FD_ENTRY  pfdentry,
                          off_t         oftOffset)
 {
-    PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PSPIFN_NODE     pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PLW_FD_NODE    pfdnode  = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PSPIFN_NODE    pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PSPIF_VOLUME   pfs      = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
     
     if (pspifn == LW_NULL) {
         _ErrorHandle(EISDIR);
@@ -913,13 +821,13 @@ static INT  __spifFsSeek (PLW_FD_ENTRY  pfdentry,
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspifn->SPIFN_pramfs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pspifn->pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
     
     if (S_ISDIR(pspifn->SPIFN_mode)) {
-        __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+        __SPIFFS_VOL_UNLOCK(pspifn->pfs);
         _ErrorHandle(EISDIR);
         return  (PX_ERROR);
     }
@@ -928,8 +836,8 @@ static INT  __spifFsSeek (PLW_FD_ENTRY  pfdentry,
     if (pspifn->SPIFN_stVSize < (size_t)oftOffset) {
         pspifn->SPIFN_stVSize = (size_t)oftOffset;
     }
-    
-    __SPIFFS_VOL_UNLOCK(pspifn->SPIFN_pramfs);
+    __spif_lseek(pfs, pspifn, oftOffset);
+    __SPIFFS_VOL_UNLOCK(pspifn->pfs);
     
     return  (ERROR_NONE);
 }
@@ -963,64 +871,64 @@ static INT  __spifFsWhere (PLW_FD_ENTRY  pfdentry, off_t  *poftPos)
 static INT  __spifFsStat (PLW_FD_ENTRY  pfdentry, struct stat *pstat)
 {
     PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PSPIFN_NODE     pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
-    PSPIF_VOLUME   pspiffs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    PSPIFN_NODE   pspifn  = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PSPIF_VOLUME  pfs     = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
     
     if (!pstat) {
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspiffs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
+//TODO: 
+    __spif_stat(pfs, pspifn, pstat);
     
-    __spif_stat(pspifn, pspiffs, pstat);
-    
-    __SPIFFS_VOL_UNLOCK(pspiffs);
+    __SPIFFS_VOL_UNLOCK(pfs);
     
     return  (ERROR_NONE);
 }
 /*********************************************************************************************************
 ** 函数名称: __spifFsLStat
 ** 功能描述: spifFs stat 操作
-** 输　入  : pspiffs           spiffs 文件系统
+** 输　入  : pfs           spiffs 文件系统
 **           pcName           文件名
 **           pstat            文件状态
 ** 输　出  : < 0 表示错误
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-static INT  __spifFsLStat (PSPIF_VOLUME  pspiffs, PCHAR  pcName, struct stat *pstat)
+static INT  __spifFsLStat (PSPIF_VOLUME  pfs, PCHAR  pcName, struct stat *pstat)
 {
     PSPIFN_NODE     pspifn;
-    BOOL          bRoot;
+    BOOL            bIsRoot;
     
     if (!pcName || !pstat) {
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspiffs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
-    
-    pspifn = __spif_open(pspiffs, pcName, LW_NULL, &bRoot, LW_NULL, LW_NULL);
+    //TODO: Open后需要关闭吗？
+    pspifn = __spif_open(pfs, pcName, SPIFFS_RDONLY, 0, &bIsRoot);
     if (pspifn) {
-        __spif_stat(pspifn, pspiffs, pstat);
+        __spif_stat(pspifn, pfs, pstat);
     
-    } else if (bRoot) {
-        __spif_stat(LW_NULL, pspiffs, pstat);
+    } else if (bIsRoot) {
+        __spif_stat(LW_NULL, pfs, pstat);
     
     } else {
-        __SPIFFS_VOL_UNLOCK(pspiffs);
+        __SPIFFS_VOL_UNLOCK(pfs);
         _ErrorHandle(ENOENT);
         return  (PX_ERROR);
     }
     
-    __SPIFFS_VOL_UNLOCK(pspiffs);
+    __SPIFFS_VOL_UNLOCK(pfs);
 
     return  (ERROR_NONE);
 }
@@ -1036,22 +944,21 @@ static INT  __spifFsLStat (PSPIF_VOLUME  pspiffs, PCHAR  pcName, struct stat *ps
 static INT  __spifFsStatfs (PLW_FD_ENTRY  pfdentry, struct statfs *pstatfs)
 {
     PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PSPIF_VOLUME   pspiffs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    PSPIF_VOLUME   pfs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
     
     if (!pstatfs) {
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspiffs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
     //TODO 文件系统状态获取
-    //! 与__spif_stat有区别，前者获取整个文件系统的当前状态，后者获取文件节点的状态
-    __spif_statfs(pspiffs, pstatfs);
+    __spif_statfs(pfs, pstatfs);
     
-    __SPIFFS_VOL_UNLOCK(pspiffs);
+    __SPIFFS_VOL_UNLOCK(pfs);
     
     return  (ERROR_NONE);
 }
@@ -1066,64 +973,64 @@ static INT  __spifFsStatfs (PLW_FD_ENTRY  pfdentry, struct statfs *pstatfs)
 *********************************************************************************************************/
 static INT  __spifFsReadDir (PLW_FD_ENTRY  pfdentry, DIR  *dir)
 {
-    PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PSPIFN_NODE     pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
-    PSPIF_VOLUME   pspiffs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    PLW_FD_NODE    pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
+    PSPIFN_NODE    pspifn  = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
+    PSPIF_VOLUME   pfs     = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
     
-    INT                i;
-    LONG               iStart;
-    INT                iError = ERROR_NONE;
-    PLW_LIST_LINE      plineTemp;
-    PLW_LIST_LINE      plineHeader;
-    PSPIFN_NODE          pspifnTemp;
+    INT            i;
+    LONG           iStart;
+    INT            iError = ERROR_NONE;
+    PLW_LIST_LINE  plineTemp;
+    PLW_LIST_LINE  plineHeader;
+    PSPIFN_NODE    pspifnTemp;
+
+    SPIFFS_DIR     dirFile;
+    PSPIFFS_DIRENT pDirent;
     
     if (!dir) {
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspiffs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
-
-    //TODO  这部分判断目录文件pfdnode->FDNODE_pvFile是否存在，如果不存在则读取根目录  
-    // if (pspifn == LW_NULL) {
-    //     plineHeader = pspiffs->SPIFFS_plineSon;
-    // } else {
-    //     if (!S_ISDIR(pspifn->SPIFN_mode)) {
-    //         __SPIFFS_VOL_UNLOCK(pspiffs);
-    //         _ErrorHandle(ENOTDIR);
-    //         return  (PX_ERROR);
-    //     }
-    //     plineHeader = pspifn->SPIFN_plineSon;
-    // }
     
     iStart = dir->dir_pos;
 
     //TODO 读取下一条目录项的名字，注意根据spiffs修改遍历目录项的方法
-    for ((plineTemp  = plineHeader), (i = 0); 
-         (plineTemp != LW_NULL) && (i < iStart); 
-         (plineTemp  = _list_line_get_next(plineTemp)), (i++));         /*  忽略                        */
-    
-    if (plineTemp == LW_NULL) {
+    // for ((plineTemp  = plineHeader), (i = 0); 
+    //      (plineTemp != LW_NULL) && (i < iStart); 
+    //      (plineTemp  = _list_line_get_next(plineTemp)), (i++));         /*  忽略                        */
+    lib_assert(pspifn == LW_NULL);
+    __spif_opendir(pfs, "/", &dirFile);
+    pDirent = (PSPIFFS_DIRENT)lib_malloc(sizeof(SPIFFS_DIRENT));
+    i       = 0;
+    /* 遍历 */
+    while ((pDirent = __spif_readdir(&dirFile, pDirent))) {
+        i++;
+        if(i > iStart){
+            break;
+        }
+    }
+    if (pDirent == LW_NULL) {
         _ErrorHandle(ENOENT);
         iError = PX_ERROR;                                              /*  没有多余的节点              */
-    
-    } else {
+    } 
+    else {
         //TODO 获取目录项对应的结构体，主要为了获取它的名字
-        //pspifnTemp = _LIST_ENTRY(plineTemp, RAM_NODE, SPIFN_lineBrother);
         dir->dir_pos++;
-        
         lib_strlcpy(dir->dir_dirent.d_name, 
-                    pspifnTemp->SPIFN_pcName, 
+                    pDirent->ucName,                                     
                     sizeof(dir->dir_dirent.d_name));
-                    
-        dir->dir_dirent.d_type = IFTODT(pspifnTemp->SPIFN_mode);
+
+        dir->dir_dirent.d_type = DT_REG;
         dir->dir_dirent.d_shortname[0] = PX_EOS;
     }
-    __SPIFFS_VOL_UNLOCK(pspiffs);
-    
+    __spif_closedir(pfs, &dirFile);
+
+    __SPIFFS_VOL_UNLOCK(pfs);
     return  (iError);
 }
 /*********************************************************************************************************
@@ -1139,14 +1046,14 @@ static INT  __spifFsTimeset (PLW_FD_ENTRY  pfdentry, struct utimbuf  *utim)
 {
     PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
     PSPIFN_NODE     pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
-    PSPIF_VOLUME   pspiffs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    PSPIF_VOLUME   pfs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
     
     if (!utim) {
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspiffs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
@@ -1156,10 +1063,10 @@ static INT  __spifFsTimeset (PLW_FD_ENTRY  pfdentry, struct utimbuf  *utim)
         pspifn->SPIFN_timeChange = utim->modtime;
     
     } else {
-        pspiffs->SPIFFS_time = utim->modtime;
+        pfs->SPIFFS_time = utim->modtime;
     }
     
-    __SPIFFS_VOL_UNLOCK(pspiffs);
+    __SPIFFS_VOL_UNLOCK(pfs);
     
     return  (ERROR_NONE);
 }
@@ -1176,7 +1083,7 @@ static INT  __spifFsTruncate (PLW_FD_ENTRY  pfdentry, off_t  oftSize)
 {
     PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
     PSPIFN_NODE     pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
-    PSPIF_VOLUME   pspiffs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    PSPIF_VOLUME   pfs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
     size_t        stTru;
     
     if (pspifn == LW_NULL) {
@@ -1194,28 +1101,30 @@ static INT  __spifFsTruncate (PLW_FD_ENTRY  pfdentry, off_t  oftSize)
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspiffs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
     
     if (S_ISDIR(pspifn->SPIFN_mode)) {
-        __SPIFFS_VOL_UNLOCK(pspiffs);
+        __SPIFFS_VOL_UNLOCK(pfs);
         _ErrorHandle(EISDIR);
         return  (PX_ERROR);
     }
     
     stTru = (size_t)oftSize;
     
-    if (stTru > pspifn->SPIFN_stSize) {
-        //TODO spif文件长度增加函数
-        __spif_increase(pspifn, stTru);
+    // if (stTru > pspifn->SPIFN_stSize) {
+    //     //TODO spif文件长度增加函数
+    //     //__spif_increase(pspifn, stTru);
+    //     return;
+    // } else if (stTru < pspifn->SPIFN_stSize) {
+    //     //__spif_truncate(pspifn, stTru);
         
-    } else if (stTru < pspifn->SPIFN_stSize) {
-        __spif_truncate(pspifn, stTru);
-    }
+    // }
+    __spiffs_open(SYLIX_TO_SPIFFS_PFS(pfs), pspifn->SPIFN_pcName, SPIFFS_O_TRUNC, 0);
     
-    __SPIFFS_VOL_UNLOCK(pspiffs);
+    __SPIFFS_VOL_UNLOCK(pfs);
     
     return  (ERROR_NONE);
 }
@@ -1232,12 +1141,12 @@ static INT  __spifFsChmod (PLW_FD_ENTRY  pfdentry, INT  iMode)
 {
     PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
     PSPIFN_NODE     pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
-    PSPIF_VOLUME   pspiffs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    PSPIF_VOLUME   pfs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
     
     iMode |= S_IRUSR;
     iMode &= ~S_IFMT;
     
-    if (__SPIFFS_VOL_LOCK(pspiffs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
@@ -1246,11 +1155,11 @@ static INT  __spifFsChmod (PLW_FD_ENTRY  pfdentry, INT  iMode)
         pspifn->SPIFN_mode &= S_IFMT;
         pspifn->SPIFN_mode |= iMode;
     } else {
-        pspiffs->SPIFFS_mode &= S_IFMT;
-        pspiffs->SPIFFS_mode |= iMode;
+        pfs->SPIFFS_mode &= S_IFMT;
+        pfs->SPIFFS_mode |= iMode;
     }
     
-    __SPIFFS_VOL_UNLOCK(pspiffs);
+    __SPIFFS_VOL_UNLOCK(pfs);
     
     return  (ERROR_NONE);
 }
@@ -1267,14 +1176,14 @@ static INT  __spifFsChown (PLW_FD_ENTRY  pfdentry, LW_IO_USR  *pusr)
 {
     PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
     PSPIFN_NODE     pspifn   = (PSPIFN_NODE)pfdnode->FDNODE_pvFile;
-    PSPIF_VOLUME   pspiffs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    PSPIF_VOLUME   pfs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
     
     if (!pusr) {
         _ErrorHandle(EINVAL);
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspiffs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
@@ -1283,18 +1192,18 @@ static INT  __spifFsChown (PLW_FD_ENTRY  pfdentry, LW_IO_USR  *pusr)
         pspifn->SPIFN_uid = pusr->IOU_uid;
         pspifn->SPIFN_gid = pusr->IOU_gid;
     } else {
-        pspiffs->SPIFFS_uid = pusr->IOU_uid;
-        pspiffs->SPIFFS_gid = pusr->IOU_gid;
+        pfs->SPIFFS_uid = pusr->IOU_uid;
+        pfs->SPIFFS_gid = pusr->IOU_gid;
     }
     
-    __SPIFFS_VOL_UNLOCK(pspiffs);
+    __SPIFFS_VOL_UNLOCK(pfs);
     
     return  (ERROR_NONE);
 }
 /*********************************************************************************************************
 ** 函数名称: __spifFsSymlink
 ** 功能描述: spifFs 创建符号链接文件
-** 输　入  : pspiffs              spiffs 文件系统
+** 输　入  : pfs              spiffs 文件系统
 **           pcName              链接原始文件名
 **           pcLinkDst           链接目标文件名
 **           stMaxSize           缓冲大小
@@ -1302,7 +1211,7 @@ static INT  __spifFsChown (PLW_FD_ENTRY  pfdentry, LW_IO_USR  *pusr)
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-static INT  __spifFsSymlink (PSPIF_VOLUME   pspiffs,
+static INT  __spifFsSymlink (PSPIF_VOLUME   pfs,
                             PCHAR         pcName,
                             CPCHAR        pcLinkDst)
 {
@@ -1320,32 +1229,32 @@ static INT  __spifFsSymlink (PSPIF_VOLUME   pspiffs,
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspiffs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
+    //TODO: 软连接？实现不了
+    // pspifn = __spif_open(pfs, pcName, &pspifnFather, &bRoot, LW_NULL, LW_NULL);
+    // if (pspifn || bRoot) {
+    //     __SPIFFS_VOL_UNLOCK(pfs);
+    //     _ErrorHandle(EEXIST);
+    //     return  (PX_ERROR);
+    // }
     
-    pspifn = __spif_open(pspiffs, pcName, &pspifnFather, &bRoot, LW_NULL, LW_NULL);
-    if (pspifn || bRoot) {
-        __SPIFFS_VOL_UNLOCK(pspiffs);
-        _ErrorHandle(EEXIST);
-        return  (PX_ERROR);
-    }
+    // pspifn = __spif_maken(pfs, pcName, pspifnFather, S_IFLNK | DEFAULT_SYMLINK_PERM, pcLinkDst);
+    // if (pspifn == LW_NULL) {
+    //     __SPIFFS_VOL_UNLOCK(pfs);
+    //     return  (PX_ERROR);
+    // }
     
-    pspifn = __spif_maken(pspiffs, pcName, pspifnFather, S_IFLNK | DEFAULT_SYMLINK_PERM, pcLinkDst);
-    if (pspifn == LW_NULL) {
-        __SPIFFS_VOL_UNLOCK(pspiffs);
-        return  (PX_ERROR);
-    }
-    
-    __SPIFFS_VOL_UNLOCK(pspiffs);
+    __SPIFFS_VOL_UNLOCK(pfs);
     
     return  (ERROR_NONE);
 }
 /*********************************************************************************************************
 ** 函数名称: __spifFsReadlink
 ** 功能描述: spifFs 读取符号链接文件内容
-** 输　入  : pspiffs              spiffs 文件系统
+** 输　入  : pfs              spiffs 文件系统
 **           pcName              链接原始文件名
 **           pcLinkDst           链接目标文件名
 **           stMaxSize           缓冲大小
@@ -1353,7 +1262,7 @@ static INT  __spifFsSymlink (PSPIF_VOLUME   pspiffs,
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-static ssize_t __spifFsReadlink (PSPIF_VOLUME   pspiffs,
+static ssize_t __spifFsReadlink (PSPIF_VOLUME   pfs,
                                 PCHAR         pcName,
                                 PCHAR         pcLinkDst,
                                 size_t        stMaxSize)
@@ -1366,27 +1275,27 @@ static ssize_t __spifFsReadlink (PSPIF_VOLUME   pspiffs,
         return  (PX_ERROR);
     }
     
-    if (__SPIFFS_VOL_LOCK(pspiffs) != ERROR_NONE) {
+    if (__SPIFFS_VOL_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);
         return  (PX_ERROR);
     }
+    //TODO: 读软连接
+    // pspifn = __spif_open(pfs, pcName, LW_NULL, LW_NULL, LW_NULL, LW_NULL);
+    // if ((pspifn == LW_NULL) || !S_ISLNK(pspifn->SPIFN_mode)) {
+    //     __SPIFFS_VOL_UNLOCK(pfs);
+    //     _ErrorHandle(ENOENT);
+    //     return  (PX_ERROR);
+    // }
     
-    pspifn = __spif_open(pspiffs, pcName, LW_NULL, LW_NULL, LW_NULL, LW_NULL);
-    if ((pspifn == LW_NULL) || !S_ISLNK(pspifn->SPIFN_mode)) {
-        __SPIFFS_VOL_UNLOCK(pspiffs);
-        _ErrorHandle(ENOENT);
-        return  (PX_ERROR);
-    }
+    // stLen = lib_strlen(pspifn->SPIFN_pcLink);
     
-    stLen = lib_strlen(pspifn->SPIFN_pcLink);
+    // lib_strncpy(pcLinkDst, pspifn->SPIFN_pcLink, stMaxSize);
     
-    lib_strncpy(pcLinkDst, pspifn->SPIFN_pcLink, stMaxSize);
+    // if (stLen > stMaxSize) {
+    //     stLen = stMaxSize;                                              /*  计算有效字节数              */
+    // }
     
-    if (stLen > stMaxSize) {
-        stLen = stMaxSize;                                              /*  计算有效字节数              */
-    }
-    
-    __SPIFFS_VOL_UNLOCK(pspiffs);
+    // __SPIFFS_VOL_UNLOCK(pfs);
     
     return  ((ssize_t)stLen);
 }
@@ -1405,7 +1314,7 @@ static INT  __spifFsIoctl (PLW_FD_ENTRY  pfdentry,
                           LONG          lArg)
 {
     PLW_FD_NODE   pfdnode = (PLW_FD_NODE)pfdentry->FDENTRY_pfdnode;
-    PSPIF_VOLUME   pspiffs  = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
+    PSPIF_VOLUME  pfs     = (PSPIF_VOLUME)pfdnode->FDNODE_pvFsExtern;
     off_t         oftTemp;
     INT           iError;
     
@@ -1495,11 +1404,11 @@ static INT  __spifFsIoctl (PLW_FD_ENTRY  pfdentry,
         return  (__spifFsChown(pfdentry, (LW_IO_USR *)lArg));
     
     case FIOFSTYPE:                                                     /*  获得文件系统类型            */
-        *(PCHAR *)lArg = "RAM FileSystem";
+        *(PCHAR *)lArg = "Spi flash FileSystem";
         return  (ERROR_NONE);
     
     case FIOGETFORCEDEL:                                                /*  强制卸载设备是否被允许      */
-        *(BOOL *)lArg = pspiffs->SPIFFS_bForceDelete;
+        *(BOOL *)lArg = pfs->SPIFFS_bForceDelete;
         return  (ERROR_NONE);
         
 #if LW_CFG_FS_SELECT_EN > 0
