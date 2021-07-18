@@ -45,7 +45,8 @@
 /* EBS 配置 */
 #define HOIT_FILTER_EBS_ENTRY_SIZE                  (sizeof(PHOIT_EBS_ENTRY))               /* 即8B */
 #define HOIT_FILTER_PAGE_SIZE                       (sizeof(PHOIT_EBS_ENTRY) * ( 8 - 1 ))   /* 即56B，7倍的EBS entry size */
-#define HOIT_FILTER_EBS_AREA_SIZE(pcacheHdr)        (pcacheHdr->HOITCACHE_PageAmount * HOIT_FILTER_EBS_ENTRY_SIZE)
+#define HOIT_FILTER_EBS_AREA_SIZE(pcacheHdr)        (pcacheHdr->HOITCACHE_PageAmount * HOIT_FILTER_EBS_ENTRY_SIZE - HOIT_FILTER_PAGE_SIZE)
+#define HOIT_FILTER_EBS_MAGIC_NUMBER                0x13579BDF02468ACE                      /* EBS magic number，之后放校验码 */
 /*********************************************************************************************************
   内联函数偏移修改，注意这里默认cache块大小与flash的sector
 *********************************************************************************************************/
@@ -75,7 +76,7 @@ static inline UINT hoitGetSectorSize(UINT8 sector_no){
     }
     UINT origin_sector_size = 1024 * (_G_am29LV160DB_sector_infos[sector_no].sector_size);
     UINT pageNum = origin_sector_size/(HOIT_FILTER_EBS_ENTRY_SIZE + HOIT_FILTER_PAGE_SIZE);
-    return origin_sector_size - pageNum * HOIT_FILTER_EBS_ENTRY_SIZE;     
+    return origin_sector_size - pageNum * HOIT_FILTER_EBS_ENTRY_SIZE - HOIT_FILTER_PAGE_SIZE;     
 }
 /*
     获取flash sector的regoin_no
@@ -151,6 +152,13 @@ VOID                hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr,
 *********************************************************************************************************/
 UINT32              hoitInitFilter(PHOIT_CACHE_HDR pcacheHdr, 
                                     UINT32 uiCacheBlockSize);
+UINT32              hoitUpdateEBS(PHOIT_CACHE_HDR pcacheHdr,
+                                    PHOIT_CACHE_BLK pcache,
+                                    UINT32 inode,
+                                    UINT32 offset);
+VOID                __hoit_mark_obsolete(PHOIT_VOLUME pfs, 
+                                        PHOIT_RAW_HEADER pRawHeader, 
+                                        PHOIT_RAW_INFO pRawInfo);
 #ifdef HOIT_CACHE_TEST
 BOOL    test_hoit_cache();
 #endif

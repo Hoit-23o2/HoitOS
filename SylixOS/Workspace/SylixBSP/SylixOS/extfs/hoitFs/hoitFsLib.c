@@ -1947,34 +1947,7 @@ VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasable
 }
 
 
-/*********************************************************************************************************
-** 函数名称: __hoit_mark_obsolete
-** 功能描述: 
-** 输　入  :
-** 输　出  : 
-** 全局变量:
-** 调用模块:
-*********************************************************************************************************/
-//! 2021-07-07 ZN整合标注过期
-VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_RAW_INFO pRawInfo){
-    PHOIT_CACHE_HDR pcacheHdr = pfs->HOITFS_cacheHdr;
-    UINT32  EBS_entry_flag  = 0;
-    UINT32  i;
-    UINT32  EBS_entry_addr  = (pRawInfo->phys_addr/HOIT_FILTER_PAGE_SIZE) *                    /* EBS entry首地址 */
-                                HOIT_FILTER_EBS_ENTRY_SIZE+pcacheHdr->HOITCACHE_EBSStartAddr + 
-                                sizeof(UINT32);
-    UINT32  EBS_entry_num   = pRawInfo->totlen % HOIT_FILTER_PAGE_SIZE ?                       /* 需要标过期的entry数量 */
-                                pRawInfo->totlen / HOIT_FILTER_PAGE_SIZE + 1 : 
-                                pRawInfo->totlen / HOIT_FILTER_PAGE_SIZE;
 
-    pRawHeader->flag &= (~HOIT_FLAG_NOT_OBSOLETE);      //将obsolete标志变为0，代表过期
-    //TODO 修改flash上EBS采用写不分配
-    __hoit_write_flash_thru(pfs, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
-    //! 2021-07-07 修改EBS区域
-    for(i=0 ; i<EBS_entry_num ; i++) {
-        __hoit_write_flash_thru(pfs, (PVOID)&EBS_entry_flag, sizeof(UINT32), EBS_entry_addr + i *sizeof(HOIT_EBS_ENTRY));
-    }
-}
 
 
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */

@@ -427,7 +427,7 @@ typedef struct HOIT_CACHE_HDR
     // size_t                  HOITCACHE_EBSEntrySize; /* EBS enty大小 */
     size_t                  HOITCACHE_EBSStartAddr; /* EBS 在sector中起始地址 */
     // size_t                  HOITCACHE_PageSize;     /* 单页大小 */
-    size_t                  HOITCACHE_PageAmount;     /* 单个cache页数量 */
+    size_t                  HOITCACHE_PageAmount;     /* 单个cache sector中的页数量，也是EBS entry的总数量 */
 }HOIT_CACHE_HDR;
 
 //! 2021-7-04 ZN EBS项
@@ -437,7 +437,8 @@ typedef struct HOIT_CACHE_HDR
 typedef struct HOIT_EBS_ENTRY
 {
     UINT32  HOIT_EBS_ENTRY_inodeNo;     /* 所属文件inode号 */
-    UINT32  HOIT_EBS_ENTRY_obsolete;    /* 过期标志 */
+    UINT16  HOIT_EBS_ENTRY_obsolete;    /* 过期标志 */
+    UINT16  HOIT_EBS_ENTRY_pageNo;      /* 数据实体在sector上的首个页面页号 */
 }HOIT_EBS_ENTRY;
 
 /*********************************************************************************************************
