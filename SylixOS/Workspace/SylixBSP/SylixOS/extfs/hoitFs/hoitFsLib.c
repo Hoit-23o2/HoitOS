@@ -39,6 +39,7 @@
 #if LW_CFG_MAX_VOLUMES > 0
 
 #ifndef HOITFSLIB_DISABLE
+#define NS hoitFsLib
 /*********************************************************************************************************
 ** 函数名称: __hoit_just_open
 ** 功能描述: 打开某个已打开的目录文件下面的一个文件
@@ -1953,16 +1954,21 @@ VOID  __hoit_redo_log(PHOIT_VOLUME  pfs) {
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
+USE_LIST_TEMPLATE(NS, HOIT_ERASABLE_SECTOR);
+
 BOOL __hoit_erasable_sector_list_check_exist(List(HOIT_ERASABLE_SECTOR) HOITFS_sectorList, PHOIT_ERASABLE_SECTOR pErasableSector) {
     Iterator(HOIT_ERASABLE_SECTOR)      iter;
-    InitIterator(iter, hoitFsLib, HOIT_ERASABLE_SECTOR);
+    InitIterator(iter, NS, HOIT_ERASABLE_SECTOR);
+
     PHOIT_ERASABLE_SECTOR               psector;
-    for(iter->begin(iter, HOITFS_sectorList) ; iter->isValid(iter) ; iter->next(iter)) {
+    for(iter->begin(iter, HOITFS_sectorList); iter->isValid(iter); iter->next(iter)) {
         psector = iter->get(iter);
         if (psector == pErasableSector) {
             return LW_TRUE;
         }
     }
+
+    FreeIterator(iter);
     return LW_FALSE;
 }
 

@@ -2144,7 +2144,7 @@ SPIFFS_FLAGS spiffsTranslateToSylixOSFlag(INT iFlag){
         flags |= SPIFFS_O_WRONLY;
     }
     if((iFlag & O_RDWR) == O_RDWR){
-        flags |= SPIFFS_RDWR;
+        flags |= SPIFFS_O_RDWR;
     }
     return flags;
 }
