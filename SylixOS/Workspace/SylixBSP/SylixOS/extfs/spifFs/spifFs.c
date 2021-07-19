@@ -27,6 +27,7 @@
 #include "../SylixOS/fs/include/fs_fs.h"
 #include "spifFsLib.h"
 #include "spifFsFDLib.h"
+#include "spifFsCmd.h"
 /*********************************************************************************************************
   内部全局变量
 *********************************************************************************************************/
@@ -201,6 +202,8 @@ INT  API_SpifFsDevCreate (PCHAR   pcName, PLW_BLK_DEV  pblkd)
     
     //TODO 挂载函数
     __spif_mount(pfs);
+
+    register_spiffs_cmd(pfs);
     
     if (iosDevAddEx(&pfs->SPIFFS_devhdrHdr, pcName, _G_iSpiffsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */

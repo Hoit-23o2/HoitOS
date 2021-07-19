@@ -185,7 +185,7 @@ INT32 __spiffs_mount(PSPIFFS_VOLUME pfs, PSPIFFS_CONFIG pConfig, PUCHAR pucWorkB
     SPIFFS_DBG("total blocks:                "_SPIPRIi"\n", (UINT32)(SPIFFS_CFG_PHYS_SZ(pfs) / SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs)));
     SPIFFS_DBG("free blocks:                 "_SPIPRIi"\n", (UINT32)pfs->uiFreeBlks);
 
-    printf("Spiffs is a flat file system, which means directory is not permitted here\n");
+    // printf("Spiffs is a flat file system, which means directory is not permitted here\n");
     pfs->checkCallbackFunc = checkCallbackFunc;
     pfs->uiMountedFlag = 1;
     
