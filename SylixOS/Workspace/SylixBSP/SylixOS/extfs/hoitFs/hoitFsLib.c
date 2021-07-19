@@ -33,7 +33,7 @@
 #include "hoitFsLog.h"
 #include "hoitWriteBuffer.h"
 #include "../../driver/mtd/nor/nor.h"
-
+#include "../tools/crc/crc32.h"
 /*********************************************************************************************************
   裁剪宏
 *********************************************************************************************************/
@@ -53,7 +53,6 @@
 PHOIT_INODE_INFO  __hoit_just_open(PHOIT_INODE_INFO  pdir,
     PCHAR       pName)
 {
-
     if (pdir == LW_NULL || !S_ISDIR(pdir->HOITN_mode)) {
         printk("Error in hoit_just_open\n");
         return (LW_NULL);
@@ -261,6 +260,9 @@ VOID  __hoit_add_dirent(PHOIT_INODE_INFO  pFatherInode,
     lib_memcpy(pFileName, pSonDirent->HOITFD_file_name, lib_strlen(pSonDirent->HOITFD_file_name));
 
     UINT phys_addr = 0;
+
+    pRawDirent->crc = 0;
+    pRawDirent->crc = crc32_le(pWriteBuf, totlen);
     __hoit_write_flash(pfs, (PVOID)pWriteBuf, totlen, &phys_addr, needLog);
 
     pRawInfo->phys_addr = phys_addr;
@@ -512,6 +514,8 @@ UINT8 __hoit_del_raw_data(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     __hoit_read_flash(pfs, pRawInfo->phys_addr, buf, pRawInfo->totlen);
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)buf;
+    crc32_check(pRawHeader);
+
     if (pRawHeader->magic_num != HOIT_MAGIC_NUM || (pRawHeader->flag & HOIT_FLAG_NOT_OBSOLETE) == 0) {
         printk("Error in hoit_del_raw_data\n");
         return HOIT_ERROR;
@@ -519,6 +523,8 @@ UINT8 __hoit_del_raw_data(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     //!pRawHeader->flag &= (~HOIT_FLAG_NOT_OBSOLETE);      //将obsolete标志变为0，代表过期
     __hoit_mark_obsolete(pfs, pRawHeader, pRawInfo);
     // /* 将obsolete标志位清0后写回原地址 */
+    // pRawHeader->crc = 0;
+    // pRawHeader->crc = crc32_le(pRawHeader, pRawInfo->totlen);
     // __hoit_write_flash_thru(pfs, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
 
     __SHEAP_FREE(buf);
@@ -593,6 +599,8 @@ UINT8 __hoit_get_inode_nodes(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeInfo, PHO
         
         __hoit_read_flash(pfs, pRawInfo->phys_addr, pBuf, pRawInfo->totlen);
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pBuf;
+        crc32_check(pRawHeader);
+
         if (!__HOIT_IS_OBSOLETE(pRawHeader)) {
             if (__HOIT_IS_TYPE_DIRENT(pRawHeader)) {
                 PHOIT_RAW_DIRENT pRawDirent = (PHOIT_RAW_DIRENT)pRawHeader;
@@ -695,6 +703,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     lib_bzero(pReadBuf, uiSectorSize);
 
     __hoit_read_flash(pfs, uiSectorOffset, pReadBuf, uiSectorSize);
+    crc32_check(pReadBuf);
 
     /* 2021-07-10 Modified by HZS */
     size_t pageAmount       = uiSectorSize / (HOIT_FILTER_EBS_ENTRY_SIZE + HOIT_FILTER_PAGE_SIZE);
@@ -900,16 +909,18 @@ PHOIT_INODE_INFO __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode, CPCHAR pcL
     pRawInode->flag = HOIT_FLAG_TYPE_INODE | HOIT_FLAG_NOT_OBSOLETE;
     pRawInode->offset = 0;
     pRawInode->version = pfs->HOITFS_highest_version++;
-
+    pRawInode->crc = 0;
     
 
     UINT phys_addr;
     if (S_ISLNK(mode)) {
         PCHAR pLink = ((PCHAR)pRawInode) + sizeof(HOIT_RAW_INODE);
         lib_memcpy(pLink, cFullPathName, lib_strlen(cFullPathName));  /* 链接文件 */
+        pRawInode->crc = crc32_le(pRawInode, totlen);
         __hoit_write_flash(pfs, (PVOID)pRawInode, totlen, &phys_addr, 1);
     }
     else {
+        pRawInode->crc = crc32_le(pRawInode, sizeof(HOIT_RAW_INODE));
         __hoit_write_flash(pfs, (PVOID)pRawInode, sizeof(HOIT_RAW_INODE), &phys_addr, 1);
     }
     
@@ -979,6 +990,7 @@ PCHAR __hoit_get_data_after_raw_inode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pInodeInf
     PCHAR pTempBuf = (PCHAR)__SHEAP_ALLOC(pInodeInfo->totlen);
 
     __hoit_read_flash(pfs, pInodeInfo->phys_addr, pTempBuf, pInodeInfo->totlen);
+    crc32_check(pTempBuf);
 
     PCHAR pData = (PCHAR)__SHEAP_ALLOC(iDataLen + 1);
     lib_bzero(pData, iDataLen + 1);
@@ -1059,6 +1071,7 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     lib_bzero(pReadBuf, pRawInfo->totlen);
 
     __hoit_read_flash(pfs, pRawInfo->phys_addr, pReadBuf, pRawInfo->totlen);
+    crc32_check(pReadBuf);
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pReadBuf;
     if (pRawHeader->magic_num != HOIT_MAGIC_NUM 
@@ -1069,6 +1082,8 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     //!pRawHeader->flag &= (~HOIT_FLAG_NOT_OBSOLETE);      //将obsolete标志变为0，代表过期
     __hoit_mark_obsolete(pfs, pRawHeader, pRawInfo);
     // /* 将obsolete标志位清0后写回原地址 */
+    // pRawHeader->crc = 0;
+    // pRawHeader->crc = crc32_le(pRawHeader, pRawInfo->totlen);
     // __hoit_write_flash_thru(pfs, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
     
     /* 将obsolete标志位恢复后写到新地址 */
@@ -1077,7 +1092,9 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
 
     //!2021-05-16 修改now_sector指针 modified by PYQ 
     pfs->HOITFS_now_sector = pfs->HOITFS_curGCSuvivorSector;
-
+    
+    pRawHeader->crc = 0;
+    pRawHeader->crc = crc32_le(pRawHeader, pRawInfo->totlen);
     __hoit_write_flash(pfs, pReadBuf, pRawInfo->totlen, &phys_addr, 1);
     pRawInfo->phys_addr = phys_addr;
 
@@ -2033,6 +2050,8 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
 
     pRawHeader->flag &= (~HOIT_FLAG_NOT_OBSOLETE);      //将obsolete标志变为0，代表过期
     //TODO 修改flash上EBS采用写不分配
+    pRawHeader->crc = 0;
+    pRawHeader->crc = crc32_le(pRawHeader, pRawInfo->totlen);
     __hoit_write_flash_thru(pfs, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
     //! 2021-07-07 修改EBS区域
     for(i=0 ; i<EBS_entry_num ; i++) {
