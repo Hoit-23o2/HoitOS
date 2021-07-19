@@ -217,6 +217,7 @@ struct HOIT_RAW_HEADER{
     mode_t              file_type;
     UINT                ino;
     UINT                version;
+    UINT32              crc;
 };
 
 
@@ -230,6 +231,7 @@ struct HOIT_RAW_INODE {
     mode_t              file_type;
     UINT                ino;
     UINT                version;
+    UINT32              crc;
     UINT                offset;     /* 记录文件内部偏移 */
 };
 
@@ -243,6 +245,7 @@ struct HOIT_RAW_DIRENT{
     mode_t              file_type;
     UINT                ino;
     UINT                version;
+    UINT32              crc;
     UINT                pino;
 };
 
