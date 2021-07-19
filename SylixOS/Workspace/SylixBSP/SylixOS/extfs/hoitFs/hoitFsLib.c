@@ -31,6 +31,7 @@
 #include "hoitFsCache.h"
 #include "hoitFsCmd.h"
 #include "hoitFsLog.h"
+#include "hoitWriteBuffer.h"
 #include "../../driver/mtd/nor/nor.h"
 
 /*********************************************************************************************************
@@ -179,6 +180,7 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
         pNewInode->HOITN_mode = (*ppDnodeList)->HOITFD_file_type;
         pNewInode->HOITN_volume = pfs;
         pNewInode->HOITN_pcLink = LW_NULL;
+        __hoit_new_write_buffer(pNewInode); /* 07-18 增加初始化WriteBuffer By HZS */
 
         PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader = hoitFragTreeCollectRange(pNewInode->HOITN_rbtree, 0, INT_MAX);
         PHOIT_FRAG_TREE_LIST_NODE pFTlistNode = pFTlistHeader->pFTlistHeader->pFTlistNext;
@@ -1744,6 +1746,11 @@ ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  st
         PHOIT_FRAG_TREE_NODE pTreeNode = newHoitFragTreeNode(pFullDnode, stNBytes, stOft, stOft);
         hoitFragTreeInsertNode(pInodeInfo->HOITN_rbtree, pTreeNode);
         hoitFragTreeOverlayFixUp(pInodeInfo->HOITN_rbtree);
+
+        if (stNBytes < HOIT_WRITE_BUFFER_FRAGSIZE) {
+            __hoit_new_write_entry(pInodeInfo, pInodeInfo->HOITN_pWriteBuffer, pTreeNode);
+        }
+
         return stNBytes;
     }
     else {
@@ -1850,8 +1857,8 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
         sector_no++;
     }
 
-
-    for (int i = 0; i < handleSize; i++) {
+    int i;
+    for (i = 0; i < handleSize; i++) {
         API_ThreadJoin(ulObjectHandle[i], LW_NULL);
     }
     
