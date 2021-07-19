@@ -40,6 +40,7 @@
 #if LW_CFG_MAX_VOLUMES > 0
 
 #ifndef HOITFSLIB_DISABLE
+#define NS hoitFsLib
 /*********************************************************************************************************
 ** 函数名称: __hoit_just_open
 ** 功能描述: 打开某个已打开的目录文件下面的一个文件
@@ -1226,7 +1227,7 @@ __find_error:
             *pbLast = LW_TRUE;
         }
         else {
-            *pbLast = LW_FALSE;
+            *pbLast = LW_FALSE; 
         }
     }
     return  (LW_NULL);                                                  /*  无法找到节点                */
@@ -1829,6 +1830,7 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     pfs->HOITFS_highest_ino = 0;
     pfs->HOITFS_highest_version = 0;
 
+    INT                 i;
     INT                 hasLog      = 0;
     UINT                phys_addr   = 0;
     UINT8               sector_no   = hoitGetSectorNo(phys_addr);
@@ -1959,15 +1961,21 @@ VOID  __hoit_redo_log(PHOIT_VOLUME  pfs) {
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
+USE_LIST_TEMPLATE(NS, HOIT_ERASABLE_SECTOR);
+
 BOOL __hoit_erasable_sector_list_check_exist(List(HOIT_ERASABLE_SECTOR) HOITFS_sectorList, PHOIT_ERASABLE_SECTOR pErasableSector) {
     Iterator(HOIT_ERASABLE_SECTOR)      iter;
+    InitIterator(iter, NS, HOIT_ERASABLE_SECTOR);
+
     PHOIT_ERASABLE_SECTOR               psector;
-    for(iter->begin(iter, HOITFS_sectorList) ; iter->isValid(iter) ; iter->next(iter)) {
+    for(iter->begin(iter, HOITFS_sectorList); iter->isValid(iter); iter->next(iter)) {
         psector = iter->get(iter);
         if (psector == pErasableSector) {
             return LW_TRUE;
         }
     }
+
+    FreeIterator(iter);
     return LW_FALSE;
 }
 

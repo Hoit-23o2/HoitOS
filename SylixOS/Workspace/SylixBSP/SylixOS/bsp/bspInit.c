@@ -52,6 +52,7 @@
 #include "extfs/hoitFs/hoitFsTreeUtil.h"                                /*  红黑树测试 - PYQ             */
 #include "extfs/hoitFs/hoitFsTree.h"                                    /*  Frag树测试 - PYQ             */
 #include "extfs/hoitFs/hoitFsCache.h"                                   /*  Cache测试  - ZN              */
+#include "extfs/spifFs/spifFs.h"                                        /* Spiffs文件驱动接口 */
 #include "extfs/tools/list/common.h"                                    /*  链表模板测试 - PYQ */
 /*********************************************************************************************************
   操作系统符号表
@@ -232,6 +233,7 @@ static VOID  halDrvInit (VOID)
     canDrv();                                                           /*  CAN    device driver        */
     
     API_HoitFsDrvInstall();                                             /*  挂载HoitFS文件系统 */
+    API_SpifFsDrvInstall();                                             /*  挂载SpifFS文件系统 */
     s3c2440GpioDrv();
 
 #ifdef MINI2440_PACKET

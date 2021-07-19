@@ -163,12 +163,13 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_curGCSuvivorSector  = LW_NULL;
     pfs->HOITFS_erasableSectorList = LW_NULL;
 
-    InitList(pfs->HOITFS_dirtySectorList,hoitFs, HOIT_ERASABLE_SECTOR); /* 初始化模板链表 */
-    InitList(pfs->HOITFS_cleanSectorList,hoitFs, HOIT_ERASABLE_SECTOR);
-    InitList(pfs->HOITFS_freeSectorList,hoitFs, HOIT_ERASABLE_SECTOR);
+    InitList(pfs->HOITFS_dirtySectorList,   hoitFs, HOIT_ERASABLE_SECTOR); /* 初始化模板链表 */
+    InitList(pfs->HOITFS_cleanSectorList,   hoitFs, HOIT_ERASABLE_SECTOR);
+    InitList(pfs->HOITFS_freeSectorList,    hoitFs, HOIT_ERASABLE_SECTOR);
                                                                         /* Log相关 */
     pfs->HOITFS_logInfo            = LW_NULL;
     //__ram_mount(pramfs);
+
     hoitEnableCache(GET_SECTOR_SIZE(8), 8, pfs);
     __hoit_mount(pfs);
     hoitStartGCThread(pfs, 64 * 26 * 1024);
