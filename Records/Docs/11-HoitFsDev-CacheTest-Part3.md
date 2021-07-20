@@ -124,3 +124,11 @@ INT  symlink (CPCHAR  pcLinkDst, CPCHAR  pcSymPath)
 1. findNextToWrite要改成从三个列表中取
 2. 写入数据实体或标记过期之后，还没更新三个列表
 3. GC用的是三个列表还是原始列表，不清楚
+
+> mount -t hoitfs 0 /mnt/hoitfs
+>
+> cd /mnt/hoitfs
+>
+> touch NewFile1
+>
+> echo HelloHoitFs>NewFile1

@@ -704,7 +704,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     lib_bzero(pReadBuf, uiSectorSize);
 
     __hoit_read_flash(pfs, uiSectorOffset, pReadBuf, uiSectorSize);
-    crc32_check(pReadBuf);
+
 
     /* 2021-07-10 Modified by HZS */
     size_t pageAmount       = uiSectorSize / (HOIT_FILTER_EBS_ENTRY_SIZE + HOIT_FILTER_PAGE_SIZE);
@@ -736,6 +736,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
         if (pRawHeader->magic_num == HOIT_MAGIC_NUM && !__HOIT_IS_OBSOLETE(pRawHeader)) {
             /* //TODO:后面这里还需添加CRC校验 */
             PHOIT_RAW_INFO pRawInfo = LW_NULL;
+            crc32_check(pRawHeader);
             if (__HOIT_IS_TYPE_INODE(pRawHeader)) {
                 PHOIT_RAW_INODE     pRawInode   = (PHOIT_RAW_INODE)pNow;
                 PHOIT_INODE_CACHE   pInodeCache = __hoit_get_inode_cache(pfs, pRawInode->ino);
