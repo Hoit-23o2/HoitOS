@@ -170,12 +170,15 @@ BOOL __hoit_refresh_write_buffer(PHOIT_INODE_INFO pInodeInfo) {
     }
 
     /* TODO */
-    PHOIT_WRITE_ENTRY pNowEntry = pWriteBuffer->pList;
+    PHOIT_WRITE_ENTRY pNowEntry     = pWriteBuffer->pList;
+    PHOIT_WRITE_ENTRY pLastEntry    = LW_NULL;
     UINT32 left     = -1;
     UINT32 right    = -1;
     UINT32 count    = 0;
     for (; pNowEntry; pNowEntry = pNowEntry->pNext)
     {
+        pLastEntry = pNowEntry; /* pLastEntry负责记录最后一个Entry */
+
         if (left == -1) {
             left    = pNowEntry->pTreeNode->uiOfs;
             right   = left + pNowEntry->pTreeNode->uiSize;
@@ -189,7 +192,6 @@ BOOL __hoit_refresh_write_buffer(PHOIT_INODE_INFO pInodeInfo) {
             else {
                 if (count > 1) {    /* 有多个节点可以进行合并 */
                     int jump_count = count;
-                    PHOIT_WRITE_ENTRY pLastEntry = pNowEntry;
                     while (jump_count) {
                         pLastEntry = pLastEntry->pPrev;
                         jump_count -= 1;
@@ -206,7 +208,6 @@ BOOL __hoit_refresh_write_buffer(PHOIT_INODE_INFO pInodeInfo) {
     }
     if (count > 1) {    /* 有多个节点可以进行合并 */
         int jump_count = count;
-        PHOIT_WRITE_ENTRY pLastEntry = pNowEntry;
         while (jump_count) {
             pLastEntry = pLastEntry->pPrev;
             jump_count -= 1;
