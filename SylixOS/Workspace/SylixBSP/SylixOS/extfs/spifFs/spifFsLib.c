@@ -2038,7 +2038,6 @@ INT32 spiffsFileRead(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler, PCHAR pcConten
         // special case for zero sized files
         iRes = SPIFFS_ERR_END_OF_OBJECT;
         //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
-        iRes = SPIFFS_ERR_END_OF_OBJECT;
         SPIFFS_CHECK_RES(iRes);
     }
 
@@ -2145,7 +2144,7 @@ SPIFFS_FLAGS spiffsTranslateToSylixOSFlag(INT iFlag){
         flags |= SPIFFS_O_WRONLY;
     }
     if((iFlag & O_RDWR) == O_RDWR){
-        flags |= SPIFFS_RDWR;
+        flags |= SPIFFS_O_RDWR;
     }
     return flags;
 }

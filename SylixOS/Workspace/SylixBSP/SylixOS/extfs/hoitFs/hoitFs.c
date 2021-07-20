@@ -172,6 +172,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
                                                                         /* LogÏà¹Ø */
     pfs->HOITFS_logInfo            = LW_NULL;
     //__ram_mount(pramfs);
+
     hoitEnableCache(GET_SECTOR_SIZE(8), 8, pfs);
     __hoit_mount(pfs);
     hoitStartGCThread(pfs, 64 * 26 * 1024);

@@ -121,7 +121,7 @@ This is the repository of 2021 OS comp， 项目进度安排移步至[Worktile](
 
 主要工作是在mini2440真实板子上烧录SylixOS，包括烧录至内存以及烧录至nandflash上，关于如何访问norflash，还在等待翼辉信息的回复中；
 
-[07-SylixOS&Driver&FS-Part2](./Records/Docs/07-SylixOS&Driver&FS-Part1)
+[07-SylixOS&Driver&FS-Part2](./Records/Docs/07-SylixOS&Driver&FS-Part2)
 
 主要工作是研究透了JFFS2的工作方式，包括文件的系统的挂载、文件的创建、打开、关闭、删除等，还需进一步的总结；
 

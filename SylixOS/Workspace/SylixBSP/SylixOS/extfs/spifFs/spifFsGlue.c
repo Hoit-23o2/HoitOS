@@ -185,6 +185,7 @@ INT32 __spiffs_mount(PSPIFFS_VOLUME pfs, PSPIFFS_CONFIG pConfig, PUCHAR pucWorkB
     SPIFFS_DBG("total blocks:                "_SPIPRIi"\n", (UINT32)(SPIFFS_CFG_PHYS_SZ(pfs) / SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs)));
     SPIFFS_DBG("free blocks:                 "_SPIPRIi"\n", (UINT32)pfs->uiFreeBlks);
 
+    // printf("Spiffs is a flat file system, which means directory is not permitted here\n");
     pfs->checkCallbackFunc = checkCallbackFunc;
     pfs->uiMountedFlag = 1;
     
@@ -1102,7 +1103,7 @@ PSPIFN_NODE __spif_open(PSPIF_VOLUME pfs, PCHAR pcName, INT iFlags, INT iMode, B
     spiffsPfs   = SYLIX_TO_SPIFFS_PFS(pfs);
     /* 转换Flag */
     flags       = spiffsTranslateToSylixOSFlag(iFlags);
-    fileHandler = __spiffs_open(spiffsPfs, pcName, flags, 0);
+    fileHandler = __spiffs_open(spiffsPfs, pcTempName, flags, 0);
     if(fileHandler < 0){
         return LW_NULL;
     }
@@ -1112,14 +1113,15 @@ PSPIFN_NODE __spif_open(PSPIF_VOLUME pfs, PCHAR pcName, INT iFlags, INT iMode, B
         SPIFFS_DBG("Open File Failed, Only Allow %d File Opened\n", spiffsPfs->uiFdCount);
         return LW_NULL;
     }
-    iNameLen = lib_strlen(pcName);
+    iNameLen = lib_strlen(pcTempName);
     //TODO: pspifn更多字段填写
     pspifn                   = (PSPIFN_NODE)__SHEAP_ALLOC(sizeof(SPIFN_NODE));
     pspifn->pFd              = pFd;
     pspifn->pfs              = pfs;
     pspifn->SPIFN_gid        = getgid(); 
     pspifn->SPIFN_uid        = getuid();
-    pspifn->SPIFN_mode       = pFd->flags;
+    /* 暂时默认为Reguler文件 */
+    pspifn->SPIFN_mode       = (iMode | S_IFREG);
     pspifn->SPIFN_pcLink     = LW_NULL;
     pspifn->SPIFN_pcName     = (PCHAR)__SHEAP_ALLOC(iNameLen * sizeof(CHAR));
     lib_memcpy(pspifn->SPIFN_pcName, pcName, iNameLen);
@@ -1216,7 +1218,12 @@ INT __spif_read(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, PCHAR pcContent, UINT32 ui
     UINT32 uiReadBytes = 0;
     __spiffs_lseek(SYLIX_TO_SPIFFS_PFS(pfs),SYLIX_TO_SPIFFS_FD(pspifn), uiOffset, SPIFFS_SEEK_SET);
     iRes = __spiffs_read(SYLIX_TO_SPIFFS_PFS(pfs), SYLIX_TO_SPIFFS_FD(pspifn), pcContent, uiLen);
-    uiReadBytes = MIN(pspifn->pFd->uiSize - uiOffset, uiLen);
+    if(pspifn->pFd->uiSize == SPIFFS_UNDEFINED_LEN){
+        uiReadBytes = 0;
+    }
+    else {
+        uiReadBytes = MIN(pspifn->pFd->uiSize - uiOffset, uiLen);
+    }
     return uiReadBytes;
 }
 /*********************************************************************************************************

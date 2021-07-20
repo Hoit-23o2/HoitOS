@@ -124,6 +124,9 @@ typedef struct HOIT_EBS_ENTRY             HOIT_EBS_ENTRY;
 typedef struct HOIT_LOG_INFO              HOIT_LOG_INFO;
 typedef struct HOIT_RAW_LOG               HOIT_RAW_LOG;
 
+typedef struct hoit_write_buffer          HOIT_WRITE_BUFFER;
+typedef struct hoit_write_entry           HOIT_WRITE_ENTRY;
+
 typedef HOIT_VOLUME*                      PHOIT_VOLUME;
 typedef HOIT_RAW_HEADER*                  PHOIT_RAW_HEADER;
 typedef HOIT_RAW_INODE*                   PHOIT_RAW_INODE;
@@ -149,10 +152,15 @@ typedef HOIT_EBS_ENTRY *                  PHOIT_EBS_ENTRY;
 
 typedef HOIT_LOG_INFO *                   PHOIT_LOG_INFO;
 typedef HOIT_RAW_LOG *                    PHOIT_RAW_LOG;
+
+typedef HOIT_WRITE_BUFFER *               PHOIT_WRITE_BUFFER;
+typedef HOIT_WRITE_ENTRY *                PHOIT_WRITE_ENTRY;
 DEV_HDR          HOITFS_devhdrHdr;
 
 DECLARE_LIST_TEMPLATE(HOIT_ERASABLE_SECTOR);
+DECLARE_LIST_TEMPLATE(HOIT_FRAG_TREE_NODE);
 
+USE_LIST_TEMPLATE(hoitType, HOIT_FRAG_TREE_NODE);
 /*********************************************************************************************************
   HoitFs super block类型
 *********************************************************************************************************/
@@ -211,6 +219,7 @@ struct HOIT_RAW_HEADER{
     mode_t              file_type;
     UINT                ino;
     UINT                version;
+    UINT32              crc;
 };
 
 
@@ -224,6 +233,7 @@ struct HOIT_RAW_INODE {
     mode_t              file_type;
     UINT                ino;
     UINT                version;
+    UINT32              crc;
     UINT                offset;     /* 记录文件内部偏移 */
 };
 
@@ -237,6 +247,7 @@ struct HOIT_RAW_DIRENT{
     mode_t              file_type;
     UINT                ino;
     UINT                version;
+    UINT32              crc;
     UINT                pino;
 };
 
@@ -288,6 +299,7 @@ struct HOIT_INODE_INFO{
     PHOIT_VOLUME        HOITN_volume;
     UINT                HOITN_ino;                                      /*  规定根目录的ino为1          */
     PCHAR               HOITN_pcLink;
+    PHOIT_WRITE_BUFFER  HOITN_pWriteBuffer;
 
     uid_t               HOITN_uid;                                      /*  用户 id                     */
     gid_t               HOITN_gid;                                      /*  组   id                     */
@@ -375,6 +387,7 @@ struct hoit_frag_tree_node
     PHOIT_FULL_DNODE pFDnode;
     UINT32 uiSize;
     UINT32 uiOfs;
+    PHOIT_WRITE_ENTRY pWriteEntry;
 };
 
 /*********************************************************************************************************
@@ -468,6 +481,22 @@ struct HOIT_RAW_LOG
     UINT                uiLogSize;
     UINT                uiLogFirstAddr;
 };
+/*********************************************************************************************************
+  HOITFS WriteBuffer 结构
+*********************************************************************************************************/
+struct hoit_write_buffer
+{
+    UINT32                  size;
+    UINT32                  threshold;  //触发合并操作的节点数
+    PHOIT_WRITE_ENTRY       pList;
+};
+struct hoit_write_entry
+{
+    PHOIT_FRAG_TREE_NODE    pTreeNode;
+    PHOIT_WRITE_ENTRY       pNext;
+    PHOIT_WRITE_ENTRY       pPrev;
+};
+
 /*********************************************************************************************************
   偏移量计算
 *********************************************************************************************************/

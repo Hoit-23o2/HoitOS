@@ -47,10 +47,10 @@ typedef struct iter##TYPE\
 /*********************************************************************************************************\
   列表方法定义，使用前需要声明\
 *********************************************************************************************************/\ 
-UINT NAMESAPCE##listSize##TYPE(struct list##TYPE* self) {\
+UINT NAMESPACE##listSize##TYPE(struct list##TYPE* self) {\
     return self->uiSize;\
 }\
-BOOL NAMESAPCE##listInsert##TYPE(struct list##TYPE* self, TYPE* data, UINT uiIndex) {\
+BOOL NAMESPACE##listInsert##TYPE(struct list##TYPE* self, TYPE* data, UINT uiIndex) {\
     ListNode##TYPE* traverse = &self->listHeader;\
     ListNode##TYPE* newNode;\
     UINT      uiCounter = 0;\
@@ -84,11 +84,11 @@ BOOL NAMESAPCE##listInsert##TYPE(struct list##TYPE* self, TYPE* data, UINT uiInd
     return LW_TRUE;\
 }\
 \
-BOOL NAMESAPCE##listAppend##TYPE(struct list##TYPE* self, TYPE* data) {\
-    return NAMESAPCE##listInsert##TYPE(self, data, self->uiSize);\
+BOOL NAMESPACE##listAppend##TYPE(struct list##TYPE* self, TYPE* data) {\
+    return NAMESPACE##listInsert##TYPE(self, data, self->uiSize);\
 }\
 \
-BOOL NAMESAPCE##listRemoveObject##TYPE(struct list##TYPE* self, TYPE* data) {\
+BOOL NAMESPACE##listRemoveObject##TYPE(struct list##TYPE* self, TYPE* data) {\
     ListNode##TYPE* traverse = self->listHeader.next;\
     while (traverse != LW_NULL)\
     {\
@@ -107,7 +107,7 @@ BOOL NAMESAPCE##listRemoveObject##TYPE(struct list##TYPE* self, TYPE* data) {\
     return LW_FALSE;\
 }\
 \
-BOOL NAMESAPCE##listRemoveIndex##TYPE(struct list##TYPE* self, UINT uiIndex){\
+BOOL NAMESPACE##listRemoveIndex##TYPE(struct list##TYPE* self, UINT uiIndex){\
     ListNode##TYPE* traverse = self->listHeader.next;\
     UINT      uiCounter = 0;\
     if(uiIndex >= self->uiSize){\
@@ -132,27 +132,26 @@ BOOL NAMESAPCE##listRemoveIndex##TYPE(struct list##TYPE* self, UINT uiIndex){\
 /*********************************************************************************************************\
   迭代器方法\
 *********************************************************************************************************/\                       
-VOID NAMESAPCE##freeIterator##TYPE(Iterator##TYPE* iter){\
+VOID NAMESPACE##freeIterator##TYPE(Iterator##TYPE* iter){\
     lib_free(iter);\
 }\
 \
-VOID NAMESAPCE##iterBegin##TYPE(struct iter##TYPE* self, List##TYPE* list##TYPE){\
+VOID NAMESPACE##iterBegin##TYPE(struct iter##TYPE* self, List##TYPE* list##TYPE){\
     self->traverse = list##TYPE->listHeader.next;\
 }\
 \
-BOOL NAMESAPCE##iterNext##TYPE(struct iter##TYPE* self){\
+BOOL NAMESPACE##iterNext##TYPE(struct iter##TYPE* self){\
     self->traverse = self->traverse == LW_NULL ? LW_NULL : self->traverse->next;\
     return self->traverse == LW_NULL ? LW_FALSE : LW_TRUE;\
 }\
 \
-BOOL NAMESAPCE##iterIsValid##TYPE(struct iter##TYPE* self) {\
+BOOL NAMESPACE##iterIsValid##TYPE(struct iter##TYPE* self) {\
     return self->traverse == LW_NULL ? LW_FALSE : LW_TRUE;\
 }\
 \
-TYPE* NAMESAPCE##iterGet##TYPE(struct iter##TYPE* self){\
+TYPE* NAMESPACE##iterGet##TYPE(struct iter##TYPE* self){\
     return self->traverse->listData;\
 }
-
 
 #define USE_LIST_TEMPLATE(NAMESPACE, TYPE)  USE_LIST_TEMPLATE_(NAMESPACE, TYPE)
 #endif /* SYLIXOS_EXTFS_TOOLS_LIST_LIST_TEMPLATE_H_ */

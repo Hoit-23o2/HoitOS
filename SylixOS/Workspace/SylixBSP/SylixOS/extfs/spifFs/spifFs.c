@@ -29,6 +29,7 @@
 #include "../SylixOS/fs/include/fs_fs.h"
 #include "spifFsLib.h"
 #include "spifFsFDLib.h"
+#include "spifFsCmd.h"
 /*********************************************************************************************************
   内部全局变量
 *********************************************************************************************************/
@@ -203,6 +204,8 @@ INT  API_SpifFsDevCreate (PCHAR   pcName, PLW_BLK_DEV  pblkd)
     
     //TODO 挂载函数
     __spif_mount(pfs);
+
+    register_spiffs_cmd(pfs);
     
     if (iosDevAddEx(&pfs->SPIFFS_devhdrHdr, pcName, _G_iSpiffsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
@@ -271,7 +274,8 @@ static LONG __spifFsOpen (PSPIF_VOLUME     pfs,
         }
         if (S_ISFIFO(iMode) || 
             S_ISBLK(iMode)  ||
-            S_ISCHR(iMode)) {
+            S_ISCHR(iMode)  ||
+            S_ISDIR(iMode) ) {                                          /*   不支持目录，SPIFFS是平面文件系统（暂时不支持，能不能支持呢？） */
             _ErrorHandle(ERROR_IO_DISK_NOT_PRESENT);                    /*  不支持以上这些格式          */
             return  (PX_ERROR);
         }
@@ -333,6 +337,7 @@ static INT  __spifFsRemove (PSPIF_VOLUME   pfs,
     BOOL         bIsRoot;
     PCHAR        pcTail;
     INT          iError;
+    INT          iRes; 
 
     if (pcName == LW_NULL) {
         _ErrorHandle(ERROR_IO_NO_DEVICE_NAME_IN_PATH);
@@ -344,10 +349,13 @@ static INT  __spifFsRemove (PSPIF_VOLUME   pfs,
         return  (PX_ERROR);
     }
     
-    pspifn = __spif_open(pfs, pcName, SPIFFS_O_RDWR, 0, &bIsRoot);
+    pspifn = __spif_open(pfs, pcName, O_RDWR, 0, &bIsRoot);
     if (pspifn) {
         //TODO 文件删除函数
-        iError = __spif_remove(pfs, pspifn);  
+        iRes = __spif_remove(pfs, pspifn);  
+        if(iRes == SPIFFS_OK){
+            iError = ERROR_NONE;
+        }
         __SPIFFS_VOL_UNLOCK(pfs);
         return  (iError);
             
