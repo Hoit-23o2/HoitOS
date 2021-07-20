@@ -43,7 +43,7 @@ typedef struct iter##TYPE\
 
 
 
-#define USE_LIST_TEMPLATE(NAMESPACE, TYPE)\
+#define USE_LIST_TEMPLATE_(NAMESPACE, TYPE)\
 /*********************************************************************************************************\
   列表方法定义，使用前需要声明\
 *********************************************************************************************************/\ 
@@ -153,4 +153,6 @@ TYPE* NAMESAPCE##iterGet##TYPE(struct iter##TYPE* self){\
     return self->traverse->listData;\
 }
 
+
+#define USE_LIST_TEMPLATE(NAMESPACE, TYPE)  USE_LIST_TEMPLATE_(NAMESPACE, TYPE)
 #endif /* SYLIXOS_EXTFS_TOOLS_LIST_LIST_TEMPLATE_H_ */

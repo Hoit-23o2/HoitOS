@@ -636,6 +636,7 @@ UINT8 __hoit_get_inode_nodes(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeInfo, PHO
 ** 调用模块:
 *********************************************************************************************************/
 BOOL __hoit_add_to_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector) {
+    // TODO:仍然保留了原始列表和三个新的sector列表
     pErasableSector->HOITS_next = pfs->HOITFS_erasableSectorList;
     pfs->HOITFS_erasableSectorList = pErasableSector;
     //!TODO: mount初始化链表，封装链表转移函数
@@ -1808,6 +1809,7 @@ VOID  __hoit_unmount(PHOIT_VOLUME pfs)
         }
         pTempSector = pNextSector;
     }
+    FreeIterator(pfs->HOITFS_sectorIterator);
 }
 /*********************************************************************************************************
 ** 函数名称: __hoit_mount
@@ -1838,36 +1840,38 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
         pThreadAttr->pfs = pfs;
         pThreadAttr->sector_no = sector_no;
 
-        API_ThreadAttrBuild(&scThreadAttr,
-            4 * LW_CFG_KB_SIZE,
-            LW_PRIO_NORMAL,
-            LW_OPTION_THREAD_STK_CHK,
-            (VOID*)pThreadAttr);
+        __hoit_scan_single_sector(pThreadAttr);
+        // API_ThreadAttrBuild(&scThreadAttr,
+        //     4 * LW_CFG_KB_SIZE,
+        //     LW_PRIO_NORMAL,
+        //     LW_OPTION_THREAD_STK_CHK,
+        //     (VOID*)pThreadAttr);
 
-        ulObjectHandle[handleSize++] = API_ThreadCreate("t_scan_thread",
-            (PTHREAD_START_ROUTINE)__hoit_scan_single_sector,
-            &scThreadAttr,
-            LW_NULL);
+        // ulObjectHandle[handleSize++] = API_ThreadCreate("t_scan_thread",
+        //     (PTHREAD_START_ROUTINE)__hoit_scan_single_sector,
+        //     &scThreadAttr,
+        //     LW_NULL);
         sector_no++;
     }
 
 
-    for (i = 0; i < handleSize; i++) {
-        API_ThreadJoin(ulObjectHandle[i], LW_NULL);
-    }
+    // for (i = 0; i < handleSize; i++) {
+    //     API_ThreadJoin(ulObjectHandle[i], LW_NULL);
+    // }
     
     pfs->HOITFS_highest_ino++;
     pfs->HOITFS_highest_version++;
     printf("now sector offs: %d \n", pfs->HOITFS_now_sector->HOITS_offset);
-    if (!hasLog) {
-        hoitLogInit(pfs, hoitGetSectorSize(8), 1);
-    }
-    if (pRawLogHdr != LW_NULL){
-        hoitLogOpen(pfs, pRawLogHdr);
-    }
+    
+   if (!hasLog) {
+       hoitLogInit(pfs, hoitGetSectorSize(8), 1);
+   }
+   if (pRawLogHdr != LW_NULL){
+       hoitLogOpen(pfs, pRawLogHdr);
+   }
 
 #ifdef LOG_ENABLE
-    __hoit_redo_log(pfs);
+//    __hoit_redo_log(pfs);
 #endif // LOG_ENABLE
 
     if (pfs->HOITFS_highest_ino == HOIT_ROOT_DIR_INO) {    /* 系统第一次运行, 创建根目录文件 */
@@ -1953,8 +1957,8 @@ VOID  __hoit_redo_log(PHOIT_VOLUME  pfs) {
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-BOOL __hoit_erasable_sector_list_check_exist(List(HOIT_ERASABLE_SECTOR) HOITFS_sectorList, PHOIT_ERASABLE_SECTOR pErasableSector) {
-    Iterator(HOIT_ERASABLE_SECTOR)      iter;
+BOOL __hoit_erasable_sector_list_check_exist(PHOIT_VOLUME pfs, List(HOIT_ERASABLE_SECTOR) HOITFS_sectorList, PHOIT_ERASABLE_SECTOR pErasableSector) {
+    Iterator(HOIT_ERASABLE_SECTOR)      iter = pfs->HOITFS_sectorIterator;
     PHOIT_ERASABLE_SECTOR               psector;
     for(iter->begin(iter, HOITFS_sectorList) ; iter->isValid(iter) ; iter->next(iter)) {
         psector = iter->get(iter);
@@ -1962,6 +1966,7 @@ BOOL __hoit_erasable_sector_list_check_exist(List(HOIT_ERASABLE_SECTOR) HOITFS_s
             return LW_TRUE;
         }
     }
+    
     return LW_FALSE;
 }
 
@@ -1980,17 +1985,17 @@ BOOL __hoit_erasable_sector_list_check_exist(List(HOIT_ERASABLE_SECTOR) HOITFS_s
 *********************************************************************************************************/
 VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector) {
     if (pErasableSector->HOITS_uiFreeSize == GET_SECTOR_SIZE(pErasableSector->HOITS_bno)) { /* 空sector */
-        if (!__hoit_erasable_sector_list_check_exist(GET_FREE_LIST(pfs), pErasableSector)) {
+        if (!__hoit_erasable_sector_list_check_exist(pfs, GET_FREE_LIST(pfs), pErasableSector)) {
             GET_FREE_LIST(pfs)->insert(GET_FREE_LIST(pfs), pErasableSector, 0);
         }
     }
     if (pErasableSector->HOITS_uiObsoleteEntityCount != 0) {
         /* 目前是只要有脏数据实体，就把sector放到dirty list中 */
-        if (!__hoit_erasable_sector_list_check_exist(GET_DIRTY_LIST(pfs), pErasableSector)) {
+        if (!__hoit_erasable_sector_list_check_exist(pfs, GET_DIRTY_LIST(pfs), pErasableSector)) {
             GET_DIRTY_LIST(pfs)->insert(GET_DIRTY_LIST(pfs), pErasableSector, 0);
         }
     } else if (pErasableSector->HOITS_uiAvailableEntityCount != 0) {
-        if (!__hoit_erasable_sector_list_check_exist(GET_CLEAN_LIST(pfs), pErasableSector)) {
+        if (!__hoit_erasable_sector_list_check_exist(pfs, GET_CLEAN_LIST(pfs), pErasableSector)) {
             GET_CLEAN_LIST(pfs)->insert(GET_CLEAN_LIST(pfs), pErasableSector, 0);
         }
     }

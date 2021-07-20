@@ -937,3 +937,89 @@ INT hoitTestGC(PHOIT_VOLUME pfs){
 
     close(iFd);
 }
+
+/*********************************************************************************************************
+ * EBS测试
+*********************************************************************************************************/
+INT hoitTestEBS(PHOIT_VOLUME pfs) {
+    PHOIT_CACHE_HDR     pcacheHdr = pfs->HOITFS_cacheHdr;
+    PHOIT_RAW_INODE     pRawInode;
+    PCHAR               pRawInodeData;
+    size_t              RawInodeLen = 16;
+    PHOIT_RAW_INFO      pRawInodeInfo;
+
+    PHOIT_RAW_DIRENT    pRawDirent;
+    PCHAR               pRawDirentData;
+    CHAR                RawDirentData[32] = "/temp file name for test\0";
+    size_t              RawDirentLen      = lib_strlen(RawDirentData)+1;
+    PHOIT_RAW_INFO      pRawDirentInfo;
+    size_t temp = sizeof(HOIT_RAW_INODE)+RawInodeLen*sizeof(UINT32);
+
+    printf("======================  hoit EBS test   ============================\n");
+    /* 初始化测试数据包括一个raw inode 和 raw dirent */
+    /* raw inode */
+    pRawInode = (PHOIT_RAW_INODE)__SHEAP_ALLOC(sizeof(HOIT_RAW_INODE)+RawInodeLen*sizeof(UINT32));
+    pRawInodeInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
+    if(pRawInode == LW_NULL || pRawInodeInfo == LW_NULL) {
+        printk("low memory\n");
+        return PX_ERROR;
+    }
+
+    pRawInode->file_type    = HOIT_FLAG_TYPE_INODE; 
+    pRawInode->flag         = UINT32_MAX;
+    pRawInode->ino          = 0;
+    pRawInode->magic_num    = HOIT_MAGIC_NUM;
+    pRawInode->offset       = 0;
+    pRawInode->totlen       = RawInodeLen;
+    pRawInode->version      = 1;
+    
+    pRawInodeData           = (PCHAR)pRawInode + sizeof(HOIT_RAW_INODE);
+    lib_memset(pRawInodeData, 2, RawInodeLen*sizeof(UINT32));
+
+    /* 标注过期只需要total len 和 phys_addr */
+    pRawInodeInfo->is_obsolete  = UINT32_MAX;
+    pRawInodeInfo->next_logic   = LW_NULL;
+    pRawInodeInfo->next_phys    = LW_NULL;
+    pRawInodeInfo->totlen       = pRawInode->totlen;
+
+    /* raw dirent */
+    pRawDirent = (PHOIT_RAW_DIRENT)__SHEAP_ALLOC(sizeof(HOIT_RAW_DIRENT)+RawDirentLen*sizeof(CHAR));
+    pRawDirentInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
+    if(pRawDirent == LW_NULL) {
+        printk("low memory\n");
+        return PX_ERROR;
+    }
+
+    pRawDirent->file_type   = HOIT_FLAG_TYPE_DIRENT;
+    pRawDirent->flag        = UINT32_MAX;
+    pRawDirent->ino         = 1;
+    pRawDirent->magic_num   = HOIT_MAGIC_NUM;
+    pRawDirent->pino        = 2;
+    pRawDirent->totlen      = RawDirentLen;
+    pRawDirent->version     = 1;
+
+    pRawDirentData = (PCHAR)pRawDirent + sizeof(HOIT_RAW_DIRENT);
+    lib_memcpy(pRawDirentData, RawDirentData, RawDirentLen);
+    pRawDirentInfo->is_obsolete  = UINT32_MAX;
+    pRawDirentInfo->next_logic   = LW_NULL;
+    pRawDirentInfo->next_phys    = LW_NULL;
+    pRawDirentInfo->totlen       = pRawDirent->totlen;
+
+    /* 写入测试数据，并检测EBS前8项 */
+    hoitCheckEBS(pfs, 0, 8);
+    printk("write pRawInode\n");
+    pRawInodeInfo->phys_addr = hoitWriteToCache(pcacheHdr, (PCHAR)pRawInode, sizeof(HOIT_RAW_INODE)+RawInodeLen*sizeof(UINT32));
+    hoitCheckEBS(pfs, 0, 8);
+    printk("write pRawDirent\n");
+    pRawDirentInfo->phys_addr = hoitWriteToCache(pcacheHdr, (PCHAR)pRawDirent, sizeof(HOIT_RAW_DIRENT)+RawDirentLen);
+    hoitCheckEBS(pfs, 0, 8);
+
+    /* 标注过期，并检测EBS前8项 */
+    printk("mark pRawInode obsolete\n");
+    __hoit_mark_obsolete(pfs, (PHOIT_RAW_HEADER)pRawInode, pRawInodeInfo);
+    hoitCheckEBS(pfs, 0, 8);
+    printk("mark pRawDirent obsolete\n");
+    __hoit_mark_obsolete(pfs, (PHOIT_RAW_HEADER)pRawDirent, pRawDirentInfo);
+    hoitCheckEBS(pfs, 0, 8);
+    return ERROR_NONE;
+}

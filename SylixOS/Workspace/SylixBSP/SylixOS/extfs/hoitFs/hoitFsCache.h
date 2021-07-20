@@ -43,8 +43,8 @@
 #define HOIT_CACHE_TYPE_DATA_EMPTY  2        
 
 /* EBS 配置 */
-#define HOIT_FILTER_EBS_ENTRY_SIZE                  (sizeof(PHOIT_EBS_ENTRY))               /* 即8B */
-#define HOIT_FILTER_PAGE_SIZE                       (sizeof(PHOIT_EBS_ENTRY) * ( 8 - 1 ))   /* 即56B，7倍的EBS entry size */
+#define HOIT_FILTER_EBS_ENTRY_SIZE                  (sizeof(HOIT_EBS_ENTRY))               /* 即8B */
+#define HOIT_FILTER_PAGE_SIZE                       (sizeof(HOIT_EBS_ENTRY) * ( 8 - 1 ))   /* 即56B，7倍的EBS entry size */
 #define HOIT_FILTER_EBS_AREA_SIZE(pcacheHdr)        (pcacheHdr->HOITCACHE_PageAmount * HOIT_FILTER_EBS_ENTRY_SIZE - HOIT_FILTER_PAGE_SIZE)
 #define HOIT_FILTER_EBS_MAGIC_NUMBER                0x13579BDF02468ACE                      /* EBS magic number，之后放校验码 */
 /*********************************************************************************************************
@@ -152,9 +152,9 @@ VOID                hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr,
 *********************************************************************************************************/
 UINT32              hoitInitFilter(PHOIT_CACHE_HDR pcacheHdr, 
                                     UINT32 uiCacheBlockSize);
-UINT32              hoitUpdateEBS(PHOIT_CACHE_HDR pcacheHdr,
-                                    PHOIT_CACHE_BLK pcache,
-                                    UINT32 inode,
+UINT32              hoitUpdateEBS(PHOIT_CACHE_HDR pcacheHdr, 
+                                    PHOIT_CACHE_BLK pcache, 
+                                    UINT32 inode, 
                                     UINT32 offset);
 VOID                __hoit_mark_obsolete(PHOIT_VOLUME pfs, 
                                         PHOIT_RAW_HEADER pRawHeader, 

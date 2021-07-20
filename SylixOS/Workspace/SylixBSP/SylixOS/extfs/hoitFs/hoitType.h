@@ -53,7 +53,8 @@
 *********************************************************************************************************/
 //#define DEBUG_LOG
 #define  LOG_TEST
-#define  LOG_ENABLE
+//! 07-18 ZN 暂时注释log
+// #define  LOG_ENABLE
 
 /*********************************************************************************************************
   HoitFs Error Type
@@ -180,10 +181,11 @@ typedef struct HOIT_VOLUME{
     
                                                                            /*! GC 相关 */
     PHOIT_ERASABLE_SECTOR   HOITFS_erasableSectorList;                     /* 可擦除Sector列表 */
-    List(HOIT_ERASABLE_SECTOR) HOITFS_dirtySectorList;                     /* 含有obsolete的块 */ 
-    List(HOIT_ERASABLE_SECTOR) HOITFS_cleanSectorList;                     /* 不含obsolete的块 */
-    List(HOIT_ERASABLE_SECTOR) HOITFS_freeSectorList;                      /* 啥都不含的块 */
-    
+    List(HOIT_ERASABLE_SECTOR)      HOITFS_dirtySectorList;                     /* 含有obsolete的块 */ 
+    List(HOIT_ERASABLE_SECTOR)      HOITFS_cleanSectorList;                     /* 不含obsolete的块 */
+    List(HOIT_ERASABLE_SECTOR)      HOITFS_freeSectorList;                      /* 啥都不含的块 */
+    Iterator(HOIT_ERASABLE_SECTOR)  HOITFS_sectorIterator;                      /* 统一sector迭代器 */
+
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSuvivorSector;                      /* 目标搬家地址 */
     LW_OBJECT_HANDLE        HOITFS_GCMsgQ;                                 /* GC线程消息队列*/

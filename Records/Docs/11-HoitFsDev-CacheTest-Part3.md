@@ -119,3 +119,8 @@ INT  symlink (CPCHAR  pcLinkDst, CPCHAR  pcSymPath)
 >
 > pcOption = LW_NULL
 
+## 待开发
+
+1. findNextToWrite要改成从三个列表中取
+2. 写入数据实体或标记过期之后，还没更新三个列表
+3. GC用的是三个列表还是原始列表，不清楚

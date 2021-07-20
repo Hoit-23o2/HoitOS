@@ -12,7 +12,7 @@
   列表接口声明                                                                                          
 *********************************************************************************************************/ 
 #define List(TYPE) List##TYPE*
-#define InitList(list, NAMESPACE, TYPE)\
+#define InitList_(list, NAMESPACE, TYPE)\
 {\
     list = (List##TYPE *)lib_malloc(sizeof(List##TYPE));\
     list->listHeader.next = LW_NULL;\
@@ -33,11 +33,13 @@
     }\
     lib_free(list);\
 }
+
+#define InitList(list, NAMESPACE, TYPE)  InitList_(list, NAMESPACE, TYPE)
 /********************************************************************************************************* 
   迭代器声明                                                                                          
 *********************************************************************************************************/ 
 #define Iterator(TYPE) Iterator##TYPE*
-#define InitIterator(iter,NAMESPACE, TYPE)\
+#define InitIterator_(iter,NAMESPACE, TYPE)\
 {\
     iter = (Iterator##TYPE*)lib_malloc(sizeof(Iterator##TYPE));\
     iter->begin = NAMESAPCE##iterBegin##TYPE;\
@@ -47,4 +49,5 @@
 }
 #define FreeIterator(iter) lib_free(iter);
 
+#define InitIterator(list, NAMESPACE, TYPE)  InitIterator_(list, NAMESPACE, TYPE)
 #endif /* SYLIXOS_EXTFS_TOOLS_LIST_LIST_INTERFACE_H_ */

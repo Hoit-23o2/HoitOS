@@ -107,7 +107,8 @@ INT  API_HoitFsDrvInstall(VOID)
 ** 调用模块:
                                            API 函数
 *********************************************************************************************************/
-USE_LIST_TEMPLATE(hoitFs, HOIT_ERASABLE_SECTOR);
+#define NAMESPACE   hoitFs
+USE_LIST_TEMPLATE(NAMESPACE, HOIT_ERASABLE_SECTOR);
 LW_API
 INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 {
@@ -166,6 +167,8 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     InitList(pfs->HOITFS_dirtySectorList,hoitFs, HOIT_ERASABLE_SECTOR); /* 初始化模板链表 */
     InitList(pfs->HOITFS_cleanSectorList,hoitFs, HOIT_ERASABLE_SECTOR);
     InitList(pfs->HOITFS_freeSectorList,hoitFs, HOIT_ERASABLE_SECTOR);
+    InitIterator(pfs->HOITFS_sectorIterator, hoitFs, HOIT_ERASABLE_SECTOR);
+
                                                                         /* Log相关 */
     pfs->HOITFS_logInfo            = LW_NULL;
     //__ram_mount(pramfs);

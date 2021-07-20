@@ -108,6 +108,9 @@ INT fs_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
         {
             hoitTestLink(iArgC - 2, ppcArgV + 2);
         }
+        else if (EQU_ARG("ebs", pcFSOption)) {
+            hoitTestEBS(_G_Volumn);
+        }
     }
 }
 
