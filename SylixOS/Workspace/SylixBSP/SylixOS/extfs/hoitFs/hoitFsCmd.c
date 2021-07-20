@@ -30,6 +30,7 @@
 ** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 #include "./hoitFsTest.h"
+#include "./hoitFsCache.h"
 PHOIT_VOLUME _G_Volumn;
 
 #define DIVIDER                         "================="
@@ -89,7 +90,7 @@ INT gc_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
 
 INT fs_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     PCHAR       pcFSOption;
-
+    
     pcFSOption = GET_ARG(1);
     if(EQU_ARG("-i", pcFSOption)){
         __hoitShowSectorInfo(_G_Volumn);
@@ -109,7 +110,8 @@ INT fs_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
             hoitTestLink(iArgC - 2, ppcArgV + 2);
         }
         else if (EQU_ARG("ebs", pcFSOption)) {
-            hoitTestEBS(_G_Volumn);
+            //hoitEBSTest(_G_Volumn);
+            hoitEBSCheckCmd(_G_Volumn, iArgC - 2, ppcArgV + 2);
         }
     }
 }
