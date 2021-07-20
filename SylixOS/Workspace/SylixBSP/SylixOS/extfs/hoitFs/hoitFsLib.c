@@ -145,6 +145,7 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
         pNewInode->HOITN_rbtree = (PVOID)LW_NULL;
         pNewInode->HOITN_volume = pfs;
         pNewInode->HOITN_pcLink = LW_NULL;
+        pNewInode->HOITN_pWriteBuffer = LW_NULL;
         return pNewInode;
     }
     else if (S_ISLNK((*ppDnodeList)->HOITFD_file_type)) {   /* 链接文件 */
@@ -157,6 +158,7 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
         pNewInode->HOITN_rbtree = (PVOID)LW_NULL;
         pNewInode->HOITN_volume = pfs;
         pNewInode->HOITN_pcLink = __hoit_get_data_after_raw_inode(pfs, pNewInode->HOITN_metadata->HOITFD_raw_info);
+        pNewInode->HOITN_pWriteBuffer = LW_NULL;
         return pNewInode;
     }
     else {
@@ -180,6 +182,7 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
         pNewInode->HOITN_mode = (*ppDnodeList)->HOITFD_file_type;
         pNewInode->HOITN_volume = pfs;
         pNewInode->HOITN_pcLink = LW_NULL;
+        pNewInode->HOITN_pWriteBuffer = LW_NULL;
         __hoit_new_write_buffer(pNewInode); /* 07-18 增加初始化WriteBuffer By HZS */
 
         PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader = hoitFragTreeCollectRange(pNewInode->HOITN_rbtree, 0, INT_MAX);
@@ -705,7 +708,6 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
 
     __hoit_read_flash(pfs, uiSectorOffset, pReadBuf, uiSectorSize);
 
-
     /* 2021-07-10 Modified by HZS */
     size_t pageAmount       = uiSectorSize / (HOIT_FILTER_EBS_ENTRY_SIZE + HOIT_FILTER_PAGE_SIZE);
     size_t EBSStartAddr     = HOIT_FILTER_PAGE_SIZE * pageAmount;
@@ -735,6 +737,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
         }
         if (pRawHeader->magic_num == HOIT_MAGIC_NUM && !__HOIT_IS_OBSOLETE(pRawHeader)) {
             /* //TODO:后面这里还需添加CRC校验 */
+            crc32_check(pRawHeader);
             PHOIT_RAW_INFO pRawInfo = LW_NULL;
             crc32_check(pRawHeader);
             if (__HOIT_IS_TYPE_INODE(pRawHeader)) {
@@ -1495,6 +1498,7 @@ VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag)
     }
     else {
         hoitFragTreeDeleteTree(pInodeInfo->HOITN_rbtree, LW_FALSE);
+        __hoit_free_write_buffer(pInodeInfo);
         if (pInodeInfo->HOITN_metadata != LW_NULL) __SHEAP_FREE(pInodeInfo->HOITN_metadata);
         __SHEAP_FREE(pInodeInfo);
     }

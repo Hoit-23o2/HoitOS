@@ -160,7 +160,7 @@ DEV_HDR          HOITFS_devhdrHdr;
 DECLARE_LIST_TEMPLATE(HOIT_ERASABLE_SECTOR);
 DECLARE_LIST_TEMPLATE(HOIT_FRAG_TREE_NODE);
 
-//USE_LIST_TEMPLATE(hoitType, HOIT_FRAG_TREE_NODE);
+// USE_LIST_TEMPLATE(hoitType, HOIT_FRAG_TREE_NODE);
 /*********************************************************************************************************
   HoitFs super block¿‡–Õ
 *********************************************************************************************************/
