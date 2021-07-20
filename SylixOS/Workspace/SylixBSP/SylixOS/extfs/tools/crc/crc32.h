@@ -15,7 +15,7 @@
 static UINT32 crc32_le(PUCHAR p, UINT len)
 {
 	INT i;
-	UINT32 crc;
+	UINT32 crc = 0;
 	while (len--) {
 		crc ^= *p++;
 		for (i = 0; i < 8; i++)
