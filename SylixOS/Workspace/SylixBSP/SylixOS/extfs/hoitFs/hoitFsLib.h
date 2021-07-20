@@ -30,6 +30,7 @@
 
 
 #include "hoitType.h"
+#include "../tools/crc/crc32.h"
 
 typedef struct scanThreadAttr { /* 一个局部定义的结构体, 只用来给scan_single_sector传参 */
     PHOIT_VOLUME    pfs;
@@ -102,7 +103,7 @@ VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasable
 BOOL __hoit_erasable_sector_list_check_exist(PHOIT_VOLUME pfs, List(HOIT_ERASABLE_SECTOR) HOITFS_sectorList, PHOIT_ERASABLE_SECTOR pErasableSector);
 VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_RAW_INFO pRawInfo);
 
-void crc32_check(PHOIT_RAW_HEADER pRawHeader) {
+static void crc32_check(PHOIT_RAW_HEADER pRawHeader) {
     /* 检查crc校验码 */
     UINT32 uPrevCrc = pRawHeader->crc;
     pRawHeader->crc = 0;

@@ -12,7 +12,7 @@
 
 #define CRCPOLY_LE 0xedb88320
 
-UINT32 crc32_le(unsigned char* p, UINT len)
+static UINT32 crc32_le(PUCHAR p, UINT len)
 {
 	INT i;
 	UINT32 crc;

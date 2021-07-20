@@ -38,5 +38,6 @@ BOOL __hoit_new_write_buffer(PHOIT_INODE_INFO pInodeInfo);
 BOOL __hoit_new_write_entry(PHOIT_INODE_INFO pInodeInfo, PHOIT_WRITE_BUFFER pWriteBuffer, PHOIT_FRAG_TREE_NODE pTreeNode);
 BOOL __hoit_del_write_entry(PHOIT_WRITE_BUFFER pWriteBuffer, PHOIT_WRITE_ENTRY pWriteEntry);
 BOOL __hoit_refresh_write_buffer(PHOIT_INODE_INFO pInodeInfo);
+BOOL __hoit_free_write_buffer(PHOIT_INODE_INFO pInodeInfo);
 
 #endif

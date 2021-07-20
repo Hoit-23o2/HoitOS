@@ -42,6 +42,7 @@
 *********************************************************************************************************/
 BOOL __hoit_new_write_buffer(PHOIT_INODE_INFO pInodeInfo) {
     if (pInodeInfo->HOITN_pWriteBuffer == LW_NULL) {
+        pInodeInfo->HOITN_pWriteBuffer              = (PHOIT_WRITE_BUFFER)lib_malloc(sizeof(HOIT_WRITE_BUFFER));
         pInodeInfo->HOITN_pWriteBuffer->pList       = LW_NULL;
         pInodeInfo->HOITN_pWriteBuffer->threshold   = HOIT_WRITE_BUFFER_THRESHOLD;
         pInodeInfo->HOITN_pWriteBuffer->size        = 0;
@@ -110,6 +111,33 @@ BOOL __hoit_del_write_entry(PHOIT_WRITE_BUFFER pWriteBuffer, PHOIT_WRITE_ENTRY p
 }
 
 /*********************************************************************************************************
+** 函数名称: __hoit_free_write_buffer
+** 功能描述:
+** 输　入  :
+** 输　出  :
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+BOOL __hoit_free_write_buffer(PHOIT_INODE_INFO pInodeInfo) {
+    if (pInodeInfo == LW_NULL || pInodeInfo->HOITN_pWriteBuffer == LW_NULL) {
+        return LW_FALSE;
+    }
+
+    PHOIT_WRITE_BUFFER pWriteBuffer     = pInodeInfo->HOITN_pWriteBuffer;
+    PHOIT_WRITE_ENTRY pNowWriteEntry    = pWriteBuffer->pList;
+    PHOIT_WRITE_ENTRY pNextWriteEntry   = LW_NULL;
+    while (pNowWriteEntry) {
+        pNextWriteEntry = pNowWriteEntry->pNext;
+        __SHEAP_FREE(pNowWriteEntry);
+        pNowWriteEntry = pNextWriteEntry;
+    }
+    __SHEAP_FREE(pWriteBuffer);
+    pInodeInfo->HOITN_pWriteBuffer = LW_NULL;
+
+    return LW_TRUE;
+}
+
+/*********************************************************************************************************
 ** 函数名称: __hoit_refresh_write_buffer
 ** 功能描述: 将WriteBuffer中的已有的所有的数据进行相邻合并
 ** 输　入  : 
@@ -127,7 +155,7 @@ BOOL __hoit_refresh_write_buffer(PHOIT_INODE_INFO pInodeInfo) {
     for (i = 0; i < pWriteBuffer->size-1; i++) {
         PHOIT_WRITE_ENTRY pNowEntry = pWriteBuffer->pList;
         PHOIT_WRITE_ENTRY pNextEntry = LW_NULL;
-        for (; pNowEntry; pNowEntry = pNowEntry->pNext)
+        while(pNowEntry)
         {
             pNextEntry = pNowEntry->pNext;
             if (pNextEntry) {
@@ -137,7 +165,7 @@ BOOL __hoit_refresh_write_buffer(PHOIT_INODE_INFO pInodeInfo) {
                     pNextEntry->pTreeNode = pTempNode;
                 }
             }
-            
+            pNowEntry = pNextEntry;
         }
     }
 
