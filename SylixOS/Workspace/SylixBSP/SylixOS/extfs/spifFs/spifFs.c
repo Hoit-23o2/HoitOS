@@ -18,7 +18,7 @@
 **
 ** 描        述: Spiffs文件系统接口层
 *********************************************************************************************************/
-#define SPIFFS_DISABLE
+//#define SPIFFS_DISABLE
 #ifndef SPIFFS_DISABLE
 #include "spifFs.h"
 #define  __SYLIXOS_STDIO

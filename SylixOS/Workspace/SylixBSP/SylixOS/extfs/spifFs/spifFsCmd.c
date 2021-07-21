@@ -24,11 +24,11 @@ void spiffsCreateFile(PCHAR pFileName) {
 
     iFd = open(pFileName, O_WRONLY | O_CREAT | O_TRUNC, mode);   /*  排他性创建 */ 
     if (iFd < 0) {
-        printf("%s create error!\n",pFileName);
+        printf("%s create error! \n",pFileName);
         return ;
     }
     /* 文件统一写入"Hello spiffs" */
-    printf("\t%s starts writing.\n", pFileName);
+    printf("\t%s starts writing. %d\n", pFileName, iFd);
     write(iFd, pcWriteBuffer, lib_strlen(pcWriteBuffer));
     close(iFd);
 }
@@ -53,7 +53,7 @@ BOOL spiffsCheckFile(PCHAR pFileName){
         return ;
     }
     /* 文件统一写入"Hello hoitfs" */
-    printf("\t%s starts reading.\n", pFileName);
+    printf("\t%s starts reading. %d\n", pFileName, iFd);
     lib_memset(ucReadBuffer, 0, 16);
     read(iFd, ucReadBuffer, 16);
     close(iFd);

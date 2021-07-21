@@ -233,7 +233,7 @@ static VOID  halDrvInit (VOID)
     canDrv();                                                           /*  CAN    device driver        */
     
     API_HoitFsDrvInstall();                                             /*  挂载HoitFS文件系统 */
-    //API_SpifFsDrvInstall();                                             /*  挂载SpifFS文件系统 */
+    API_SpifFsDrvInstall();                                             /*  挂载SpifFS文件系统 */
     s3c2440GpioDrv();
 
 #ifdef MINI2440_PACKET

@@ -419,7 +419,7 @@ PSPIFFS_CACHE_PAGE spiffsCachePageGetByFd(PSPIFFS_VOLUME pfs, PSPIFFS_FD pFd){
 *********************************************************************************************************/
 VOID spiffsCacheFdRelease(PSPIFFS_VOLUME pfs, PSPIFFS_CACHE_PAGE pCachePage){
     UINT i;
-    PSPIFFS_FD *pFds;
+    PSPIFFS_FD  pFds;
     PSPIFFS_FD  pFdCur;
     if(pCachePage == LW_NULL)
         return;
