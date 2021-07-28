@@ -1,7 +1,7 @@
 from typing import List, Tuple
 
 from xlwings.main import Book, Sheet
-from global_var import *
+from global_file import *
 import xlwings
 
 import win32com.client      
@@ -105,8 +105,8 @@ def draw(table_name: str, col_names: List[str], col_values: List[List[str]]):
     root_dir = os.path.dirname(__file__)
     base_out_img_dir = root_dir + G_IMG_OUT_DIR
     base_out_excels_dir = root_dir + G_EXCEL_OUT_DIR
-    out_img_path = root_dir + G_IMG_OUT_DIR + "\\img_"+table_name +".png"
-    out_xlsx_path = root_dir + G_EXCEL_OUT_DIR + "\\excel_"+table_name +".xlsx"
+    out_img_path = root_dir + G_IMG_OUT_DIR + "\\img_" + table_name +".png"
+    out_xlsx_path = root_dir + G_EXCEL_OUT_DIR + "\\excel_" + table_name +".xlsx"
     
     if not os.access(base_out_img_dir, os.F_OK):
         os.mkdir(base_out_img_dir)
@@ -141,11 +141,14 @@ def draw(table_name: str, col_names: List[str], col_values: List[List[str]]):
 
     wb.save(out_xlsx_path)
     wb.close()
+    print("等待中...")
     save_chart(out_xlsx_path, out_img_path)
-
+    print("完成!")
 
 def main():
-    [table_name, col_names, col_values] = parse_formatted_file("./data2/test_read.txt")
+    path = get_local_file()
+    [table_name, col_names, col_values] = parse_formatted_file(path)
     draw(table_name, col_names, col_values)
+
 if __name__ == "__main__":
     main()

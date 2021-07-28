@@ -1,18 +1,9 @@
 from os import access, mkdir, path, sep
 import os
 from typing import List
-import tkinter as tk
-from tkinter import filedialog
-from global_var import *
+from global_file import *
 
-def get_local_file():
-    root = tk.Tk()
-    root.withdraw()
 
-    file_path = filedialog.askopenfilename()
-
-    print('文件路径：', file_path)
-    return file_path
 
 def get_sections_from_raw(path: str) -> List:
     """从原始路径文件获取每个以空行分隔的section内容
@@ -115,7 +106,7 @@ def name_sections(sections: List[List]) -> None:
 def give_table_name() -> str:
     return input("输入表名: ")
 
-def format(raw_path : str, sections : List[List], table_name: str) -> None :
+def format(raw_path : str, sections : List[List], table_name: str) -> str :
     root_file_name = __file__
     root_dir = os.path.dirname(root_file_name)
     raw_name = os.path.basename(raw_path) 
@@ -153,7 +144,7 @@ def format(raw_path : str, sections : List[List], table_name: str) -> None :
     with open(path_out, "w+") as f:
         for line in out:
             f.write(line)
-
+    return path_out
 
 def main():
     raw_path = get_local_file()

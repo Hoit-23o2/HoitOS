@@ -89,14 +89,22 @@ INT gc_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
 
 INT fs_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     PCHAR       pcFSOption;
+    ULONG       ulUsecPerTick;
+	ULONG       ulMsecStart;
+    ULONG       ulMsecEnd;
+	
 
     pcFSOption = GET_ARG(1);
+    
+	ulUsecPerTick = 1000000 / API_TimeGetFrequency();
+    
     if(EQU_ARG("-i", pcFSOption)){
         __hoitShowSectorInfo(_G_Volumn);
     }
     else if (EQU_ARG("-t", pcFSOption))
     {
         pcFSOption = GET_ARG(2);
+        ulMsecStart = API_TimeGet() * ulUsecPerTick / 1000;
         if(EQU_ARG("ftt", pcFSOption)){                                 /* hoit -t ftt 2 3 2 */
             hoitTestFileTree(iArgC - 2, ppcArgV + 2);
         }
@@ -111,7 +119,13 @@ INT fs_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
         else if (EQU_ARG("ebs", pcFSOption)) {
             hoitTestEBS(_G_Volumn);
         }
+        ulMsecEnd = API_TimeGet()  * ulUsecPerTick / 1000;
+        //!  ‰≥ˆ≤‚ ‘ ±º‰ - Added By PYQ
+        API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+        printf("cmd [%s] finished at %ldms\n", pcFSOption, ulMsecEnd - ulMsecStart);
+        API_TShellColorEnd(STD_OUT);
     }
+
 }
 
 

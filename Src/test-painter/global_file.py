@@ -1,3 +1,6 @@
+import tkinter as tk
+from tkinter import filedialog
+
 G_SYM_SECTION_DIVIDER      = "======"
 G_SYM_SECTION_TITLE_DEIVIDER = "------"
 G_SYM_CONTENT_DIVIDER        = "******"
@@ -88,3 +91,12 @@ G_GRAPH_DIC = {
     'xy_scatter_smooth': 72,
     'xy_scatter_smooth_no_markers': 73
 }
+
+def get_local_file():
+    root = tk.Tk()
+    root.withdraw()
+
+    file_path = filedialog.askopenfilename()
+
+    print('文件路径：', file_path)
+    return file_path
