@@ -902,13 +902,13 @@ inline UINT32  hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcach
     UINT32              crc     = 0;
     UINT32              count   = pcacheHdr->HOITCACHE_PageAmount;
     UINT32              norAddr = NOR_FLASH_START_OFFSET + 
-                                    sector_no*GET_SECTOR_SIZE(sector_no) + 
+                                    sector_no*GET_SECTOR_SIZE(8) +
                                     pcacheHdr->HOITCACHE_EBSStartAddr;
     PHOIT_EBS_ENTRY     pentry;
     PCHAR               pEBSarea    = LW_NULL;
     if (pcache == LW_NULL) {
         pEBSarea    = (PCHAR)__SHEAP_ALLOC((pcacheHdr->HOITCACHE_PageAmount+1)*sizeof(HOIT_EBS_ENTRY));
-        if (pEBSarea = LW_NULL)
+        if (pEBSarea == LW_NULL)
             return  PX_ERROR;
         pentry      = (PHOIT_EBS_ENTRY)pEBSarea;
         read_nor(norAddr, pEBSarea, (pcacheHdr->HOITCACHE_PageAmount+1)*sizeof(HOIT_EBS_ENTRY));
