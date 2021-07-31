@@ -677,7 +677,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     UINT                    uiSectorNum;
 
 
-    uiSectorSize            = hoitGetSectorSize(sector_no);
+    uiSectorSize            = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize;
     uiSectorOffset          = hoitGetSectorOffset(sector_no);
     uiFreeSize              = uiSectorSize;
     uiUsedSize              = 0;
@@ -742,7 +742,11 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
             crc32_check(pRawHeader);
             if (__HOIT_IS_TYPE_INODE(pRawHeader)) {
                 PHOIT_RAW_INODE     pRawInode   = (PHOIT_RAW_INODE)pNow;
+
+                __HOITFS_VOL_LOCK(pfs);
                 PHOIT_INODE_CACHE   pInodeCache = __hoit_get_inode_cache(pfs, pRawInode->ino);
+                __HOITFS_VOL_UNLOCK(pfs);
+
                 if (pInodeCache == LW_NULL) {                  /* 创建一个Inode Cache */
                     pInodeCache = (PHOIT_INODE_CACHE)__SHEAP_ALLOC(sizeof(HOIT_INODE_CACHE));
                     if (pInodeCache == LW_NULL) {
@@ -752,7 +756,10 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
                     pInodeCache->HOITC_ino = pRawInode->ino;
                     pInodeCache->HOITC_nlink = 0;
                     pInodeCache->HOITC_nodes = LW_NULL;
+
+                    __HOITFS_VOL_LOCK(pfs);
                     __hoit_add_to_cache_list(pfs, pInodeCache);
+                    __HOITFS_VOL_UNLOCK(pfs);
                 }
                 pRawInfo                    = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
                 pRawInfo->phys_addr         = uiSectorOffset + (pNow - pReadBuf);
@@ -787,7 +794,11 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
             }
             else if (__HOIT_IS_TYPE_DIRENT(pRawHeader)) {
                 PHOIT_RAW_DIRENT pRawDirent = (PHOIT_RAW_DIRENT)pNow;
+
+                __HOITFS_VOL_LOCK(pfs);
                 PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pRawDirent->pino);  /* 这里的pino才是目录文件自己的ino */
+                __HOITFS_VOL_UNLOCK(pfs);
+
                 if (pInodeCache == LW_NULL) {
                     pInodeCache = (PHOIT_INODE_CACHE)__SHEAP_ALLOC(sizeof(HOIT_INODE_CACHE));
                     if (pInodeCache == LW_NULL) {
@@ -797,7 +808,10 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
                     pInodeCache->HOITC_ino = pRawDirent->pino;  /* 这里的pino才是目录文件自己的ino */
                     pInodeCache->HOITC_nlink = 0;
                     pInodeCache->HOITC_nodes = LW_NULL;
+
+                    __HOITFS_VOL_LOCK(pfs);
                     __hoit_add_to_cache_list(pfs, pInodeCache);
+                    __HOITFS_VOL_UNLOCK(pfs);
                 }
                 pRawInfo                = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
                 pRawInfo->phys_addr     = uiSectorOffset + (pNow - pReadBuf);
@@ -810,6 +824,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
                 __hoit_add_raw_info_to_sector(pErasableSector, pRawInfo);
 
                 if (pRawDirent->pino == HOIT_ROOT_DIR_INO) {    /* 如果扫描到的是根目录的目录项 */
+                    __HOITFS_VOL_LOCK(pfs);
                     PHOIT_FULL_DIRENT pFullDirent = __hoit_bulid_full_dirent(pfs, pRawInfo);
                     INT addFail = 0;
                     if (pfs->HOITFS_pRootDir == LW_NULL) {      /* 如果根目录的唯一RawInode还未扫描到 */
@@ -823,6 +838,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
                         __SHEAP_FREE(pFullDirent->HOITFD_file_name);
                         __SHEAP_FREE(pFullDirent);
                     }
+                    __HOITFS_VOL_UNLOCK(pfs);
                 }
             }
             
@@ -835,12 +851,12 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
             //        lib_memcpy(*ppRawLogHdr, pRawLog, sizeof(HOIT_RAW_LOG));
             //    }
             //}
-            
+            __HOITFS_VOL_LOCK(pfs);
             if (pRawHeader->ino > pfs->HOITFS_highest_ino)
                 pfs->HOITFS_highest_ino = pRawHeader->ino;
             if (pRawHeader->version > pfs->HOITFS_highest_version)
                 pfs->HOITFS_highest_version = pRawHeader->version;
-            
+            __HOITFS_VOL_UNLOCK(pfs);
             //!初始化pErasableSector的更多信息, Added by PYQ 2021-04-26
             if (pRawInfo != LW_NULL){
 
@@ -861,7 +877,9 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     pErasableSector->HOITS_uiFreeSize = uiFreeSize;
     pErasableSector->HOITS_offset = uiUsedSize;     /*! Modified By PYQ 更新写入偏移 */
 
+    __HOITFS_VOL_LOCK(pfs);
     __hoit_add_to_sector_list(pfs, pErasableSector);
+    __HOITFS_VOL_UNLOCK(pfs);
 
     __SHEAP_FREE(pReadBuf);
     __SHEAP_FREE(pThreadAttr);
@@ -1762,10 +1780,26 @@ ssize_t  __hoit_read(PHOIT_INODE_INFO  pInodeInfo, PVOID  pvBuffer, size_t  stSi
 ** 调用模块:
 *********************************************************************************************************/
 ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  stNBytes, size_t  stOft, UINT needLog) {
-    if (pInodeInfo->HOITN_rbtree != LW_NULL) {
-        if(stNBytes == 0){
-            return stNBytes;
+    PHOIT_VOLUME pfs = pInodeInfo->HOITN_volume;
+    if (stNBytes > HOIT_MAX_DATA_SIZE) {
+        UINT uBufOffset = 0;
+        UINT uOldNBytes = stNBytes;
+        while(stNBytes > HOIT_MAX_DATA_SIZE){
+            __hoit_write(pInodeInfo, pvBuffer+uBufOffset, HOIT_MAX_DATA_SIZE, stOft+uBufOffset, needLog);
+            stNBytes -= HOIT_MAX_DATA_SIZE;
+            uBufOffset += HOIT_MAX_DATA_SIZE;
         }
+        if(stNBytes > 0){
+            __hoit_write(pInodeInfo, pvBuffer+uBufOffset, stNBytes, stOft+uBufOffset, needLog);
+        }
+        return uOldNBytes;
+    }
+
+    if(stNBytes == 0){
+        return stNBytes;
+    }
+
+    if (pInodeInfo->HOITN_rbtree != LW_NULL) {
         PHOIT_FULL_DNODE pFullDnode = __hoit_write_full_dnode(pInodeInfo, stOft, stNBytes, pvBuffer, needLog);
         PHOIT_FRAG_TREE_NODE pTreeNode = newHoitFragTreeNode(pFullDnode, stNBytes, stOft, stOft);
         hoitFragTreeInsertNode(pInodeInfo->HOITN_rbtree, pTreeNode);
@@ -1870,24 +1904,24 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
         pThreadAttr->pfs = pfs;
         pThreadAttr->sector_no = sector_no;
 
-        __hoit_scan_single_sector(pThreadAttr);
-        // API_ThreadAttrBuild(&scThreadAttr,
-        //     4 * LW_CFG_KB_SIZE,
-        //     LW_PRIO_NORMAL,
-        //     LW_OPTION_THREAD_STK_CHK,
-        //     (VOID*)pThreadAttr);
+        //__hoit_scan_single_sector(pThreadAttr);
+        API_ThreadAttrBuild(&scThreadAttr,
+             4 * LW_CFG_KB_SIZE,
+             LW_PRIO_NORMAL,
+             LW_OPTION_THREAD_STK_CHK,
+             (VOID*)pThreadAttr);
 
-        // ulObjectHandle[handleSize++] = API_ThreadCreate("t_scan_thread",
-        //     (PTHREAD_START_ROUTINE)__hoit_scan_single_sector,
-        //     &scThreadAttr,
-        //     LW_NULL);
+        ulObjectHandle[handleSize++] = API_ThreadCreate("t_scan_thread",
+            (PTHREAD_START_ROUTINE)__hoit_scan_single_sector,
+            &scThreadAttr,
+            LW_NULL);
         sector_no++;
     }
 
 
-    // for (i = 0; i < handleSize; i++) {
-    //     API_ThreadJoin(ulObjectHandle[i], LW_NULL);
-    // }
+     for (i = 0; i < handleSize; i++) {
+         API_ThreadJoin(ulObjectHandle[i], LW_NULL);
+     }
     
     pfs->HOITFS_highest_ino++;
     pfs->HOITFS_highest_version++;

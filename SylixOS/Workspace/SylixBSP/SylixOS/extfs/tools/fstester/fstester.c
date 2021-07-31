@@ -98,6 +98,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiTestCount)
                 pReadBuffer         = (PCHAR)lib_malloc(uiRandomReadSize);
                 lseek(iFdTemp, uiRandomReadOffset, SEEK_SET);
                 read(iFdTemp, pReadBuffer, uiRandomReadSize);
+                printf("read: %s\n", pReadBuffer);
                 lib_free(pReadBuffer);
             }
             ulMsecEnd           = API_TimeGet()  * ulUsecPerTick / 1000;

@@ -77,6 +77,7 @@
 #define HOIT_FLAG_OBSOLETE                  0x00000000
 #define HOIT_ERROR                          100
 #define HOIT_ROOT_DIR_INO                   1   /* HoitFs的根目录的ino为1 */
+#define HOIT_MAX_DATA_SIZE                  4096
 #define __HOIT_IS_OBSOLETE(pRawHeader)      ((pRawHeader->flag & HOIT_FLAG_NOT_OBSOLETE)    == 0)
 #define __HOIT_IS_TYPE_INODE(pRawHeader)    ((pRawHeader->flag & HOIT_FLAG_TYPE_INODE)  != 0)
 #define __HOIT_IS_TYPE_DIRENT(pRawHeader)   ((pRawHeader->flag & HOIT_FLAG_TYPE_DIRENT) != 0)
@@ -89,6 +90,13 @@
 #define GET_DIRTY_LIST(pfs)   pfs->HOITFS_dirtySectorList
 #define GET_CLEAN_LIST(pfs)   pfs->HOITFS_cleanSectorList
 #define __HOIT_MIN_4_TIMES(value)           ((value+3)/4*4) /* 将value扩展到4的倍数 */
+
+/*********************************************************************************************************
+  文件卷锁操作
+*********************************************************************************************************/
+#define __HOITFS_VOL_LOCK(pfs)        API_SemaphoreMPend(pfs->HOITFS_hVolLock, \
+                                        LW_OPTION_WAIT_INFINITE)
+#define __HOITFS_VOL_UNLOCK(pfs)      API_SemaphoreMPost(pfs->HOITFS_hVolLock)
 
 /*********************************************************************************************************
   检测路径字串是否为根目录或者直接指向设备
