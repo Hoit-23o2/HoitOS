@@ -435,13 +435,13 @@ typedef struct HOIT_CACHE_HDR
     UINT32                  HOITCACHE_blockNums;    /* 当前cache数量 */
     LW_OBJECT_HANDLE        HOITCACHE_hLock;        /* cache自旋锁? */
     UINT32                  HOITCACHE_flashBlkNum;  /* 将flash分块后的块数 */
-    PHOIT_CACHE_BLK         HOITCACHE_cacheLineHdr;  /* cache链表头，注意该节点不保存数据 */
     UINT32                  HOITCACHE_nextBlkToWrite;/* 下一个要输出的块 */
+    PHOIT_CACHE_BLK         HOITCACHE_cacheLineHdr;  /* cache链表头，注意该节点不保存数据 */
 
     //! 2021-07-04 ZN filter层
     // size_t                  HOITCACHE_EBSEntrySize; /* EBS enty大小 */
-    size_t                  HOITCACHE_EBSStartAddr; /* EBS 在sector中起始地址 */
-    // size_t                  HOITCACHE_PageSize;     /* 单页大小 */
+    size_t                  HOITCACHE_CRCMagicAddr;   /* EBS 区域 CRC 校验码位置 */
+    size_t                  HOITCACHE_EBSStartAddr;   /* EBS 在sector中起始地址 */
     size_t                  HOITCACHE_PageAmount;     /* 单个cache sector中的页数量，也是EBS entry的总数量 */
 }HOIT_CACHE_HDR;
 

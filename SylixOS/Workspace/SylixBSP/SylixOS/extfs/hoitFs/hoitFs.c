@@ -1571,7 +1571,7 @@ static INT  __hoitFsIoctl(PLW_FD_ENTRY  pfdentry,
     case FIOSYNC:                                                       /*  将文件缓存回写              */
     case FIOFLUSH:
     case FIODATASYNC:
-        hoitFlushCache(pfs->HOITFS_cacheHdr);
+        hoitFlushCache(pfs->HOITFS_cacheHdr, (PHOIT_CACHE_BLK)-1);
         return  (ERROR_NONE);
         
     case FIOCHMOD:

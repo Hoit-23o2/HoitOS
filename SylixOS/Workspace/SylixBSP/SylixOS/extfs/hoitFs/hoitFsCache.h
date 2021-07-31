@@ -131,7 +131,8 @@ BOOL                hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr,
                                       UINT32 uiOfs, 
                                       PCHAR pContent, 
                                       UINT32 uiSize);
-UINT32              hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr);
+UINT32              hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr, 
+                                    PHOIT_CACHE_BLK pcache);
 UINT32              hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, 
                                         UINT32 cacheType,
                                         UINT32 uiSize);
@@ -146,11 +147,12 @@ PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr,
                                      UINT32 sector_no);
 VOID                hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr, 
                                          PHOIT_ERASABLE_SECTOR pErasableSector);        
-
+VOID                hoitWriteBackCache(PHOIT_CACHE_HDR pcacheHdr, 
+                                        PHOIT_CACHE_BLK pcache);
 /*********************************************************************************************************
  * filter²ãº¯Êý
 *********************************************************************************************************/
-UINT32              hoitInitFilter(PHOIT_CACHE_HDR pcacheHdr, 
+UINT32              hoitInitEBS(PHOIT_CACHE_HDR pcacheHdr, 
                                     UINT32 uiCacheBlockSize);
 UINT32              hoitUpdateEBS(PHOIT_CACHE_HDR pcacheHdr, 
                                     PHOIT_CACHE_BLK pcache, 
@@ -161,7 +163,10 @@ VOID                __hoit_mark_obsolete(PHOIT_VOLUME pfs,
                                         PHOIT_RAW_INFO pRawInfo);
 VOID                hoitCheckEBS(PHOIT_VOLUME pfs, 
                                     UINT32 sector_no, 
-                                    UINT32 n);                                    
+                                    UINT32 n); 
+inline UINT32       hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr, 
+                                        PHOIT_CACHE_BLK pcache);
+                                                                                                          
 #ifdef HOIT_CACHE_TEST
 BOOL    test_hoit_cache();
 #endif
