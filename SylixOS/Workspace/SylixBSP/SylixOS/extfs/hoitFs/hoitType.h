@@ -451,8 +451,8 @@ typedef struct HOIT_CACHE_HDR
 *********************************************************************************************************/
 typedef struct HOIT_EBS_ENTRY
 {
-    UINT32  HOIT_EBS_ENTRY_inodeNo;     /* 所属文件inode号 */
-    UINT16  HOIT_EBS_ENTRY_obsolete;    /* 过期标志 */
+    UINT32  HOIT_EBS_ENTRY_inodeNo;     /* 所属文件inode号，未使用时全1 */
+    UINT16  HOIT_EBS_ENTRY_obsolete;    /* 过期标志，未过期时全1，过期时全0 */
     UINT16  HOIT_EBS_ENTRY_pageNo;      /* 数据实体在sector上的首个页面页号 */
 }HOIT_EBS_ENTRY;
 

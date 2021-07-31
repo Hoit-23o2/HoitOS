@@ -842,7 +842,7 @@ UINT32 hoitInitFilter(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiCacheBlockSize) {
 ** 输　入  :    pcache                   cache块结构体
                 inode                   数据实体对应的文件inode号
                 pageNum                 数据实体所占页数
-                offset                  数据实体写入的sector内位置
+                offset                  数据实体在的sector内偏移
 ** 输　出  :    
 ** 全局变量:
 ** 调用模块:    
@@ -856,7 +856,8 @@ UINT32 hoitUpdateEBS(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache, UINT32 i
     if(pcacheHdr==LW_NULL || pcache== LW_NULL) {
         return PX_ERROR;
     }
-
+    //TODO pentry应该要指向EBS区域首地址才对
+    //TODO 同一个文件相关的数据实体：inode 和 dirent有相同的ino，需要多加一个标记
     pentry      = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr + (size_t)startPageNo * HOIT_FILTER_EBS_ENTRY_SIZE);
 
     // if ( (pentry+pageNum-1) > pcacheHdr->HOITCACHE_blockSize ) {    /* 越界检测 */
@@ -980,6 +981,53 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
     }
     /* 写入位置在介质上 */
 }
+
+/*********************************************************************************************************
+** 函数名称: hoitEBSEntryAmount
+** 功能描述: 将一个sector上EBS中未过期的entry数量
+** 输　入  :    pfs             HoitFs 文件卷
+**              sector_no       需要检查的sector号
+** 输　出  :    未过期的entry数量，内存不够时返回PX_ERROR
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+UINT32 hoitCheckEBS(PHOIT_VOLUME pfs, UINT32 sector_no) {
+    PHOIT_CACHE_HDR pcacheHdr = pfs->HOITFS_cacheHdr;
+    PHOIT_EBS_ENTRY pentry;
+    PHOIT_CACHE_BLK pcache;
+    UINT32  i;
+    UINT32  amount = 0;
+    size_t  readNorAddr =   hoitGetSectorOffset(sector_no) + 
+                            NOR_FLASH_START_OFFSET + 
+                            pcacheHdr->HOITCACHE_EBSStartAddr;    /* EBS在Nor flash上的首地址 */
+
+    pcache = hoitCheckCacheHit(pcacheHdr, sector_no);
+    if (pcache != LW_NULL) {    /* 检查sector在缓存中 */
+        pentry = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr);
+        for (i=0 ; i<pcacheHdr->HOITCACHE_PageAmount ; i++) {
+            if (pentry->HOIT_EBS_ENTRY_inodeNo != (UINT32)-1 && pentry->HOIT_EBS_ENTRY_obsolete != 0)
+                amount++;
+            pentry++;
+        }
+    } else {
+        pentry = (PHOIT_EBS_ENTRY)__SHEAP_ALLOC(sizeof(HOIT_EBS_ENTRY));
+        if (pentry==LW_NULL) {
+            return PX_ERROR;
+        }
+        for (i=0; i<pcacheHdr->HOITCACHE_PageAmount ; i++) {
+            if(read_nor(readNorAddr, pentry, sizeof(HOIT_EBS_ENTRY))!=0) {
+                return PX_ERROR;
+            }
+            if (pentry->HOIT_EBS_ENTRY_inodeNo != (UINT32)-1 && pentry->HOIT_EBS_ENTRY_obsolete != 0)
+                amount++; 
+            readNorAddr += sizeof(HOIT_EBS_ENTRY);           
+        }
+    }
+    return amount;
+}
+
+
+
 
 #ifdef HOIT_CACHE_TEST
 /*
