@@ -75,8 +75,8 @@ static inline UINT hoitGetSectorSize(UINT8 sector_no){
         return -1;
     }
     UINT origin_sector_size = 1024 * (_G_am29LV160DB_sector_infos[sector_no].sector_size);
-    UINT pageNum = origin_sector_size/(HOIT_FILTER_EBS_ENTRY_SIZE + HOIT_FILTER_PAGE_SIZE);
-    return origin_sector_size - pageNum * HOIT_FILTER_EBS_ENTRY_SIZE - HOIT_FILTER_PAGE_SIZE;     
+//    UINT pageNum = origin_sector_size/(HOIT_FILTER_EBS_ENTRY_SIZE + HOIT_FILTER_PAGE_SIZE);
+    return origin_sector_size;
 }
 /*
     获取flash sector的regoin_no
@@ -149,6 +149,7 @@ VOID                hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr,
                                          PHOIT_ERASABLE_SECTOR pErasableSector);        
 VOID                hoitWriteBackCache(PHOIT_CACHE_HDR pcacheHdr, 
                                         PHOIT_CACHE_BLK pcache);
+
 /*********************************************************************************************************
  * filter层函数
 *********************************************************************************************************/
@@ -166,7 +167,10 @@ VOID                hoitCheckEBS(PHOIT_VOLUME pfs,
                                     UINT32 n); 
 inline UINT32       hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr, 
                                         PHOIT_CACHE_BLK pcache);
-                                                                                                          
+UINT32              hoitEBSEntryAmount(PHOIT_VOLUME pfs, 
+                                        UINT32 sector_no); 
+UINT32              hoitSectorGetNextAddr(UINT32 sector_no, UINT i);
+BOOL                hoitCheckSectorCRC(UINT32 sector_no);                                                                                                        
 #ifdef HOIT_CACHE_TEST
 BOOL    test_hoit_cache();
 #endif

@@ -450,7 +450,7 @@ typedef struct HOIT_CACHE_HDR
     // size_t                  HOITCACHE_EBSEntrySize; /* EBS enty大小 */
     size_t                  HOITCACHE_CRCMagicAddr;   /* EBS 区域 CRC 校验码位置 */
     size_t                  HOITCACHE_EBSStartAddr;   /* EBS 在sector中起始地址 */
-    size_t                  HOITCACHE_PageAmount;     /* 单个cache sector中的页数量，也是EBS entry的总数量 */
+    size_t                  HOITCACHE_PageAmount;     /* 单个cache sector中的页数量，也是EBS entry的总数量(数量是1k -1) */
 }HOIT_CACHE_HDR;
 
 //! 2021-7-04 ZN EBS项
