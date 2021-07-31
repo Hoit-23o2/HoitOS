@@ -169,8 +169,8 @@ inline UINT32       hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr,
                                         PHOIT_CACHE_BLK pcache);
 UINT32              hoitEBSEntryAmount(PHOIT_VOLUME pfs, 
                                         UINT32 sector_no); 
-UINT32              hoitSectorGetNextAddr(UINT32 sector_no, UINT i);
-BOOL                hoitCheckSectorCRC(UINT32 sector_no);                                                                                                        
+UINT32              hoitSectorGetNextAddr(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no, UINT i, UINT32 *obsoleteFlag);
+BOOL                hoitCheckSectorCRC(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no) ;
 #ifdef HOIT_CACHE_TEST
 BOOL    test_hoit_cache();
 #endif
