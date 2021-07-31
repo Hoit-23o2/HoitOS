@@ -79,6 +79,7 @@ SylixOS/extfs/spifFs/spifFsGC.c \
 SylixOS/extfs/spifFs/spifFsGlue.c \
 SylixOS/extfs/spifFs/spifFsLib.c \
 SylixOS/extfs/spifFs/spifFsVerify.c \
+SylixOS/extfs/tools/fstester/fstester.c \
 SylixOS/extfs/tools/list/iter.c \
 SylixOS/extfs/tools/list/list.c \
 SylixOS/extfs/tools/list/list_test.c \
