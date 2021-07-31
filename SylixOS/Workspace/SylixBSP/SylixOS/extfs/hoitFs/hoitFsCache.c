@@ -1110,9 +1110,9 @@ BOOL    hoitCheckSectorCRC(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no) {
         pcache = hoitAllocCache(pcacheHdr, sector_no, HOIT_CACHE_TYPE_DATA, LW_NULL);
     }
     new_crc = hoitEBSupdateCRC(pcacheHdr, pcache);
-    __SHEAP_FREE(pcache);
     /* ¼ÆËãcrc */
     old_crc = *(UINT32 *)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_CRCMagicAddr);
+    __SHEAP_FREE(pcache);
     return new_crc == old_crc?LW_TRUE:LW_FALSE;
 }
 
