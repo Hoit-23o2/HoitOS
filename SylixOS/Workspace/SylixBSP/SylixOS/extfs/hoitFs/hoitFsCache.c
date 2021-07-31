@@ -1103,15 +1103,14 @@ BOOL    hoitCheckSectorCRC(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no) {
     UINT32 old_crc;
     UINT32 new_crc;
     PHOIT_CACHE_BLK pcache;
-    PHOIT_ERASABLE_SECTOR pSector;
     
     pcache = hoitCheckCacheHit(pcacheHdr, sector_no);
     if (pcache == LW_NULL)
     {
-        pSector = hoitFindSector(pcacheHdr, sector_no);
-        pcache = hoitAllocCache(pcacheHdr, sector_no, HOIT_CACHE_TYPE_DATA, pSector);
+        pcache = hoitAllocCache(pcacheHdr, sector_no, HOIT_CACHE_TYPE_DATA, LW_NULL);
     }
     new_crc = hoitEBSupdateCRC(pcacheHdr, pcache);
+    __SHEAP_FREE(pcache);
     /* ¼ÆËãcrc */
     old_crc = *(UINT32 *)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_CRCMagicAddr);
     return new_crc == old_crc?LW_TRUE:LW_FALSE;
