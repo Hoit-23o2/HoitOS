@@ -884,12 +884,12 @@ UINT32 hoitUpdateEBS(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache, UINT32 i
     
     //TODO 校验码更新需要调用CRC
     pcrc = (UINT32 *)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_CRCMagicAddr);
-    *pcrc = hoitEBSupdateCRC(pcacheHdr, pcache);
+    *pcrc = hoitEBSupdateCRC(pcacheHdr, pcache, pcache->HOITBLK_blkNo);
     return ERROR_NONE;
 }
 /*********************************************************************************************************
 ** 函数名称: hoitEBSupdateCRC
-** 功能描述: 在添加新的EBS项之后，重新计算整个EBS区域新的CRC校验码。
+** 功能描述: 在添加新的EBS项之后，重新计算整个EBS区域新的CRC校验码。pcache为空时，去flash中计算。
 ** 输　入  :    pcacheHdr       cache头结构
 **              pcache          数据cache块结构
 ** 输　出  : 
@@ -897,11 +897,25 @@ UINT32 hoitUpdateEBS(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache, UINT32 i
 ** 调用模块:
 ** 注意:    如果EBS entry进行更改，就需要调整代码
 *********************************************************************************************************/
-inline UINT32  hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache) {
+inline UINT32  hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache, UINT32 sector_no) {
     UINT32              i,j;
     UINT32              crc     = 0;
     UINT32              count   = pcacheHdr->HOITCACHE_PageAmount;
-    PHOIT_EBS_ENTRY     pentry  = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr);
+    UINT32              norAddr = NOR_FLASH_START_OFFSET + 
+                                    sector_no*GET_SECTOR_SIZE(sector_no) + 
+                                    pcacheHdr->HOITCACHE_EBSStartAddr;
+    PHOIT_EBS_ENTRY     pentry;
+    PCHAR               pEBSarea    = LW_NULL;
+    if (pcache == LW_NULL) {
+        pEBSarea    = (PCHAR)__SHEAP_ALLOC((pcacheHdr->HOITCACHE_PageAmount+1)*sizeof(HOIT_EBS_ENTRY));
+        if (pEBSarea = LW_NULL)
+            return  PX_ERROR;
+        pentry      = (PHOIT_EBS_ENTRY)pEBSarea;
+        read_nor(norAddr, pEBSarea, (pcacheHdr->HOITCACHE_PageAmount+1)*sizeof(HOIT_EBS_ENTRY));
+    } else {
+        pentry  = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr);
+    }
+    
     for (i=0 ; i<count ; i++) {
         crc ^= pentry->HOIT_EBS_ENTRY_inodeNo;
         for(j=0 ; j<8 ; j++)
@@ -911,6 +925,7 @@ inline UINT32  hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcach
             crc = (crc >> 1) ^ ((crc & 1) ? CRCPOLY_LE : 0);  
         pentry ++;      
     }
+    __SHEAP_FREE(pEBSarea);
     return crc;
 }
 
@@ -1102,17 +1117,9 @@ UINT32  hoitSectorGetNextAddr(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no, UINT 
 BOOL    hoitCheckSectorCRC(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no) {
     UINT32 old_crc;
     UINT32 new_crc;
-    PHOIT_CACHE_BLK pcache;
-    
-    pcache = hoitCheckCacheHit(pcacheHdr, sector_no);
-    if (pcache == LW_NULL)
-    {
-        pcache = hoitAllocCache(pcacheHdr, sector_no, HOIT_CACHE_TYPE_DATA, LW_NULL);
-    }
-    new_crc = hoitEBSupdateCRC(pcacheHdr, pcache);
-    __SHEAP_FREE(pcache);
+    new_crc = hoitEBSupdateCRC(pcacheHdr, LW_NULL, sector_no);
     /* 计算crc */
-    old_crc = *(UINT32 *)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_CRCMagicAddr);
+    read_nor(NOR_FLASH_START_OFFSET + sector_no*GET_SECTOR_SIZE(8) + pcacheHdr->HOITCACHE_CRCMagicAddr, &old_crc, sizeof(UINT32));
     return new_crc == old_crc?LW_TRUE:LW_FALSE;
 }
 
