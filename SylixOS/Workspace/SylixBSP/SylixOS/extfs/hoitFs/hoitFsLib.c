@@ -714,7 +714,10 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
 
     PHOIT_EBS_ENTRY pEntry  = (PHOIT_EBS_ENTRY)(pReadBuf + EBSStartAddr);
     UINT32 uPageIndex       = 0;
-
+#ifndef EBS_ENABLE
+    PCHAR pNow = pReadBuf;
+    while (pNow < pReadBuf + uiSectorSize) {
+#else
     while ((PCHAR)pEntry < pReadBuf + uiSectorSize) {
 
         if (pEntry->HOIT_EBS_ENTRY_obsolete == 0) {/* 0是过期 */
@@ -724,7 +727,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
         }
 
         PCHAR pNow = pReadBuf + uPageIndex * HOIT_FILTER_PAGE_SIZE;    /* 拿到Entry对应的Page首地址 */
-
+#endif
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pNow;
         if(sector_no == 0 
         && pRawHeader->ino != -1
@@ -860,17 +863,21 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
             //!初始化pErasableSector的更多信息, Added by PYQ 2021-04-26
             if (pRawInfo != LW_NULL){
 
-            } 
-            //pNow += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
-            //pNow += pRawHeader->totlen;
+            }
+#ifndef EBS_ENABLE
+            pNow += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
+#else
             pEntry += 1;
             uPageIndex += 1;
+#endif
         }
         else {
-            //pNow += 4;   /* 每次移动4字节 */
-            //pNow += 1;   /* 每次移动1字节 */
+#ifndef EBS_ENABLE
+            pNow += 4;   /* 每次移动4字节 */
+#else
             pEntry += 1;
             uPageIndex += 1;
+#endif
         }
     }
     pErasableSector->HOITS_uiUsedSize = uiUsedSize;
@@ -1804,11 +1811,11 @@ ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  st
         PHOIT_FRAG_TREE_NODE pTreeNode = newHoitFragTreeNode(pFullDnode, stNBytes, stOft, stOft);
         hoitFragTreeInsertNode(pInodeInfo->HOITN_rbtree, pTreeNode);
         hoitFragTreeOverlayFixUp(pInodeInfo->HOITN_rbtree);
-
+#ifdef WRITE_BUFFER_ENABLE
         if (stNBytes < HOIT_WRITE_BUFFER_FRAGSIZE) {
             __hoit_new_write_entry(pInodeInfo, pInodeInfo->HOITN_pWriteBuffer, pTreeNode);
         }
-
+#endif
         return stNBytes;
     }
     else {
@@ -1903,8 +1910,9 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
         ScanThreadAttr* pThreadAttr = (ScanThreadAttr*)lib_malloc(sizeof(ScanThreadAttr));
         pThreadAttr->pfs = pfs;
         pThreadAttr->sector_no = sector_no;
-
-        //__hoit_scan_single_sector(pThreadAttr);
+#ifndef MULTI_THREAD_ENABLE
+        __hoit_scan_single_sector(pThreadAttr);
+#else
         API_ThreadAttrBuild(&scThreadAttr,
              4 * LW_CFG_KB_SIZE,
              LW_PRIO_NORMAL,
@@ -1915,14 +1923,15 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
             (PTHREAD_START_ROUTINE)__hoit_scan_single_sector,
             &scThreadAttr,
             LW_NULL);
+#endif
         sector_no++;
     }
 
-
+#ifdef MULTI_THREAD_ENABLE
      for (i = 0; i < handleSize; i++) {
          API_ThreadJoin(ulObjectHandle[i], LW_NULL);
      }
-    
+#endif
     pfs->HOITFS_highest_ino++;
     pfs->HOITFS_highest_version++;
     printf("now sector offs: %d \n", pfs->HOITFS_now_sector->HOITS_offset);
