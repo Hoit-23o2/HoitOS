@@ -522,6 +522,10 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
             uiPerSize = uiPhySize;
         }
 
+        if(uiPerSize > uiSize){
+            uiPerSize = uiSize;
+        }
+
         pPerContent = (PCHAR)lib_malloc(uiPerSize);                                 /* 每一次读取的内容 */
         //TODO: 待实现
         hoitReadFromCache(pFTTree->pfs->HOITFS_cacheHdr, uiPerOfs, pPerContent, uiPerSize);
@@ -530,8 +534,14 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
         lib_free(pPerContent);
         
         pFTlist = pFTlist->pFTlistNext;
+
+
         uiSizeRead += uiPerSize;
         uiSizeRemain -= uiPerSize;
+
+        if(uiSizeRead == uiSize) {
+            break;
+        }
     }
 
     hoitFragTreeListFree(pFTlistHeader);                                             /* 释放收集链表 */
