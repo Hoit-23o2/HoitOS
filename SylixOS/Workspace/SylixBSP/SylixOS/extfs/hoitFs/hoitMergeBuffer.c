@@ -21,7 +21,7 @@
 #define  __SYLIXOS_STDIO
 #define  __SYLIXOS_KERNEL
 
-#include "hoitWriteBuffer.h"
+#include "hoitMergeBuffer.h"
 #include "hoitFsLib.h"
 #include "hoitFsTree.h"
 
@@ -33,128 +33,128 @@
 #ifndef HOITFSLIB_DISABLE
 
 /*********************************************************************************************************
-** 函数名称: __hoit_new_write_buffer
+** 函数名称: __hoit_new_merge_buffer
 ** 功能描述: 为一个文件新建WriteBuffer
 ** 输　入  :
 ** 输　出  :
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-BOOL __hoit_new_write_buffer(PHOIT_INODE_INFO pInodeInfo) {
-    if (pInodeInfo->HOITN_pWriteBuffer == LW_NULL) {
-        pInodeInfo->HOITN_pWriteBuffer              = (PHOIT_WRITE_BUFFER)lib_malloc(sizeof(HOIT_WRITE_BUFFER));
-        pInodeInfo->HOITN_pWriteBuffer->pList       = LW_NULL;
-        pInodeInfo->HOITN_pWriteBuffer->threshold   = HOIT_WRITE_BUFFER_THRESHOLD;
-        pInodeInfo->HOITN_pWriteBuffer->size        = 0;
+BOOL __hoit_new_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
+    if (pInodeInfo->HOITN_pMergeBuffer == LW_NULL) {
+        pInodeInfo->HOITN_pMergeBuffer              = (PHOIT_MERGE_BUFFER)lib_malloc(sizeof(HOIT_MERGE_BUFFER));
+        pInodeInfo->HOITN_pMergeBuffer->pList       = LW_NULL;
+        pInodeInfo->HOITN_pMergeBuffer->threshold   = HOIT_MERGE_BUFFER_THRESHOLD;
+        pInodeInfo->HOITN_pMergeBuffer->size        = 0;
     }
     return LW_TRUE;
 }
 /*********************************************************************************************************
-** 函数名称: __hoit_new_write_entry
+** 函数名称: __hoit_new_merge_entry
 ** 功能描述: 为一个文件的一个红黑树节点新建一个WriteEntry
 ** 输　入  :
 ** 输　出  :
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-BOOL __hoit_new_write_entry(PHOIT_INODE_INFO pInodeInfo, PHOIT_WRITE_BUFFER pWriteBuffer, PHOIT_FRAG_TREE_NODE pTreeNode) {
+BOOL __hoit_new_merge_entry(PHOIT_INODE_INFO pInodeInfo, PHOIT_MERGE_BUFFER pMergeBuffer, PHOIT_FRAG_TREE_NODE pTreeNode) {
     /* 没有相关的Entry, 新建一个Entry */
-    PHOIT_WRITE_ENTRY pWriteEntry = (PHOIT_WRITE_ENTRY)lib_malloc(sizeof(HOIT_WRITE_ENTRY));
-    pWriteEntry->pTreeNode = pTreeNode;
-    pWriteEntry->pNext = LW_NULL;
-    pWriteEntry->pPrev = LW_NULL;
-    pTreeNode->pWriteEntry = pWriteEntry;
+    PHOIT_MERGE_ENTRY pMergeEntry = (PHOIT_MERGE_ENTRY)lib_malloc(sizeof(HOIT_MERGE_ENTRY));
+    pMergeEntry->pTreeNode = pTreeNode;
+    pMergeEntry->pNext = LW_NULL;
+    pMergeEntry->pPrev = LW_NULL;
+    pTreeNode->pMergeEntry = pMergeEntry;
 
-    if (pWriteBuffer->pList == LW_NULL) {
-        pWriteBuffer->pList = pWriteEntry;
-        pWriteBuffer->size += 1;
+    if (pMergeBuffer->pList == LW_NULL) {
+        pMergeBuffer->pList = pMergeEntry;
+        pMergeBuffer->size += 1;
     }
     else {
-        pWriteEntry->pNext = pWriteBuffer->pList;
-        pWriteBuffer->pList->pPrev = pWriteEntry;
-        pWriteBuffer->pList = pWriteEntry;
-        pWriteBuffer->size += 1;
+        pMergeEntry->pNext = pMergeBuffer->pList;
+        pMergeBuffer->pList->pPrev = pMergeEntry;
+        pMergeBuffer->pList = pMergeEntry;
+        pMergeBuffer->size += 1;
     }
-    if (pWriteBuffer->size >= pWriteBuffer->threshold) {    /* 当WriteBuffer中链接的数据节点数目大于阈值时进行合并 */
-        __hoit_refresh_write_buffer(pInodeInfo);
+    if (pMergeBuffer->size >= pMergeBuffer->threshold) {    /* 当WriteBuffer中链接的数据节点数目大于阈值时进行合并 */
+        __hoit_refresh_merge_buffer(pInodeInfo);
     }
 
     return LW_TRUE;
 }
 
 /*********************************************************************************************************
-** 函数名称: __hoit_del_write_entry
+** 函数名称: __hoit_del_merge_entry
 ** 功能描述: 
 ** 输　入  :
 ** 输　出  :
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-BOOL __hoit_del_write_entry(PHOIT_WRITE_BUFFER pWriteBuffer, PHOIT_WRITE_ENTRY pWriteEntry) {
-    if (pWriteEntry == LW_NULL) {
+BOOL __hoit_del_merge_entry(PHOIT_MERGE_BUFFER pMergeBuffer, PHOIT_MERGE_ENTRY pMergeEntry) {
+    if (pMergeEntry == LW_NULL) {
         return LW_FALSE;
     }
-    if (pWriteEntry->pPrev) {
-        pWriteEntry->pPrev->pNext = pWriteEntry->pNext;
+    if (pMergeEntry->pPrev) {
+        pMergeEntry->pPrev->pNext = pMergeEntry->pNext;
     }
-    if (pWriteEntry->pNext) {
-        pWriteEntry->pNext->pPrev = pWriteEntry->pPrev;
-    }
-
-    if (pWriteBuffer->pList == pWriteEntry) {
-        pWriteBuffer->pList = pWriteEntry->pNext;
+    if (pMergeEntry->pNext) {
+        pMergeEntry->pNext->pPrev = pMergeEntry->pPrev;
     }
 
-    __SHEAP_FREE(pWriteEntry);
+    if (pMergeBuffer->pList == pMergeEntry) {
+        pMergeBuffer->pList = pMergeEntry->pNext;
+    }
+
+    __SHEAP_FREE(pMergeEntry);
 
     return LW_TRUE;
 }
 
 /*********************************************************************************************************
-** 函数名称: __hoit_free_write_buffer
+** 函数名称: __hoit_free_merge_buffer
 ** 功能描述:
 ** 输　入  :
 ** 输　出  :
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-BOOL __hoit_free_write_buffer(PHOIT_INODE_INFO pInodeInfo) {
-    if (pInodeInfo == LW_NULL || pInodeInfo->HOITN_pWriteBuffer == LW_NULL) {
+BOOL __hoit_free_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
+    if (pInodeInfo == LW_NULL || pInodeInfo->HOITN_pMergeBuffer == LW_NULL) {
         return LW_FALSE;
     }
 
-    PHOIT_WRITE_BUFFER pWriteBuffer     = pInodeInfo->HOITN_pWriteBuffer;
-    PHOIT_WRITE_ENTRY pNowWriteEntry    = pWriteBuffer->pList;
-    PHOIT_WRITE_ENTRY pNextWriteEntry   = LW_NULL;
+    PHOIT_MERGE_BUFFER pMergeBuffer     = pInodeInfo->HOITN_pMergeBuffer;
+    PHOIT_MERGE_ENTRY pNowWriteEntry    = pMergeBuffer->pList;
+    PHOIT_MERGE_ENTRY pNextWriteEntry   = LW_NULL;
     while (pNowWriteEntry) {
         pNextWriteEntry = pNowWriteEntry->pNext;
         __SHEAP_FREE(pNowWriteEntry);
         pNowWriteEntry = pNextWriteEntry;
     }
-    __SHEAP_FREE(pWriteBuffer);
-    pInodeInfo->HOITN_pWriteBuffer = LW_NULL;
+    __SHEAP_FREE(pMergeBuffer);
+    pInodeInfo->HOITN_pMergeBuffer = LW_NULL;
 
     return LW_TRUE;
 }
 
 /*********************************************************************************************************
-** 函数名称: __hoit_refresh_write_buffer
+** 函数名称: __hoit_refresh_merge_buffer
 ** 功能描述: 将WriteBuffer中的已有的所有的数据进行相邻合并
 ** 输　入  : 
 ** 输　出  :
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-BOOL __hoit_refresh_write_buffer(PHOIT_INODE_INFO pInodeInfo) {
-    PHOIT_WRITE_BUFFER pWriteBuffer = pInodeInfo->HOITN_pWriteBuffer;
+BOOL __hoit_refresh_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
+    PHOIT_MERGE_BUFFER pMergeBuffer = pInodeInfo->HOITN_pMergeBuffer;
     INT32   i;
-    if (pWriteBuffer == LW_NULL) {
+    if (pMergeBuffer == LW_NULL) {
         return LW_FALSE;
     }
     /* 先排序 */
-    for (i = 0; i < pWriteBuffer->size-1; i++) {
-        PHOIT_WRITE_ENTRY pNowEntry = pWriteBuffer->pList;
-        PHOIT_WRITE_ENTRY pNextEntry = LW_NULL;
+    for (i = 0; i < pMergeBuffer->size-1; i++) {
+        PHOIT_MERGE_ENTRY pNowEntry = pMergeBuffer->pList;
+        PHOIT_MERGE_ENTRY pNextEntry = LW_NULL;
         while(pNowEntry)
         {
             pNextEntry = pNowEntry->pNext;
@@ -170,8 +170,8 @@ BOOL __hoit_refresh_write_buffer(PHOIT_INODE_INFO pInodeInfo) {
     }
 
     /* TODO */
-    PHOIT_WRITE_ENTRY pNowEntry     = pWriteBuffer->pList;
-    PHOIT_WRITE_ENTRY pLastEntry    = LW_NULL;
+    PHOIT_MERGE_ENTRY pNowEntry     = pMergeBuffer->pList;
+    PHOIT_MERGE_ENTRY pLastEntry    = LW_NULL;
     UINT32 left     = -1;
     UINT32 right    = -1;
     UINT32 count    = 0;
