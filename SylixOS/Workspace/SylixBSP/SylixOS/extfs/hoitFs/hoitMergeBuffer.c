@@ -10,13 +10,13 @@
 **
 **--------------文件信息--------------------------------------------------------------------------------
 **
-** 文   件   名: HoitWriteBuffer.c
+** 文   件   名: HoitMergeBuffer.c
 **
 ** 创   建   人: Hu Zhisheng
 **
 ** 文件创建日期: 2021 年 07 月 10 日
 **
-** 描        述: Hoit文件系统为每个文件建立的WriteBuffer的函数库, 用于合并写的小数据
+** 描        述: Hoit文件系统为每个文件建立的MergeBuffer的函数库, 用于合并写的小数据
 *********************************************************************************************************/
 #define  __SYLIXOS_STDIO
 #define  __SYLIXOS_KERNEL
@@ -34,7 +34,7 @@
 
 /*********************************************************************************************************
 ** 函数名称: __hoit_new_merge_buffer
-** 功能描述: 为一个文件新建WriteBuffer
+** 功能描述: 为一个文件新建MergeBuffer
 ** 输　入  :
 ** 输　出  :
 ** 全局变量:
@@ -75,7 +75,7 @@ BOOL __hoit_new_merge_entry(PHOIT_INODE_INFO pInodeInfo, PHOIT_MERGE_BUFFER pMer
         pMergeBuffer->pList = pMergeEntry;
         pMergeBuffer->size += 1;
     }
-    if (pMergeBuffer->size >= pMergeBuffer->threshold) {    /* 当WriteBuffer中链接的数据节点数目大于阈值时进行合并 */
+    if (pMergeBuffer->size >= pMergeBuffer->threshold) {    /* 当MergeBuffer中链接的数据节点数目大于阈值时进行合并 */
         __hoit_refresh_merge_buffer(pInodeInfo);
     }
 
@@ -139,7 +139,7 @@ BOOL __hoit_free_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
 
 /*********************************************************************************************************
 ** 函数名称: __hoit_refresh_merge_buffer
-** 功能描述: 将WriteBuffer中的已有的所有的数据进行相邻合并
+** 功能描述: 将MergeBuffer中的已有的所有的数据进行相邻合并
 ** 输　入  : 
 ** 输　出  :
 ** 全局变量:
