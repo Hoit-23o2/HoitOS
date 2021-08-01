@@ -940,8 +940,9 @@ INT hoitTestGC(PHOIT_VOLUME pfs){
 
 /*********************************************************************************************************
  * EBS测试
+ * 向第一块sector写入一个inode和dirent，然后查看EBS区域的更新情况
 *********************************************************************************************************/
-INT hoitTestEBS(PHOIT_VOLUME pfs) {
+INT hoitEBSTest(PHOIT_VOLUME pfs) {
     PHOIT_CACHE_HDR     pcacheHdr = pfs->HOITFS_cacheHdr;
     PHOIT_RAW_INODE     pRawInode;
     PCHAR               pRawInodeData;
@@ -1022,4 +1023,32 @@ INT hoitTestEBS(PHOIT_VOLUME pfs) {
     __hoit_mark_obsolete(pfs, (PHOIT_RAW_HEADER)pRawDirent, pRawDirentInfo);
     hoitCheckEBS(pfs, 0, 8);
     return ERROR_NONE;
+}
+/*********************************************************************************************************
+ * EBS检查
+ * 检查某一块sector前n项数据
+ * 第一个参数为sector号，范围是0~26
+ * 第二个参数为检查前n个EBS表项的数量，范围是0~1K
+*********************************************************************************************************/
+INT hoitEBSCheckCmd(PHOIT_VOLUME pfs, INT  iArgC, PCHAR  ppcArgV[]) {
+    UINT32  sector_no;
+    UINT32  n;
+
+    if (pfs == LW_NULL || pfs->HOITFS_cacheHdr == LW_NULL){
+        printk("hoitEBSCheckCmd failed : pfs == NULL or cache header == NULL\n");
+        return PX_ERROR;
+    }
+    if (iArgC != 3) {
+        fprintf(stderr, "arguments error!\n");
+        return  (-ERROR_TSHELL_EPARAM);        
+    }
+    
+    sector_no   = lib_atoi(ppcArgV[1]);
+    n           = lib_atoi(ppcArgV[2]);
+    if (sector_no>26 || n > pfs->HOITFS_cacheHdr->HOITCACHE_PageAmount) {
+        fprintf(stderr, "arguments out of range!\n");
+        return  (-ERROR_TSHELL_EPARAM); 
+    }
+
+    hoitCheckEBS(pfs, sector_no, n);
 }

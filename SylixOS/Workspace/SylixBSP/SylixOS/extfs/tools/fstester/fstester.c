@@ -22,12 +22,23 @@
 #include "driver/mtd/nor/nor.h"
 #include "lorem.h"
 
+/* 简化幂函数运算，结果不能超过UINT */
+inline UINT uiPower(UINT index, UINT base) {
+    UINT result = 1;
+    UINT i;
+    for(i=0; i<index; i++) {
+        result *= base;
+    }
+    return result;
+}
+
 VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiTestCount){
     PCHAR           pMountPoint;
     PCHAR           pFSType;
     PCHAR           pOutputDir;
     PCHAR           pOutputPath;
     UINT            i;
+    UINT            j;
     INT             iFdOut, iFdTemp;
     ULONG           ulUsecPerTick;
 	ULONG           ulMsecStart;
@@ -44,6 +55,12 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiTestCount)
     UINT            uiReadSize   = 5;
     
     PCHAR           pTempPath;
+
+    CHAR            RandomWriteData;        /* 随机写随机数据 */
+    long            uiRandomWriteOffset;    /* 随机写偏移 */
+    UINT            uiRandomWriteSize;      /* 随机写大小 */
+    PCHAR           pWriteBuffer;           /* 随机写buffer */
+
     pMountPoint     = getFSMountPoint(fsType);
     pOutputDir      = getFSTestOutputDir(fsType, testType);
     pOutputPath     = getFSTestOutputPath(fsType, testType);
@@ -81,14 +98,13 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiTestCount)
                 pReadBuffer         = (PCHAR)lib_malloc(uiRandomReadSize);
                 lseek(iFdTemp, uiRandomReadOffset, SEEK_SET);
                 read(iFdTemp, pReadBuffer, uiRandomReadSize);
+                printf("read: %s\n", pReadBuffer);
                 lib_free(pReadBuffer);
             }
             ulMsecEnd           = API_TimeGet()  * ulUsecPerTick / 1000;
             iByteWriteOnce      = asprintf(&pOutContent, "%d\n", ulMsecEnd - ulMsecStart);
-            lseek(iFdOut, iByteWriteTotal, SEEK_SET);
             write(iFdOut, pOutContent, iByteWriteOnce);
             lib_free(pOutContent);
-            iByteWriteTotal +=iByteWriteOnce;
         }
         close(iFdTemp);
         remove(pTempPath);
@@ -121,10 +137,8 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiTestCount)
             }
             ulMsecEnd           = API_TimeGet()  * ulUsecPerTick / 1000;
             iByteWriteOnce      = asprintf(&pOutContent, "%d\n", ulMsecEnd - ulMsecStart);
-            lseek(iFdOut, iByteWriteTotal, SEEK_SET);
             write(iFdOut, pOutContent, iByteWriteOnce);
             lib_free(pOutContent);
-            iByteWriteTotal += iByteWriteOnce;
         }
         close(iFdTemp);
         remove(pTempPath);
@@ -133,9 +147,134 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiTestCount)
         nor_reset(NOR_FLASH_BASE);
         break;
     }
+    case TEST_TYPE_RDM_WR: {
+        API_Mount("1", pMountPoint, pFSType);
+        asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
+        sleep(1);
+        iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
+        write(iFdTemp, _G_pLorem, lib_strlen(_G_pLorem));
+        fstat(iFdTemp, &stat);
+        if(iFdTemp < 0){
+            printf("[%s] can't create output file [%s]", __func__, pTempPath);
+            return;
+        }
+        pWriteBuffer        = (PCHAR)lib_malloc(uiPower(12 , 2)*sizeof(CHAR));
+        if (pWriteBuffer == LW_NULL) {
+            printf("less memory!\n");
+            goto __test_error;
+        }
+        for (i = 0; i < uiTestCount; i++)
+        {
+            printf("====== TEST %d ======\n", i);
+            ulMsecStart         = API_TimeGet() * ulUsecPerTick / 1000;
+            {
+                RandomWriteData     = (CHAR)(lib_rand() % 26 + 'a');
+                uiRandomWriteOffset = lib_random() % stat.st_size;  /* [0 ~  size] */
+                uiRandomWriteSize   = uiPower(uiTestCount % 8 + 4 , 2)*sizeof(CHAR);
+                lib_memset(&pWriteBuffer, RandomWriteData, uiRandomWriteSize);
+                lseek(iFdOut, uiRandomWriteOffset, SEEK_SET);
+                write(iFdTemp, &pWriteBuffer, uiRandomWriteSize);
+            }
+            ulMsecEnd           = API_TimeGet()  * ulUsecPerTick / 1000;
+            iByteWriteOnce      = asprintf(&pOutContent, "%d\n", ulMsecEnd - ulMsecStart);
+            write(iFdOut, pOutContent, iByteWriteOnce);
+            lib_free(pOutContent);
+        }
+        lib_free(pWriteBuffer);
+        close(iFdTemp);
+        remove(pTempPath);
+        lib_free(pTempPath);
+        API_Unmount(pMountPoint);
+        nor_reset(NOR_FLASH_BASE);
+        break;
+    }   
+    case TEST_TYPE_SEQ_WR: {
+        API_Mount("1", pMountPoint, pFSType);
+        asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
+        sleep(1);
+        iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
+        write(iFdTemp, _G_pLorem, lib_strlen(_G_pLorem));
+        fstat(iFdTemp, &stat);
+        if(iFdTemp < 0){
+            printf("[%s] can't create output file [%s]", __func__, pTempPath);
+            return;
+        }
+        pWriteBuffer        = (PCHAR)lib_malloc(uiPower(12 , 2)*sizeof(CHAR));
+        if (pWriteBuffer == LW_NULL) {
+            printf("less memory!\n");
+            goto __test_error;
+        }
+        for (i = 0; i < uiTestCount; i++)
+        {
+            printf("====== TEST %d ======\n", i);
+            ulMsecStart         = API_TimeGet() * ulUsecPerTick / 1000;
+            {
+                RandomWriteData     = (CHAR)(lib_rand() % 26 + 'a');
+                uiRandomWriteSize   = uiPower(uiTestCount % 8 + 4 , 2)*sizeof(CHAR);
+                lib_memset(&pWriteBuffer, RandomWriteData, uiRandomWriteSize);
+                write(iFdTemp, &pWriteBuffer, uiRandomWriteSize);
+            }
+            ulMsecEnd           = API_TimeGet()  * ulUsecPerTick / 1000;
+            iByteWriteOnce      = asprintf(&pOutContent, "%d\n", ulMsecEnd - ulMsecStart);
+            write(iFdOut, pOutContent, iByteWriteOnce);
+            lib_free(pOutContent);
+        }
+        lib_free(pWriteBuffer);
+        close(iFdTemp);
+        remove(pTempPath);
+        lib_free(pTempPath);
+        API_Unmount(pMountPoint);
+        nor_reset(NOR_FLASH_BASE);
+        break;
+    }     
+    case TEST_TYPE_SMALL_WR: {
+        API_Mount("1", pMountPoint, pFSType);
+        asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
+        sleep(1);
+        iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
+        write(iFdTemp, _G_pLorem, lib_strlen(_G_pLorem));
+        fstat(iFdTemp, &stat);
+        if(iFdTemp < 0){
+            printf("[%s] can't create output file [%s]", __func__, pTempPath);
+            return;
+        }
+
+        for (i = 0; i < uiTestCount; i++)
+        {
+            printf("====== TEST %d ======\n", i);
+            ulMsecStart         = API_TimeGet() * ulUsecPerTick / 1000;
+            {
+                RandomWriteData     = (CHAR)(lib_rand() % 26 + 'a');
+                uiRandomWriteSize   = uiPower(uiTestCount % 8 + 4 , 2); /* 范围：2^4 ~ 2^11；单位：字符个数 */
+                for (j=0; j<uiRandomWriteSize ; j++)
+                    write(iFdTemp, &RandomWriteData, sizeof(CHAR));
+            }
+            ulMsecEnd           = API_TimeGet()  * ulUsecPerTick / 1000;
+            iByteWriteOnce      = asprintf(&pOutContent, "%d\n", ulMsecEnd - ulMsecStart);
+            write(iFdOut, pOutContent, iByteWriteOnce);
+            lib_free(pOutContent);
+        }
+        lib_free(pWriteBuffer);
+        close(iFdTemp);
+        remove(pTempPath);
+        lib_free(pTempPath);
+        API_Unmount(pMountPoint);
+        nor_reset(NOR_FLASH_BASE);
+        break;
+    }     
     default:
         break;
     }
+    close(iFdOut);
+    lib_free(pOutputPath);
+    return;
+
+__test_error:
+    close(iFdTemp);
+    remove(pTempPath);
+    lib_free(pTempPath);
+    API_Unmount(pMountPoint);
+    nor_reset(NOR_FLASH_BASE);
     close(iFdOut);
     lib_free(pOutputPath);
     return;

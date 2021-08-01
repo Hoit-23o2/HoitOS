@@ -53,6 +53,9 @@
 *********************************************************************************************************/
 //#define DEBUG_LOG
 #define  LOG_TEST
+//#define  MULTI_THREAD_ENABLE      /* 启用多线程 */
+//#define  EBS_ENABLE               /* 启用EBS */
+//#define  WRITE_BUFFER_ENABLE      /* 启用WriteBuffer */
 //! 07-18 ZN 暂时注释log
 // #define  LOG_ENABLE
 
@@ -77,6 +80,7 @@
 #define HOIT_FLAG_OBSOLETE                  0x00000000
 #define HOIT_ERROR                          100
 #define HOIT_ROOT_DIR_INO                   1   /* HoitFs的根目录的ino为1 */
+#define HOIT_MAX_DATA_SIZE                  4096
 #define __HOIT_IS_OBSOLETE(pRawHeader)      ((pRawHeader->flag & HOIT_FLAG_NOT_OBSOLETE)    == 0)
 #define __HOIT_IS_TYPE_INODE(pRawHeader)    ((pRawHeader->flag & HOIT_FLAG_TYPE_INODE)  != 0)
 #define __HOIT_IS_TYPE_DIRENT(pRawHeader)   ((pRawHeader->flag & HOIT_FLAG_TYPE_DIRENT) != 0)
@@ -89,6 +93,13 @@
 #define GET_DIRTY_LIST(pfs)   pfs->HOITFS_dirtySectorList
 #define GET_CLEAN_LIST(pfs)   pfs->HOITFS_cleanSectorList
 #define __HOIT_MIN_4_TIMES(value)           ((value+3)/4*4) /* 将value扩展到4的倍数 */
+
+/*********************************************************************************************************
+  文件卷锁操作
+*********************************************************************************************************/
+#define __HOITFS_VOL_LOCK(pfs)        API_SemaphoreMPend(pfs->HOITFS_hVolLock, \
+                                        LW_OPTION_WAIT_INFINITE)
+#define __HOITFS_VOL_UNLOCK(pfs)      API_SemaphoreMPost(pfs->HOITFS_hVolLock)
 
 /*********************************************************************************************************
   检测路径字串是否为根目录或者直接指向设备
@@ -435,14 +446,14 @@ typedef struct HOIT_CACHE_HDR
     UINT32                  HOITCACHE_blockNums;    /* 当前cache数量 */
     LW_OBJECT_HANDLE        HOITCACHE_hLock;        /* cache自旋锁? */
     UINT32                  HOITCACHE_flashBlkNum;  /* 将flash分块后的块数 */
-    PHOIT_CACHE_BLK         HOITCACHE_cacheLineHdr;  /* cache链表头，注意该节点不保存数据 */
     UINT32                  HOITCACHE_nextBlkToWrite;/* 下一个要输出的块 */
+    PHOIT_CACHE_BLK         HOITCACHE_cacheLineHdr;  /* cache链表头，注意该节点不保存数据 */
 
     //! 2021-07-04 ZN filter层
     // size_t                  HOITCACHE_EBSEntrySize; /* EBS enty大小 */
-    size_t                  HOITCACHE_EBSStartAddr; /* EBS 在sector中起始地址 */
-    // size_t                  HOITCACHE_PageSize;     /* 单页大小 */
-    size_t                  HOITCACHE_PageAmount;     /* 单个cache sector中的页数量，也是EBS entry的总数量 */
+    size_t                  HOITCACHE_CRCMagicAddr;   /* EBS 区域 CRC 校验码位置 */
+    size_t                  HOITCACHE_EBSStartAddr;   /* EBS 在sector中起始地址 */
+    size_t                  HOITCACHE_PageAmount;     /* 单个cache sector中的页数量，也是EBS entry的总数量(数量是1k -1) */
 }HOIT_CACHE_HDR;
 
 //! 2021-7-04 ZN EBS项
@@ -451,8 +462,8 @@ typedef struct HOIT_CACHE_HDR
 *********************************************************************************************************/
 typedef struct HOIT_EBS_ENTRY
 {
-    UINT32  HOIT_EBS_ENTRY_inodeNo;     /* 所属文件inode号 */
-    UINT16  HOIT_EBS_ENTRY_obsolete;    /* 过期标志 */
+    UINT32  HOIT_EBS_ENTRY_inodeNo;     /* 所属文件inode号，未使用时全1 */
+    UINT16  HOIT_EBS_ENTRY_obsolete;    /* 过期标志，未过期时全1，过期时全0 */
     UINT16  HOIT_EBS_ENTRY_pageNo;      /* 数据实体在sector上的首个页面页号 */
 }HOIT_EBS_ENTRY;
 

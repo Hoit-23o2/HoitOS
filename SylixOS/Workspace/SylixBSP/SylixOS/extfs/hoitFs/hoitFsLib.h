@@ -31,7 +31,6 @@
 
 #include "hoitType.h"
 #include "../tools/crc/crc32.h"
-
 typedef struct scanThreadAttr { /* 一个局部定义的结构体, 只用来给scan_single_sector传参 */
     PHOIT_VOLUME    pfs;
     UINT8           sector_no;

@@ -24,4 +24,5 @@ INT     hoitTestFileTree (INT  iArgC, PCHAR  ppcArgV[]);
 INT     hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]);
 INT     hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]);
 INT     hoitTestGC(PHOIT_VOLUME pfs);
-INT     hoitTestEBS(PHOIT_VOLUME pfs);
+INT     hoitEBSTest(PHOIT_VOLUME pfs);
+INT     hoitEBSCheckCmd(PHOIT_VOLUME pfs, INT  iArgC, PCHAR  ppcArgV[]);
