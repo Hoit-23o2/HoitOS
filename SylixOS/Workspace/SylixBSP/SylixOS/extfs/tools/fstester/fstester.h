@@ -35,10 +35,10 @@ typedef enum fs_type {
 
 typedef enum test_type{
     TEST_TYPE_RDM_WR,
-    TEST_TYPE_RDM_RD,
+    TEST_TYPE_RDM_RD,           
     
     TEST_TYPE_SEQ_WR,
-    TEST_TYPE_SEQ_RD,
+    TEST_TYPE_SEQ_RD,           
 
     TEST_TYPE_CLEAN_MNT,
     TEST_TYPE_DIRTY_MNT,

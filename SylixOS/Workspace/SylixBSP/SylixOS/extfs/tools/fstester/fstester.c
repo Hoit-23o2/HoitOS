@@ -60,8 +60,8 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiTestCount)
     switch (testType)
     {
     case TEST_TYPE_RDM_RD: {
-
         API_Mount("1", pMountPoint, pFSType);
+        /* pTempPath = /mnt/fstype(hoitfs)/write-for-test */
         asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
         sleep(1);
         iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
