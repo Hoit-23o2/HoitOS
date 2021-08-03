@@ -22,254 +22,93 @@
 #include "driver/mtd/nor/nor.h"
 #include "lorem.h"
 
-/* 简化幂函数运算，结果不能超过UINT */
-inline UINT uiPower(UINT index, UINT base) {
-    UINT result = 1;
-    UINT i;
-    for(i=0; i<index; i++) {
-        result *= base;
-    }
-    return result;
-}
+#define NAMESPACE fstester
 
-VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiTestCount){
+USE_LIST_TEMPLATE(NAMESPACE, FSTESTER_FUNC_NODE);
+List(FSTESTER_FUNC_NODE) _G_FuncNodeList;
+
+#define GET_ARG(ppcArgV, i)     *(ppcArgV + i);  
+#define IS_STR_SAME(str1, str2) (lib_strcmp(str1, str2) == 0)
+/*********************************************************************************************************
+** 函数名称: fstester_generic_test
+** 功能描述: nor flash文件系统通用测试
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiTestCount, FSTESTER_FUNCTIONALITY functionality){
+    UINT            uiLoopTimes = 100;             
+    
     PCHAR           pMountPoint;
     PCHAR           pFSType;
     PCHAR           pOutputDir;
     PCHAR           pOutputPath;
-    UINT            i;
-    UINT            j;
+    INT             i, iRes;
     INT             iFdOut, iFdTemp;
     ULONG           ulUsecPerTick;
 	ULONG           ulMsecStart;
     ULONG           ulMsecEnd;
     PCHAR           pOutContent;
     INT             iByteWriteOnce  = 0;
-    INT             iByteWriteTotal = 0;
     struct stat     stat;
 
-    PCHAR           pReadBuffer;
-    UINT            uiRandomReadOffset;
-    UINT            uiRandomReadSize;
-    UINT            uiReadOffset = 0;
-    UINT            uiReadSize   = 5;
     
     PCHAR           pTempPath;
-
-    CHAR            RandomWriteData;        /* 随机写随机数据 */
-    long            uiRandomWriteOffset;    /* 随机写偏移 */
-    UINT            uiRandomWriteSize;      /* 随机写大小 */
-    PCHAR           pWriteBuffer;           /* 随机写buffer */
 
     pMountPoint     = getFSMountPoint(fsType);
     pOutputDir      = getFSTestOutputDir(fsType, testType);
     pOutputPath     = getFSTestOutputPath(fsType, testType);
     pFSType         = translateFSType(fsType);
 	ulUsecPerTick   = 1000000 / API_TimeGetFrequency();
-    if(access(pOutputDir, F_OK) != ERROR_NONE){
-        mkdir(pOutputDir, 0);
+    /* 设定特定种子 */
+    lib_srand(FSTESTER_SEED);
+
+    if(access(pOutputDir, F_OK) != ERROR_NONE){         /* 没找到目录 */
+        mkdir(pOutputDir, 0);                           /* 建一个目录 */
+    }
+    if(access(pOutputPath, F_OK) == ERROR_NONE){        /* 找到了文件 */
+        remove(pOutputPath);                            /* 删除该文件 */
     }
     iFdOut          = open(pOutputPath, O_CREAT | O_TRUNC | O_RDWR);
     if(iFdOut < 0){
         printf("[%s] can't create output file [%s]\n", __func__, pOutputPath);
         return;
     }
-    switch (testType)
+    //FIXME: 整理代码，添加测试函数
+    API_Mount("1", pMountPoint, pFSType);
+    /* pTempPath = /mnt/fstype(hoitfs)/write-for-test */
+    asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
+    sleep(1);
+    if(access(pTempPath, F_OK) == ERROR_NONE){
+        remove(pTempPath);
+    }
+    iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
+    write(iFdTemp, _G_pLorem, lib_strlen(_G_pLorem));
+    lseek(iFdTemp, 0, SEEK_SET);                                  /* 从头开始 */
+    fstat(iFdTemp, &stat);
+    if(iFdTemp < 0){
+        printf("[%s] can't create output file [%s]", __func__, pTempPath);
+        return;
+    }
+    for (i = 0; i < uiTestCount; i++)
     {
-    case TEST_TYPE_RDM_RD: {
-        API_Mount("1", pMountPoint, pFSType);
-        /* pTempPath = /mnt/fstype(hoitfs)/write-for-test */
-        asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
-        sleep(1);
-        iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
-        write(iFdTemp, _G_pLorem, lib_strlen(_G_pLorem));
-        fstat(iFdTemp, &stat);
-        if(iFdTemp < 0){
-            printf("[%s] can't create output file [%s]", __func__, pTempPath);
-            return;
-        }
-        for (i = 0; i < uiTestCount; i++)
+        printf("====== TEST %d ======\n", i);
+        ulMsecStart         = API_TimeGet() * ulUsecPerTick / 1000;
         {
-            printf("====== TEST %d ======\n", i);
-            ulMsecStart         = API_TimeGet() * ulUsecPerTick / 1000;
-            {
-                uiRandomReadOffset  = lib_random() % stat.st_size;  /* [0 ~  size] */
-                uiRandomReadSize    = lib_rand() % 80 + 20;         /* [20 ~ 100]随机数 */ 
-                pReadBuffer         = (PCHAR)lib_malloc(uiRandomReadSize);
-                lseek(iFdTemp, uiRandomReadOffset, SEEK_SET);
-                read(iFdTemp, pReadBuffer, uiRandomReadSize);
-                printf("read: %s\n", pReadBuffer);
-                lib_free(pReadBuffer);
+            iRes = functionality(iFdTemp, stat.st_size, uiLoopTimes);
+            if(iRes != ERROR_NONE){
+                printf("[TEST %d Fail]\n",i);
+                break;
             }
-            ulMsecEnd           = API_TimeGet()  * ulUsecPerTick / 1000;
-            iByteWriteOnce      = asprintf(&pOutContent, "%d\n", ulMsecEnd - ulMsecStart);
-            write(iFdOut, pOutContent, iByteWriteOnce);
-            lib_free(pOutContent);
         }
-        close(iFdTemp);
-        remove(pTempPath);
-        lib_free(pTempPath);
-        API_Unmount(pMountPoint);
-        nor_reset(NOR_FLASH_BASE);
-        break;
+        ulMsecEnd           = API_TimeGet()  * ulUsecPerTick / 1000;
+        iByteWriteOnce      = asprintf(&pOutContent, "%d\n", ulMsecEnd - ulMsecStart);
+        write(iFdOut, pOutContent, iByteWriteOnce);
+        lib_free(pOutContent);
     }
-    case TEST_TYPE_SEQ_RD: {
-        API_Mount("1", pMountPoint, pFSType);
-        asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
-        sleep(1);
-        iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
-        write(iFdTemp, _G_pLorem, lib_strlen(_G_pLorem));
-        fstat(iFdTemp, &stat);
-        if(iFdTemp < 0){
-            printf("[%s] can't create output file [%s]", __func__, pTempPath);
-            return;
-        }
-        for (i = 0; i < uiTestCount; i++)
-        {
-            printf("====== TEST %d ======\n", i);
-            ulMsecStart         = API_TimeGet() * ulUsecPerTick / 1000;
-            {
-                pReadBuffer         = (PCHAR)lib_malloc(uiReadSize);
-                lseek(iFdTemp, uiReadOffset, SEEK_SET);
-                read(iFdTemp, pReadBuffer, uiRandomReadSize);
-                uiReadOffset += uiRandomReadSize;
-                lib_free(pReadBuffer);
-            }
-            ulMsecEnd           = API_TimeGet()  * ulUsecPerTick / 1000;
-            iByteWriteOnce      = asprintf(&pOutContent, "%d\n", ulMsecEnd - ulMsecStart);
-            write(iFdOut, pOutContent, iByteWriteOnce);
-            lib_free(pOutContent);
-        }
-        close(iFdTemp);
-        remove(pTempPath);
-        lib_free(pTempPath);
-        API_Unmount(pMountPoint);
-        nor_reset(NOR_FLASH_BASE);
-        break;
-    }
-    case TEST_TYPE_RDM_WR: {
-        API_Mount("1", pMountPoint, pFSType);
-        asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
-        sleep(1);
-        iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
-        write(iFdTemp, _G_pLorem, lib_strlen(_G_pLorem));
-        fstat(iFdTemp, &stat);
-        if(iFdTemp < 0){
-            printf("[%s] can't create output file [%s]", __func__, pTempPath);
-            return;
-        }
-        pWriteBuffer        = (PCHAR)lib_malloc(uiPower(12 , 2)*sizeof(CHAR));
-        if (pWriteBuffer == LW_NULL) {
-            printf("less memory!\n");
-            goto __test_error;
-        }
-        for (i = 0; i < uiTestCount; i++)
-        {
-            printf("====== TEST %d ======\n", i);
-            ulMsecStart         = API_TimeGet() * ulUsecPerTick / 1000;
-            {
-                RandomWriteData     = (CHAR)(lib_rand() % 26 + 'a');
-                uiRandomWriteOffset = lib_random() % stat.st_size;  /* [0 ~  size] */
-                uiRandomWriteSize   = uiPower(uiTestCount % 8 + 4 , 2)*sizeof(CHAR);
-                lib_memset(&pWriteBuffer, RandomWriteData, uiRandomWriteSize);
-                lseek(iFdOut, uiRandomWriteOffset, SEEK_SET);
-                write(iFdTemp, &pWriteBuffer, uiRandomWriteSize);
-            }
-            ulMsecEnd           = API_TimeGet()  * ulUsecPerTick / 1000;
-            iByteWriteOnce      = asprintf(&pOutContent, "%d\n", ulMsecEnd - ulMsecStart);
-            write(iFdOut, pOutContent, iByteWriteOnce);
-            lib_free(pOutContent);
-        }
-        lib_free(pWriteBuffer);
-        close(iFdTemp);
-        remove(pTempPath);
-        lib_free(pTempPath);
-        API_Unmount(pMountPoint);
-        nor_reset(NOR_FLASH_BASE);
-        break;
-    }   
-    case TEST_TYPE_SEQ_WR: {
-        API_Mount("1", pMountPoint, pFSType);
-        asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
-        sleep(1);
-        iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
-        write(iFdTemp, _G_pLorem, lib_strlen(_G_pLorem));
-        fstat(iFdTemp, &stat);
-        if(iFdTemp < 0){
-            printf("[%s] can't create output file [%s]", __func__, pTempPath);
-            return;
-        }
-        pWriteBuffer        = (PCHAR)lib_malloc(uiPower(12 , 2)*sizeof(CHAR));
-        if (pWriteBuffer == LW_NULL) {
-            printf("less memory!\n");
-            goto __test_error;
-        }
-        for (i = 0; i < uiTestCount; i++)
-        {
-            printf("====== TEST %d ======\n", i);
-            ulMsecStart         = API_TimeGet() * ulUsecPerTick / 1000;
-            {
-                RandomWriteData     = (CHAR)(lib_rand() % 26 + 'a');
-                uiRandomWriteSize   = uiPower(uiTestCount % 8 + 4 , 2)*sizeof(CHAR);
-                lib_memset(&pWriteBuffer, RandomWriteData, uiRandomWriteSize);
-                write(iFdTemp, &pWriteBuffer, uiRandomWriteSize);
-            }
-            ulMsecEnd           = API_TimeGet()  * ulUsecPerTick / 1000;
-            iByteWriteOnce      = asprintf(&pOutContent, "%d\n", ulMsecEnd - ulMsecStart);
-            write(iFdOut, pOutContent, iByteWriteOnce);
-            lib_free(pOutContent);
-        }
-        lib_free(pWriteBuffer);
-        close(iFdTemp);
-        remove(pTempPath);
-        lib_free(pTempPath);
-        API_Unmount(pMountPoint);
-        nor_reset(NOR_FLASH_BASE);
-        break;
-    }     
-    case TEST_TYPE_SMALL_WR: {
-        API_Mount("1", pMountPoint, pFSType);
-        asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
-        sleep(1);
-        iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
-        write(iFdTemp, _G_pLorem, lib_strlen(_G_pLorem));
-        fstat(iFdTemp, &stat);
-        if(iFdTemp < 0){
-            printf("[%s] can't create output file [%s]", __func__, pTempPath);
-            return;
-        }
-
-        for (i = 0; i < uiTestCount; i++)
-        {
-            printf("====== TEST %d ======\n", i);
-            ulMsecStart         = API_TimeGet() * ulUsecPerTick / 1000;
-            {
-                RandomWriteData     = (CHAR)(lib_rand() % 26 + 'a');
-                uiRandomWriteSize   = uiPower(uiTestCount % 8 + 4 , 2); /* 范围：2^4 ~ 2^11；单位：字符个数 */
-                for (j=0; j<uiRandomWriteSize ; j++)
-                    write(iFdTemp, &RandomWriteData, sizeof(CHAR));
-            }
-            ulMsecEnd           = API_TimeGet()  * ulUsecPerTick / 1000;
-            iByteWriteOnce      = asprintf(&pOutContent, "%d\n", ulMsecEnd - ulMsecStart);
-            write(iFdOut, pOutContent, iByteWriteOnce);
-            lib_free(pOutContent);
-        }
-        lib_free(pWriteBuffer);
-        close(iFdTemp);
-        remove(pTempPath);
-        lib_free(pTempPath);
-        API_Unmount(pMountPoint);
-        nor_reset(NOR_FLASH_BASE);
-        break;
-    }     
-    default:
-        break;
-    }
-    close(iFdOut);
-    lib_free(pOutputPath);
-    return;
-
-__test_error:
     close(iFdTemp);
     remove(pTempPath);
     lib_free(pTempPath);
@@ -279,6 +118,7 @@ __test_error:
     lib_free(pOutputPath);
     return;
 }
+#ifdef CONFIG_FSTESTER_SCRIPT
 /*********************************************************************************************************
 ** 函数名称: fstester_generate_script
 ** 功能描述: spiffs close 操作
@@ -399,18 +239,95 @@ VOID fstester_parse_out(){
     close(iFd);
     close(iFd2);
 }
+#endif
+
+INT fstester_register_functionality(PCHAR ppcOpts[], INT iOptCnt, PCHAR pUsage, TEST_TYPE testType, 
+                                    FSTESTER_FUNCTIONALITY functionality){
+    PFSTESTER_FUNC_NODE          pFuncNode;
+    pFuncNode = newFstesterCmdNode(ppcOpts, iOptCnt, pUsage, testType, functionality);
+    _G_FuncNodeList->append(_G_FuncNodeList, pFuncNode);
+    return ERROR_NONE;
+}
 
 INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
-    FS_TYPE fsTarget = FS_TYPE_SPIFFS;
-    fstester_generic_test(FS_TYPE_HOITFS, TEST_TYPE_RDM_RD, 5);
-    // if(iArgC == 1){
-    //     fstester_generate_script(fsTarget, 5);
-    // }
-    // if(iArgC > 1){
-    //     fstester_parse_out();
-    // }
+    Iterator(FSTESTER_FUNC_NODE) iter;
+    INT                          iArgPos = 1;
+    PCHAR                        pArg;
+    FS_TYPE                      fsTarget      = FS_TYPE_SPIFFS;
+    FSTESTER_FUNCTIONALITY       functionality = __fstesterRandomRead;
+    TEST_TYPE                    testType      = TEST_TYPE_RDM_RD;
+    PFSTESTER_FUNC_NODE          pFuncNode;
+    INT                          i;
+    UINT                         uiTestCount   = 10;
+    InitIterator(iter, NAMESPACE, FSTESTER_FUNC_NODE);
+    while (iArgPos <= iArgC)
+    {
+        pArg = GET_ARG(ppcArgV, iArgPos++);
+        if(IS_STR_SAME(pArg, "-t")){           /* 设置文件系统类型 */
+            pArg = GET_ARG(ppcArgV, iArgPos++);
+            fsTarget = getFSTypeByStr(pArg);
+        }
+        else if(IS_STR_SAME(pArg, "-h")){
+            printf("================================================\n");
+            printf("=     FSTESTER implemented By HoitFS Group     =\n");
+            printf("================================================\n");
+            printf("[Basic Usage]:        fstester -t [FSType] -l [LoopTimes] [TestType]\n");
+            printf("[Supported FSType]:   spiffs hoitfs\n");
+            printf("[Supported TestType]: \n");
+            for (iter->begin(iter, _G_FuncNodeList);iter->isValid(iter);iter->next(iter))
+            {
+                pFuncNode = iter->get(iter);
+                printf("%s:\n\t%s\n\n", pFuncNode->ppcOpts[0], pFuncNode->pUsage);
+            }
+            return;
+        }
+        else if(IS_STR_SAME(pArg, "-l")){      /* 设置测试次数 */
+            pArg = GET_ARG(ppcArgV, iArgPos++);
+            uiTestCount = lib_atoi(pArg);
+        }
+        else {                      /* 测试类型 */
+            for (iter->begin(iter, _G_FuncNodeList);iter->isValid(iter);iter->next(iter))
+            {
+                pFuncNode = iter->get(iter);
+                for (i = 0; i < pFuncNode->iOptCnt; i++)
+                {
+                    if(IS_STR_SAME(pFuncNode->ppcOpts[i], pArg)){
+                        functionality = pFuncNode->functionality;
+                        testType      = pFuncNode->testType;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    printf("Test With Options Below:\n");
+    printf("\tfilesystem_type=%s\n", translateFSType(fsTarget));
+    printf("\ttest_count=%d\n", uiTestCount);
+    printf("\ttest_type=%s\n", translateTestType(testType));
+    printf("Press Any Key to Continue\n");
+    getchar();
+    fstester_generic_test(fsTarget, testType, uiTestCount, functionality);
+    FreeIterator(iter);
 }
 
 VOID register_fstester_cmd(){
+    
+    InitList(_G_FuncNodeList, NAMESPACE, FSTESTER_FUNC_NODE);
+    
+    PCHAR cOpt1[2] = {"-rndrd", "-rrd"};
+    fstester_register_functionality(cOpt1,  2, "Random Read Test", TEST_TYPE_RDM_RD, __fstesterRandomRead);
+
+    PCHAR cOpt2[2] = {"-seqrd", "-srd"};
+    fstester_register_functionality(cOpt2,  2, "Sequence Read Test", TEST_TYPE_SEQ_RD, __fstesterSequentialRead);
+
+    PCHAR cOpt3[2] = {"-rndwr", "-rwr"};
+    fstester_register_functionality(cOpt3,  2, "Random Write Test", TEST_TYPE_RDM_WR, __fstesterRandomWrite);
+    
+    PCHAR cOpt4[2] = {"-seqwr", "-swr"};
+    fstester_register_functionality(cOpt4,  2, "Sequence Write Test", TEST_TYPE_SEQ_WR, __fstesterSequentialWrite);
+
+    PCHAR cOpt5[2] = {"-smlwr"};
+    fstester_register_functionality(cOpt5,  1, "Small Write Test", TEST_TYPE_SMALL_WR, __fstesterSmallWrite);
+
     API_TShellKeywordAdd("fstester", fstester_cmd_wrapper);
 }

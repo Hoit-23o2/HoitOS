@@ -24,6 +24,10 @@
 #ifndef SYLIXOS_EXTFS_TOOLS_FSTESTER_FSTESTER_H_
 #define SYLIXOS_EXTFS_TOOLS_FSTESTER_FSTESTER_H_
 #include "SylixOS.h"
+#include "config.h"
+#include "../list/list_interface.h"
+
+#define MAX_FUNC_NAME_LEN  128
 
 typedef enum fs_type {
     FS_TYPE_SPIFFS,
@@ -46,6 +50,64 @@ typedef enum test_type{
     TEST_TYPE_SMALL_WR
 } TEST_TYPE;
 
+
+typedef INT (*fstester_functionality)(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes);
+typedef fstester_functionality FSTESTER_FUNCTIONALITY;
+
+typedef struct fstester_func_node
+{
+    PCHAR                  *ppcOpts;
+    INT                    iOptCnt;
+    PCHAR                  pUsage;
+    TEST_TYPE              testType;
+    FSTESTER_FUNCTIONALITY functionality;
+} FSTESTER_FUNC_NODE;
+typedef FSTESTER_FUNC_NODE * PFSTESTER_FUNC_NODE;
+
+static inline PFSTESTER_FUNC_NODE newFstesterCmdNode(PCHAR ppcOpts[], INT iOptCnt, PCHAR pUsage, TEST_TYPE testType,  
+                                                     FSTESTER_FUNCTIONALITY functionality){
+    PFSTESTER_FUNC_NODE pFuncNode = (PFSTESTER_FUNC_NODE)lib_malloc(sizeof(FSTESTER_FUNC_NODE));
+    PCHAR               *ppcOptsCpys = (PCHAR *)lib_malloc(sizeof(PCHAR));
+    INT                 i;
+    PCHAR               pOpt;
+    PCHAR               pOptCpy;
+    for (i = 0; i < iOptCnt; i++)
+    {
+        pOpt = ppcOpts[i];
+        pOptCpy = (PCHAR)lib_malloc(lib_strlen(pOpt));
+        lib_strcpy(pOptCpy, pOpt);
+        ppcOptsCpys[i] = pOptCpy;
+    }
+    pFuncNode->ppcOpts       = ppcOptsCpys;
+    pFuncNode->iOptCnt       = iOptCnt;
+    pFuncNode->pUsage        = pUsage;
+    pFuncNode->testType      = testType;
+    pFuncNode->functionality = functionality;
+    return pFuncNode;
+}
+
+DECLARE_LIST_TEMPLATE(FSTESTER_FUNC_NODE);
+/*********************************************************************************************************
+  测试函数API
+*********************************************************************************************************/
+INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes);
+INT __fstesterSequentialRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes);
+INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes);
+INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes);
+INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes);
+/*********************************************************************************************************
+  工具函数
+*********************************************************************************************************/
+/*********************************************************************************************************
+** 函数名称: translateFSType
+** 功能描述: 翻译FSType
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
 static inline const PCHAR translateFSType(FS_TYPE fsType){
     switch (fsType)
     {
@@ -57,7 +119,58 @@ static inline const PCHAR translateFSType(FS_TYPE fsType){
         return "unsupported";
     }
 }
-
+static inline const PCHAR translateTestType(TEST_TYPE testType){
+    switch (testType)
+    {
+    case TEST_TYPE_RDM_WR:
+        return "random-write-test";
+    case TEST_TYPE_RDM_RD:
+        return "random-read-test";
+    case TEST_TYPE_SEQ_WR:
+        return "sequence-write-test";
+    case TEST_TYPE_SEQ_RD:
+        return "sequence-read-test";
+    case TEST_TYPE_CLEAN_MNT:
+        return "clean-mount-test";
+    case TEST_TYPE_DIRTY_MNT:
+        return "dirty-mount-test";
+    case TEST_TYPE_SMALL_WR:
+        return "small-write-test";
+    default:
+        return "unsupported";
+    }
+}
+/*********************************************************************************************************
+** 函数名称: translateFSType
+** 功能描述: 翻译FSType
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static inline FS_TYPE getFSTypeByStr(PCHAR fsTypeStr){
+    if(lib_strcmp(fsTypeStr, "spiffs") == 0){
+        return FS_TYPE_SPIFFS;
+    }
+    else if(lib_strcmp(fsTypeStr, "hoitfs") == 0){
+        return FS_TYPE_HOITFS;
+    }
+    else {                                                  /* 其余先不做选项 */
+        return FS_TYPE_HOITFS;
+    }
+}
+/*********************************************************************************************************
+** 函数名称: getFSMountPoint
+** 功能描述: 生成挂载点
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
 static inline const PCHAR getFSMountPoint(FS_TYPE fsType){
     switch (fsType)
     {
@@ -69,6 +182,16 @@ static inline const PCHAR getFSMountPoint(FS_TYPE fsType){
         return "unsupported";
     }
 }  
+/*********************************************************************************************************
+** 函数名称: getFSTestOutputDir
+** 功能描述: 生成测试输出文件夹路径
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
 static inline const PCHAR getFSTestOutputDir(FS_TYPE fsType, TEST_TYPE testType){
     switch (fsType)
     {
@@ -80,6 +203,16 @@ static inline const PCHAR getFSTestOutputDir(FS_TYPE fsType, TEST_TYPE testType)
         return "unsupported";
     }
 }
+/*********************************************************************************************************
+** 函数名称: getFSTestOutputPath
+** 功能描述: 生成测试输出文件路径
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
 static inline PCHAR getFSTestOutputPath(FS_TYPE fsType, TEST_TYPE testType){
     PCHAR pOutputPath;
     PCHAR pOutputDir;
@@ -127,7 +260,25 @@ static inline PCHAR getFSTestOutputPath(FS_TYPE fsType, TEST_TYPE testType){
     asprintf(&pOutputPath, "%s/%s/%s", pOutputBasedir, pOutputDir, pOutputFileName);
     return pOutputPath;
 }
+/*********************************************************************************************************
+** 函数名称: uiPower
+** 功能描述: 幂运算
+** 输　入  : index      指数
+**           base       底数
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static inline UINT uiPower(UINT index, UINT base) {
+    UINT result = 1;
+    UINT i;
+    for(i = 0; i < index; i++) {
+        result *= base;
+    }
+    return result;
+}
 
+#define FSTESTER_SEED   2302
 VOID register_fstester_cmd();
 
 #endif /* SYLIXOS_EXTFS_TOOLS_FSTESTER_FSTESTER_H_ */
