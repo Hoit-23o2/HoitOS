@@ -119,7 +119,8 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
     UINT phys_addr = 0;
     
     pNewRawInode->crc = 0;
-    pNewRawInode->crc = crc32_le(write_buf, sizeof(struct HOIT_RAW_INODE) + length);
+    UINT32 tempCRC = crc32_le(write_buf, sizeof(struct HOIT_RAW_INODE) + length);
+    pNewRawInode->crc = tempCRC;
     __hoit_write_flash(pfs, write_buf, sizeof(struct HOIT_RAW_INODE) + length, &phys_addr, 1);
 
     PHOIT_RAW_INFO pNewRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(struct HOIT_RAW_INFO)); /* ×¢Òâ±ÜÃâÄÚ´æÐ¹Â¶ */
