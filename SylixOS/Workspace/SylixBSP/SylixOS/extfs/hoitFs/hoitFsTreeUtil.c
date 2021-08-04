@@ -384,8 +384,7 @@ PHOIT_RB_NODE hoitRbInsertNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
 
     pRbnTrailing = pRbTree->pRbnGuard;
     pRbnTraverse = pRbTree->pRbnRoot;
-    // 测试
-    printf("Insert:%d\n", pRbn->iKey);
+    
     while (pRbnTraverse != pRbTree->pRbnGuard)
     {
         pRbnTrailing = pRbnTraverse;
@@ -458,8 +457,7 @@ BOOL hoitRbDeleteNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
     UINT32                  uiTraverseOriginColor;
 
     pRbnTraverse = pRbn;                            /* 记录待删除节点颜色 */
-    // 测试
-    printf("Delete:%d\n", pRbn->iKey);
+    
     uiTraverseOriginColor = pRbnTraverse->uiColor;
     /* 待删除节点的右孩子为空，则直接移动 (同样适于LC是NIL的情况)
               |                             |
