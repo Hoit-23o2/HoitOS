@@ -31,7 +31,7 @@
 #include "hoitFsCache.h"
 #include "hoitFsCmd.h"
 #include "hoitFsLog.h"
-#include "hoitWriteBuffer.h"
+#include "hoitMergeBuffer.h"
 #include "../../driver/mtd/nor/nor.h"
 #include "../tools/crc/crc32.h"
 /*********************************************************************************************************
@@ -145,7 +145,7 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
         pNewInode->HOITN_rbtree = (PVOID)LW_NULL;
         pNewInode->HOITN_volume = pfs;
         pNewInode->HOITN_pcLink = LW_NULL;
-        pNewInode->HOITN_pWriteBuffer = LW_NULL;
+        pNewInode->HOITN_pMergeBuffer = LW_NULL;
         return pNewInode;
     }
     else if (S_ISLNK((*ppDnodeList)->HOITFD_file_type)) {   /* 链接文件 */
@@ -158,7 +158,7 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
         pNewInode->HOITN_rbtree = (PVOID)LW_NULL;
         pNewInode->HOITN_volume = pfs;
         pNewInode->HOITN_pcLink = __hoit_get_data_after_raw_inode(pfs, pNewInode->HOITN_metadata->HOITFD_raw_info);
-        pNewInode->HOITN_pWriteBuffer = LW_NULL;
+        pNewInode->HOITN_pMergeBuffer = LW_NULL;
         return pNewInode;
     }
     else {
@@ -182,8 +182,8 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
         pNewInode->HOITN_mode = (*ppDnodeList)->HOITFD_file_type;
         pNewInode->HOITN_volume = pfs;
         pNewInode->HOITN_pcLink = LW_NULL;
-        pNewInode->HOITN_pWriteBuffer = LW_NULL;
-        __hoit_new_write_buffer(pNewInode); /* 07-18 增加初始化WriteBuffer By HZS */
+        pNewInode->HOITN_pMergeBuffer = LW_NULL;
+        __hoit_new_merge_buffer(pNewInode); /* 07-18 增加初始化WriteBuffer By HZS */
 
         PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader = hoitFragTreeCollectRange(pNewInode->HOITN_rbtree, 0, INT_MAX);
         PHOIT_FRAG_TREE_LIST_NODE pFTlistNode = pFTlistHeader->pFTlistHeader->pFTlistNext;
@@ -1522,7 +1522,7 @@ VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag)
     }
     else {
         hoitFragTreeDeleteTree(pInodeInfo->HOITN_rbtree, LW_FALSE);
-        __hoit_free_write_buffer(pInodeInfo);
+        __hoit_free_merge_buffer(pInodeInfo);
         if (pInodeInfo->HOITN_metadata != LW_NULL) __SHEAP_FREE(pInodeInfo->HOITN_metadata);
         __SHEAP_FREE(pInodeInfo);
     }
@@ -1811,8 +1811,8 @@ ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  st
         hoitFragTreeInsertNode(pInodeInfo->HOITN_rbtree, pTreeNode);
         hoitFragTreeOverlayFixUp(pInodeInfo->HOITN_rbtree);
 #ifdef WRITE_BUFFER_ENABLE
-        if (stNBytes < HOIT_WRITE_BUFFER_FRAGSIZE) {
-            __hoit_new_write_entry(pInodeInfo, pInodeInfo->HOITN_pWriteBuffer, pTreeNode);
+        if (stNBytes < HOIT_MERGE_BUFFER_FRAGSIZE) {
+            __hoit_new_merge_entry(pInodeInfo, pInodeInfo->HOITN_pMergeBuffer, pTreeNode);
         }
 #endif
         return stNBytes;

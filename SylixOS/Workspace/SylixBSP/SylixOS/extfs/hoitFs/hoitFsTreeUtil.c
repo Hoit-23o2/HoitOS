@@ -269,7 +269,7 @@ VOID __hoitRbDeleteFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
             pRbnBrother = RB_RIGHT_CHILD(RB_PARENT(pRbn));
             if(pRbnBrother->uiColor == RB_RED){                                 /* 情况1：待更新节点的兄弟节点为红色，将其转为黑色，变成情况2、3、4 */
                 pRbnBrother->uiColor = RB_BLACK;
-                pRbnBrother->pRbnParent->uiColor = RB_RED;
+                pRbn->pRbnParent->uiColor = RB_RED;
                 __hoitRbLeftRotate(pRbTree, RB_PARENT(pRbn));
                 pRbnBrother = RB_RIGHT_CHILD(RB_PARENT(pRbn));
             }
@@ -304,7 +304,7 @@ VOID __hoitRbDeleteFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
             pRbnBrother = RB_LEFT_CHILD(RB_PARENT(pRbn));
             if(pRbnBrother->uiColor == RB_RED){
                 pRbnBrother->uiColor = RB_BLACK;
-                pRbnBrother->pRbnParent->uiColor = RB_RED;
+                pRbn->pRbnParent->uiColor = RB_RED;
                 __hoitRbRightRotate(pRbTree, RB_PARENT(pRbn));
                 pRbnBrother = RB_LEFT_CHILD(RB_PARENT(pRbn));
             }

@@ -135,8 +135,8 @@ typedef struct HOIT_EBS_ENTRY             HOIT_EBS_ENTRY;
 typedef struct HOIT_LOG_INFO              HOIT_LOG_INFO;
 typedef struct HOIT_RAW_LOG               HOIT_RAW_LOG;
 
-typedef struct hoit_write_buffer          HOIT_WRITE_BUFFER;
-typedef struct hoit_write_entry           HOIT_WRITE_ENTRY;
+typedef struct hoit_merge_buffer          HOIT_MERGE_BUFFER;
+typedef struct hoit_merge_entry           HOIT_MERGE_ENTRY;
 
 typedef HOIT_VOLUME*                      PHOIT_VOLUME;
 typedef HOIT_RAW_HEADER*                  PHOIT_RAW_HEADER;
@@ -164,8 +164,8 @@ typedef HOIT_EBS_ENTRY *                  PHOIT_EBS_ENTRY;
 typedef HOIT_LOG_INFO *                   PHOIT_LOG_INFO;
 typedef HOIT_RAW_LOG *                    PHOIT_RAW_LOG;
 
-typedef HOIT_WRITE_BUFFER *               PHOIT_WRITE_BUFFER;
-typedef HOIT_WRITE_ENTRY *                PHOIT_WRITE_ENTRY;
+typedef HOIT_MERGE_BUFFER *               PHOIT_MERGE_BUFFER;
+typedef HOIT_MERGE_ENTRY *                PHOIT_MERGE_ENTRY;
 DEV_HDR          HOITFS_devhdrHdr;
 
 DECLARE_LIST_TEMPLATE(HOIT_ERASABLE_SECTOR);
@@ -310,7 +310,7 @@ struct HOIT_INODE_INFO{
     PHOIT_VOLUME        HOITN_volume;
     UINT                HOITN_ino;                                      /*  规定根目录的ino为1          */
     PCHAR               HOITN_pcLink;
-    PHOIT_WRITE_BUFFER  HOITN_pWriteBuffer;
+    PHOIT_MERGE_BUFFER  HOITN_pMergeBuffer;
 
     uid_t               HOITN_uid;                                      /*  用户 id                     */
     gid_t               HOITN_gid;                                      /*  组   id                     */
@@ -398,7 +398,7 @@ struct hoit_frag_tree_node
     PHOIT_FULL_DNODE pFDnode;
     UINT32 uiSize;
     UINT32 uiOfs;
-    PHOIT_WRITE_ENTRY pWriteEntry;
+    PHOIT_MERGE_ENTRY pMergeEntry;
 };
 
 /*********************************************************************************************************
@@ -493,19 +493,19 @@ struct HOIT_RAW_LOG
     UINT                uiLogFirstAddr;
 };
 /*********************************************************************************************************
-  HOITFS WriteBuffer 结构
+  HOITFS MergeBuffer 结构
 *********************************************************************************************************/
-struct hoit_write_buffer
+struct hoit_merge_buffer
 {
     UINT32                  size;
     UINT32                  threshold;  //触发合并操作的节点数
-    PHOIT_WRITE_ENTRY       pList;
+    PHOIT_MERGE_ENTRY       pList;
 };
-struct hoit_write_entry
+struct hoit_merge_entry
 {
     PHOIT_FRAG_TREE_NODE    pTreeNode;
-    PHOIT_WRITE_ENTRY       pNext;
-    PHOIT_WRITE_ENTRY       pPrev;
+    PHOIT_MERGE_ENTRY       pNext;
+    PHOIT_MERGE_ENTRY       pPrev;
 };
 
 /*********************************************************************************************************

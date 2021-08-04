@@ -16,10 +16,15 @@ static UINT32 crc32_le(unsigned char* p, UINT len)
 {
 	INT i;
 	UINT32 crc = 0;
+	PCHAR originPC = ((char*)p)+sizeof(HOIT_RAW_INODE);
 	while (len--) {
 		crc ^= *p++;
 		for (i = 0; i < 8; i++)
 			crc = (crc >> 1) ^ ((crc & 1) ? CRCPOLY_LE : 0);
+	}
+	if(crc == 0x13797da2){
+	    snprintf("%s", 925, originPC);
+	    printf("\nyes\n");
 	}
 	return crc;
 }
