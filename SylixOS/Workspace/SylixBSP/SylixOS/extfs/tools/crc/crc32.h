@@ -12,6 +12,7 @@
 
 
 #define CRCPOLY_LE 0xedb88320
+
 static UINT32 crc32_le(unsigned char* p, UINT len)
 {
 	INT i;
@@ -22,10 +23,12 @@ static UINT32 crc32_le(unsigned char* p, UINT len)
 		for (i = 0; i < 8; i++)
 			crc = (crc >> 1) ^ ((crc & 1) ? CRCPOLY_LE : 0);
 	}
+
 	if(crc == 0x13797da2){
-	    snprintf("%s", 925, originPC);
-	    printf("\nyes\n");
+	    snprintf("%s \n", 925, originPC);
+	    printf("yes\n");
 	}
+
 	return crc;
 }
 

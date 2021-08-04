@@ -105,6 +105,9 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
 static void crc32_check(PHOIT_RAW_HEADER pRawHeader) {
     /* ¼ì²écrcÐ£ÑéÂë */
     UINT32 uPrevCrc = pRawHeader->crc;
+    if(uPrevCrc == 0x13797da2){
+        printf("111\n");
+    }
     pRawHeader->crc = 0;
     UINT32 uNowCrc = crc32_le((unsigned char*)pRawHeader, pRawHeader->totlen);
     if (uPrevCrc != uNowCrc) {
