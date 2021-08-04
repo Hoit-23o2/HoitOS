@@ -108,7 +108,10 @@ static void crc32_check(PHOIT_RAW_HEADER pRawHeader) {
     pRawHeader->crc = 0;
     UINT32 uNowCrc = crc32_le((unsigned char*)pRawHeader, pRawHeader->totlen);
     if (uPrevCrc != uNowCrc) {
-        printf("Error in CRC!\n");
+        PHOIT_RAW_INODE pp = (PHOIT_RAW_INODE)pRawHeader;
+        CHAR* pChar = ((char*)pp)+sizeof(HOIT_RAW_INODE);
+        snprintf("%s", 925, pChar);
+        printf("\nError in CRC!\n");
     }
 
     pRawHeader->crc = uPrevCrc; /* 还原CRC到进入函数之前 */
