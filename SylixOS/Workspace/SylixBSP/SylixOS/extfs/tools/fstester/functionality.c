@@ -104,7 +104,9 @@ INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes){
             *(pWriteBuffer + j) = RANDOM_ALPHABET();
         }
         lseek(iFdTest, uiRandomWriteOffset, SEEK_SET);
-        printf("%d : %d\n", uiRandomWriteOffset, uiRandomWriteSize);
+        if(uiRandomWriteOffset == 9967 && uiRandomWriteSize == 3816){
+            printf("%d : %d\n", uiRandomWriteOffset, uiRandomWriteSize);
+        }
         write(iFdTest, pWriteBuffer, uiRandomWriteSize);
     }
     lib_free(pWriteBuffer);
