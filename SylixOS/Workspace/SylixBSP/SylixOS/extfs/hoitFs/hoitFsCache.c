@@ -902,11 +902,7 @@ inline UINT32  hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcach
     UINT32              crc     = 0;
     UINT32              count   = pcacheHdr->HOITCACHE_PageAmount;
     UINT32              norAddr = NOR_FLASH_START_OFFSET + 
-<<<<<<< HEAD
-                                    sector_no*GET_SECTOR_SIZE(8) + 
-=======
                                     sector_no*GET_SECTOR_SIZE(8) +
->>>>>>> 8937e66b78461957a3e4e6a5dc58eadd7be3776a
                                     pcacheHdr->HOITCACHE_EBSStartAddr;
     PHOIT_EBS_ENTRY     pentry;
     PCHAR               pEBSarea    = LW_NULL;

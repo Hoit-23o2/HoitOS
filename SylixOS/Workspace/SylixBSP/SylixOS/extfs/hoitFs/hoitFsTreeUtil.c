@@ -203,14 +203,14 @@ VOID __hoitRbInsertFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
                 RB_GRAND(pRbn)->uiColor = RB_RED;
                 pRbn = RB_GRAND(pRbn);
             }
-            /* 该节点是右孩子，叔叔是黑色
-                      PP(B)
-                      /   \
-                   P(R)    uncle(B)
-                      \
-                    pRbn(R)
-            */
-            else{
+            else {
+                /* 该节点是右孩子，叔叔是黑色
+                        PP(B)
+                        /   \
+                    P(R)    uncle(B)
+                        \
+                        pRbn(R)
+                */
                 if(RB_IS_RIGHT_CHILD(pRbn)){
                     pRbn = RB_PARENT(pRbn);
                     __hoitRbLeftRotate(pRbTree, pRbn);
