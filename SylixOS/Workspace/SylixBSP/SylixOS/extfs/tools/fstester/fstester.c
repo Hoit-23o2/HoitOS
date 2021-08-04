@@ -39,8 +39,8 @@ List(FSTESTER_FUNC_NODE) _G_FuncNodeList;
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiTestCount, FSTESTER_FUNCTIONALITY functionality){
-    UINT            uiLoopTimes = 100;             
+VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes, FSTESTER_FUNCTIONALITY functionality){
+    UINT            uiTestCount = 10;             
     
     PCHAR           pMountPoint;
     PCHAR           pFSType;
@@ -93,12 +93,12 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiTestCount,
         printf("[%s] can't create output file [%s]", __func__, pTempPath);
         return;
     }
-    for (i = 0; i < uiTestCount; i++)
+    for (i = 0; i < uiLoopTimes; i++)
     {
         printf("====== TEST %d ======\n", i);
         ulMsecStart         = API_TimeGet() * ulUsecPerTick / 1000;
         {
-            iRes = functionality(iFdTemp, stat.st_size, uiLoopTimes);
+            iRes = functionality(iFdTemp, stat.st_size, uiTestCount, pMountPoint);
             if(iRes != ERROR_NONE){
                 printf("[TEST %d Fail]\n",i);
                 break;

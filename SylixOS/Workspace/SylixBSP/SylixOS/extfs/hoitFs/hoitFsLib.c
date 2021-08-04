@@ -1791,12 +1791,12 @@ ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  st
         UINT uBufOffset = 0;
         UINT uOldNBytes = stNBytes;
         while(stNBytes > HOIT_MAX_DATA_SIZE){
-            __hoit_write(pInodeInfo, pvBuffer+uBufOffset, HOIT_MAX_DATA_SIZE, stOft+uBufOffset, needLog);
+            __hoit_write(pInodeInfo, pvBuffer+uBufOffset, HOIT_MAX_DATA_SIZE, stOft + uBufOffset, needLog);
             stNBytes -= HOIT_MAX_DATA_SIZE;
             uBufOffset += HOIT_MAX_DATA_SIZE;
         }
         if(stNBytes > 0){
-            __hoit_write(pInodeInfo, pvBuffer+uBufOffset, stNBytes, stOft+uBufOffset, needLog);
+            __hoit_write(pInodeInfo, pvBuffer+uBufOffset, stNBytes, stOft + uBufOffset, needLog);
         }
         return uOldNBytes;
     }
