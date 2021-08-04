@@ -837,10 +837,12 @@ UINT32 hoitInitEBS(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiCacheBlockSize) {
     if (!pcacheHdr || uiCacheBlockSize < (HOIT_FILTER_EBS_ENTRY_SIZE+HOIT_FILTER_PAGE_SIZE)) {
         return PX_ERROR;
     }
-    pcacheHdr->HOITCACHE_PageAmount     = uiCacheBlockSize/(HOIT_FILTER_EBS_ENTRY_SIZE+HOIT_FILTER_PAGE_SIZE) - 1; /* 减去一个页的空间用于保存EBS校验码 */
+    pcacheHdr->HOITCACHE_PageAmount     = uiCacheBlockSize/(HOIT_FILTER_EBS_ENTRY_SIZE+HOIT_FILTER_PAGE_SIZE); 
     addr = HOIT_FILTER_PAGE_SIZE * pcacheHdr->HOITCACHE_PageAmount; 
     pcacheHdr->HOITCACHE_EBSStartAddr   = addr;
     pcacheHdr->HOITCACHE_CRCMagicAddr   = addr - HOIT_FILTER_PAGE_SIZE; 
+    //! 2021-08-04 ZN
+    pcacheHdr->HOITCACHE_PageAmount --;/* 减去一个页的空间用于保存EBS校验码 */
     /* 添加了EBS区域和修正一个块的大小 */
     pcacheHdr->HOITCACHE_blockSize      =  pcacheHdr->HOITCACHE_blockSize - 
                                             HOIT_FILTER_PAGE_SIZE - 
@@ -867,8 +869,8 @@ UINT32 hoitUpdateEBS(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache, UINT32 i
         return PX_ERROR;
     }
     
-    pentry      = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr + (size_t)startPageNo * HOIT_FILTER_EBS_ENTRY_SIZE);
-
+    //pentry      = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr + (size_t)startPageNo * HOIT_FILTER_EBS_ENTRY_SIZE);
+    pentry      = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr);
     // if ( (pentry+pageNum-1) > pcacheHdr->HOITCACHE_blockSize ) {    /* 越界检测 */
     //     return PX_ERROR;
     // }
@@ -902,11 +904,7 @@ inline UINT32  hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcach
     UINT32              crc     = 0;
     UINT32              count   = pcacheHdr->HOITCACHE_PageAmount;
     UINT32              norAddr = NOR_FLASH_START_OFFSET + 
-<<<<<<< HEAD
-                                    sector_no*GET_SECTOR_SIZE(8) + 
-=======
                                     sector_no*GET_SECTOR_SIZE(8) +
->>>>>>> 8937e66b78461957a3e4e6a5dc58eadd7be3776a
                                     pcacheHdr->HOITCACHE_EBSStartAddr;
     PHOIT_EBS_ENTRY     pentry;
     PCHAR               pEBSarea    = LW_NULL;

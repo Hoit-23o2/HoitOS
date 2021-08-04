@@ -17,6 +17,7 @@ static UINT32 crc32_le(unsigned char* p, UINT len)
 	INT i;
 	UINT32 crc = 0;
 	PCHAR originPC = ((char*)p)+sizeof(HOIT_RAW_INODE);
+	PCHAR originP = (char*)p;
 	while (len--) {
 		crc ^= *p++;
 		for (i = 0; i < 8; i++)

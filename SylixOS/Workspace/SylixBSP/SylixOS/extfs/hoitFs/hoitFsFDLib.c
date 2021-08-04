@@ -40,7 +40,9 @@ BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFullDnode, INT
 
 		PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)read_buf;
         crc32_check(pRawHeader);
-
+        if(pRawHeader->crc == 0x13797da2){
+            hoitReadFromCache(pfs->HOITFS_cacheHdr, pFullDnode->HOITFD_raw_info->phys_addr, read_buf, pFullDnode->HOITFD_raw_info->totlen);
+        }
 		PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pRawHeader->ino);
 		if (!pInodeCache) {
 			return LW_FALSE;
