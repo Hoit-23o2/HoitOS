@@ -712,22 +712,32 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     size_t pageAmount       = uiSectorSize / (HOIT_FILTER_EBS_ENTRY_SIZE + HOIT_FILTER_PAGE_SIZE);
     size_t EBSStartAddr     = HOIT_FILTER_PAGE_SIZE * pageAmount;
 
-    PHOIT_EBS_ENTRY pEntry  = (PHOIT_EBS_ENTRY)(pReadBuf + EBSStartAddr);
-    UINT32 uPageIndex       = 0;
-#ifndef EBS_ENABLE
-    PCHAR pNow = pReadBuf;
-    while (pNow < pReadBuf + uiSectorSize) {
-#else
-    while ((PCHAR)pEntry < pReadBuf + uiSectorSize) {
+    PCHAR pNow              = pReadBuf;
 
-        if (pEntry->HOIT_EBS_ENTRY_obsolete == 0) {/* 0是过期 */
-            pEntry      += 1;
-            uPageIndex  += 1;
-            continue;
+    BOOL EBSMode = 1;   /* EBSMode表示是否启用EBS结构, Sector的EBS的CRC校验不通过或宏定义取消则EBSMode为0 */
+
+#ifndef EBS_ENABLE
+    EBSMode=0;
+#endif
+
+    if(hoitCheckSectorCRC(pfs->HOITFS_cacheHdr,sector_no) == LW_FALSE) EBSMode = 0;
+
+    BOOL stopFlag   = 0;
+    INT sectorIndex = 0;
+    UINT32 obsoleteFlag = 0;
+    while(1){
+        if(EBSMode){
+            /* EBS模式下, 如果下面函数返回全1代表该sector扫描可以提前结束, obsoleteFlag代表该Entry是否被标记过期 */
+            UINT32 uSectorOffset = hoitSectorGetNextAddr(pfs->HOITFS_cacheHdr, sector_no, sectorIndex++, &obsoleteFlag);
+            pNow = pReadBuf + uSectorOffset;
+            if(obsoleteFlag == HOIT_FLAG_OBSOLETE) continue;
+            if(uSectorOffset == -1) break;
+            if(sectorIndex > pfs->HOITFS_cacheHdr->HOITCACHE_PageAmount) break;
+        }else{
+            if(pNow > pReadBuf + uiSectorSize) break;
         }
 
-        PCHAR pNow = pReadBuf + uPageIndex * HOIT_FILTER_PAGE_SIZE;    /* 拿到Entry对应的Page首地址 */
-#endif
+
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pNow;
         if(sector_no == 0 
         && pRawHeader->ino != -1
@@ -845,15 +855,6 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
                 }
             }
             
-            //else if (__HOIT_IS_TYPE_LOG(pRawHeader)) {
-            //    *hasLog = 1;
-            //    PHOIT_RAW_LOG pRawLog = (PHOIT_RAW_LOG)pRawHeader;
-            //    if (pRawLog->uiLogFirstAddr != -1) {    /* LOG HDR */
-            //        /* hoitLogOpen(pfs, pRawLog); */
-            //        *ppRawLogHdr = (PHOIT_RAW_LOG)lib_malloc(sizeof(HOIT_RAW_LOG));
-            //        lib_memcpy(*ppRawLogHdr, pRawLog, sizeof(HOIT_RAW_LOG));
-            //    }
-            //}
             __HOITFS_VOL_LOCK(pfs);
             if (pRawHeader->ino > pfs->HOITFS_highest_ino)
                 pfs->HOITFS_highest_ino = pRawHeader->ino;
@@ -864,20 +865,18 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
             if (pRawInfo != LW_NULL){
 
             }
-#ifndef EBS_ENABLE
-            pNow += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
-#else
-            pEntry += 1;
-            uPageIndex += 1;
-#endif
+            if(EBSMode){
+                ;
+            }else{
+                pNow += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
+            }
         }
         else {
-#ifndef EBS_ENABLE
-            pNow += 4;   /* 每次移动4字节 */
-#else
-            pEntry += 1;
-            uPageIndex += 1;
-#endif
+            if(EBSMode){
+                ;
+            }else{
+                pNow += 4;   /* 每次移动4字节 */
+            }
         }
     }
     pErasableSector->HOITS_uiUsedSize = uiUsedSize;
