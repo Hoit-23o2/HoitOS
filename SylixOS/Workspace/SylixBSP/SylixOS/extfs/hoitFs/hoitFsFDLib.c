@@ -49,7 +49,7 @@ BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFullDnode, INT
 		}
 		__hoit_del_raw_data(pfs, pFullDnode->HOITFD_raw_info);
 		__hoit_del_raw_info(pInodeCache, pFullDnode->HOITFD_raw_info);
-        pFullDnode->HOITFD_raw_info->is_obsolete = HOIT_FLAG_NOT_OBSOLETE;
+        pFullDnode->HOITFD_raw_info->is_obsolete = HOIT_FLAG_OBSOLETE;
 		pFullDnode->HOITFD_raw_info = LW_NULL;
 		__SHEAP_FREE(pFullDnode);
 		return LW_TRUE;
