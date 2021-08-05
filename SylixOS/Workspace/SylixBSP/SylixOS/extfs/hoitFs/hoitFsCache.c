@@ -244,6 +244,10 @@ PHOIT_CACHE_BLK hoitCheckCacheHit(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo) 
 ** µ÷ÓÃÄ£¿é:    
 */
 BOOL hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
+    if(uiOfs == 1088472){
+        printf("debug\n");
+    }
+
     // read_nor(uiOfs, pContent, uiSize);
    PCHAR   pucDest         = pContent;
    size_t  cacheBlkSize    = pcacheHdr->HOITCACHE_blockSize;
@@ -468,7 +472,9 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
 
     pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
 
-    
+    if(writeAddr - NOR_FLASH_START_OFFSET == 1088472){
+        printf("debug\n");
+    }
     return writeAddr - NOR_FLASH_START_OFFSET;
 }
 
