@@ -570,6 +570,22 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
     //! 2021-07-04 ZN 添加EBS区域，与uiSize比较时减少一个cache块可写空间。
     PHOIT_ERASABLE_SECTOR pSector;
     Iterator(HOIT_ERASABLE_SECTOR) iter = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_sectorIterator;
+    
+    //! 2021-08-04 PYQ 强制GC功能
+    INT                   iFreeSectorNum = 0;
+    if(pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_curGCSector == LW_NULL){  /* 避免递归调用 */
+        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+        while (pSector != LW_NULL) {
+            if(pSector->HOITS_uiUsedSize == 0){
+                iFreeSectorNum++;
+            }
+            pSector = pSector->HOITS_next;
+        }  
+        if(iFreeSectorNum <= 2){
+            hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
+        }
+    }
+
     switch (cacheType)
     {
     case HOIT_CACHE_TYPE_INVALID:
