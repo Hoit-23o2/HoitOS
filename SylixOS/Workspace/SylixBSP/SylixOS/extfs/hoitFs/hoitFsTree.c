@@ -353,7 +353,8 @@ BOOL hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, 
     }
 #ifdef FT_DEBUG
     // ²âÊÔ
-    // printf("Delete: [%d, %d]\n", pFTn->pRbn.iKey, pFTn->uiSize + pFTn->pRbn.iKey - 1);
+    printf("Delete: [%d, %d]\n", pFTn->pRbn.iKey, pFTn->uiSize + pFTn->pRbn.iKey - 1);
+#endif
     res = hoitRbDeleteNode(pFTTree->pRbTree, &pFTn->pRbn);
     if(res){
         pFTTree->uiNCnt--;
@@ -768,16 +769,13 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
             uiConquerorLow  = pFTnConqueror->uiOfs;
             uiConquerorHigh = uiConquerorLow + pFTnConqueror->uiSize == 0 ?
                               0 : uiConquerorLow + pFTnConqueror->uiSize - 1;
-            // if(uiConquerorLow >= 360 && uiConquerorLow < 1000 && pFTn->uiOfs >= 360)
+            // if(uiConquerorLow >= 472 && uiConquerorLow < 1000 && pFTn->uiOfs >= 360)
             //     printf("Conqueror: [%d, %d], Victim: [%d, %d]\n", uiConquerorLow, uiConquerorHigh, pFTn->uiOfs,
             //             pFTn->uiOfs + pFTn->uiSize == 0 ? 0 : pFTn->uiOfs + pFTn->uiSize - 1);
-            // if(uiConquerorLow == 366 && uiConquerorHigh == 366 && 
-            //    pFTn->uiOfs == 366 &&  pFTn->uiOfs + pFTn->uiSize - 1 == 4095){
+            // if(uiConquerorLow == 472 && uiConquerorHigh == 472 &&
+            // pFTn->uiOfs == 472 &&  pFTn->uiOfs + pFTn->uiSize - 1 == 4095){
             //     printf("debug\n");
             // }
-            if (debug_outer_count == 783 && debug_inner_count == 784){
-                printf("debug_inner_count:%d\n",debug_inner_count);
-            }
             bIsOverlay = __hoitFragTreeConquerNode(pFTTree, pFTn, uiConquerorLow, uiConquerorHigh,
                                                    &pFTnNew, &uiCase, LW_TRUE);
             if(bIsOverlay){

@@ -60,7 +60,7 @@
 *********************************************************************************************************/
 //#define  MULTI_THREAD_ENABLE      /* 启用多线程 */
 //#define  EBS_ENABLE               /* 启用EBS */
-//#define  WRITE_BUFFER_ENABLE        /* 启用WriteBuffer */
+#define  WRITE_BUFFER_ENABLE        /* 启用WriteBuffer */
 //! 07-18 ZN 暂时注释log
 // #define  LOG_ENABLE
 
@@ -227,7 +227,7 @@ typedef struct HOIT_VOLUME{
 /*********************************************************************************************************
   HoitFs 数据实体的公共Header类型
 *********************************************************************************************************/
-struct HOIT_RAW_HEADER{
+struct HOIT_RAW_HEADER{ //32B
     UINT32              magic_num;
     UINT32              flag;
     UINT32              totlen;
@@ -241,7 +241,7 @@ struct HOIT_RAW_HEADER{
 /*********************************************************************************************************
   HoitFs raw inode类型
 *********************************************************************************************************/
-struct HOIT_RAW_INODE {
+struct HOIT_RAW_INODE { //32B
     UINT32              magic_num;
     UINT32              flag;
     UINT32              totlen;     /* 包含头部及数据长度 */
@@ -266,7 +266,7 @@ struct HOIT_RAW_DIRENT{
     UINT                pino;
 };
 
-struct HOIT_RAW_INFO{
+struct HOIT_RAW_INFO{ //32B
     UINT                phys_addr;
     UINT                totlen;
     PHOIT_RAW_INFO      next_phys;                                     /* 物理上邻接的下一个 */
@@ -275,7 +275,7 @@ struct HOIT_RAW_INFO{
 };
                                                                     
 
-struct HOIT_FULL_DNODE{
+struct HOIT_FULL_DNODE{//32B
     PHOIT_FULL_DNODE    HOITFD_next;
     PHOIT_RAW_INFO      HOITFD_raw_info;
     UINT                HOITFD_offset;                                  /*在文件里的偏移量*/
@@ -297,7 +297,7 @@ struct HOIT_FULL_DIRENT{
 };
 
 
-struct HOIT_INODE_CACHE{
+struct HOIT_INODE_CACHE{  
     UINT                HOITC_ino;
     PHOIT_INODE_CACHE   HOITC_next;
     PHOIT_RAW_INFO      HOITC_nodes;
@@ -327,7 +327,7 @@ struct HOIT_INODE_INFO{
 
 
 
-struct HOIT_ERASABLE_SECTOR{
+struct HOIT_ERASABLE_SECTOR{  //100B
     PHOIT_ERASABLE_SECTOR         HOITS_next;                                     /* 链表信息管理 */
     UINT                          HOITS_bno;                                      /* Setcor号block number              */
     UINT                          HOITS_addr;

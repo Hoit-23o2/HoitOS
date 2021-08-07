@@ -85,10 +85,10 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         remove(pTempPath);
     }
     iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
-    if(testType == TEST_TYPE_RDM_RD || testType == TEST_TYPE_SEQ_RD)    
-        write(iFdTemp, _G_pLoremFull, lib_strlen(_G_pLoremFull));
-    else 
-        write(iFdTemp, _G_pLoremPart, lib_strlen(_G_pLoremPart));
+    write(iFdTemp, _G_pLoremFull, lib_strlen(_G_pLoremFull));
+    // if(testType == TEST_TYPE_RDM_RD || testType == TEST_TYPE_SEQ_RD)    
+    // else 
+    //     write(iFdTemp, _G_pLoremPart, lib_strlen(_G_pLoremPart));
     lseek(iFdTemp, 0, SEEK_SET);                                        /* 从头开始 */
     fstat(iFdTemp, &stat);
     if(iFdTemp < 0){
@@ -98,10 +98,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     for (i = 0; i < uiLoopTimes; i++)
     {
         printf("====== TEST %d ======\n", i);
-        if (i==78) {
-            printf("debug\n");
-        }
-        ulMsecStart         = API_TimeGet() * ulUsecPerTick / 1000;
+        lib_gettimeofday(&timeStart, LW_NULL);
         {
             iRes = functionality(iFdTemp, stat.st_size, uiTestCount, pMountPoint);
             if(iRes != ERROR_NONE){
