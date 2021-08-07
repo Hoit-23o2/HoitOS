@@ -358,7 +358,7 @@ BOOL hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, 
     res = hoitRbDeleteNode(pFTTree->pRbTree, &pFTn->pRbn);
     if(res){
         pFTTree->uiNCnt--;
-        pFTTree->uiMemoryBytes -= pFTn->uiSize;
+        pFTTree->uiMemoryBytes -= sizeof(HOIT_FRAG_TREE_NODE);
         __hoit_delete_full_dnode(pFTTree->pfs, pFTn->pFDnode, bDoDelete); /* 删除pFDNode */
         lib_free(pFTn);                                                   /* 删除整个TreeNode */
     }
@@ -688,17 +688,32 @@ PHOIT_FRAG_TREE_NODE hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_
                                     (PVOID)pFTn);
     }
     hoitRbInsertNode(pFTTree->pRbTree, &pFTn->pRbn);
-    // printf("==================Insert: [%d, %d]==================\n", pFTn->pRbn.iKey, 
-    //         pFTn->uiOfs + pFTn->uiSize == 0 ? 0 : pFTn->uiOfs + pFTn->uiSize - 1);
-    // hoitFragTreeTraverse(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
-    // printf("==================Insert End      ==================\n\n");
-    
-#endif
+#ifdef FT_DEBUG
+    printf("==================Insert: [%d, %d]==================\n", pFTn->pRbn.iKey, 
+            pFTn->uiOfs + pFTn->uiSize == 0 ? 0 : pFTn->uiOfs + pFTn->uiSize - 1);
+    hoitFragTreeTraverse(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
+    printf("==================Insert End      ==================\n\n");
+#endif  /* FT_DEBUG */
+
+#endif  /* FT_OBSOLETE_hoitFragTreeOverlayFixUp */
     pFTTree->uiNCnt++;
-    pFTTree->uiMemoryBytes += pFTn->uiSize;
+    pFTTree->uiMemoryBytes += sizeof(HOIT_FRAG_TREE_NODE);
     return pFTn;
 }
-
+/*********************************************************************************************************
+** 函数名称: hoitFragTreeShowMemory
+** 功能描述: 查看指定FragTree结构
+** 输　入  : pFTTree    FragTree
+** 输　出  : 成功 LW_TRUE，否则LW_FALSE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID hoitFragTreeShowMemory(PHOIT_FRAG_TREE pFTTree){
+    printf("\n============= checking fragtree statue ...  =============\n");
+    printf("nodes  count: %d.\n", pFTTree->uiNCnt);
+    printf("memory usage: %dB\n", pFTTree->uiMemoryBytes);
+    printf("============= checking fragtree statue over =============\n");
+}
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeOverlayFixUp
 ** 功能描述: 修复FragTree上的Overlap

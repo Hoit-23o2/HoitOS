@@ -167,6 +167,8 @@ PHOIT_FRAG_TREE_LIST_HEADER   hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, 
 VOID                          hoitFragTreeTraverse(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot);                     /* ÷––Ú±È¿˙FragTree */
 
 VIS_STATUE                    hoitFragTreeTraverseVisitor(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot, visitorHoitFragTree visitor, PVOID pUserValue);
+
+VOID                          hoitFragTreeShowMemory(PHOIT_FRAG_TREE pFTTree);
 /*********************************************************************************************************
   FragTree
 *********************************************************************************************************/
