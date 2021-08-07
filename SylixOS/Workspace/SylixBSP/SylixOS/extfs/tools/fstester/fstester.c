@@ -85,10 +85,11 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         remove(pTempPath);
     }
     iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
-    if(testType == TEST_TYPE_RDM_RD || testType == TEST_TYPE_SEQ_RD)    
-        write(iFdTemp, _G_pLoremFull, lib_strlen(_G_pLoremFull));
-    else 
-        write(iFdTemp, _G_pLoremPart, lib_strlen(_G_pLoremPart));
+    write(iFdTemp, _G_pLoremFull, lib_strlen(_G_pLoremFull));
+//    if(testType == TEST_TYPE_RDM_RD || testType == TEST_TYPE_SEQ_RD)
+//
+//    else
+//        write(iFdTemp, _G_pLoremPart, lib_strlen(_G_pLoremPart));
     lseek(iFdTemp, 0, SEEK_SET);                                        /* 从头开始 */
     fstat(iFdTemp, &stat);
     if(iFdTemp < 0){
@@ -97,6 +98,9 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     }
     for (i = 0; i < uiLoopTimes; i++)
     {
+        if(i==41){
+            printf("debug\n");
+        }
         printf("====== TEST %d ======\n", i);
         lib_gettimeofday(&timeStart, LW_NULL);
         {
