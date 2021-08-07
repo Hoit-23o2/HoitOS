@@ -4,16 +4,22 @@ from xlwings.main import Book, Sheet
 from global_file import *
 import xlwings
 
-import win32com.client      
+import win32com.client    
+import win32clipboard as wc
 from PIL import ImageGrab   
 import os
 import sys
 def save_chart(in_excel_path:str, out_img_path:str):
+    # emptyClipboard
+    os.system("echo off | clip")
+    wc.OpenClipboard()
+    wc.EmptyClipboard()
+    wc.CloseClipboard()  
     # Open the excel application using win32com
     o = win32com.client.Dispatch("Excel.Application")
     # Disable alerts and visibility to the user
-    o.Visible = 0
-    o.DisplayAlerts = 0
+    # o.Visible = 0
+    # o.DisplayAlerts = 0
     # Open workbook
     wb = o.Workbooks.Open(in_excel_path)
 

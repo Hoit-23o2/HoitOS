@@ -20,8 +20,8 @@
 *********************************************************************************************************/
 #include "fstester.h"
 
-#define MAX_IO_SZ  4096
-#define MIN_IO_SZ  1024
+#define MAX_IO_SZ  128
+#define MIN_IO_SZ  56
 
 #define RANDOM_RANGE(a, b) (lib_rand() % (b - a) + a)
 #define RANDOM_ALPHABET()  (CHAR)(lib_rand() % 26 + 'a')
@@ -123,19 +123,19 @@ INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR
 INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint){ 
     (VOID)  iFdTest;
     UINT    i, j;
-    UINT    uiWriteSize;
+    UINT    uiRandomWriteSize;
     PCHAR   pWriteBuffer;
     INT     iFd;
     
     pWriteBuffer  = (PCHAR)lib_malloc(MAX_IO_SZ);
     for (i = 0; i < uiLoopTimes; i++)
     {
-        uiWriteSize    = RANDOM_RANGE(MIN_IO_SZ, MAX_IO_SZ);     
-        for (j = 0; j < uiWriteSize; j++)
+        uiRandomWriteSize  = RANDOM_RANGE(MIN_IO_SZ, MAX_IO_SZ);     
+        for (j = 0; j < uiRandomWriteSize; j++)
         {
             *(pWriteBuffer + j) = RANDOM_ALPHABET();
         }
-        write(iFdTest, pWriteBuffer, uiWriteSize);
+        write(iFdTest, pWriteBuffer, uiRandomWriteSize);
     }
     lib_free(pWriteBuffer);
     return ERROR_NONE;

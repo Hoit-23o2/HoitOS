@@ -204,6 +204,12 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
 
     __hoit_add_to_inode_cache(pInodeInfo->HOITN_inode_cache, pRawInfo);
     __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pRawInfo);
+    // if(pRawInfo->phys_addr == 1092504 && pRawInfo->totlen == 33){
+    //    CHAR buf[33];
+    //    hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, buf, 33);
+    //    PHOIT_RAW_HEADER rawHeader = (PHOIT_RAW_HEADER)buf;
+    //    printf("debug %d\n", rawHeader->ino);
+    // }
     PHOIT_FULL_DNODE pFullDnode = (PHOIT_FULL_DNODE)__SHEAP_ALLOC(sizeof(HOIT_FULL_DNODE));
     pFullDnode->HOITFD_file_type = pInodeInfo->HOITN_mode;
     pFullDnode->HOITFD_length = size;

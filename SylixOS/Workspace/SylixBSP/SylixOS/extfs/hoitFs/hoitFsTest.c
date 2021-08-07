@@ -331,6 +331,9 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     /* ³õÊ¼Ð´Èë64¸ö'1' */
     for (i=0 ; i<64 ; i++) {
         lseek(iFd, (i)*sizeof(CHAR), SEEK_SET);
+        if(i == 15){
+            printf("=========== TEST %d ===========\n", i);
+        }
         write(iFd, &data, sizeof(CHAR));
         writeData[i] = data;
     }

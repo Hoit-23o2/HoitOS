@@ -48,9 +48,9 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     PCHAR           pOutputPath;
     INT             i, iRes;
     INT             iFdOut, iFdTemp;
-    ULONG           ulUsecPerTick;
-	ULONG           ulMsecStart;
-    ULONG           ulMsecEnd;
+	struct timeval  timeStart;
+    struct timeval  timeEnd;
+    double          dTimeDiff;
     PCHAR           pOutContent;
     INT             iByteWriteOnce  = 0;
     struct stat     stat;
@@ -62,7 +62,6 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     pOutputDir      = getFSTestOutputDir(fsType, testType);
     pOutputPath     = getFSTestOutputPath(fsType, testType);
     pFSType         = translateFSType(fsType);
-	ulUsecPerTick   = 1000000 / API_TimeGetFrequency();
     /* 设定特定种子 */
     lib_srand(FSTESTER_SEED);
 
@@ -86,8 +85,11 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         remove(pTempPath);
     }
     iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
-    write(iFdTemp, _G_pLorem, lib_strlen(_G_pLorem));
-    lseek(iFdTemp, 0, SEEK_SET);                                  /* 从头开始 */
+    if(testType == TEST_TYPE_RDM_RD || testType == TEST_TYPE_SEQ_RD)    
+        write(iFdTemp, _G_pLoremFull, lib_strlen(_G_pLoremFull));
+    else 
+        write(iFdTemp, _G_pLoremPart, lib_strlen(_G_pLoremPart));
+    lseek(iFdTemp, 0, SEEK_SET);                                        /* 从头开始 */
     fstat(iFdTemp, &stat);
     if(iFdTemp < 0){
         printf("[%s] can't create output file [%s]", __func__, pTempPath);
@@ -96,7 +98,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     for (i = 0; i < uiLoopTimes; i++)
     {
         printf("====== TEST %d ======\n", i);
-        ulMsecStart         = API_TimeGet() * ulUsecPerTick / 1000;
+        lib_gettimeofday(&timeStart, LW_NULL);
         {
             iRes = functionality(iFdTemp, stat.st_size, uiTestCount, pMountPoint);
             if(iRes != ERROR_NONE){
@@ -104,8 +106,10 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
                 break;
             }
         }
-        ulMsecEnd           = API_TimeGet()  * ulUsecPerTick / 1000;
-        iByteWriteOnce      = asprintf(&pOutContent, "%d\n", ulMsecEnd - ulMsecStart);
+        lib_gettimeofday(&timeEnd, LW_NULL);
+        dTimeDiff       = 1000 * (timeEnd.tv_sec - timeStart.tv_sec) +      /* 计算ms时间差 */
+                          ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0);
+        iByteWriteOnce  = asprintf(&pOutContent, "%.2f\n", dTimeDiff);      /* 保留2位小数 */
         write(iFdOut, pOutContent, iByteWriteOnce);
         lib_free(pOutContent);
     }

@@ -265,14 +265,12 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
     API_ThreadUnlock();
 #endif // GC_DEBUG
 
-    if(pErasableSector->HOITS_pRawInfoLastGC == LW_NULL){                                  /* 不存在Last了 */
+    if(pErasableSector->HOITS_pRawInfoLastGC == LW_NULL){                                        /* 不存在Last了 */
         bIsCollectOver = LW_TRUE;
     }
 
     if(pErasableSector->HOITS_pRawInfoLastGC 
-    && pErasableSector->HOITS_pRawInfoLastGC->phys_addr == pRawInfoCurGC->phys_addr
-    && pErasableSector->HOITS_pRawInfoLastGC->next_logic == pRawInfoCurGC->next_logic
-    && pErasableSector->HOITS_pRawInfoLastGC->totlen == pRawInfoCurGC->totlen){             /* 不能比较next_phys和phys，会被修改之 */
+    && pErasableSector->HOITS_pRawInfoLastGC->phys_addr == pRawInfoCurGC->phys_addr){             /* 不能比较next_phys和phys，会被修改之 */
         bIsCollectOver = LW_TRUE;
     }
 

@@ -48,14 +48,19 @@
 *********************************************************************************************************/
 //#define FT_TEST
 //#define FT_DEBUG
+#define FT_OBSOLETE_hoitFragTreeOverlayFixUp             
+
 /*********************************************************************************************************
   HoitFs LOG 相关测试
 *********************************************************************************************************/
 //#define DEBUG_LOG
 #define  LOG_TEST
+/*********************************************************************************************************
+  HoitFs 特性宏控
+*********************************************************************************************************/
 //#define  MULTI_THREAD_ENABLE      /* 启用多线程 */
 //#define  EBS_ENABLE               /* 启用EBS */
-//#define  WRITE_BUFFER_ENABLE      /* 启用WriteBuffer */
+//#define  WRITE_BUFFER_ENABLE        /* 启用WriteBuffer */
 //! 07-18 ZN 暂时注释log
 // #define  LOG_ENABLE
 
@@ -386,6 +391,8 @@ struct hoit_frag_tree
     PHOIT_RB_TREE pRbTree;
     UINT32 uiNCnt;                                               /* 该红黑树节点数目 */
     PHOIT_VOLUME pfs;
+
+    UINT32 uiMemoryBytes;                                        /* add by PYQ 用于观测大小 */
 };
 
 
@@ -421,7 +428,17 @@ struct hoit_frag_tree_list_header
     UINT32 uiHighBound;
     UINT32 uiNCnt;
 };
+/*********************************************************************************************************
+  FragTree Visitor结构
+*********************************************************************************************************/
+typedef enum vis_statue
+{
+    VIS_CONTINUE,
+    VIS_END,
+    VIS_ERROR
+} VIS_STATUE;
 
+typedef VIS_STATUE (*visitorHoitFragTree)(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, PVOID pUserValue);
 /*********************************************************************************************************
   HOITFS cache结构
 *********************************************************************************************************/
