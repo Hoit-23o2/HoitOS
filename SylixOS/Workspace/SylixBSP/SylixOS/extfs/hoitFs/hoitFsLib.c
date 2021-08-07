@@ -1120,7 +1120,7 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     UINT phys_addr = 0;
 
     //!2021-05-16 ÐÞ¸Änow_sectorÖ¸Õë modified by PYQ 
-    pfs->HOITFS_now_sector = pfs->HOITFS_curGCSuvivorSector;
+    //pfs->HOITFS_now_sector = hoitFindNextToWrite(pfs->HOITFS_cacheHdr, HOIT_CACHE_TYPE_DATA, pRawInfo->totlen);
     
     pRawHeader->crc = 0;
     pRawHeader->crc = crc32_le(pRawHeader, pRawInfo->totlen);
@@ -1804,6 +1804,7 @@ ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  st
     if(stNBytes == 0){
         return stNBytes;
     }
+    //hoitFragTreeShowMemory(pInodeInfo->HOITN_rbtree);
 
     if (pInodeInfo->HOITN_rbtree != LW_NULL) {
         PHOIT_FULL_DNODE pFullDnode = __hoit_write_full_dnode(pInodeInfo, stOft, stNBytes, pvBuffer, needLog);

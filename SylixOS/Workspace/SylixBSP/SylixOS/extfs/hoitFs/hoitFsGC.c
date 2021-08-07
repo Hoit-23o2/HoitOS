@@ -78,6 +78,9 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
     }
 
     pRawInfoFirst    = pRawInfoLast = pRawInfoTraverse;                 /* 设置RawInfo First与RawInfo Last */
+    if(pRawInfoTraverse == LW_NULL){
+        return LW_FALSE;
+    }
     pRawInfoTrailing = pRawInfoTraverse;                    
     pRawInfoTraverse = pRawInfoTraverse->next_phys;
     
@@ -308,8 +311,7 @@ __hoitGCCollectSectorAliveEnd:
 #ifdef GC_DEBUG
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
         printf("[%s] Sector %d is collected Over, Total Moved %dKB to Survivor Sector %d\n", 
-                __func__, pErasableSector->HOITS_bno, (pfs->HOITFS_curGCSuvivorSector->HOITS_uiUsedSize / 1024), 
-                pfs->HOITFS_curGCSuvivorSector->HOITS_bno);
+                __func__, pErasableSector->HOITS_bno;
         API_TShellColorEnd(STD_OUT);
 #endif
     }
@@ -348,10 +350,10 @@ VOID hoitGCForegroundForce(PHOIT_VOLUME pfs){
     
     pErasableSector = LW_NULL;
     
-    if(pfs->HOITFS_curGCSector == LW_NULL && pfs->HOITFS_curGCSuvivorSector == LW_NULL) {
+    if(pfs->HOITFS_curGCSector == LW_NULL) {
         pErasableSector                 = __hoitGCFindErasableSector(pfs, GC_FOREGROUND);      
-        pfs->HOITFS_curGCSector         = pErasableSector;     
-        pfs->HOITFS_curGCSuvivorSector  = hoitFindAvailableSector(pfs);
+        pfs->HOITFS_curGCSector         = pErasableSector;   
+        hoitOccupySectorState(pfs->HOITFS_cacheHdr, pErasableSector);
     }
 
     if(pErasableSector){
@@ -364,7 +366,6 @@ VOID hoitGCForegroundForce(PHOIT_VOLUME pfs){
             bIsCollectOver = __hoitGCCollectSectorAlive(pfs, pErasableSector);
             if(bIsCollectOver){                                                  /*! 显示置空 */
                 pfs->HOITFS_curGCSector        = LW_NULL;                        /* 当前GC的Sector为空 */
-                pfs->HOITFS_curGCSuvivorSector = LW_NULL;                        /* 幸存者Sector为空 */
                 hoitResetSectorState(pfs->HOITFS_cacheHdr, pErasableSector);     /* 重置该Sector状态，表明为空 */
                 break;
             }
@@ -410,10 +411,10 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
             KILL_LOOP();
         }
 
-        if(pfs->HOITFS_curGCSector == LW_NULL && pfs->HOITFS_curGCSuvivorSector == LW_NULL) {
+        if(pfs->HOITFS_curGCSector == LW_NULL) {
             pErasableSector                 = __hoitGCFindErasableSector(pfs, GC_BACKGROUND);
             pfs->HOITFS_curGCSector         = pErasableSector;     
-            pfs->HOITFS_curGCSuvivorSector  = hoitFindAvailableSector(pfs);
+            hoitOccupySectorState(pfs->HOITFS_cacheHdr, pErasableSector);
         }
 
         if(pErasableSector) {
@@ -421,7 +422,6 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
             bIsCollectOver = __hoitGCCollectSectorAlive(pfs, pErasableSector);      /* 阻塞回收单一实体 */
             if(bIsCollectOver){
                 pfs->HOITFS_curGCSector        = LW_NULL;                           /* 当前GC的Sector为空 */
-                pfs->HOITFS_curGCSuvivorSector = LW_NULL;                           /* 幸存者Sector为空 */
                 hoitResetSectorState(pfs->HOITFS_cacheHdr, pErasableSector);        /* 重置该Sector状态，表明为空 */
             }
             LW_SPIN_UNLOCK_QUICK(&pErasableSector->HOITS_lock, iregInterLevel);

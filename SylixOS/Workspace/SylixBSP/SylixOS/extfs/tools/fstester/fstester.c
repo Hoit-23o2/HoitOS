@@ -1,22 +1,22 @@
 /*********************************************************************************************************
 **
-**                                    ÖÐ¹úÈí¼þ¿ªÔ´×éÖ¯
+**                                    ï¿½Ð¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô´ï¿½ï¿½Ö¯
 **
-**                                   Ç¶ÈëÊ½ÊµÊ±²Ù×÷ÏµÍ³
+**                                   Ç¶ï¿½ï¿½Ê½ÊµÊ±ï¿½ï¿½ï¿½ï¿½ÏµÍ³
 **
 **                                       SylixOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
-**--------------ÎÄ¼þÐÅÏ¢--------------------------------------------------------------------------------
+**--------------ï¿½Ä¼ï¿½ï¿½ï¿½Ï¢--------------------------------------------------------------------------------
 **
-** ÎÄ   ¼þ   Ãû: fstester.h
+** ï¿½ï¿½   ï¿½ï¿½   ï¿½ï¿½: fstester.h
 **
-** ´´   ½¨   ÈË: Pan Yanqi
+** ï¿½ï¿½   ï¿½ï¿½   ï¿½ï¿½: Pan Yanqi
 **
-** ÎÄ¼þ´´½¨ÈÕÆÚ: 2021 Äê 07 ÔÂ 27 ÈÕ
+** ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: 2021 ï¿½ï¿½ 07 ï¿½ï¿½ 27 ï¿½ï¿½
 **
-** Ãè        Êö: Éú³É²âÊÔ½Å±¾Óë²¶×½Êä³ö
+** ï¿½ï¿½        ï¿½ï¿½: ï¿½ï¿½ï¿½É²ï¿½ï¿½Ô½Å±ï¿½ï¿½ë²¶×½ï¿½ï¿½ï¿½
 *********************************************************************************************************/
 #include "fstester.h"
 #include "driver/mtd/nor/nor.h"
@@ -30,14 +30,14 @@ List(FSTESTER_FUNC_NODE) _G_FuncNodeList;
 #define GET_ARG(ppcArgV, i)     *(ppcArgV + i);  
 #define IS_STR_SAME(str1, str2) (lib_strcmp(str1, str2) == 0)
 /*********************************************************************************************************
-** º¯ÊýÃû³Æ: fstester_generic_test
-** ¹¦ÄÜÃèÊö: nor flashÎÄ¼þÏµÍ³Í¨ÓÃ²âÊÔ
-** Êä¡¡Èë  : pfs          ÎÄ¼þÍ·
-**           pObjId        ·µ»ØµÄObject ID
-**           pucConflictingName ÎÄ¼þÂ·¾¶Ãû
-** Êä¡¡³ö  : None
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: fstester_generic_test
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: nor flashï¿½Ä¼ï¿½ÏµÍ³Í¨ï¿½Ã²ï¿½ï¿½ï¿½
+** ï¿½ä¡¡ï¿½ï¿½  : pfs          ï¿½Ä¼ï¿½Í·
+**           pObjId        ï¿½ï¿½ï¿½Øµï¿½Object ID
+**           pucConflictingName ï¿½Ä¼ï¿½Â·ï¿½ï¿½ï¿½ï¿½
+** ï¿½ä¡¡ï¿½ï¿½  : None
+** È«ï¿½Ö±ï¿½ï¿½ï¿½:
+** ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½:
 *********************************************************************************************************/
 VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes, FSTESTER_FUNCTIONALITY functionality){
     UINT            uiTestCount = 10;             
@@ -62,21 +62,21 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     pOutputDir      = getFSTestOutputDir(fsType, testType);
     pOutputPath     = getFSTestOutputPath(fsType, testType);
     pFSType         = translateFSType(fsType);
-    /* Éè¶¨ÌØ¶¨ÖÖ×Ó */
+    /* ï¿½è¶¨ï¿½Ø¶ï¿½ï¿½ï¿½ï¿½ï¿½ */
     lib_srand(FSTESTER_SEED);
 
-    if(access(pOutputDir, F_OK) != ERROR_NONE){         /* Ã»ÕÒµ½Ä¿Â¼ */
-        mkdir(pOutputDir, 0);                           /* ½¨Ò»¸öÄ¿Â¼ */
+    if(access(pOutputDir, F_OK) != ERROR_NONE){         /* Ã»ï¿½Òµï¿½Ä¿Â¼ */
+        mkdir(pOutputDir, 0);                           /* ï¿½ï¿½Ò»ï¿½ï¿½Ä¿Â¼ */
     }
-    if(access(pOutputPath, F_OK) == ERROR_NONE){        /* ÕÒµ½ÁËÎÄ¼þ */
-        remove(pOutputPath);                            /* É¾³ý¸ÃÎÄ¼þ */
+    if(access(pOutputPath, F_OK) == ERROR_NONE){        /* ï¿½Òµï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ */
+        remove(pOutputPath);                            /* É¾ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ */
     }
     iFdOut          = open(pOutputPath, O_CREAT | O_TRUNC | O_RDWR);
     if(iFdOut < 0){
         printf("[%s] can't create output file [%s]\n", __func__, pOutputPath);
         return;
     }
-    //FIXME: ÕûÀí´úÂë£¬Ìí¼Ó²âÊÔº¯Êý
+    //FIXME: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ë£¬ï¿½ï¿½ï¿½Ó²ï¿½ï¿½Ôºï¿½ï¿½ï¿½
     API_Mount("1", pMountPoint, pFSType);
     /* pTempPath = /mnt/fstype(hoitfs)/write-for-test */
     asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
@@ -86,11 +86,10 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     }
     iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
     write(iFdTemp, _G_pLoremFull, lib_strlen(_G_pLoremFull));
-//    if(testType == TEST_TYPE_RDM_RD || testType == TEST_TYPE_SEQ_RD)
-//
-//    else
-//        write(iFdTemp, _G_pLoremPart, lib_strlen(_G_pLoremPart));
-    lseek(iFdTemp, 0, SEEK_SET);                                        /* ´ÓÍ·¿ªÊ¼ */
+    // if(testType == TEST_TYPE_RDM_RD || testType == TEST_TYPE_SEQ_RD)    
+    // else 
+    //     write(iFdTemp, _G_pLoremPart, lib_strlen(_G_pLoremPart));
+    lseek(iFdTemp, 0, SEEK_SET);                                        /* ï¿½ï¿½Í·ï¿½ï¿½Ê¼ */
     fstat(iFdTemp, &stat);
     if(iFdTemp < 0){
         printf("[%s] can't create output file [%s]", __func__, pTempPath);
@@ -102,6 +101,9 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
             printf("debug\n");
         }
         printf("====== TEST %d ======\n", i);
+        if(i == 72){
+            printf("debug\n");
+        }
         lib_gettimeofday(&timeStart, LW_NULL);
         {
             iRes = functionality(iFdTemp, stat.st_size, uiTestCount, pMountPoint);
@@ -111,9 +113,9 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
             }
         }
         lib_gettimeofday(&timeEnd, LW_NULL);
-        dTimeDiff       = 1000 * (timeEnd.tv_sec - timeStart.tv_sec) +      /* ¼ÆËãmsÊ±¼ä²î */
+        dTimeDiff       = 1000 * (timeEnd.tv_sec - timeStart.tv_sec) +      /* ï¿½ï¿½ï¿½ï¿½msÊ±ï¿½ï¿½ï¿½ */
                           ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0);
-        iByteWriteOnce  = asprintf(&pOutContent, "%.2f\n", dTimeDiff);      /* ±£Áô2Î»Ð¡Êý */
+        iByteWriteOnce  = asprintf(&pOutContent, "%.2f\n", dTimeDiff);      /* ï¿½ï¿½ï¿½ï¿½2Î»Ð¡ï¿½ï¿½ */
         write(iFdOut, pOutContent, iByteWriteOnce);
         lib_free(pOutContent);
     }
@@ -128,12 +130,12 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
 }
 #ifdef CONFIG_FSTESTER_SCRIPT
 /*********************************************************************************************************
-** º¯ÊýÃû³Æ: fstester_generate_script
-** ¹¦ÄÜÃèÊö: spiffs close ²Ù×÷
-** Êä¡¡Èë  : pfdentry         ÎÄ¼þ¿ØÖÆ¿é
-** Êä¡¡³ö  : < 0 ±íÊ¾´íÎó
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: fstester_generate_script
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: spiffs close ï¿½ï¿½ï¿½ï¿½
+** ï¿½ä¡¡ï¿½ï¿½  : pfdentry         ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½Æ¿ï¿½
+** ï¿½ä¡¡ï¿½ï¿½  : < 0 ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½
+** È«ï¿½Ö±ï¿½ï¿½ï¿½:
+** ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½:
 *********************************************************************************************************/
 VOID fstester_generate_script(FS_TYPE fsType, UINT uiCountDowns){
     PCHAR       pContent;
@@ -156,10 +158,10 @@ VOID fstester_generate_script(FS_TYPE fsType, UINT uiCountDowns){
         printf("[%s] can not create file %s\n", __func__, pcOutShfilePath);
         return;
     }
-    /* Ð´Èë½Å±¾Í·²¿ */
+    /* Ð´ï¿½ï¿½Å±ï¿½Í·ï¿½ï¿½ */
     write(iFd, cpTips, iTipsLen);
     iByteWriteTotal += iTipsLen;
-    /* Ð´ÈëÁÙÊ±½Å±¾ */
+    /* Ð´ï¿½ï¿½ï¿½ï¿½Ê±ï¿½Å±ï¿½ */
     for (i = 0; i < uiCountDowns; i++)
     {
         iByteWriteOnce = asprintf(&pContent, "\
@@ -184,12 +186,12 @@ fls  -reset\n\
     API_TShellColorEnd(STD_OUT);
 }
 /*********************************************************************************************************
-** º¯ÊýÃû³Æ: fstester_parse_out
-** ¹¦ÄÜÃèÊö: spiffs close ²Ù×÷
-** Êä¡¡Èë  : pfdentry         ÎÄ¼þ¿ØÖÆ¿é
-** Êä¡¡³ö  : < 0 ±íÊ¾´íÎó
-** È«¾Ö±äÁ¿:
-** µ÷ÓÃÄ£¿é:
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: fstester_parse_out
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: spiffs close ï¿½ï¿½ï¿½ï¿½
+** ï¿½ä¡¡ï¿½ï¿½  : pfdentry         ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½Æ¿ï¿½
+** ï¿½ä¡¡ï¿½ï¿½  : < 0 ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½
+** È«ï¿½Ö±ï¿½ï¿½ï¿½:
+** ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½:
 *********************************************************************************************************/
 VOID fstester_parse_out(){
     INT         i;
@@ -219,9 +221,9 @@ VOID fstester_parse_out(){
     {
         if(*pOutContentTemp == 'c' 
         && *(pOutContentTemp + 1) == 'm'
-        && *(pOutContentTemp + 2) == 'd'){              /* Ê±¼äÐÅÏ¢ */
+        && *(pOutContentTemp + 2) == 'd'){              /* Ê±ï¿½ï¿½ï¿½ï¿½Ï¢ */
             pStart = pOutContentTemp;
-            while (*pStart < '0' || *pStart > '9')      /* Ö»ÕÒµ½Êý×Ö */
+            while (*pStart < '0' || *pStart > '9')      /* Ö»ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½ */
             {
                 pStart++;
             }
@@ -271,7 +273,7 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     while (iArgPos <= iArgC)
     {
         pArg = GET_ARG(ppcArgV, iArgPos++);
-        if(IS_STR_SAME(pArg, "-t")){           /* ÉèÖÃÎÄ¼þÏµÍ³ÀàÐÍ */
+        if(IS_STR_SAME(pArg, "-t")){           /* ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ÏµÍ³ï¿½ï¿½ï¿½ï¿½ */
             pArg = GET_ARG(ppcArgV, iArgPos++);
             fsTarget = getFSTypeByStr(pArg);
         }
@@ -289,11 +291,11 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
             }
             return;
         }
-        else if(IS_STR_SAME(pArg, "-l")){      /* ÉèÖÃ²âÊÔ´ÎÊý */
+        else if(IS_STR_SAME(pArg, "-l")){      /* ï¿½ï¿½ï¿½Ã²ï¿½ï¿½Ô´ï¿½ï¿½ï¿½ */
             pArg = GET_ARG(ppcArgV, iArgPos++);
             uiTestCount = lib_atoi(pArg);
         }
-        else {                      /* ²âÊÔÀàÐÍ */
+        else {                      /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
             for (iter->begin(iter, _G_FuncNodeList);iter->isValid(iter);iter->next(iter))
             {
                 pFuncNode = iter->get(iter);

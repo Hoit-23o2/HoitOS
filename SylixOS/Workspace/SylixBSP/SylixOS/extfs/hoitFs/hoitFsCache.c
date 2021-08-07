@@ -439,12 +439,12 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     /* cache层的视角中，一个块有64KB；但在上层视角中一个块只有1023*56B = 57288B */
     writeAddrUpper = pSector->HOITS_bno * 
                     pcacheHdr->HOITCACHE_blockSize + 
-                    pSector->HOITS_offset;         /* 确定数据实体写入的flash地址 */
+                    pSector->HOITS_offset;         /* 确定上层数据实体写入的逻辑地址 */
 
     writeAddrLower = pSector->HOITS_bno * 
                     hoitGetSectorSize(8) + 
                     pSector->HOITS_offset + 
-                    NOR_FLASH_START_OFFSET;         /* 确定数据实体写入的flash地址 */ 
+                    NOR_FLASH_START_OFFSET;         /* 确定下层数据实体写入的物理地址 */ 
 
     //FOR TEST
     // if (i == 19 && writeAddr <= 1092504 + NOR_FLASH_START_OFFSET && writeAddr >=19*pcacheHdr->HOITCACHE_blockSize + NOR_FLASH_START_OFFSET) {
@@ -522,7 +522,6 @@ VOID hoitCheckCacheList(PHOIT_CACHE_HDR pcacheHdr) {
             printf("Cache Free Size: %d\n",tempCache->HOITBLK_sector->HOITS_uiFreeSize);
         }
     }
-    
 }
 
 /*    
@@ -785,6 +784,20 @@ VOID hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr, PHOIT_ERASABLE_SECTOR pEras
     pErasableSector->HOITS_uiFreeSize = pErasableSector->HOITS_length;
     pErasableSector->HOITS_uiUsedSize = 0;
     pErasableSector->HOITS_offset     = 0;
+}
+/*
+** 函数名称: hoitOccupySectorState
+** 功能描述: 标记一个Sector占满的状态，用于GC Added By PYQ
+** 输　入  : pcacheHdr        缓存信息头部
+**          pErasableSector   目标Sector
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*/
+VOID hoitOccupySectorState(PHOIT_CACHE_HDR pcacheHdr, PHOIT_ERASABLE_SECTOR pErasableSector){
+    pErasableSector->HOITS_uiFreeSize = 0;
+    pErasableSector->HOITS_uiUsedSize = pErasableSector->HOITS_length;
+    pErasableSector->HOITS_offset     = pErasableSector->HOITS_length;
 }
 
                                      
