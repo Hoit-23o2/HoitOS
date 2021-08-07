@@ -60,7 +60,7 @@
 *********************************************************************************************************/
 //#define  MULTI_THREAD_ENABLE      /* 启用多线程 */
 //#define  EBS_ENABLE               /* 启用EBS */
-//#define  WRITE_BUFFER_ENABLE        /* 启用WriteBuffer */
+#define  WRITE_BUFFER_ENABLE        /* 启用WriteBuffer */
 //! 07-18 ZN 暂时注释log
 // #define  LOG_ENABLE
 
