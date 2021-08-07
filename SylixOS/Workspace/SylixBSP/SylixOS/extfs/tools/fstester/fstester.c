@@ -98,6 +98,9 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     for (i = 0; i < uiLoopTimes; i++)
     {
         printf("====== TEST %d ======\n", i);
+        if(i == 31){
+            printf("debug\n");
+        }
         lib_gettimeofday(&timeStart, LW_NULL);
         {
             iRes = functionality(iFdTemp, stat.st_size, uiTestCount, pMountPoint);
