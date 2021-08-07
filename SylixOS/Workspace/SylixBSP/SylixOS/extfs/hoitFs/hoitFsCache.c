@@ -244,48 +244,58 @@ PHOIT_CACHE_BLK hoitCheckCacheHit(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo) 
 ** 调用模块:    
 */
 BOOL hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
-    if(uiOfs == 1088472){
+    if(uiOfs == 1092504){
         printf("debug\n");
     }
 
-    // read_nor(uiOfs, pContent, uiSize);
-   PCHAR   pucDest         = pContent;
-   size_t  cacheBlkSize    = pcacheHdr->HOITCACHE_blockSize;
-   size_t  stStart         = uiOfs % cacheBlkSize;
-   PHOIT_CACHE_BLK pcache;
-   //UINT32  blkNoStart      = uiOfs/cacheBlkSize;
-   //UINT32  blkNoEnd        = (uiOfs + uiSize) / cacheBlkSize;
-   UINT32  readBytes      = 0;
-   UINT32  i;
+    PCHAR   pucDest         = pContent;
+    size_t  cacheBlkSize    = pcacheHdr->HOITCACHE_blockSize;
+    size_t  sectorSize      = hoitGetSectorSize(8);
+    size_t  stStart         = uiOfs % cacheBlkSize;
+    
+    PHOIT_CACHE_BLK pcache;
 
-   while(uiSize != 0) {
-       UINT32  stBufSize = (cacheBlkSize - stStart);
-       i = (uiOfs + readBytes)/cacheBlkSize;
-       if (stBufSize > uiSize) {
-           pcache = hoitCheckCacheHit(pcacheHdr, i);
-           if (!pcache) {
-                read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, uiSize);
-           } else {
-               /* 命中了 */
-               lib_memcpy(pContent, pcache->HOITBLK_buf+stStart, uiSize);
-           }
-           readBytes   += uiSize;
-           uiSize       = 0;
-       } else {
-           pcache = hoitCheckCacheHit(pcacheHdr, i);
-           read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, stBufSize);
-           if (!pcache) {
-                read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, stBufSize);
-           } else {
-               /* 命中了 */
-               lib_memcpy(pContent, pcache->HOITBLK_buf+stStart, uiSize);
-           }
-           pucDest     += stBufSize;
-           uiSize      -= stBufSize;
-           readBytes   += stBufSize;
-           stStart      = 0;
-       }
-   }
+    UINT32  readAddr;   /* 注意上下层地址的切换 */
+    UINT32  readBytes      = 0;
+    UINT32  i;
+
+    while(uiSize != 0) {
+        UINT32  stBufSize = (cacheBlkSize - stStart);
+        i = (uiOfs + readBytes)/cacheBlkSize;
+        readAddr = i * sectorSize +     /* 读地址实际块起始位置 */
+                    stStart +           /* 读地址块内偏移 */
+                    NOR_FLASH_START_OFFSET;
+
+        if (stBufSize > uiSize) {
+            pcache = hoitCheckCacheHit(pcacheHdr, i);
+            if (!pcache) {
+                //!
+                    read_nor(readAddr, pucDest, uiSize);
+            } else {
+                /* 命中了 */
+                lib_memcpy(pContent, pcache->HOITBLK_buf+stStart, uiSize);
+            }
+            readBytes   += uiSize;
+            uiSize       = 0;
+        } else {    
+            /* 
+                数据实体是不会分成两部分分别保存在不同sector中的 。
+                因此这部分代码正常情况下不会被执行。
+            */
+            pcache = hoitCheckCacheHit(pcacheHdr, i);
+            //!
+            if (!pcache) {
+                    read_nor(readAddr, pucDest, stBufSize);
+            } else {
+                /* 命中了 */
+                lib_memcpy(pContent, pcache->HOITBLK_buf+stStart, stBufSize);
+            }
+            pucDest     += stBufSize;
+            uiSize      -= stBufSize;
+            readBytes   += stBufSize;
+            stStart      = 0;
+        }
+    }
 
     return LW_TRUE;
 }
@@ -303,23 +313,32 @@ BOOL hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, 
 BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
     PCHAR   pucDest         = pContent;
     size_t  cacheBlkSize    = pcacheHdr->HOITCACHE_blockSize;
-    size_t  stStart         = uiOfs % cacheBlkSize;
-    UINT32  blkNoStart      = uiOfs/cacheBlkSize;
-    UINT32  blkNoEnd        = (uiOfs + uiSize) / cacheBlkSize;
+    
+    size_t  stStart         = uiOfs % cacheBlkSize; 
+    //!2021年8月6日
+    //UINT32  blkNoStart      = uiOfs/cacheBlkSize;
+
+    size_t  sectorSize      = hoitGetSectorSize(8);
     UINT32  writeBytes      = 0;
     UINT32  i;                      /* 下一块要写入的flash块 */
-    UINT32                  writeAddr = uiOfs + writeBytes + NOR_FLASH_START_OFFSET;
+
+    //!2021年8月6日
+    /* 注意上下层的地址切换，上下层只有sector号是一样的 */
+    //UINT32  writeAddr = blkNoStart * sectorSize + stStart + NOR_FLASH_START_OFFSET;     
+    UINT32  writeAddr;
+
     PHOIT_CACHE_BLK         pcache;
     PHOIT_ERASABLE_SECTOR   pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
     
     //! 22021-07-07 既然这个写函数主要用于标记过期，改成写不分配以及FIFO比较好
     while(uiSize != 0) {
-        size_t  stBufSize = (cacheBlkSize - stStart);
+        size_t  stBufSize = (cacheBlkSize - stStart);   /* 当前sector剩余空间 */
         i = (uiOfs + writeBytes)/cacheBlkSize;
-
         pSector = hoitFindSector(pcacheHdr, i);/* 查找块号对应的pSector */
-
-        writeAddr = uiOfs + writeBytes + NOR_FLASH_START_OFFSET;
+        
+        //!2021年8月6日
+        // writeAddr = uiOfs + writeBytes + NOR_FLASH_START_OFFSET;
+        writeAddr = i * sectorSize + stStart + NOR_FLASH_START_OFFSET;
 
         pcache = hoitCheckCacheHit(pcacheHdr, i);
         if (stBufSize > uiSize) { /* 不用写满整个sector */
@@ -341,11 +360,9 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
             break;
         } else { /* 写满整个sector */
             if (pcache == LW_NULL) { /* 未命中 */
-
-                write_nor(writeAddr, pContent, uiSize, WRITE_KEEP);
+                write_nor(writeAddr, pContent, stBufSize, WRITE_KEEP);
             } else {
                 lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, stBufSize);
-                
             }
 
             pucDest     += stBufSize;
@@ -356,15 +373,11 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
             pSector->HOITS_offset       = cacheBlkSize;
             pSector->HOITS_uiFreeSize   = 0;
             pSector->HOITS_uiUsedSize   = cacheBlkSize;
+            //!2021年8月6日
+            pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_totalUsedSize += stBufSize;
         }
     }
-    // if(uiSize >= sizeof(HOIT_RAW_HEADER)){  /* 实体头 */
-    //     PHOIT_RAW_HEADER headr = (PHOIT_RAW_HEADER)pContent;
-    //     headr->magic_num == HOIT_MAGIC_NUM
-    //     {
-    //         pSector.usedCount++;               
-    //     }
-    // }
+
     return LW_TRUE;   
 }
 
@@ -381,12 +394,13 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
 */
 UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize){
     PCHAR   pucDest         = pContent;
-    UINT32  writeAddr       = 0;
+    UINT32  writeAddrUpper;      /* 上层视角中的地址 */
+    UINT32  writeAddrLower;          /* cache层视角中的地址 */
     UINT32  i;
     UINT32  inode;          /* 数据实体所属文件inode号 */
     UINT32  pageNum;        /* 数据实体需要页数量 */
     UINT32  uiSizeAlign;    /* 对齐之后数据实体写入大小 */
-
+    UINT32  m = NOR_FLASH_START_OFFSET;
     PHOIT_CACHE_BLK         pcache;
     PHOIT_ERASABLE_SECTOR   pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
 
@@ -414,7 +428,7 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     uiSizeAlign = pageNum * HOIT_FILTER_PAGE_SIZE;
     //i = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA, uiSize);
     //! 设成页对齐
-    i = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA, pageNum*HOIT_FILTER_PAGE_SIZE);
+    i = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA, uiSizeAlign);
 
     if (i == PX_ERROR) {
         return PX_ERROR;
@@ -422,16 +436,26 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
         pSector = hoitFindSector(pcacheHdr, i);      
     }
 
-    writeAddr = pSector->HOITS_bno * 
-                pcacheHdr->HOITCACHE_blockSize + 
-                pSector->HOITS_offset + 
-                NOR_FLASH_START_OFFSET;         /* 确定数据实体写入的flash地址 */
+    /* cache层的视角中，一个块有64KB；但在上层视角中一个块只有1023*56B = 57288B */
+    writeAddrUpper = pSector->HOITS_bno * 
+                    pcacheHdr->HOITCACHE_blockSize + 
+                    pSector->HOITS_offset;         /* 确定数据实体写入的flash地址 */
+
+    writeAddrLower = pSector->HOITS_bno * 
+                    hoitGetSectorSize(8) + 
+                    pSector->HOITS_offset + 
+                    NOR_FLASH_START_OFFSET;         /* 确定数据实体写入的flash地址 */ 
+
+    //FOR TEST
+    // if (i == 19 && writeAddr <= 1092504 + NOR_FLASH_START_OFFSET && writeAddr >=19*pcacheHdr->HOITCACHE_blockSize + NOR_FLASH_START_OFFSET) {
+    //     i = 0;
+    // }
 
     pcache = hoitCheckCacheHit(pcacheHdr, pSector->HOITS_bno);
     if (pcache == LW_NULL) {                                    /* 未命中 */
         pcache = hoitAllocCache(pcacheHdr, pSector->HOITS_bno, HOIT_CACHE_TYPE_DATA, pSector);
         if (pcache == LW_NULL) {                                /* 未成功分配cache，直接写入flash */                        
-            write_nor(writeAddr, pContent, uiSize, WRITE_KEEP);
+            write_nor(writeAddrLower, pContent, uiSize, WRITE_KEEP);
         }
         else {                                                  /* 成功分配cache，则写入cache，并将该cache块提到表头 */
             lib_memcpy(pcache->HOITBLK_buf + pSector->HOITS_offset, pucDest, uiSize);
@@ -472,10 +496,10 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
 
     pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
 
-    if(writeAddr - NOR_FLASH_START_OFFSET == 1088472){
+    if(writeAddrUpper - NOR_FLASH_START_OFFSET == 1088472){
         printf("debug\n");
     }
-    return writeAddr - NOR_FLASH_START_OFFSET;
+    return writeAddrUpper;
 }
 
 /*
@@ -798,6 +822,7 @@ PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no
 VOID    hoitWriteBackCache(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache){
     UINT offset = pcache->HOITBLK_blkNo*GET_SECTOR_SIZE(8) + NOR_FLASH_START_OFFSET;
     /* 先写数据 */
+    //! 有问题
     write_nor(offset,
                 pcache->HOITBLK_buf, 
                 pcacheHdr->HOITCACHE_blockSize, 
@@ -806,7 +831,7 @@ VOID    hoitWriteBackCache(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache){
     /* 再写EBS */  
     write_nor(offset + pcacheHdr->HOITCACHE_EBSStartAddr,
                 pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr,
-                pcacheHdr->HOITCACHE_PageAmount*sizeof(HOIT_EBS_ENTRY),
+                (pcacheHdr->HOITCACHE_PageAmount+1)*sizeof(HOIT_EBS_ENTRY),
                 WRITE_KEEP);
 
     /* 最后写CRC校验码 */

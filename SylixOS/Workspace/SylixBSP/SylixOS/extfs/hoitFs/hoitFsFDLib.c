@@ -195,6 +195,9 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
     pRawInode->crc = crc32_le(pBuf, totlen);
     __hoit_write_flash(pfs, pBuf, totlen, &phys_addr, needLog);
 
+    if(phys_addr == 1092504){
+        __hoit_read_flash(pfs, phys_addr, pBuf, totlen);
+    }
     PHOIT_RAW_INFO pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
     pRawInfo->phys_addr = phys_addr;
     pRawInfo->totlen = sizeof(HOIT_RAW_INODE) + size;
