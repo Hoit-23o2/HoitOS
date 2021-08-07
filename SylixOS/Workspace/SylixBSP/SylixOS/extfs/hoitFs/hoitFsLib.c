@@ -1120,7 +1120,7 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     UINT phys_addr = 0;
 
     //!2021-05-16 ÐÞ¸Änow_sectorÖ¸Õë modified by PYQ 
-    pfs->HOITFS_now_sector = pfs->HOITFS_curGCSuvivorSector;
+    //pfs->HOITFS_now_sector = hoitFindNextToWrite(pfs->HOITFS_cacheHdr, HOIT_CACHE_TYPE_DATA, pRawInfo->totlen);
     
     pRawHeader->crc = 0;
     pRawHeader->crc = crc32_le(pRawHeader, pRawInfo->totlen);

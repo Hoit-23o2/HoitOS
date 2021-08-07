@@ -206,7 +206,6 @@ typedef struct HOIT_VOLUME{
     Iterator(HOIT_ERASABLE_SECTOR)  HOITFS_sectorIterator;                      /* 统一sector迭代器 */
 
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
-    PHOIT_ERASABLE_SECTOR   HOITFS_curGCSuvivorSector;                      /* 目标搬家地址 */
     LW_OBJECT_HANDLE        HOITFS_GCMsgQ;                                 /* GC线程消息队列*/
     LW_OBJECT_HANDLE        HOITFS_hGCThreadId;                            /* GC总线程ID */
     size_t                  HOITFS_totalUsedSize;                          /* hoitfs已使用Flash大小 */

@@ -298,7 +298,7 @@ PHOIT_FRAG_TREE_NODE hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_
     // if(pFTn->pRbn.iKey == 360){
     //     printf("rinima\n");
     // }
-    printf("Insert: [%d, %d]\n", pFTn->pRbn.iKey, pFTn->uiSize + pFTn->pRbn.iKey - 1);
+    // printf("Insert: [%d, %d]\n", pFTn->pRbn.iKey, pFTn->uiSize + pFTn->pRbn.iKey - 1);
     hoitRbInsertNode(pFTTree->pRbTree, &pFTn->pRbn);
     pFTTree->uiNCnt++;
     return pFTn;
@@ -367,7 +367,7 @@ BOOL hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, 
         pFTn->pMergeEntry->pTreeNode = LW_NULL;
     }
     // 测试
-    printf("Delete: [%d, %d]\n", pFTn->pRbn.iKey, pFTn->uiSize + pFTn->pRbn.iKey - 1);
+    // printf("Delete: [%d, %d]\n", pFTn->pRbn.iKey, pFTn->uiSize + pFTn->pRbn.iKey - 1);
     res = hoitRbDeleteNode(pFTTree->pRbTree, &pFTn->pRbn);
     if(res){
         pFTTree->uiNCnt--;
@@ -583,15 +583,25 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
     UINT32                          uiRightOffset;
 
     BOOL                            bIsOverlay;
+    UINT32                          debug_outer_count = 0;
+    UINT32                          debug_inner_count = 0;
 
     pFTlistHeader = hoitFragTreeCollectRange(pFTTree, INT_MIN, INT_MAX);
     pFTlistCur = pFTlistHeader->pFTlistHeader->pFTlistNext;
     while (pFTlistCur != LW_NULL)                                                   /* 没走到尾巴上 */
     {
+        debug_outer_count ++;
+        if (debug_outer_count == 783){
+//          printf("debug_outer_count:%d \n",debug_outer_count);
+            debug_inner_count = debug_outer_count;
+        }
+        debug_inner_count = 0;
         //TODO: 验证正确性?
         pFTlistConqueror = pFTlistHeader->pFTlistHeader->pFTlistNext;               /* 征服者 */
         while (pFTlistConqueror != LW_NULL)
         {
+            debug_inner_count ++;
+
             bIsOverlay = LW_FALSE;
             if(pFTlistCur == LW_NULL){
                 break;
@@ -612,12 +622,15 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
             uiConquerorLow  = pFTnConqueror->uiOfs;
             uiConquerorHigh = uiConquerorLow + pFTnConqueror->uiSize == 0 ?
                               0 : uiConquerorLow + pFTnConqueror->uiSize - 1;
-            if(uiConquerorLow >= 360 && uiConquerorLow < 1000 && pFTn->uiOfs >= 360)
-                printf("Conqueror: [%d, %d], Victim: [%d, %d]\n", uiConquerorLow, uiConquerorHigh, pFTn->uiOfs,
-                        pFTn->uiOfs + pFTn->uiSize == 0 ? 0 : pFTn->uiOfs + pFTn->uiSize - 1);
-            if(uiConquerorLow == 366 && uiConquerorHigh == 366 && 
-               pFTn->uiOfs == 366 &&  pFTn->uiOfs + pFTn->uiSize - 1 == 4095){
-                printf("debug\n");
+            // if(uiConquerorLow >= 360 && uiConquerorLow < 1000 && pFTn->uiOfs >= 360)
+            //     printf("Conqueror: [%d, %d], Victim: [%d, %d]\n", uiConquerorLow, uiConquerorHigh, pFTn->uiOfs,
+            //             pFTn->uiOfs + pFTn->uiSize == 0 ? 0 : pFTn->uiOfs + pFTn->uiSize - 1);
+            // if(uiConquerorLow == 366 && uiConquerorHigh == 366 && 
+            //    pFTn->uiOfs == 366 &&  pFTn->uiOfs + pFTn->uiSize - 1 == 4095){
+            //     printf("debug\n");
+            // }
+            if (debug_outer_count == 783 && debug_inner_count == 784){
+                printf("debug_inner_count:%d\n",debug_inner_count);
             }
             bIsOverlay = __hoitFragTreeConquerNode(pFTTree, pFTn, uiConquerorLow, uiConquerorHigh,
                                                    &pFTnNew, &uiCase, LW_TRUE);

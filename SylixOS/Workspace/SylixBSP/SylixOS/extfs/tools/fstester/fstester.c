@@ -96,6 +96,9 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     for (i = 0; i < uiLoopTimes; i++)
     {
         printf("====== TEST %d ======\n", i);
+        if (i==78) {
+            printf("debug\n");
+        }
         ulMsecStart         = API_TimeGet() * ulUsecPerTick / 1000;
         {
             iRes = functionality(iFdTemp, stat.st_size, uiTestCount, pMountPoint);

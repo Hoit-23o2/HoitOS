@@ -146,7 +146,9 @@ UINT32              hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr,
 PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, 
                                      UINT32 sector_no);
 VOID                hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr, 
-                                         PHOIT_ERASABLE_SECTOR pErasableSector);        
+                                         PHOIT_ERASABLE_SECTOR pErasableSector); 
+VOID                hoitOccupySectorState(PHOIT_CACHE_HDR pcacheHdr, 
+                                          PHOIT_ERASABLE_SECTOR pErasableSector);   
 VOID                hoitWriteBackCache(PHOIT_CACHE_HDR pcacheHdr, 
                                         PHOIT_CACHE_BLK pcache);
 
