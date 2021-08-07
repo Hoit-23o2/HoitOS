@@ -51,6 +51,8 @@ def get_sections_from_raw(path: str) -> List:
                     if len(section) != section_size:
                         raise Exception(get_sections_from_raw.__name__ + ": section大小不同")
                 section.clear()
+            elif line_striped.startswith("["):
+                continue 
             else :
                 section.append(line_striped)
         """ 添加剩下的一点点 """

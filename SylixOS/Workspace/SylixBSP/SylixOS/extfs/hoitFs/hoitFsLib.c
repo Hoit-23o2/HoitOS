@@ -1098,14 +1098,14 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     pReadBuf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);
     /* 先读出旧数据 */
     lib_bzero(pReadBuf, pRawInfo->totlen);
+    crc32_check(pReadBuf);
 
     __hoit_read_flash(pfs, pRawInfo->phys_addr, pReadBuf, pRawInfo->totlen);
-    crc32_check(pReadBuf);
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pReadBuf;
     if (pRawHeader->magic_num != HOIT_MAGIC_NUM 
     || (pRawHeader->flag & HOIT_FLAG_NOT_OBSOLETE) == 0) {
-        //printk("Error in hoit_move_home\n");
+        //printf("Error in hoit_move_home\n");
         return LW_FALSE;
     }
     //!pRawHeader->flag &= (~HOIT_FLAG_NOT_OBSOLETE);      //将obsolete标志变为0，代表过期
@@ -1197,7 +1197,7 @@ PHOIT_INODE_INFO  __hoit_open(PHOIT_VOLUME  pfs,
     PHOIT_FULL_DIRENT   pDirentTemp;
 
     pcNext = pcTempName;
-    pInode = pfs->HOITFS_pRootDir;                               /*  从根目录开始搜索            */
+    pInode = pfs->HOITFS_pRootDir;                                      /*  从根目录开始搜索            */
 
     do {
         pcNode = pcNext;
