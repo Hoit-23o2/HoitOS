@@ -113,6 +113,9 @@ INT fs_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
             //hoitEBSTest(_G_Volumn);
             hoitEBSCheckCmd(_G_Volumn, iArgC - 2, ppcArgV + 2);
         }
+        else if (EQU_ARG("raw", pcFSOption)) {
+            hoitGetRawInfoMemCost(_G_Volumn);
+        }
     }
 }
 

@@ -1055,3 +1055,41 @@ INT hoitEBSCheckCmd(PHOIT_VOLUME pfs, INT  iArgC, PCHAR  ppcArgV[]) {
 
     hoitCheckEBS(pfs, sector_no, n);
 }
+/*********************************************************************************************************
+** 函数名称: hoitGetRawInfoMemCost
+** 功能描述: 获取整个文件系统中raw_info的内存占用情况
+** 输　入  :
+**          pfs                 文件卷
+** 输　出  :
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID hoitGetRawInfoMemCost(PHOIT_VOLUME pfs){
+    PHOIT_ERASABLE_SECTOR pSector = pfs->HOITFS_cacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+    INT iValidCount = 0;
+    INT iInvalidCount = 0;
+    while (pSector != LW_NULL)
+    {
+        PHOIT_RAW_INFO pRawInfo = pSector->HOITS_pRawInfoFirst;
+        PHOIT_RAW_INFO pRawNext = LW_NULL;
+        while(pRawInfo != LW_NULL){
+            pRawNext = pRawInfo->next_phys;
+            if(pRawInfo->is_obsolete == HOIT_FLAG_NOT_OBSOLETE){
+                iValidCount++;
+            }
+            else{
+                iInvalidCount++;
+            }
+            pRawInfo = pRawNext;
+        }
+
+        pSector = pSector->HOITS_next;
+    }
+
+    printf("====== RawInfo Mem Cost ======\n");
+    printf("Valid RawInfo Count: %d\n", iValidCount);
+    printf("Invalid RawInfo Count: %d\n", iInvalidCount);
+    printf("Total Mem Cost: %d Bytes\n", (iValidCount+iInvalidCount)*sizeof(HOIT_RAW_INFO));
+    return;
+
+}

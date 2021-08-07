@@ -103,14 +103,8 @@ INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR
         {
             *(pWriteBuffer + j) = RANDOM_ALPHABET();
         }
-<<<<<<< HEAD
-        if(i==4){
-            printf("debug\n");
-        }
-=======
         if(i == 6)
             printf("loops: %d\n", i);
->>>>>>> f44f9d7defc14531c98c073f0069a9c81920305a
         lseek(iFdTest, uiRandomWriteOffset, SEEK_SET);
         write(iFdTest, pWriteBuffer, uiRandomWriteSize);
     }
