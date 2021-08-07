@@ -44,7 +44,7 @@ BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFDnode, BOOL b
 #define FT_GET_KEY(pFTn)            pFTn->pRbn.iKey
 #define FT_LEFT_CHILD(pFTn)         (PHOIT_FRAG_TREE_NODE)pFTnRoot->pRbn.pRbnLeft
 #define FT_RIGHT_CHILD(pFTn)        (PHOIT_FRAG_TREE_NODE)pFTnRoot->pRbn.pRbnRight
-#define RB_GUARD(pFTTree)           pFTTree->pRbTree->pRbnGuard
+#define RB_GUARD(pFTTree)           (pFTTree->pRbTree->pRbnGuard)
 
 #define MAX(a, b)                   ((a) > (b) ? (a) : (b))
 #define MIN(a, b)                   ((a) < (b) ? (a) : (b))    
@@ -225,9 +225,9 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
             uiLeftRemainSize = uiConquerorLow - uiCurLow ;
             uiRightRemainSize = uiCurHigh - uiConquerorHigh;
 
-            pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,                       /* 截取[ConquerorHigh, CurHigh]的节点，创建新节点 */
+            pFDNodeNew = __hoit_truncate_full_dnode(pFTTree->pfs,                       /* 截取(ConquerorHigh, CurHigh]的节点，创建新节点 */
                                                     pFTn->pFDnode,
-                                                    uiConquerorHigh - uiCurLow,
+                                                    uiConquerorHigh - uiCurLow + 1,
                                                     uiRightRemainSize);
 
             pFTn->uiSize = uiLeftRemainSize;                                            /* 设置被征服节点的大小 */
@@ -679,9 +679,13 @@ PHOIT_FRAG_TREE_NODE hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_
     hoitRbInsertNode(pFTTree->pRbTree, &pFTn->pRbn);
 #else
     PHOIT_FRAG_TREE_NODE pFTnStart = __hoitFragTreeGetMinimum(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
+    // if(pFTn->uiOfs == 7 && pFTn->uiSize == 107){
+    //     hoitFragTreeTraverse(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
+    // }
     if(pFTTree->uiNCnt != 0){
         hoitFragTreeTraverseVisitor(pFTTree, pFTnStart, 
-                                    __hoitFragTreeInsertOverlayFixUpVisitor, (PVOID)pFTn);
+                                    __hoitFragTreeInsertOverlayFixUpVisitor, 
+                                    (PVOID)pFTn);
     }
     hoitRbInsertNode(pFTTree->pRbTree, &pFTn->pRbn);
     // printf("==================Insert: [%d, %d]==================\n", pFTn->pRbn.iKey, 

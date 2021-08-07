@@ -1,22 +1,22 @@
 /*********************************************************************************************************
 **
-**                                    ä¸­å›½è½¯ä»¶å¼€æºç»„ç»‡
+**                                    ÖĞ¹úÈí¼ş¿ªÔ´×éÖ¯
 **
-**                                   åµŒå…¥å¼å®æ—¶æ“ä½œç³»ç»Ÿ
+**                                   Ç¶ÈëÊ½ÊµÊ±²Ù×÷ÏµÍ³
 **
 **                                       SylixOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
-**--------------æ–‡ä»¶ä¿¡æ¯--------------------------------------------------------------------------------
+**--------------ÎÄ¼şĞÅÏ¢--------------------------------------------------------------------------------
 **
-** æ–‡   ä»¶   å: functionality.c
+** ÎÄ   ¼ş   Ãû: functionality.c
 **
-** åˆ›   å»º   äºº: Pan Yanqi
+** ´´   ½¨   ÈË: Pan Yanqi
 **
-** æ–‡ä»¶åˆ›å»ºæ—¥æœŸ: 2021 å¹´ 08 æœˆ 02 æ—¥
+** ÎÄ¼ş´´½¨ÈÕÆÚ: 2021 Äê 08 ÔÂ 02 ÈÕ
 **
-** æ        è¿°: åŠŸèƒ½å®ç°å‡½æ•°
+** Ãè        Êö: ¹¦ÄÜÊµÏÖº¯Êı
 *********************************************************************************************************/
 #include "fstester.h"
 
@@ -26,14 +26,14 @@
 #define RANDOM_RANGE(a, b) (lib_rand() % (b - a) + a)
 #define RANDOM_ALPHABET()  (CHAR)(lib_rand() % 26 + 'a')
 /*********************************************************************************************************
-** å‡½æ•°åç§°: __fstesterRandomRead
-** åŠŸèƒ½æè¿°: éšæœºè¯»å®ç°
-** è¾“ã€€å…¥  : iFdTest        å¾…æµ‹è¯•æ–‡ä»¶æè¿°ç¬¦
-**            uiTestRange   æ–‡ä»¶å¤§å°
-**            uiLoopTimes   å¾ªç¯æµ‹é‡æ¬¡æ•°
-** è¾“ã€€å‡º  : None
-** å…¨å±€å˜é‡:
-** è°ƒç”¨æ¨¡å—:
+** º¯ÊıÃû³Æ: __fstesterRandomRead
+** ¹¦ÄÜÃèÊö: Ëæ»ú¶ÁÊµÏÖ
+** Êä¡¡Èë  : iFdTest        ´ı²âÊÔÎÄ¼şÃèÊö·û
+**            uiTestRange   ÎÄ¼ş´óĞ¡
+**            uiLoopTimes   Ñ­»·²âÁ¿´ÎÊı
+** Êä¡¡³ö  : None
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint){
     UINT    i;
@@ -46,7 +46,7 @@ INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR 
     {
         lib_memset(pReadBuffer, 0, MAX_IO_SZ);
         uiRandomReadOffset  = lib_random() % uiTestRange;       /* [0 ~  size] */
-        uiRandomReadSize    = RANDOM_RANGE(MIN_IO_SZ, MAX_IO_SZ);         /* [MIN_IO_SZ ~ MAX_IO_SZ]éšæœºæ•° */ 
+        uiRandomReadSize    = RANDOM_RANGE(MIN_IO_SZ, MAX_IO_SZ);         /* [MIN_IO_SZ ~ MAX_IO_SZ]Ëæ»úÊı */ 
         lseek(iFdTest, uiRandomReadOffset, SEEK_SET);
         read(iFdTest, pReadBuffer, uiRandomReadSize);
     }
@@ -54,14 +54,14 @@ INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR 
     return ERROR_NONE;
 }
 /*********************************************************************************************************
-** å‡½æ•°åç§°: __fstesterSequentialRead
-** åŠŸèƒ½æè¿°: é¡ºåºè¯»å®ç°
-** è¾“ã€€å…¥  : iFdTest        å¾…æµ‹è¯•æ–‡ä»¶æè¿°ç¬¦
-**            uiTestRange   æ–‡ä»¶å¤§å°
-**            uiLoopTimes   å¾ªç¯æµ‹é‡æ¬¡æ•°
-** è¾“ã€€å‡º  : None
-** å…¨å±€å˜é‡:
-** è°ƒç”¨æ¨¡å—:
+** º¯ÊıÃû³Æ: __fstesterSequentialRead
+** ¹¦ÄÜÃèÊö: Ë³Ğò¶ÁÊµÏÖ
+** Êä¡¡Èë  : iFdTest        ´ı²âÊÔÎÄ¼şÃèÊö·û
+**            uiTestRange   ÎÄ¼ş´óĞ¡
+**            uiLoopTimes   Ñ­»·²âÁ¿´ÎÊı
+** Êä¡¡³ö  : None
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 INT __fstesterSequentialRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint){
     UINT    i;
@@ -79,14 +79,14 @@ INT __fstesterSequentialRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PC
     return ERROR_NONE;
 }
 /*********************************************************************************************************
-** å‡½æ•°åç§°: __fstesterRandomWrite
-** åŠŸèƒ½æè¿°: éšæœºå†™å®ç°
-** è¾“ã€€å…¥  : iFdTest        å¾…æµ‹è¯•æ–‡ä»¶æè¿°ç¬¦
-**            uiTestRange   æ–‡ä»¶å¤§å°
-**            uiLoopTimes   å¾ªç¯æµ‹é‡æ¬¡æ•°
-** è¾“ã€€å‡º  : None
-** å…¨å±€å˜é‡:
-** è°ƒç”¨æ¨¡å—:
+** º¯ÊıÃû³Æ: __fstesterRandomWrite
+** ¹¦ÄÜÃèÊö: Ëæ»úĞ´ÊµÏÖ
+** Êä¡¡Èë  : iFdTest        ´ı²âÊÔÎÄ¼şÃèÊö·û
+**            uiTestRange   ÎÄ¼ş´óĞ¡
+**            uiLoopTimes   Ñ­»·²âÁ¿´ÎÊı
+** Êä¡¡³ö  : None
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint){     
     UINT    i, j;
@@ -103,6 +103,8 @@ INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR
         {
             *(pWriteBuffer + j) = RANDOM_ALPHABET();
         }
+        if(i == 6)
+            printf("loops: %d\n", i);
         lseek(iFdTest, uiRandomWriteOffset, SEEK_SET);
         write(iFdTest, pWriteBuffer, uiRandomWriteSize);
     }
@@ -111,14 +113,14 @@ INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR
 
 }
 /*********************************************************************************************************
-** å‡½æ•°åç§°: __fstesterSequentialWrite
-** åŠŸèƒ½æè¿°: éšæœºå†™å®ç°
-** è¾“ã€€å…¥  : iFdTest        å¾…æµ‹è¯•æ–‡ä»¶æè¿°ç¬¦
-**            uiTestRange   æ–‡ä»¶å¤§å°
-**            uiLoopTimes   å¾ªç¯æµ‹é‡æ¬¡æ•°
-** è¾“ã€€å‡º  : None
-** å…¨å±€å˜é‡:
-** è°ƒç”¨æ¨¡å—:
+** º¯ÊıÃû³Æ: __fstesterSequentialWrite
+** ¹¦ÄÜÃèÊö: Ëæ»úĞ´ÊµÏÖ
+** Êä¡¡Èë  : iFdTest        ´ı²âÊÔÎÄ¼şÃèÊö·û
+**            uiTestRange   ÎÄ¼ş´óĞ¡
+**            uiLoopTimes   Ñ­»·²âÁ¿´ÎÊı
+** Êä¡¡³ö  : None
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint){ 
     (VOID)  iFdTest;
@@ -141,14 +143,14 @@ INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, P
     return ERROR_NONE;
 }
 /*********************************************************************************************************
-** å‡½æ•°åç§°: __fstesterSmallWrite
-** åŠŸèƒ½æè¿°: éšæœºå†™å®ç°
-** è¾“ã€€å…¥  : iFdTest        å¾…æµ‹è¯•æ–‡ä»¶æè¿°ç¬¦
-**            uiTestRange   æ–‡ä»¶å¤§å°
-**            uiLoopTimes   å¾ªç¯æµ‹é‡æ¬¡æ•°
-** è¾“ã€€å‡º  : None
-** å…¨å±€å˜é‡:
-** è°ƒç”¨æ¨¡å—:
+** º¯ÊıÃû³Æ: __fstesterSmallWrite
+** ¹¦ÄÜÃèÊö: Ëæ»úĞ´ÊµÏÖ
+** Êä¡¡Èë  : iFdTest        ´ı²âÊÔÎÄ¼şÃèÊö·û
+**            uiTestRange   ÎÄ¼ş´óĞ¡
+**            uiLoopTimes   Ñ­»·²âÁ¿´ÎÊı
+** Êä¡¡³ö  : None
+** È«¾Ö±äÁ¿:
+** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint){ 
     UINT    i, j;
