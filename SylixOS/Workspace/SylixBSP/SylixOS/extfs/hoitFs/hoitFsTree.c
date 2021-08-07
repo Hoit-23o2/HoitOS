@@ -749,15 +749,25 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
     UINT32                          uiRightOffset;
 
     BOOL                            bIsOverlay;
+    UINT32                          debug_outer_count = 0;
+    UINT32                          debug_inner_count = 0;
 
     pFTlistHeader = hoitFragTreeCollectRange(pFTTree, INT_MIN, INT_MAX);
     pFTlistCur = pFTlistHeader->pFTlistHeader->pFTlistNext;
     while (pFTlistCur != LW_NULL)                                                   /* 没走到尾巴上 */
     {
+        debug_outer_count ++;
+        if (debug_outer_count == 783){
+//          printf("debug_outer_count:%d \n",debug_outer_count);
+            debug_inner_count = debug_outer_count;
+        }
+        debug_inner_count = 0;
         //TODO: 验证正确性?
         pFTlistConqueror = pFTlistHeader->pFTlistHeader->pFTlistNext;               /* 征服者 */
         while (pFTlistConqueror != LW_NULL)
         {
+            debug_inner_count ++;
+
             bIsOverlay = LW_FALSE;
             if(pFTlistCur == LW_NULL){
                 break;

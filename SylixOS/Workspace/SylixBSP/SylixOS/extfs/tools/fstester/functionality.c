@@ -158,6 +158,9 @@ INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR 
 
     for (i = 0; i < uiLoopTimes; i++)
     {
+        if (i == 2) {
+            printf("debug\n");
+        }
         write(iFdTest, RANDOM_ALPHABET(), sizeof(CHAR));
     }
     return ERROR_NONE;

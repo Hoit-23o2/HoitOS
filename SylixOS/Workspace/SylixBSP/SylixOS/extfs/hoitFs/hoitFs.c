@@ -161,7 +161,6 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 
                                                                         /* GC相关 */
     pfs->HOITFS_curGCSector        = LW_NULL;
-    pfs->HOITFS_curGCSuvivorSector  = LW_NULL;
     pfs->HOITFS_erasableSectorList = LW_NULL;
 
     InitList(pfs->HOITFS_dirtySectorList,hoitFs, HOIT_ERASABLE_SECTOR); /* 初始化模板链表 */
@@ -175,7 +174,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 
     hoitEnableCache(GET_SECTOR_SIZE(8), 8, pfs);
     __hoit_mount(pfs);
-    hoitStartGCThread(pfs, 64 * 26 * 1024);
+    // hoitStartGCThread(pfs, 64 * 26 * 1024);
     
     if (iosDevAddEx(&pfs->HOITFS_devhdrHdr, pcName, _G_iHoitFsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
