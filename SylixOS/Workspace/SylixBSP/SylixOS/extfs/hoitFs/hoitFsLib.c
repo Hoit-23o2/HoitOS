@@ -1804,6 +1804,7 @@ ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  st
     if(stNBytes == 0){
         return stNBytes;
     }
+    //hoitFragTreeShowMemory(pInodeInfo->HOITN_rbtree);
 
     if (pInodeInfo->HOITN_rbtree != LW_NULL) {
         PHOIT_FULL_DNODE pFullDnode = __hoit_write_full_dnode(pInodeInfo, stOft, stNBytes, pvBuffer, needLog);
