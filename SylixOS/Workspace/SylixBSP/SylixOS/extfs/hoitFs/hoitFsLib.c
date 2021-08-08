@@ -1501,7 +1501,7 @@ INT  __hoit_unlink_dir(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDirent
 *********************************************************************************************************/
 VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag)
 {
-    if(pInodeInfo->HOITN_ino == HOIT_ROOT_DIR_INO || pInodeInfo == LW_NULL){ /* 不close根目录 */
+    if((pInodeInfo->HOITN_ino == HOIT_ROOT_DIR_INO && iFlag != 0x3) || pInodeInfo == LW_NULL){ /* 不close根目录 */
         return;
     }
     if (S_ISDIR(pInodeInfo->HOITN_mode)) {
@@ -1845,7 +1845,7 @@ VOID  __hoit_unmount(PHOIT_VOLUME pfs)
     }
     hoitFlushCache(pfs->HOITFS_cacheHdr, (PHOIT_CACHE_BLK)-1);
     hoitGCClose(pfs);
-    __hoit_close(pfs->HOITFS_pRootDir, 0);  /* 先删除根目录 */
+    __hoit_close(pfs->HOITFS_pRootDir, 3);  /* 先删除根目录, 3代表会实际进行删除根目录 */
     hoitFreeCache(pfs->HOITFS_cacheHdr);    /* 释放缓存层 */
 
     if (pfs->HOITFS_pTempRootDirent != LW_NULL) {   /* 删除TempDirent链表 */
@@ -2075,8 +2075,6 @@ VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasable
         }
     }
 }
-
-
 
 
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
