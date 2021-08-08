@@ -108,48 +108,60 @@ def parse_formatted_file(raw_path: str) -> Tuple[str, int ,List[List]]:
         return (table_name, col_names, col_values)
 
 def draw(table_name: str, col_names: List[str], col_values: List[List[str]]):
-    root_dir = os.path.dirname(__file__)
-    base_out_img_dir = root_dir + G_IMG_OUT_DIR
-    base_out_excels_dir = root_dir + G_EXCEL_OUT_DIR
-    out_img_path = root_dir + G_IMG_OUT_DIR + "\\img_" + table_name +".png"
-    out_xlsx_path = root_dir + G_EXCEL_OUT_DIR + "\\excel_" + table_name +".xlsx"
     
-    if not os.access(base_out_img_dir, os.F_OK):
-        os.mkdir(base_out_img_dir)
+    """[summary]
+
+    Args:
+        table_name (str): [表格名字]
+        col_names (List[str]): [列名字]
+        col_values (List[List[str]]): [数值]
+       
+        col_names[0]
+        col_values[0]
+    """
+
+    # root_dir = os.path.dirname(__file__)
+    # base_out_img_dir = root_dir + G_IMG_OUT_DIR
+    # base_out_excels_dir = root_dir + G_EXCEL_OUT_DIR
+    # out_img_path = root_dir + G_IMG_OUT_DIR + "\\img_" + table_name +".png"
+    # out_xlsx_path = root_dir + G_EXCEL_OUT_DIR + "\\excel_" + table_name +".xlsx"
     
-    if not os.access(base_out_excels_dir, os.F_OK):
-        os.mkdir(base_out_excels_dir)
+    # if not os.access(base_out_img_dir, os.F_OK):
+    #     os.mkdir(base_out_img_dir)
     
-    wb = xlwings.Book()
-    sheet : Sheet = wb.sheets[0]  
-    sheet_value = []
-    col_cnt = len(col_names)
-    row_cnt = len(col_values[0])
-    sheet_value.append(col_names)
+    # if not os.access(base_out_excels_dir, os.F_OK):
+    #     os.mkdir(base_out_excels_dir)
     
-    for i in range(row_cnt):
-        row = []
-        for j in range(col_cnt):
-            row.append(col_values[j][i])
-        sheet_value.append(row)
+    # wb = xlwings.Book()
+    # sheet : Sheet = wb.sheets[0]  
+    # sheet_value = []
+    # col_cnt = len(col_names)
+    # row_cnt = len(col_values[0])
+    # sheet_value.append(col_names)
+    
+    # for i in range(row_cnt):
+    #     row = []
+    #     for j in range(col_cnt):
+    #         row.append(col_values[j][i])
+    #     sheet_value.append(row)
 
-    print(sheet_value)
+    # print(sheet_value)
 
-    sheet.range("A1").value = sheet_value
+    # sheet.range("A1").value = sheet_value
 
-    chart = sheet.charts.add(100, 100)
-    chart.set_source_data(sheet.range("A1").expand())
-    chart.chart_type = "line"
+    # chart = sheet.charts.add(100, 100)
+    # chart.set_source_data(sheet.range("A1").expand())
+    # chart.chart_type = "line"
 
-    chart.api[1].SetElement(2) 
-    chart.api[1].ChartTitle.Text = table_name
+    # chart.api[1].SetElement(2) 
+    # chart.api[1].ChartTitle.Text = table_name
     
 
-    wb.save(out_xlsx_path)
-    wb.close()
-    print("等待中...")
-    save_chart(out_xlsx_path, out_img_path)
-    print("完成!")
+    # wb.save(out_xlsx_path)
+    # wb.close()
+    # print("等待中...")
+    # save_chart(out_xlsx_path, out_img_path)
+    # print("完成!")
 
 def main():
     path = get_local_file()

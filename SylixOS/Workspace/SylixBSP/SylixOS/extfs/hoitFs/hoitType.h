@@ -284,7 +284,6 @@ struct HOIT_FULL_DNODE{//32B
     UINT                HOITFD_version;
 };
 
-
 struct HOIT_FULL_DIRENT{
     PHOIT_FULL_DIRENT   HOITFD_next;
     PHOIT_RAW_INFO      HOITFD_raw_info;
@@ -406,7 +405,6 @@ struct hoit_frag_tree_node
     UINT32 uiOfs;
     PHOIT_MERGE_ENTRY pMergeEntry;
 };
-
 /*********************************************************************************************************
   PHOIT_FRAG_TREE_LIST_NODE 
 *********************************************************************************************************/

@@ -1016,7 +1016,7 @@ INT __spif_mount(PSPIF_VOLUME pfs){
     UINT32          uiWorkSize;
     PUCHAR          pucWorkBuffer;
     
-    UINT32          uiCachePages = 8;
+    UINT32          uiCachePages = 224 * 8;                 /* 256 * 224 * 8 B */
     UINT32          uiCacheSize;
     PUCHAR          pCache;
 

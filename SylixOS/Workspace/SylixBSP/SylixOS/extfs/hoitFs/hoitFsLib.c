@@ -1801,7 +1801,7 @@ ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  st
         return uOldNBytes;
     }
 
-    hoitFragTreeShowMemory(pInodeInfo->HOITN_rbtree);
+    //hoitFragTreeShowMemory(pInodeInfo->HOITN_rbtree);
     
     if(stNBytes == 0){
         return stNBytes;

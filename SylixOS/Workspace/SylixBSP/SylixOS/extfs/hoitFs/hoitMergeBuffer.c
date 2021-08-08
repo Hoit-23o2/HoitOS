@@ -152,7 +152,7 @@ BOOL __hoit_refresh_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
         return LW_FALSE;
     }
     /* 先排序 */
-    for (i = 0; i < pMergeBuffer->size-1; i++) {
+    for (i = 0; i < pMergeBuffer->size - 1; i++) {
         PHOIT_MERGE_ENTRY pNowEntry = pMergeBuffer->pList;
         PHOIT_MERGE_ENTRY pNextEntry = LW_NULL;
         while(pNowEntry)
@@ -172,9 +172,9 @@ BOOL __hoit_refresh_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
     /* TODO */
     PHOIT_MERGE_ENTRY pNowEntry     = pMergeBuffer->pList;
     PHOIT_MERGE_ENTRY pLastEntry    = LW_NULL;
-    UINT32 left     = -1;
-    UINT32 right    = -1;
-    UINT32 count    = 0;
+    UINT32 left                     = -1;
+    UINT32 right                    = -1;
+    UINT32 count                    = 0;
     for (; pNowEntry; pNowEntry = pNowEntry->pNext)
     {
         pLastEntry = pNowEntry; /* pLastEntry负责记录最后一个Entry */
