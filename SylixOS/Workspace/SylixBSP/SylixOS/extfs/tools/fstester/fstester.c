@@ -86,6 +86,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
     //TODO: 写更大的文件，参数化
     write(iFdTemp, _G_pLoremFull, lib_strlen(_G_pLoremFull));           
+
     lseek(iFdTemp, 0, SEEK_SET);                                        /* 从头开始 */
     fstat(iFdTemp, &stat);
     if(iFdTemp < 0){
