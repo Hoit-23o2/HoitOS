@@ -47,11 +47,15 @@ typedef enum test_type{
     TEST_TYPE_CLEAN_MNT,
     TEST_TYPE_DIRTY_MNT,
 
-    TEST_TYPE_SMALL_WR
+    TEST_TYPE_SMALL_WR,
+    
+    TEST_TYPE_MOUNT,
+    TEST_TYPE_GC,
+    TEST_TYPE_MERGEABLE_TREE
 } TEST_TYPE;
 
 
-typedef INT (*fstester_functionality)(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint);
+typedef INT (*fstester_functionality)(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue);
 typedef fstester_functionality FSTESTER_FUNCTIONALITY;
 
 typedef struct fstester_func_node
@@ -61,6 +65,7 @@ typedef struct fstester_func_node
     PCHAR                  pUsage;
     TEST_TYPE              testType;
     FSTESTER_FUNCTIONALITY functionality;
+    PVOID                  pUserValue;
 } FSTESTER_FUNC_NODE;
 typedef FSTESTER_FUNC_NODE * PFSTESTER_FUNC_NODE;
 
@@ -90,11 +95,11 @@ DECLARE_LIST_TEMPLATE(FSTESTER_FUNC_NODE);
 /*********************************************************************************************************
   测试函数API
 *********************************************************************************************************/
-INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint);
-INT __fstesterSequentialRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint);
-INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint);
-INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint);
-INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint);
+INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterSequentialRead(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue);
 /*********************************************************************************************************
   工具函数
 *********************************************************************************************************/
