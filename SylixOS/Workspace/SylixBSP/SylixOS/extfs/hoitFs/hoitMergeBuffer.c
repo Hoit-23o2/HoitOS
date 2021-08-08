@@ -106,7 +106,7 @@ BOOL __hoit_del_merge_entry(PHOIT_MERGE_BUFFER pMergeBuffer, PHOIT_MERGE_ENTRY p
     }
 
     __SHEAP_FREE(pMergeEntry);
-
+    pMergeBuffer->size -=1 ;
     return LW_TRUE;
 }
 
@@ -138,9 +138,37 @@ BOOL __hoit_free_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
 }
 
 /*********************************************************************************************************
+** 函数名称: __hoit_clear_merge_buffer
+** 功能描述: 将MergeBuffer中的所有Entry清空, 避免链表过长耗时太大
+** 输　入  : 
+** 输　出  :
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+BOOL __hoit_clear_merge_buffer(PHOIT_INODE_INFO pInodeInfo){
+    if (pInodeInfo == LW_NULL || pInodeInfo->HOITN_pMergeBuffer == LW_NULL) {
+        return LW_FALSE;
+    }
+
+    PHOIT_MERGE_BUFFER pMergeBuffer     = pInodeInfo->HOITN_pMergeBuffer;
+    PHOIT_MERGE_ENTRY pNowWriteEntry    = pMergeBuffer->pList;
+    PHOIT_MERGE_ENTRY pNextWriteEntry   = LW_NULL;
+    while (pNowWriteEntry) {
+        pNextWriteEntry = pNowWriteEntry->pNext;
+        __SHEAP_FREE(pNowWriteEntry);
+        pNowWriteEntry = pNextWriteEntry;
+    }
+
+    pMergeBuffer->pList = LW_NULL;
+    pMergeBuffer->size = 0;
+
+    return LW_TRUE;
+}
+
+/*********************************************************************************************************
 ** 函数名称: __hoit_refresh_merge_buffer
 ** 功能描述: 将MergeBuffer中的已有的所有的数据进行相邻合并
-** 输　入  : 
+** 输　入  :
 ** 输　出  :
 ** 全局变量:
 ** 调用模块:
@@ -151,13 +179,19 @@ BOOL __hoit_refresh_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
     if (pMergeBuffer == LW_NULL) {
         return LW_FALSE;
     }
-    /* 先排序 */
+    /* 冒泡排序 */
     for (i = 0; i < pMergeBuffer->size-1; i++) {
         PHOIT_MERGE_ENTRY pNowEntry = pMergeBuffer->pList;
         PHOIT_MERGE_ENTRY pNextEntry = LW_NULL;
         while(pNowEntry)
         {
             pNextEntry = pNowEntry->pNext;
+            /* 修复small write越来越慢的原因: MergeBuffer没有删除那些已经失效的Entry */
+            if(pNowEntry->pTreeNode == LW_NULL){
+                __hoit_del_merge_entry(pMergeBuffer, pNowEntry);
+                pNowEntry = pNextEntry;
+                continue;
+            }
             if (pNextEntry) {
                 if (pNowEntry->pTreeNode->uiOfs > pNextEntry->pTreeNode->uiOfs) {
                     PHOIT_FRAG_TREE_NODE pTempNode = pNowEntry->pTreeNode;
@@ -215,6 +249,10 @@ BOOL __hoit_refresh_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
         char* pvBuffer = (char*)lib_malloc(right - left);
         hoitFragTreeRead(pInodeInfo->HOITN_rbtree, left, right - left, pvBuffer);
         __hoit_write(pInodeInfo, pvBuffer, right - left, left, 0);
+    }
+    /* MergeBuffer过长, 采取全部情空的策略 */
+    if(pMergeBuffer->size > 100){
+        __hoit_clear_merge_buffer(pInodeInfo);
     }
     return LW_TRUE;
 }
