@@ -39,7 +39,8 @@ List(FSTESTER_FUNC_NODE) _G_FuncNodeList;
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes, FSTESTER_FUNCTIONALITY functionality){
+VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes, 
+                           FSTESTER_FUNCTIONALITY functionality, PVOID pUserValue){
     UINT            uiTestCount = 10;             
     
     PCHAR           pMountPoint;
@@ -47,7 +48,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     PCHAR           pOutputDir;
     PCHAR           pOutputPath;
     INT             i, iRes;
-    INT             iFdOut, iFdTemp;
+    INT             iFdOut, iFdTest;
 	struct timeval  timeStart;
     struct timeval  timeEnd;
     double          dTimeDiff;
@@ -76,22 +77,25 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         printf("[%s] can't create output file [%s]\n", __func__, pOutputPath);
         return;
     }
-    API_Mount("1", pMountPoint, pFSType);
-    /* pTempPath = /mnt/fstype(hoitfs)/write-for-test */
-    asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
-    sleep(1);
-    if(access(pTempPath, F_OK) == ERROR_NONE){
-        remove(pTempPath);
-    }
-    iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
-    //TODO: 写更大的文件，参数化
-    write(iFdTemp, _G_pLoremFull, lib_strlen(_G_pLoremFull));           
 
-    lseek(iFdTemp, 0, SEEK_SET);                                        /* 从头开始 */
-    fstat(iFdTemp, &stat);
-    if(iFdTemp < 0){
-        printf("[%s] can't create output file [%s]", __func__, pTempPath);
-        return;
+    if(testType != TEST_TYPE_MOUNT){
+        API_Mount("1", pMountPoint, pFSType);
+        /* pTempPath = /mnt/fstype(hoitfs)/write-for-test */
+        asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
+        sleep(1);
+        if(access(pTempPath, F_OK) == ERROR_NONE){
+            remove(pTempPath);
+        }
+        iFdTest = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
+        //TODO: 写更大的文件，参数化
+        write(iFdTest, _G_pLoremFull, lib_strlen(_G_pLoremFull));           
+
+        lseek(iFdTest, 0, SEEK_SET);                                        /* 从头开始 */
+        fstat(iFdTest, &stat);
+        if(iFdTest < 0){
+            printf("[%s] can't create output file [%s]", __func__, pTempPath);
+            return;
+        }
     }
     for (i = 0; i < uiLoopTimes; i++)
     {
@@ -101,7 +105,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         }
         lib_gettimeofday(&timeStart, LW_NULL);
         {
-            iRes = functionality(iFdTemp, stat.st_size, uiTestCount, pMountPoint);
+            iRes = functionality(iFdTest, stat.st_size, pMountPoint, pUserValue);
             if(iRes != ERROR_NONE){
                 printf("[TEST %d Fail]\n",i);
                 break;
@@ -114,11 +118,13 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         write(iFdOut, pOutContent, iByteWriteOnce);
         lib_free(pOutContent);
     }
-    close(iFdTemp);
-    remove(pTempPath);
-    lib_free(pTempPath);
-    API_Unmount(pMountPoint);
-    nor_reset(NOR_FLASH_BASE);
+    if(testType != TEST_TYPE_MOUNT){
+        close(iFdTest);
+        remove(pTempPath);
+        lib_free(pTempPath);
+        API_Unmount(pMountPoint);
+        nor_reset(NOR_FLASH_BASE);
+    }
     close(iFdOut);
     lib_free(pOutputPath);
     return;
@@ -264,6 +270,7 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     PFSTESTER_FUNC_NODE          pFuncNode;
     INT                          i;
     UINT                         uiTestCount   = 10;
+    PVOID                        pUserValue;
     InitIterator(iter, NAMESPACE, FSTESTER_FUNC_NODE);
     while (iArgPos <= iArgC)
     {
@@ -290,6 +297,10 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
             pArg = GET_ARG(ppcArgV, iArgPos++);
             uiTestCount = lib_atoi(pArg);
         }
+        else if(IS_STR_SAME(pArg, "-args")){
+            pArg = GET_ARG(ppcArgV, iArgPos++);
+            pUserValue = pArg;
+        }
         else {                      /* 测试类型 */
             for (iter->begin(iter, _G_FuncNodeList);iter->isValid(iter);iter->next(iter))
             {
@@ -311,7 +322,7 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     printf("\ttest_type=%s\n", translateTestType(testType));
     printf("Press Any Key to Continue\n");
     getchar();
-    fstester_generic_test(fsTarget, testType, uiTestCount, functionality);
+    fstester_generic_test(fsTarget, testType, uiTestCount, functionality, pUserValue);
     FreeIterator(iter);
 }
 
