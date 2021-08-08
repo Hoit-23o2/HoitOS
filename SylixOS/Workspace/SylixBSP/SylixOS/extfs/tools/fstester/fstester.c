@@ -16,7 +16,7 @@
 **
 ** �ļ���������: 2021 �� 07 �� 27 ��
 **
-** ��        ��: ���ɲ��Խű��벶׽���
+** ��        ��: ���ɲ��Խű��벶׽���?
 *********************************************************************************************************/
 #include "fstester.h"
 #include "driver/mtd/nor/nor.h"
@@ -113,7 +113,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
             }
         }
         lib_gettimeofday(&timeEnd, LW_NULL);
-        dTimeDiff       = 1000 * (timeEnd.tv_sec - timeStart.tv_sec) +      /* ����msʱ��� */
+        dTimeDiff       = 1000 * (timeEnd.tv_sec - timeStart.tv_sec) +      /* ����msʱ���? */
                           ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0);
         iByteWriteOnce  = asprintf(&pOutContent, "%.2f\n", dTimeDiff);      /* ����2λС�� */
         write(iFdOut, pOutContent, iByteWriteOnce);
@@ -158,7 +158,7 @@ VOID fstester_generate_script(FS_TYPE fsType, UINT uiCountDowns){
         printf("[%s] can not create file %s\n", __func__, pcOutShfilePath);
         return;
     }
-    /* д��ű�ͷ�� */
+    /* д��ű�ͷ��? */
     write(iFd, cpTips, iTipsLen);
     iByteWriteTotal += iTipsLen;
     /* д����ʱ�ű� */

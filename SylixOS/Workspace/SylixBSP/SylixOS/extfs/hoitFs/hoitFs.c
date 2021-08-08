@@ -152,11 +152,12 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_uid             = getuid();
     pfs->HOITFS_gid             = getgid();
     pfs->HOITFS_time            = lib_time(LW_NULL);
+    //TODO 内存消耗空间计算
     pfs->HOITFS_ulCurBlk        = 0ul;
     pfs->HOITFS_now_sector      = LW_NULL;
     pfs->HOITFS_pRootDir        = LW_NULL;
     pfs->HOITFS_totalUsedSize   = 0;
-    pfs->HOITFS_totalSize       = 2 * 1024 * 1024;
+
     pfs->HOITFS_hGCThreadId     = LW_NULL;
 
                                                                         /* GC相关 */
@@ -173,6 +174,8 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     //__ram_mount(pramfs);
 
     hoitEnableCache(GET_SECTOR_SIZE(8), 8, pfs);
+    //TODO 文件总大小暂时硬编码
+    pfs->HOITFS_totalSize       = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize * 27;
     __hoit_mount(pfs);
     // hoitStartGCThread(pfs, 64 * 26 * 1024);
     
