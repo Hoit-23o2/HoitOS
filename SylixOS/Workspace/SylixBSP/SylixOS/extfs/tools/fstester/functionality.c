@@ -36,19 +36,21 @@
 ** 调用模块:
 *********************************************************************************************************/
 INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint){
-    UINT    i;
+    UINT    i, uiReadIter;
     UINT    uiRandomReadOffset;
     UINT    uiRandomReadSize;
     PCHAR   pReadBuffer;
-
     pReadBuffer = (PCHAR)lib_malloc(MAX_IO_SZ);
     for (i = 0; i < uiLoopTimes; i++)
     {
-        lib_memset(pReadBuffer, 0, MAX_IO_SZ);
-        uiRandomReadOffset  = lib_random() % uiTestRange;       /* [0 ~  size] */
-        uiRandomReadSize    = RANDOM_RANGE(MIN_IO_SZ, MAX_IO_SZ);         /* [MIN_IO_SZ ~ MAX_IO_SZ]随机数 */ 
-        lseek(iFdTest, uiRandomReadOffset, SEEK_SET);
-        read(iFdTest, pReadBuffer, uiRandomReadSize);
+        for (uiReadIter = 0; uiReadIter < uiTestRange; uiReadIter++)
+        {
+            lib_memset(pReadBuffer, 0, MAX_IO_SZ);
+            uiRandomReadOffset  = lib_random() % uiTestRange;                 /* [0 ~  size] */
+            uiRandomReadSize    = RANDOM_RANGE(MIN_IO_SZ, MAX_IO_SZ);         /* [MIN_IO_SZ ~ MAX_IO_SZ]随机数 */ 
+            lseek(iFdTest, uiRandomReadOffset, SEEK_SET);
+            read(iFdTest, pReadBuffer, uiRandomReadSize);
+        }
     }
     lib_free(pReadBuffer);
     return ERROR_NONE;
