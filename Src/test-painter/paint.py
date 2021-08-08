@@ -126,18 +126,18 @@ def draw(table_name: str, col_names: List[str], col_values: List[List[str]], lab
     """
     #创建数据
     plt.figure(figsize=(6,3))                       #设置整个图的大小,(长和宽)
-    x=np.arange(len(col_values[0]))                 #数据的x轴数据
-    error_attri={"elinewidth":1,"ecolor":"black","capsize":3}   #误差棒的属性
-    bar_width=0.3
-    bar_style_list = ['', '/', '\\\\', 'x', '*', 'o', 'O', '.']
+    x = np.arange(len(col_values[0]))                 #数据的x轴数据
+    error_attri = {"elinewidth":1,"ecolor":"black","capsize":3}   #误差棒的属性
+    bar_width = 0.2
+    bar_style_list = ['', '////', 'xxx', '*', 'o', 'O', '.']
     line_style_list = ['solid', 'dashed', 'dotted', 'dashdot']
     marker_style_list = ['s','X', 'D']
     #创建图形
     if table_class == 'BAR':
-        for i in range(len(col_names)):
+        for i in range(len(label_names)):
             plt.bar(
                 x+i*bar_width,
-                [int(x) for x in col_values[i]],
+                [float(x) for x in col_values[i]],
                 bar_width,                  #不在外部设置width这个属性，会报错
                 color="white",
                 align="center",
@@ -149,19 +149,20 @@ def draw(table_name: str, col_names: List[str], col_values: List[List[str]], lab
                 edgecolor='black'
             )
     elif table_class == 'LINE':
-        for i in range(len(col_names)):
+        for i in range(len(label_names)):
             plt.plot(
                 x,
-                [int(x) for x in col_values[i]], 
+                [float(x) for x in col_values[i]], 
                 color="black",
                 label=label_names[i],
                 linestyle=line_style_list[i % len(line_style_list)],    #线条纹格式
                 marker=marker_style_list[i % len(marker_style_list)]    #点花纹格式
             )
     #创建辅助标签
-    # plt.xlabel(x_label,fontproperties=font)
-    # plt.ylabel(y_label,fontproperties=font)
-    # plt.xticks(x+bar_width/2,tick_label,fontproperties=font)
+    # plt.xlabel(col_names)
+    plt.ylabel("ms")
+    if table_class == 'BAR':
+        plt.xticks(x + bar_width / 2, col_names)
     #xticks在py2中与3不是完全相同，tick_label用列表对名称进行了设计，此处设计其他属性
     plt.title(table_name)
     #plt.grid(axis="y",ls="/",color="purple",alpha=0.7)

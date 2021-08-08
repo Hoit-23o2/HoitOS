@@ -137,21 +137,19 @@ INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR
     (VOID)  pUserValue,  uiLoopTimes;
     UINT    i, j;
     UINT    uiRandomWriteOffset;
-    UINT    uiRandomWriteSize;
     PCHAR   pWriteBuffer;
     UINT    uiInnerLoopTimes = 10;
 
     pWriteBuffer  = (PCHAR)lib_malloc(MAX_IO_SZ);
     for (i = 0; i < uiInnerLoopTimes; i++)
     {
-        uiRandomWriteOffset  = lib_random() % uiTestRange;              /* [0 ~  size] */
-        uiRandomWriteSize    = RANDOM_RANGE(MIN_IO_SZ, MAX_IO_SZ);     
-        for (j = 0; j < uiRandomWriteSize; j++)
+        uiRandomWriteOffset  = lib_random() % uiTestRange;              /* [0 ~  size] */     
+        for (j = 0; j < MAX_IO_SZ; j++)
         {
             *(pWriteBuffer + j) = RANDOM_ALPHABET();
         }
         lseek(iFdTest, uiRandomWriteOffset, SEEK_SET);
-        write(iFdTest, pWriteBuffer, uiRandomWriteSize);
+        write(iFdTest, pWriteBuffer, MAX_IO_SZ);
     }
     lib_free(pWriteBuffer);
     return ERROR_NONE;

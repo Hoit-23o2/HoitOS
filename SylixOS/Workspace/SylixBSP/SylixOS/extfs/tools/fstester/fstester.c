@@ -84,6 +84,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     INT             iFdOut, iFdTest;
 	struct timeval  timeStart;
     struct timeval  timeEnd;
+    struct timeval  timeDiff;
     double          dTimeDiff;
     PCHAR           pOutContent;
     INT             iByteWriteOnce  = 0;
@@ -151,8 +152,11 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
             }
         }
         lib_gettimeofday(&timeEnd, LW_NULL);
-        dTimeDiff       = 1000 * (timeEnd.tv_sec - timeStart.tv_sec) +      /* 计算ms时间差 */
+        dTimeDiff       = 1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) +      /* 计算ms时间差 */
                           ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0);
+        if(dTimeDiff < 0){
+            dTimeDiff = -dTimeDiff;
+        }
         iByteWriteOnce  = asprintf(&pOutContent, "%.2f\n", dTimeDiff);      /* 保留2位小数 */
         write(iFdOut, pOutContent, iByteWriteOnce);
         lib_free(pOutContent);
