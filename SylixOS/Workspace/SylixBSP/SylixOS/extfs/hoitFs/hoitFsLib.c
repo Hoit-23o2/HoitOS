@@ -1735,7 +1735,7 @@ INT  __hoit_statfs(PHOIT_VOLUME  pfs, struct statfs* pstatfs) {
     pstatfs->f_type = TMPFS_MAGIC;  //ÐèÒªÐÞ¸Ä
     pstatfs->f_bsize = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize;
     pstatfs->f_blocks = 27;
-    pstatfs->f_bfree = ;
+    pstatfs->f_bfree = 0;
     pstatfs->f_bavail = 1;
 
     pstatfs->f_files = 0;
