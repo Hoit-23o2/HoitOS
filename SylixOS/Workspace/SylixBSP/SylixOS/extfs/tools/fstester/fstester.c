@@ -29,6 +29,29 @@ List(FSTESTER_FUNC_NODE) _G_FuncNodeList;
 
 #define GET_ARG(ppcArgV, i)     *(ppcArgV + i);  
 #define IS_STR_SAME(str1, str2) (lib_strcmp(str1, str2) == 0)
+UINT    writeTestFile(INT iFdTemp, ULONG testFileSize) {
+    PCHAR testFileWriteBuf = (PCHAR)__SHEAP_ALLOC(testFileSize);
+    ULONG       dataSize;
+    UINT        writeCount;
+
+    INT         i;
+    PCHAR       pTemp = testFileWriteBuf;
+    if (testFileWriteBuf == LW_NULL) {
+        printf("lower memory, test fail!\n");
+        return PX_ERROR;
+    }
+    dataSize    = lib_strlen(_G_pLoremFull);    /* 文件大小 */
+    writeCount  = testFileSize / dataSize ;
+    for (i=0 ; i<writeCount ; i++){
+        lib_memcpy(pTemp, _G_pLoremFull, dataSize);
+        pTemp += dataSize;
+    }
+    lib_memcpy(pTemp, _G_pLoremFull, (testFileSize % dataSize));
+    if (write(iFdTemp, testFileWriteBuf, testFileSize) != testFileSize)
+        return PX_ERROR;
+    lseek(iFdTemp, 0, SEEK_SET);                                        /* 从头开始 */
+    return  ERROR_NONE;
+}
 /*********************************************************************************************************
 ** 函数名称: fstester_generic_test
 ** 功能描述: nor flash文件系统通用测试
@@ -39,7 +62,7 @@ List(FSTESTER_FUNC_NODE) _G_FuncNodeList;
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes, FSTESTER_FUNCTIONALITY functionality){
+VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes, double testFileSizeRate , FSTESTER_FUNCTIONALITY functionality){
     UINT            uiTestCount = 10;             
     
     PCHAR           pMountPoint;
@@ -54,7 +77,8 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     PCHAR           pOutContent;
     INT             iByteWriteOnce  = 0;
     struct stat     stat;
-
+    struct statfs   pstatfs;
+    LONG            testFileSize;
     
     PCHAR           pTempPath;
 
@@ -77,16 +101,21 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         return;
     }
     API_Mount("1", pMountPoint, pFSType);
+    statfs(pMountPoint, &pstatfs);   /* 获取文件系统空间 */
+    testFileSize = (LONG)(testFileSizeRate * (double)(pstatfs.f_blocks * pstatfs.f_bsize));
+
     /* pTempPath = /mnt/fstype(hoitfs)/write-for-test */
     asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
     sleep(1);
     if(access(pTempPath, F_OK) == ERROR_NONE){
         remove(pTempPath);
     }
+    
+    //!ZN 写更大的文件，参数化
     iFdTemp = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
-    //TODO: 写更大的文件，参数化
-    write(iFdTemp, _G_pLoremFull, lib_strlen(_G_pLoremFull));           
-    lseek(iFdTemp, 0, SEEK_SET);                                        /* 从头开始 */
+    if (writeTestFile(iFdTemp, testFileSize) == PX_ERROR)
+        goto __test_fail;
+
     fstat(iFdTemp, &stat);
     if(iFdTemp < 0){
         printf("[%s] can't create output file [%s]", __func__, pTempPath);
@@ -113,6 +142,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         write(iFdOut, pOutContent, iByteWriteOnce);
         lib_free(pOutContent);
     }
+__test_fail:
     close(iFdTemp);
     remove(pTempPath);
     lib_free(pTempPath);
@@ -257,12 +287,14 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     Iterator(FSTESTER_FUNC_NODE) iter;
     INT                          iArgPos = 1;
     PCHAR                        pArg;
-    FS_TYPE                      fsTarget      = FS_TYPE_SPIFFS;
-    FSTESTER_FUNCTIONALITY       functionality = __fstesterRandomRead;
-    TEST_TYPE                    testType      = TEST_TYPE_RDM_RD;
+    FS_TYPE                      fsTarget           = FS_TYPE_SPIFFS;
+    FSTESTER_FUNCTIONALITY       functionality      = __fstesterRandomRead;
+    TEST_TYPE                    testType           = TEST_TYPE_RDM_RD;
     PFSTESTER_FUNC_NODE          pFuncNode;
     INT                          i;
-    UINT                         uiTestCount   = 10;
+    UINT                         uiTestCount        = 10;
+    double                       testFileSizeRate   = 0.5;
+
     InitIterator(iter, NAMESPACE, FSTESTER_FUNC_NODE);
     while (iArgPos <= iArgC)
     {
@@ -289,6 +321,14 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
             pArg = GET_ARG(ppcArgV, iArgPos++);
             uiTestCount = lib_atoi(pArg);
         }
+        else if(IS_STR_SAME(pArg, "-s")){      /* 设置测试次数 */
+            pArg = GET_ARG(ppcArgV, iArgPos++);
+            testFileSizeRate = lib_atof(pArg);
+            if (testFileSizeRate <= 0) 
+                testFileSizeRate = 0.1;
+            if (testFileSizeRate >= 1.0)
+                testFileSizeRate = 1.0;
+        }        
         else {                      /* 测试类型 */
             for (iter->begin(iter, _G_FuncNodeList);iter->isValid(iter);iter->next(iter))
             {
@@ -310,7 +350,7 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     printf("\ttest_type=%s\n", translateTestType(testType));
     printf("Press Any Key to Continue\n");
     getchar();
-    fstester_generic_test(fsTarget, testType, uiTestCount, functionality);
+    fstester_generic_test(fsTarget, testType, uiTestCount, testFileSizeRate , functionality);
     FreeIterator(iter);
 }
 
