@@ -55,7 +55,7 @@ typedef enum test_type{
 } TEST_TYPE;
 
 
-typedef INT (*fstester_functionality)(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue);
+typedef INT (*fstester_functionality)(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
 typedef fstester_functionality FSTESTER_FUNCTIONALITY;
 
 typedef struct fstester_func_node
@@ -95,11 +95,11 @@ DECLARE_LIST_TEMPLATE(FSTESTER_FUNC_NODE);
 /*********************************************************************************************************
   测试函数API
 *********************************************************************************************************/
-INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue);
-INT __fstesterSequentialRead(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue);
-INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue);
-INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue);
-INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterSequentialRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
 /*********************************************************************************************************
   工具函数
 *********************************************************************************************************/

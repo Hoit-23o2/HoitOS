@@ -40,7 +40,7 @@ List(FSTESTER_FUNC_NODE) _G_FuncNodeList;
 ** 调用模块:
 *********************************************************************************************************/
 UINT __fstester_write_test_file(INT iFdTest, ULONG testFileSize) {
-    PCHAR pWriteBuf = (PCHAR)__SHEAP_ALLOC(testFileSize);
+    PCHAR       pWriteBuf = (PCHAR)__SHEAP_ALLOC(testFileSize);
     ULONG       dataSize;
     UINT        writeCount;
 
@@ -100,10 +100,10 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     /* 设定特定种子 */
     lib_srand(FSTESTER_SEED);
 
-    if(access(pOutputDir, F_OK) != ERROR_NONE){         /* 没找到目录 */
+    if(access(pOutputDir, F_OK) != ERROR_NONE){         /* 没找到Out目录 */
         mkdir(pOutputDir, 0);                           /* 建一个目录 */
     }
-    if(access(pOutputPath, F_OK) == ERROR_NONE){        /* 找到了文件 */
+    if(access(pOutputPath, F_OK) == ERROR_NONE){        /* 找到了Out文件 */
         remove(pOutputPath);                            /* 删除该文件 */
     }
     iFdOut          = open(pOutputPath, O_CREAT | O_TRUNC | O_RDWR);
@@ -111,35 +111,37 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         printf("[%s] can't create output file [%s]\n", __func__, pOutputPath);
         return;
     }
-    API_Mount("1", pMountPoint, pFSType);
-    statfs(pMountPoint, &pstatfs);   /* 获取文件系统空间 */
-    testFileSize = (LONG)(testFileSizeRate * (double)(pstatfs.f_blocks * pstatfs.f_bsize));
 
-    /* pTempPath = /mnt/fstype(hoitfs)/write-for-test */
-    asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
-    sleep(1);
-    if(access(pTempPath, F_OK) == ERROR_NONE){
-        remove(pTempPath);
-    }
-    
-    //!ZN 写更大的文件，参数化
-    iFdTest = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
-    __fstester_write_test_file(iFdTest, testFileSize);
+    if(testType != TEST_TYPE_MOUNT){
+        API_Mount("1", pMountPoint, pFSType);
+        statfs(pMountPoint, &pstatfs);   /* 获取文件系统空间 */
+        testFileSize = (LONG)(testFileSizeRate * (double)(pstatfs.f_blocks * pstatfs.f_bsize));
 
-    fstat(iFdTest, &stat);
-    if(iFdTest < 0){
-        printf("[%s] can't create output file [%s]", __func__, pTempPath);
-        return;
+        /* pTempPath = /mnt/fstype(hoitfs)/write-for-test */
+        asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
+        sleep(1);
+        if(access(pTempPath, F_OK) == ERROR_NONE){
+            remove(pTempPath);
+        }
+        
+        //!ZN 写更大的文件，参数化
+        iFdTest = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
+        if(iFdTest < 0){
+            printf("[%s] can't create output file [%s]", __func__, pTempPath);
+            return;
+        }
+        if(__fstester_write_test_file(iFdTest, testFileSize) != ERROR_NONE){
+            return ;
+        }
+        fstat(iFdTest, &stat);
     }
+
     for (i = 0; i < uiLoopTimes; i++)
     {
         printf("====== TEST %d ======\n", i);
-        if(i == 72){
-            printf("debug\n");
-        }
         lib_gettimeofday(&timeStart, LW_NULL);
         {
-            iRes = functionality(iFdTest, stat.st_size, pMountPoint, pUserValue);
+            iRes = functionality(iFdTest, stat.st_size, uiLoopTimes, pMountPoint, pUserValue);
             if(iRes != ERROR_NONE){
                 printf("[TEST %d Fail]\n",i);
                 break;
@@ -152,6 +154,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         write(iFdOut, pOutContent, iByteWriteOnce);
         lib_free(pOutContent);
     }
+
     if(testType != TEST_TYPE_MOUNT){
         close(iFdTest);
         remove(pTempPath);
@@ -337,13 +340,15 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
             pArg = GET_ARG(ppcArgV, iArgPos++);
             pUserValue = pArg;
         }
-        else if(IS_STR_SAME(pArg, "-s")){       /* 设置测试次数 */
+        else if(IS_STR_SAME(pArg, "-s")){       /* 设置测试文件大小 */
             pArg = GET_ARG(ppcArgV, iArgPos++);
             dTestFileSizeRate = lib_atof(pArg);
-            if (dTestFileSizeRate <= 0) 
-                dTestFileSizeRate = 0.1;
-            if (dTestFileSizeRate >= 1.0)
+            if (dTestFileSizeRate <= 0) {
+                dTestFileSizeRate = 0;
+            }
+            if (dTestFileSizeRate >= 1.0) {
                 dTestFileSizeRate = 1.0;
+            }
         }        
         else {                      /* 测试类型 */
             for (iter->begin(iter, _G_FuncNodeList);iter->isValid(iter);iter->next(iter))
@@ -363,9 +368,11 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     printf("Test With Options Below:\n");
     printf("\tfilesystem_type=%s\n", translateFSType(fsTarget));
     printf("\ttest_count=%d\n", uiTestCount);
+    printf("\ttest_file_factor=%f\n", dTestFileSizeRate);
     printf("\ttest_type=%s\n", translateTestType(testType));
     printf("Press Any Key to Continue\n");
     getchar();
+    
     fstester_generic_test(fsTarget, testType, uiTestCount, dTestFileSizeRate, functionality, pUserValue);
     FreeIterator(iter);
 }

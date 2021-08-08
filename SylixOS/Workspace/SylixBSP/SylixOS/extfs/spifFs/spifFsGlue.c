@@ -1276,8 +1276,8 @@ INT __spif_lseek(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, UINT32 uiOffset){
 *********************************************************************************************************/
 INT __spif_statfs(PSPIF_VOLUME pfs, struct statfs *pstatfs){
     pstatfs->f_type = SPIFFS_CONFIG_MAGIC;  //ĞèÒªĞŞ¸Ä
-    pstatfs->f_bsize = 0;
-    pstatfs->f_blocks = 0;
+    pstatfs->f_bsize  = GET_SECTOR_SIZE(8);
+    pstatfs->f_blocks = 28;
     pstatfs->f_bfree = 0;
     pstatfs->f_bavail = 1;
 

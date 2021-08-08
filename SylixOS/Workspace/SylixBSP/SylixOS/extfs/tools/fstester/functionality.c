@@ -36,37 +36,36 @@
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID __fstesterUtilSequentialWrite(UINT uiPerWriteSize, UINT uiOccupyFactor,  PCHAR pMountPoint){
+VOID __fstesterUtilSequentialWrite(INT iFdTest, UINT uiPerWriteSize, UINT uiLoopTimes, UINT uiOccupyFactor, UINT uiAccurayWriteTotalSize, PCHAR pMountPoint){
     UINT    i, j;
-    UINT    uiWriteSize, uiLoopTimes;
+    UINT    uiWriteSize;
+    UINT    uiInnerLoopTimes;
     PCHAR   pWriteBuffer;
-    INT     iFdTemp;
-    PCHAR   pcTempPath;
     struct  statfs stat;
 
     statfs(pMountPoint, &stat);
-    uiWriteSize = stat.f_bsize * uiOccupyFactor / HUNDRED_PERCENT;      /* 写满fs的 @uiOccupyFactor% */
-    uiLoopTimes = uiWriteSize / uiPerWriteSize;
+    if(uiOccupyFactor != -1){
+        uiWriteSize     = (stat.f_bsize * stat.f_blocks * uiOccupyFactor) / HUNDRED_PERCENT;      /* 写满fs的 @uiOccupyFactor% */
+    }
+    else if(uiAccurayWriteTotalSize != -1){
+        uiWriteSize = uiAccurayWriteTotalSize;
+    }
 
-    asprintf(&pcTempPath, "%s/seq-write-test", pMountPoint);
-    iFdTemp = open(pcTempPath, O_CREAT | O_TRUNC | O_RDWR);
+    uiInnerLoopTimes  = ((uiWriteSize / uiLoopTimes) / uiPerWriteSize);
 
-    pWriteBuffer  = (PCHAR)lib_malloc(uiPerWriteSize);
-
-    for (i = 0; i < uiLoopTimes; i++)                  
+    pWriteBuffer    = (PCHAR)lib_malloc(uiPerWriteSize);
+    
+    for (i = 0; i < uiInnerLoopTimes; i++)
     {
         for (j = 0; j < uiPerWriteSize; j++)
         {
             *(pWriteBuffer + j) = RANDOM_ALPHABET();
         }
-        write(iFdTemp, pWriteBuffer, uiPerWriteSize);
+        write(iFdTest, pWriteBuffer, uiPerWriteSize);
     }
     
+    
     lib_free(pWriteBuffer);
-    lib_free(pcTempPath);
-    close(iFdTemp);
-    remove(iFdTemp);
-    nor_reset(NOR_FLASH_BASE);                          /* 重置Norflash状态，避免GC影响 */
     return;
 }
 
@@ -76,19 +75,19 @@ VOID __fstesterUtilSequentialWrite(UINT uiPerWriteSize, UINT uiOccupyFactor,  PC
 ** 功能描述: 随机读实现
 ** 输　入  : iFdTest        待测试文件描述符
 **            uiTestRange   文件大小
-**            uiLoopTimes   循环测量次数
+**            uiLoopTimes   外层循环测量次数
 ** 输　出  : None
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue){
+INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){
     UINT    i;
     UINT    uiRandomReadOffset;
     UINT    uiRandomReadSize;
     PCHAR   pReadBuffer;
-    UINT    uiLoopTimes = 1000;
+    UINT    uiInnerLoopTimes = 1000;
     pReadBuffer = (PCHAR)lib_malloc(MAX_IO_SZ);
-    for (i = 0; i < uiLoopTimes; i++)
+    for (i = 0; i < uiInnerLoopTimes; i++)
     {
         lib_memset(pReadBuffer, 0, MAX_IO_SZ);
         uiRandomReadOffset  = lib_random() % uiTestRange;                 /* [0 ~  size] */
@@ -104,18 +103,20 @@ INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID
 ** 功能描述: 顺序读实现
 ** 输　入  : iFdTest        待测试文件描述符
 **            uiTestRange   文件大小
-**            uiLoopTimes   循环测量次数
+**            uiLoopTimes   外层循环测量次数
 ** 输　出  : None
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-INT __fstesterSequentialRead(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue){
+INT __fstesterSequentialRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){
+    (VOID) uiTestRange, uiLoopTimes, pUserValue;
+
     UINT    i, uiReadIter;
     PCHAR   pReadBuffer;
-    UINT    uiLoopTimes = uiTestRange / MAX_IO_SZ;       /* 每次读 MAX_IO_SZ，读全部数据 */
+    UINT    uiInnerLoopTimes = uiTestRange / MAX_IO_SZ;       /* 每次读 MAX_IO_SZ，读全部数据 */
     
     pReadBuffer = (PCHAR)lib_malloc(MAX_IO_SZ);
-    for (i = 0; i < uiLoopTimes; i++)
+    for (i = 0; i < uiInnerLoopTimes; i++)
     { 
         lib_memset(pReadBuffer, 0, MAX_IO_SZ);
         read(iFdTest, pReadBuffer, MAX_IO_SZ);
@@ -132,16 +133,16 @@ INT __fstesterSequentialRead(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, P
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue){     
-    (VOID)  pUserValue;
+INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){     
+    (VOID)  pUserValue,  uiLoopTimes;
     UINT    i, j;
     UINT    uiRandomWriteOffset;
     UINT    uiRandomWriteSize;
     PCHAR   pWriteBuffer;
-    UINT    uiLoopTimes = 10;
+    UINT    uiInnerLoopTimes = 10;
 
     pWriteBuffer  = (PCHAR)lib_malloc(MAX_IO_SZ);
-    for (i = 0; i < uiLoopTimes; i++)
+    for (i = 0; i < uiInnerLoopTimes; i++)
     {
         uiRandomWriteOffset  = lib_random() % uiTestRange;              /* [0 ~  size] */
         uiRandomWriteSize    = RANDOM_RANGE(MIN_IO_SZ, MAX_IO_SZ);     
@@ -160,14 +161,14 @@ INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOI
 ** 功能描述: 随机写实现
 ** 输　入  : iFdTest        待测试文件描述符
 **            uiTestRange   文件大小
-**            uiLoopTimes   循环测量次数
+**            uiLoopTimes   外层循环测量次数
 ** 输　出  : None
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue){ 
+INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){ 
     (VOID)  iFdTest, uiTestRange;
-    __fstesterUtilSequentialWrite(MAX_IO_SZ, 100, pMountPoint);
+    __fstesterUtilSequentialWrite(iFdTest, MAX_IO_SZ, uiLoopTimes, 60, -1, pMountPoint);
     return ERROR_NONE;
 }
 /*********************************************************************************************************
@@ -175,13 +176,13 @@ INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, 
 ** 功能描述: 随机写实现
 ** 输　入  : iFdTest        待测试文件描述符
 **            uiTestRange   文件大小
-**            uiLoopTimes   循环测量次数
+**            uiLoopTimes   外层循环测量次数
 ** 输　出  : None
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, PCHAR pMountPoint, PVOID pUserValue){ 
+INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){ 
     (VOID)  iFdTest, uiTestRange;
-    __fstesterUtilSequentialWrite(1, 30, pMountPoint);
+    __fstesterUtilSequentialWrite(iFdTest, 1, uiLoopTimes, -1, 1000, pMountPoint);
     return ERROR_NONE;
 }
