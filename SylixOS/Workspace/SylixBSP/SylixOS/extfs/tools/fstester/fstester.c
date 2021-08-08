@@ -60,6 +60,7 @@ UINT __fstester_write_test_file(INT iFdTest, ULONG testFileSize) {
     if (write(iFdTest, pWriteBuf, testFileSize) != testFileSize)
         return PX_ERROR;
     lseek(iFdTest, 0, SEEK_SET);                                        /* 从头开始 */
+    lib_free(pWriteBuf);
     return  ERROR_NONE;
 }
 /*********************************************************************************************************
