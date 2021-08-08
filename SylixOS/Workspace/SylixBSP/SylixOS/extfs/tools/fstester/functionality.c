@@ -168,7 +168,10 @@ INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR
 *********************************************************************************************************/
 INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){ 
     (VOID)  iFdTest, uiTestRange;
-    __fstesterUtilSequentialWrite(iFdTest, MAX_IO_SZ, uiLoopTimes, 60, -1, pMountPoint);
+    INT uiOccupyFactor = 60;
+    if(pUserValue != LW_NULL)
+        uiOccupyFactor = lib_atoi((PCHAR)pUserValue);
+    __fstesterUtilSequentialWrite(iFdTest, MAX_IO_SZ, uiLoopTimes, uiOccupyFactor, -1, pMountPoint);
     return ERROR_NONE;
 }
 /*********************************************************************************************************
@@ -183,6 +186,9 @@ INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, P
 *********************************************************************************************************/
 INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){ 
     (VOID)  iFdTest, uiTestRange;
+    INT uiAccurayWriteTotalSize = 1000;
+    if(pUserValue != LW_NULL)
+        uiAccurayWriteTotalSize = lib_atoi((PCHAR)pUserValue);
     __fstesterUtilSequentialWrite(iFdTest, 1, uiLoopTimes, -1, 1000, pMountPoint);
     return ERROR_NONE;
 }
