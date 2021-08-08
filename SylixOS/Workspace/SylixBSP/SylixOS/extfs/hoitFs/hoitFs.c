@@ -560,8 +560,8 @@ static INT  __hoitFsClose(PLW_FD_ENTRY    pfdentry)
     }
     
 
-    PHOIT_INODE_INFO phoitFather;
-    PHOIT_INODE_INFO pTempInode = __hoit_open(pfs, cRealFileName, &phoitFather, LW_NULL, LW_NULL, LW_NULL, LW_NULL);
+//    PHOIT_INODE_INFO phoitFather;
+//    PHOIT_INODE_INFO pTempInode = __hoit_open(pfs, cRealFileName, &phoitFather, LW_NULL, LW_NULL, LW_NULL, LW_NULL);
 
     if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);                                            /*  设备出错                    */
@@ -578,18 +578,18 @@ static INT  __hoitFsClose(PLW_FD_ENTRY    pfdentry)
     LW_DEV_DEC_USE_COUNT(&pfs->HOITFS_devhdrHdr);
 
 
-    if (bRemove && phoitn) {
-        if (S_ISDIR(phoitn->HOITN_mode)) {
-            __hoit_unlink_dir(phoitFather, 
-                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pfdentry->FDENTRY_pcName));
-        } else { //TODO 尚不能识别普通文件
-            __hoit_unlink_regular(phoitFather,
-                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pfdentry->FDENTRY_pcName));
-        }
-    }
+//    if (bRemove && phoitn) {
+//        if (S_ISDIR(phoitn->HOITN_mode)) {
+//            __hoit_unlink_dir(phoitFather,
+//                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pfdentry->FDENTRY_pcName));
+//        } else { //TODO 尚不能识别普通文件
+//            __hoit_unlink_regular(phoitFather,
+//                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pfdentry->FDENTRY_pcName));
+//        }
+//    }
 
-    __hoit_close(phoitFather, 0);
-    __hoit_close(pTempInode, 0);
+//    __hoit_close(phoitFather, 0);
+//    __hoit_close(pTempInode, 0);
     __HOIT_VOLUME_UNLOCK(pfs);
 
     return  (ERROR_NONE);

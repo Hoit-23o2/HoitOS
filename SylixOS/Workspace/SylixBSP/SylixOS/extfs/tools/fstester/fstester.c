@@ -91,7 +91,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     struct statfs   pstatfs;
     LONG            testFileSize;
     
-    PCHAR           pTempPath;
+    PCHAR           pTestPath;
 
     pMountPoint     = getFSMountPoint(fsType);
     pOutputDir      = getFSTestOutputDir(fsType, testType);
@@ -118,16 +118,16 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         testFileSize = (LONG)(testFileSizeRate * (double)(pstatfs.f_blocks * pstatfs.f_bsize));
 
         /* pTempPath = /mnt/fstype(hoitfs)/write-for-test */
-        asprintf(&pTempPath, "%s/write-for-test", pMountPoint);
+        asprintf(&pTestPath, "%s/write-for-test", pMountPoint);
         sleep(1);
-        if(access(pTempPath, F_OK) == ERROR_NONE){
-            remove(pTempPath);
+        if(access(pTestPath, F_OK) == ERROR_NONE){
+            remove(pTestPath);
         }
         
         //!ZN 写更大的文件，参数化
-        iFdTest = open(pTempPath, O_CREAT | O_TRUNC | O_RDWR);
+        iFdTest = open(pTestPath, O_CREAT | O_TRUNC | O_RDWR);
         if(iFdTest < 0){
-            printf("[%s] can't create output file [%s]", __func__, pTempPath);
+            printf("[%s] can't create output file [%s]", __func__, pTestPath);
             return;
         }
         if(__fstester_write_test_file(iFdTest, testFileSize) != ERROR_NONE){
@@ -139,6 +139,9 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     for (i = 0; i < uiLoopTimes; i++)
     {
         printf("====== TEST %d ======\n", i);
+        if(i == 94){
+            printf("debug\n");
+        }
         lib_gettimeofday(&timeStart, LW_NULL);
         {
             iRes = functionality(iFdTest, stat.st_size, uiLoopTimes, pMountPoint, pUserValue);
@@ -157,8 +160,8 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
 
     if(testType != TEST_TYPE_MOUNT){
         close(iFdTest);
-        remove(pTempPath);
-        lib_free(pTempPath);
+        remove(pTestPath);
+        lib_free(pTestPath);
         API_Unmount(pMountPoint);
         nor_reset(NOR_FLASH_BASE);
     }
@@ -307,8 +310,8 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     PFSTESTER_FUNC_NODE          pFuncNode;
     INT                          i;
     UINT                         uiTestCount        = 10;
-    PVOID                        pUserValue;
-    double                       dTestFileSizeRate   = 0.5;
+    PCHAR                        pUserValue         = LW_NULL;
+    double                       dTestFileSizeRate  = 0.5;
 
     InitIterator(iter, NAMESPACE, FSTESTER_FUNC_NODE);
     while (iArgPos <= iArgC)
@@ -338,7 +341,7 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
         }
         else if(IS_STR_SAME(pArg, "-args")){
             pArg = GET_ARG(ppcArgV, iArgPos++);
-            pUserValue = pArg;
+            asprintf(&pUserValue, "%s", pArg);
         }
         else if(IS_STR_SAME(pArg, "-s")){       /* 设置测试文件大小 */
             pArg = GET_ARG(ppcArgV, iArgPos++);
