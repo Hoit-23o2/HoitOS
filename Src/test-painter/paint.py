@@ -1,3 +1,8 @@
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.font_manager import FontProperties
+
 from typing import List, Tuple
 
 from xlwings.main import Book, Sheet
@@ -107,7 +112,7 @@ def parse_formatted_file(raw_path: str) -> Tuple[str, int ,List[List]]:
         print(col_values)
         return (table_name, col_names, col_values)
 
-def draw(table_name: str, col_names: List[str], col_values: List[List[str]]):
+def draw(table_name: str, col_names: List[str], col_values: List[List[str]], label_names: List[str] = [], table_class: str = 'BAR'):
     
     """[summary]
 
@@ -119,6 +124,49 @@ def draw(table_name: str, col_names: List[str], col_values: List[List[str]]):
         col_names[0]
         col_values[0]
     """
+    #创建数据
+    plt.figure(figsize=(6,3))                       #设置整个图的大小,(长和宽)
+    x=np.arange(len(col_values[0]))                 #数据的x轴数据
+    error_attri={"elinewidth":1,"ecolor":"black","capsize":3}   #误差棒的属性
+    bar_width=0.3
+    bar_style_list = ['', '/', '\\\\', 'x', '*', 'o', 'O', '.']
+    line_style_list = ['solid', 'dashed', 'dotted', 'dashdot']
+    marker_style_list = ['s','X', 'D']
+    #创建图形
+    if table_class == 'BAR':
+        for i in range(len(col_names)):
+            plt.bar(
+                x+i*bar_width,
+                [int(x) for x in col_values[i]],
+                bar_width,                  #不在外部设置width这个属性，会报错
+                color="white",
+                align="center",
+                #yerr=std_err1,
+                #error_kw=error_attri,      #error_kw是设计误差棒具体细节的属性
+                label=label_names[i],
+                alpha=1,
+                hatch=bar_style_list[i % len(bar_style_list)],          #线条纹格式
+                edgecolor='black'
+            )
+    elif table_class == 'LINE':
+        for i in range(len(col_names)):
+            plt.plot(
+                x,
+                [int(x) for x in col_values[i]], 
+                color="black",
+                label=label_names[i],
+                linestyle=line_style_list[i % len(line_style_list)],    #线条纹格式
+                marker=marker_style_list[i % len(marker_style_list)]    #点花纹格式
+            )
+    #创建辅助标签
+    # plt.xlabel(x_label,fontproperties=font)
+    # plt.ylabel(y_label,fontproperties=font)
+    # plt.xticks(x+bar_width/2,tick_label,fontproperties=font)
+    #xticks在py2中与3不是完全相同，tick_label用列表对名称进行了设计，此处设计其他属性
+    plt.title(table_name)
+    #plt.grid(axis="y",ls="/",color="purple",alpha=0.7)
+    plt.legend()
+    plt.show()
 
     # root_dir = os.path.dirname(__file__)
     # base_out_img_dir = root_dir + G_IMG_OUT_DIR
@@ -166,7 +214,7 @@ def draw(table_name: str, col_names: List[str], col_values: List[List[str]]):
 def main():
     path = get_local_file()
     [table_name, col_names, col_values] = parse_formatted_file(path)
-    draw(table_name, col_names, col_values)
+    draw(table_name, col_names, col_values, 0)
 
 if __name__ == "__main__":
     main()

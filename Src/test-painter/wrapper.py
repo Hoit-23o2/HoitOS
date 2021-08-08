@@ -10,7 +10,13 @@ def main():
     
     out_path = format(raw_path, sections, table_name)
     [table_name, col_names, col_values] = parse_formatted_file(out_path)
-    draw(table_name, col_names, col_values)
+    draw(
+        table_name=table_name, 
+        col_names=col_names, 
+        col_values=col_values, 
+        label_names = ['test1','test2'],
+        table_class = 'LINE'
+        )
     
 if __name__ == '__main__':
     main()
