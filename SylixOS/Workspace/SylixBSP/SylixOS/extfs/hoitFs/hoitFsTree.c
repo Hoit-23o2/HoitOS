@@ -364,68 +364,6 @@ BOOL hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, 
     }
     return res;
 }
-
-
-/*********************************************************************************************************
-** 函数名称: hoitFragTreeDeleteNode
-** 功能描述: 在FragTree中删除[iKeyLow, iKeyHigh]的节点，利用ConquerNode进行，因为有些部分不需要被删除
-** 输　入  : pFTTree    FragTree
-**          iKeyLow    区间低值
-**          iKeyHigh   区间高值
-**          bDoDelete   是否删除RawInfo
-** 输　出  : 删除是否成功
-** 全局变量:
-** 调用模块:
-*********************************************************************************************************/
-BOOL hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh, BOOL bDoDelete){
-    PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader;
-    PHOIT_FRAG_TREE_LIST_NODE   pFTlistNode;
-    
-    PHOIT_FRAG_TREE_NODE        pFTnNew;
-
-    BOOL                        bRes = LW_TRUE;
-    UINT                        uiCount = 0;
-    UINT8                       uiCase;
-
-    UINT32                      uiConquerorLow = iKeyLow;
-    UINT32                      uiConquerorHigh = iKeyHigh;
-
-    pFTlistHeader = hoitFragTreeCollectRange(pFTTree, iKeyLow, iKeyHigh);
-    pFTlistNode = pFTlistHeader->pFTlistHeader->pFTlistNext;
-    while (pFTlistNode)
-    {
-        uiCount++;
-#ifdef FT_DEBUG
-        printf("count %d\n", uiCount);
-#endif
-        //TODO: 验证可行性
-        __hoitFragTreeConquerNode(pFTTree, pFTlistNode->pFTn, uiConquerorLow, uiConquerorHigh, 
-                                  &pFTnNew, &uiCase, bDoDelete);
-        
-        pFTlistNode = pFTlistNode->pFTlistNext;
-    }
-    hoitFragTreeListFree(pFTlistHeader);
-    return bRes;    
-}
-
-/*********************************************************************************************************
-** 函数名称: hoitFragTreeDeleteTree
-** 功能描述: 删除FragTree结构
-** 输　入  : pFTTree    FragTree
-** 输　出  : 删除是否成功
-** 全局变量:
-** 调用模块:
-*********************************************************************************************************/
-BOOL hoitFragTreeDeleteTree(PHOIT_FRAG_TREE pFTTree, BOOL bDoDelete){
-    BOOL                          res;
-    res = hoitFragTreeDeleteRange(pFTTree, INT_MIN, INT_MAX, bDoDelete);
-    lib_free(pFTTree->pRbTree->pRbnGuard->pRbnLeft);
-    lib_free(pFTTree->pRbTree->pRbnGuard);
-    lib_free(pFTTree->pRbTree);
-    lib_free(pFTTree);
-    return res;
-}
-
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeTraverse
 ** 功能描述: 遍历FragTree结构
@@ -713,6 +651,80 @@ VOID hoitFragTreeShowMemory(PHOIT_FRAG_TREE pFTTree){
     printf("nodes  count: %d.\n", pFTTree->uiNCnt);
     printf("memory usage: %dB\n", pFTTree->uiMemoryBytes);
     printf("============= checking fragtree statue over =============\n");
+}
+
+
+/*********************************************************************************************************
+** 函数名称: hoitFragTreeDeleteNode
+** 功能描述: 在FragTree中删除[iKeyLow, iKeyHigh]的节点，利用ConquerNode进行，因为有些部分不需要被删除
+** 输　入  : pFTTree    FragTree
+**          iKeyLow    区间低值
+**          iKeyHigh   区间高值
+**          bDoDelete   是否删除RawInfo
+** 输　出  : 删除是否成功
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+BOOL hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh, BOOL bDoDelete){
+    // PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader;
+    // PHOIT_FRAG_TREE_LIST_NODE   pFTlistNode;
+    
+    HOIT_FRAG_TREE_NODE         pFTn;
+
+    BOOL                        bRes = LW_TRUE;
+    UINT                        uiCount = 0;
+    UINT8                       uiCase;
+
+    UINT32                      uiConquerorLow = iKeyLow;
+    UINT32                      uiConquerorHigh = iKeyHigh;
+
+    PHOIT_FRAG_TREE_NODE        pFTnStart = __hoitFragTreeGetMinimum(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
+    pFTn.uiOfs      = iKeyLow < 0 ? 0 : iKeyLow;
+    pFTn.uiSize     = iKeyHigh + 1 - pFTn.uiOfs;
+
+    if(pFTTree->uiNCnt != 0){
+        hoitFragTreeTraverseVisitor(pFTTree, pFTnStart, 
+                                    __hoitFragTreeInsertOverlayFixUpVisitor, 
+                                    (PVOID)&pFTn);
+    }
+    //     pFTlistHeader = hoitFragTreeCollectRange(pFTTree, iKeyLow, iKeyHigh);
+    //     pFTlistNode = pFTlistHeader->pFTlistHeader->pFTlistNext;
+    //     while (pFTlistNode)
+    //     {
+    //         uiCount++;
+    // #ifdef FT_DEBUG
+    //         printf("count %d\n", uiCount);
+    // #endif
+    //         //TODO: 验证可行性
+    //         __hoitFragTreeConquerNode(pFTTree, pFTlistNode->pFTn, uiConquerorLow, uiConquerorHigh, 
+    //                                   &pFTnNew, &uiCase, bDoDelete);
+            
+    //         pFTlistNode = pFTlistNode->pFTlistNext;
+    //     }
+    //     hoitFragTreeListFree(pFTlistHeader);
+    return bRes;    
+}
+
+/*********************************************************************************************************
+** 函数名称: hoitFragTreeDeleteTree
+** 功能描述: 删除FragTree结构
+** 输　入  : pFTTree    FragTree
+** 输　出  : 删除是否成功
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+BOOL hoitFragTreeDeleteTree(PHOIT_FRAG_TREE pFTTree, BOOL bDoDelete){
+    BOOL                          res;
+    res = hoitFragTreeDeleteRange(pFTTree, INT_MIN, INT_MAX, bDoDelete);
+    lib_free(pFTTree->pRbTree->pRbnGuard->pRbnLeft);
+    lib_free(pFTTree->pRbTree->pRbnGuard);
+    lib_free(pFTTree->pRbTree);
+    lib_free(pFTTree);
+    hoitFragTreeTraverse(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
+    hoitFragTreeShowMemory(pFTTree);
+#ifdef FT_DEBUG
+#endif
+    return res;
 }
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeOverlayFixUp

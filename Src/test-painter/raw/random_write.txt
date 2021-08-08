@@ -1,4 +1,0 @@
-[HOITFS fstester -t hoitfs -l 100 -rndwr -s 0.6]
-
-
-[SPIFFS fstester -t spiffs -l 100 -rndwr -s 0.6]
