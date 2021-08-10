@@ -20,12 +20,12 @@
 *********************************************************************************************************/
 #include "fstester.h"
 #include "../driver/mtd/nor/nor.h"
-#define MAX_IO_SZ  128
-#define MIN_IO_SZ  56
+#define IO_SZ  256
 
-#define RANDOM_RANGE(a, b) (lib_rand() % (b - a) + a)
-#define RANDOM_ALPHABET()  (CHAR)(lib_rand() % 26 + 'a')
-#define HUNDRED_PERCENT    (100)
+#define RANDOM_RANGE(a, b)                                  (lib_rand() % (b - a) + a)
+#define RANDOM_ALPHABET()                                   (CHAR)(lib_rand() % 26 + 'a')
+#define HUNDRED_PERCENT                                     (100)
+#define IOS_PER_LOOPS(uiTestRange, uiLoopTimes, uiIOSize)   ((uiTestRange / uiLoopTimes) / uiIOSize)
 /*********************************************************************************************************
 ** 函数名称: __fstesterUtilSequentialWrite
 ** 功能描述: 顺序写工具，用于小数据连续写入与连续写入
@@ -36,7 +36,7 @@
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID __fstesterUtilSequentialWrite(INT iFdTest, UINT uiPerWriteSize, UINT uiLoopTimes, UINT uiOccupyFactor, UINT uiAccurayWriteTotalSize, PCHAR pMountPoint){
+INT __fstesterUtilSequentialWrite(INT iFdTest, UINT uiPerWriteSize, UINT uiLoopTimes, UINT uiOccupyFactor, UINT uiAccurayWriteTotalSize, PCHAR pMountPoint){
     UINT    i, j;
     UINT    uiWriteSize;
     UINT    uiInnerLoopTimes;
@@ -51,9 +51,9 @@ VOID __fstesterUtilSequentialWrite(INT iFdTest, UINT uiPerWriteSize, UINT uiLoop
         uiWriteSize = uiAccurayWriteTotalSize;
     }
 
-    uiInnerLoopTimes  = ((uiWriteSize / uiLoopTimes) / uiPerWriteSize);
+    uiInnerLoopTimes  = IOS_PER_LOOPS(uiWriteSize, uiLoopTimes, uiPerWriteSize);
 
-    pWriteBuffer    = (PCHAR)lib_malloc(uiPerWriteSize);
+    pWriteBuffer      = (PCHAR)lib_malloc(uiPerWriteSize);
     
     for (i = 0; i < uiInnerLoopTimes; i++)
     {
@@ -66,7 +66,7 @@ VOID __fstesterUtilSequentialWrite(INT iFdTest, UINT uiPerWriteSize, UINT uiLoop
     
     
     lib_free(pWriteBuffer);
-    return;
+    return uiInnerLoopTimes * uiPerWriteSize;
 }
 
 
@@ -83,20 +83,19 @@ VOID __fstesterUtilSequentialWrite(INT iFdTest, UINT uiPerWriteSize, UINT uiLoop
 INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){
     UINT    i;
     UINT    uiRandomReadOffset;
-    UINT    uiRandomReadSize;
     PCHAR   pReadBuffer;
-    UINT    uiInnerLoopTimes = 1000;
-    pReadBuffer = (PCHAR)lib_malloc(MAX_IO_SZ);
+    UINT    uiInnerLoopTimes = 10 * IOS_PER_LOOPS(uiTestRange, uiLoopTimes, IO_SZ);
+    
+    pReadBuffer = (PCHAR)lib_malloc(IO_SZ);
     for (i = 0; i < uiInnerLoopTimes; i++)
     {
-        lib_memset(pReadBuffer, 0, MAX_IO_SZ);
+        lib_memset(pReadBuffer, 0, IO_SZ);
         uiRandomReadOffset  = lib_random() % uiTestRange;                 /* [0 ~  size] */
-        uiRandomReadSize    = RANDOM_RANGE(MIN_IO_SZ, MAX_IO_SZ);         /* [MIN_IO_SZ ~ MAX_IO_SZ]随机数 */ 
         lseek(iFdTest, uiRandomReadOffset, SEEK_SET);
-        read(iFdTest, pReadBuffer, uiRandomReadSize);
+        read(iFdTest, pReadBuffer, IO_SZ);
     }
     lib_free(pReadBuffer);
-    return ERROR_NONE;
+    return uiInnerLoopTimes * IO_SZ;
 }
 /*********************************************************************************************************
 ** 函数名称: __fstesterSequentialRead
@@ -113,16 +112,16 @@ INT __fstesterSequentialRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PC
 
     UINT    i, uiReadIter;
     PCHAR   pReadBuffer;
-    UINT    uiInnerLoopTimes = uiTestRange / MAX_IO_SZ;       /* 每次读 MAX_IO_SZ，读全部数据 */
+    UINT    uiInnerLoopTimes = IOS_PER_LOOPS(uiTestRange, uiLoopTimes, IO_SZ);       /* 每次读 IO_SZ，读全部数据 */
     
-    pReadBuffer = (PCHAR)lib_malloc(MAX_IO_SZ);
+    pReadBuffer = (PCHAR)lib_malloc(IO_SZ);
     for (i = 0; i < uiInnerLoopTimes; i++)
     { 
-        lib_memset(pReadBuffer, 0, MAX_IO_SZ);
-        read(iFdTest, pReadBuffer, MAX_IO_SZ);
+        lib_memset(pReadBuffer, 0, IO_SZ);
+        read(iFdTest, pReadBuffer, IO_SZ);
     }
     lib_free(pReadBuffer);
-    return ERROR_NONE;
+    return uiInnerLoopTimes * IO_SZ;
 }
 /*********************************************************************************************************
 ** 函数名称: __fstesterRandomWrite
@@ -140,19 +139,19 @@ INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR
     PCHAR   pWriteBuffer;
     UINT    uiInnerLoopTimes = 10;
 
-    pWriteBuffer  = (PCHAR)lib_malloc(MAX_IO_SZ);
+    pWriteBuffer  = (PCHAR)lib_malloc(IO_SZ);
     for (i = 0; i < uiInnerLoopTimes; i++)
     {
         uiRandomWriteOffset  = lib_random() % uiTestRange;              /* [0 ~  size] */     
-        for (j = 0; j < MAX_IO_SZ; j++)
+        for (j = 0; j < IO_SZ; j++)
         {
             *(pWriteBuffer + j) = RANDOM_ALPHABET();
         }
         lseek(iFdTest, uiRandomWriteOffset, SEEK_SET);
-        write(iFdTest, pWriteBuffer, MAX_IO_SZ);
+        write(iFdTest, pWriteBuffer, IO_SZ);
     }
     lib_free(pWriteBuffer);
-    return ERROR_NONE;
+    return uiInnerLoopTimes * IO_SZ;
 }
 /*********************************************************************************************************
 ** 函数名称: __fstesterSequentialWrite
@@ -169,8 +168,8 @@ INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, P
     INT uiOccupyFactor = 60;
     if(pUserValue != LW_NULL)
         uiOccupyFactor = lib_atoi((PCHAR)pUserValue);
-    __fstesterUtilSequentialWrite(iFdTest, MAX_IO_SZ, uiLoopTimes, uiOccupyFactor, -1, pMountPoint);
-    return ERROR_NONE;
+    return __fstesterUtilSequentialWrite(iFdTest, IO_SZ, uiLoopTimes, 
+                                         uiOccupyFactor, -1, pMountPoint);
 }
 /*********************************************************************************************************
 ** 函数名称: __fstesterSmallWrite
@@ -187,6 +186,6 @@ INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR 
     INT uiAccurayWriteTotalSize = 1000;
     if(pUserValue != LW_NULL)
         uiAccurayWriteTotalSize = lib_atoi((PCHAR)pUserValue);
-    __fstesterUtilSequentialWrite(iFdTest, 1, uiLoopTimes, -1, 1000, pMountPoint);
-    return ERROR_NONE;
+    return __fstesterUtilSequentialWrite(iFdTest, 1, uiLoopTimes, 
+                                         -1, uiAccurayWriteTotalSize, pMountPoint);
 }

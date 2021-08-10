@@ -80,12 +80,12 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     PCHAR           pFSType;
     PCHAR           pOutputDir;
     PCHAR           pOutputPath;
-    INT             i, iRes;
+    INT             i, iIOBytes;
     INT             iFdOut, iFdTest;
 	struct timeval  timeStart;
     struct timeval  timeEnd;
     struct timeval  timeDiff;
-    double          dTimeDiff;
+    double          dTimeDiff, dThroughput;
     PCHAR           pOutContent;
     INT             iByteWriteOnce  = 0;
     struct stat     stat;
@@ -145,8 +145,8 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         }
         lib_gettimeofday(&timeStart, LW_NULL);
         {
-            iRes = functionality(iFdTest, stat.st_size, uiLoopTimes, pMountPoint, pUserValue);
-            if(iRes != ERROR_NONE){
+            iIOBytes = functionality(iFdTest, stat.st_size, uiLoopTimes, pMountPoint, pUserValue);
+            if(iIOBytes < 0){
                 printf("[TEST %d Fail]\n",i);
                 break;
             }
@@ -157,7 +157,11 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         if(dTimeDiff < 0){
             dTimeDiff = -dTimeDiff;
         }
-        iByteWriteOnce  = asprintf(&pOutContent, "%.2f\n", dTimeDiff);      /* 保留2位小数 */
+        if(dTimeDiff == 0){
+            dTimeDiff = 1;                                                    /* 精度太低，至少1ms */                                        
+        }
+        dThroughput     = iIOBytes / dTimeDiff;                               /* KB / s */
+        iByteWriteOnce  = asprintf(&pOutContent, "%.2f\n", dThroughput);      /* 保留2位小数 */
         write(iFdOut, pOutContent, iByteWriteOnce);
         lib_free(pOutContent);
     }
