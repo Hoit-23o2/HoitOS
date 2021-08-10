@@ -1845,7 +1845,7 @@ VOID  __hoit_unmount(PHOIT_VOLUME pfs)
     }
     hoitFlushCache(pfs->HOITFS_cacheHdr, (PHOIT_CACHE_BLK)-1);
     hoitGCClose(pfs);
-    __hoit_close(pfs->HOITFS_pRootDir, 3);  /* 先删除根目录, 3代表会实际进行删除根目录 */
+    //__hoit_close(pfs->HOITFS_pRootDir, 3);  /* 先删除根目录, 3代表会实际进行删除根目录 */
     hoitFreeCache(pfs->HOITFS_cacheHdr);    /* 释放缓存层 */
 
     if (pfs->HOITFS_pTempRootDirent != LW_NULL) {   /* 删除TempDirent链表 */
