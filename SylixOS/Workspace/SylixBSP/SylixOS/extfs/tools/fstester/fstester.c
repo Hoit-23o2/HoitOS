@@ -29,6 +29,8 @@ List(FSTESTER_FUNC_NODE) _G_FuncNodeList;
 
 #define GET_ARG(ppcArgV, i)     *(ppcArgV + i);  
 #define IS_STR_SAME(str1, str2) (lib_strcmp(str1, str2) == 0)
+#define CALC_TIME_DIFF(timeStart, timeEnd) (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) +      \
+                                           ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0))              \
 /*********************************************************************************************************
 ** 函数名称: __fstester_write_test_file
 ** 功能描述: 写一个固定大小的文件
@@ -64,6 +66,63 @@ UINT __fstester_write_test_file(INT iFdTest, ULONG testFileSize) {
     return  ERROR_NONE;
 }
 /*********************************************************************************************************
+** 函数名称: __fstester_prepare_test
+** 功能描述: 做测试前的准备：挂载  +  打开一个初始文件，大小为文件系统的testFileSizeRate
+** 输　入  : 
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __fstester_prepare_test(PCHAR pTestPath, double testFileSizeRate, 
+                            PCHAR pMountPoint, PCHAR pFSType, BOOL bIsReset){
+    struct statfs   pstatfs;
+    LONG            testFileSize;
+    INT             iFdTest = -1;
+
+    API_Mount("1", pMountPoint, pFSType);
+    /* pTempPath = /mnt/fstype(hoitfs)/write-for-test */
+    sleep(1);
+
+    //!ZN 写更大的文件，参数化
+    if(bIsReset){
+        statfs(pMountPoint, &pstatfs);   /* 获取文件系统空间 */
+        testFileSize = (LONG)(testFileSizeRate * (double)(pstatfs.f_blocks * pstatfs.f_bsize));
+        if(access(pTestPath, F_OK) == ERROR_NONE){
+            remove(pTestPath);
+        }
+        iFdTest = open(pTestPath, O_CREAT | O_TRUNC | O_RDWR);
+        if(iFdTest < 0){
+            printf("[%s] can't create output file [%s]", __func__, pTestPath);
+            return PX_ERROR;
+        }
+        if(__fstester_write_test_file(iFdTest, testFileSize) != ERROR_NONE){
+            return PX_ERROR;
+        }
+        return iFdTest;
+    }
+    else {
+        return ERROR_NONE;
+    }
+}
+/*********************************************************************************************************
+** 函数名称: __fstester_terminate_test
+** 功能描述: 关闭iFdTest，然后删除iFdTest，最后umount文件系统，重置norflash
+** 输　入  : pfs          文件头
+**           pObjId        返回的Object ID
+**           pucConflictingName 文件路径名
+** 输　出  : 
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __fstester_terminate_test(INT iFdTest, PCHAR pTestPath, PCHAR pMountPoint, 
+                              PCHAR pFSType) {
+    close(iFdTest);
+    remove(pTestPath);
+    API_Unmount(pMountPoint);
+    nor_reset(NOR_FLASH_BASE);
+    return ERROR_NONE;
+}
+/*********************************************************************************************************
 ** 函数名称: fstester_generic_test
 ** 功能描述: nor flash文件系统通用测试
 ** 输　入  : pfs          文件头
@@ -85,13 +144,11 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
 	struct timeval  timeStart;
     struct timeval  timeEnd;
     struct timeval  timeDiff;
-    double          dTimeDiff, dThroughput;
+    double          dTimeDiff, dResult;
     PCHAR           pOutContent;
     INT             iByteWriteOnce  = 0;
     struct stat     stat;
-    struct statfs   pstatfs;
-    LONG            testFileSize;
-    
+
     PCHAR           pTestPath;
 
     pMountPoint     = getFSMountPoint(fsType);
@@ -100,7 +157,6 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     pFSType         = translateFSType(fsType);
     /* 设定特定种子 */
     lib_srand(FSTESTER_SEED);
-
     if(access(pOutputDir, F_OK) != ERROR_NONE){         /* 没找到Out目录 */
         mkdir(pOutputDir, 0);                           /* 建一个目录 */
     }
@@ -113,66 +169,84 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         return;
     }
 
-    if(testType != TEST_TYPE_MOUNT){
-        API_Mount("1", pMountPoint, pFSType);
-        statfs(pMountPoint, &pstatfs);   /* 获取文件系统空间 */
-        testFileSize = (LONG)(testFileSizeRate * (double)(pstatfs.f_blocks * pstatfs.f_bsize));
+    if(testType == TEST_TYPE_GC){           /* 针对GC的参数 */
+        if(testFileSizeRate < 0.5){
+            testFileSizeRate = 0.5;
+        }
+        else if(testFileSizeRate > 0.7){
+            testFileSizeRate = 0.7;
+        }
+    }
 
-        /* pTempPath = /mnt/fstype(hoitfs)/write-for-test */
-        asprintf(&pTestPath, "%s/write-for-test", pMountPoint);
-        sleep(1);
-        if(access(pTestPath, F_OK) == ERROR_NONE){
-            remove(pTestPath);
-        }
-        
-        //!ZN 写更大的文件，参数化
-        iFdTest = open(pTestPath, O_CREAT | O_TRUNC | O_RDWR);
-        if(iFdTest < 0){
-            printf("[%s] can't create output file [%s]", __func__, pTestPath);
-            return;
-        }
-        if(__fstester_write_test_file(iFdTest, testFileSize) != ERROR_NONE){
-            return ;
-        }
+    asprintf(&pTestPath, "%s/write-for-test", pMountPoint);
+    iFdTest = __fstester_prepare_test(pTestPath, testFileSizeRate, pMountPoint, pFSType, TRUE);
+    if(iFdTest != PX_ERROR){
         fstat(iFdTest, &stat);
+    }
+
+    if(testType == TEST_TYPE_MOUNT){        /* 如果测试mount，那么立即关闭该文件 */
+        close(iFdTest);
     }
 
     for (i = 0; i < uiLoopTimes; i++)
     {
         printf("====== TEST %d ======\n", i);
-        if(i == 94){
+        if(i == 2){
             printf("debug\n");
         }
-        lib_gettimeofday(&timeStart, LW_NULL);
-        {
-            iIOBytes = functionality(iFdTest, stat.st_size, uiLoopTimes, pMountPoint, pUserValue);
-            if(iIOBytes < 0){
-                printf("[TEST %d Fail]\n",i);
-                break;
+        if(testType == TEST_TYPE_MOUNT) { 
+            API_Unmount(pMountPoint);
+            lib_gettimeofday(&timeStart, LW_NULL);
+            functionality(-1, 0, uiLoopTimes, pMountPoint, pUserValue);
+            lib_gettimeofday(&timeEnd, LW_NULL);
+
+            dTimeDiff       = CALC_TIME_DIFF(timeStart, timeEnd);
+            if(dTimeDiff < 0){
+                dTimeDiff = -dTimeDiff;
             }
+            if(dTimeDiff == 0){
+                dTimeDiff = 1;                                                              /* 精度太低，至少1ms */                                        
+            }
+            dResult      = dTimeDiff;
         }
-        lib_gettimeofday(&timeEnd, LW_NULL);
-        dTimeDiff       = 1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) +      /* 计算ms时间差 */
-                          ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0);
-        if(dTimeDiff < 0){
-            dTimeDiff = -dTimeDiff;
+        else if(testType == TEST_TYPE_MERGEABLE_TREE){
+            dResult      = functionality(iFdTest, stat.st_size, uiLoopTimes, 
+                                         pMountPoint, pUserValue);
         }
-        if(dTimeDiff == 0){
-            dTimeDiff = 1;                                                    /* 精度太低，至少1ms */                                        
+        else if(testType != TEST_TYPE_MOUNT){
+            lib_gettimeofday(&timeStart, LW_NULL);
+            {
+                iIOBytes = functionality(iFdTest, stat.st_size, uiLoopTimes, pMountPoint, pUserValue);
+                if(iIOBytes < 0){
+                    printf("%10s: [TEST %d Fail]\n", translateTestType(testType), i);
+                    break;
+                }
+            }
+            lib_gettimeofday(&timeEnd, LW_NULL);
+            dTimeDiff       = CALC_TIME_DIFF(timeStart, timeEnd);
+            if(dTimeDiff < 0){
+                dTimeDiff = -dTimeDiff;
+            }
+            if(dTimeDiff == 0){
+                dTimeDiff = 1;                                                              /* 精度太低，至少1ms */                                        
+            }
+            dResult     = iIOBytes / dTimeDiff;                                             /* KB / s */
         }
-        dThroughput     = iIOBytes / dTimeDiff;                               /* KB / s */
-        iByteWriteOnce  = asprintf(&pOutContent, "%.2f\n", dThroughput);      /* 保留2位小数 */
+        iByteWriteOnce  = asprintf(&pOutContent, "%.2f\n", dResult);                        /* 保留2位小数 */
         write(iFdOut, pOutContent, iByteWriteOnce);
         lib_free(pOutContent);
     }
 
-    if(testType != TEST_TYPE_MOUNT){
-        close(iFdTest);
+    if(testType == TEST_TYPE_MOUNT){        /* mount最后文件没有打开 */
         remove(pTestPath);
-        lib_free(pTestPath);
         API_Unmount(pMountPoint);
         nor_reset(NOR_FLASH_BASE);
     }
+    else {
+        __fstester_terminate_test(iFdTest, pTestPath, pMountPoint, pFSType);
+    }
+    lib_free(pTestPath);
+
     close(iFdOut);
     lib_free(pOutputPath);
     return;
@@ -333,7 +407,7 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
             printf("================================================\n");
             printf("=     FSTESTER implemented By HoitFS Group     =\n");
             printf("================================================\n");
-            printf("[Basic Usage]:        fstester -t [FSType] -l [LoopTimes] [TestType]\n");
+            printf("[Basic Usage]:        fstester -t [FSType] -l [LoopTimes] [TestType] -s [initial file size]\n");
             printf("[Supported FSType]:   spiffs hoitfs\n");
             printf("[Supported TestType]: \n");
             for (iter->begin(iter, _G_FuncNodeList);iter->isValid(iter);iter->next(iter))
@@ -406,6 +480,15 @@ VOID register_fstester_cmd(){
 
     PCHAR cOpt5[2] = {"-smlwr"};
     fstester_register_functionality(cOpt5,  1, "Small Write Test", TEST_TYPE_SMALL_WR, __fstesterSmallWrite);
+
+    PCHAR cOpt6[2] = {"-mnt", "-mount"};
+    fstester_register_functionality(cOpt6,  2, "Mount Test", TEST_TYPE_MOUNT, __fstesterMount);
+
+    PCHAR cOpt7[2] = {"-gc"};
+    fstester_register_functionality(cOpt7,  1, "Garbage Collection Test", TEST_TYPE_GC, __fstesterGC);
+    
+    PCHAR cOpt8[2] = {"-mtree", "-mergeabletree"};
+    fstester_register_functionality(cOpt8,  2, "Mergable Tree Test", TEST_TYPE_MERGEABLE_TREE, __fstesterMergeableTree);
 
     API_TShellKeywordAdd("fstester", fstester_cmd_wrapper);
 }

@@ -216,7 +216,13 @@ VOID __spiffs_unmount(PSPIFFS_VOLUME pfs){
             spiffsFdReturn(pfs,  pCurFd->fileN);    /* ÊÍ·ÅÎÄ¼þÃèÊö·û */
         }
     }
+    
     pfs->uiMountedFlag = 0;
+    
+    lib_free(pfs->pucWorkBuffer);
+    lib_free(pfs->pCache);
+    lib_free(pfs->pucFdSpace);
+    lib_free(pfs);
     return;
 }
 /*********************************************************************************************************

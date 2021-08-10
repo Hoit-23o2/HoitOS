@@ -26,6 +26,9 @@
 #define RANDOM_ALPHABET()                                   (CHAR)(lib_rand() % 26 + 'a')
 #define HUNDRED_PERCENT                                     (100)
 #define IOS_PER_LOOPS(uiTestRange, uiLoopTimes, uiIOSize)   ((uiTestRange / uiLoopTimes) / uiIOSize)
+
+extern INT __fstester_prepare_test(PCHAR pTestPath, double testFileSizeRate, 
+                                   PCHAR pMountPoint, PCHAR pFSType, BOOL bIsNeedInitialize);
 /*********************************************************************************************************
 ** 函数名称: __fstesterUtilSequentialWrite
 ** 功能描述: 顺序写工具，用于小数据连续写入与连续写入
@@ -188,4 +191,61 @@ INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR 
         uiAccurayWriteTotalSize = lib_atoi((PCHAR)pUserValue);
     return __fstesterUtilSequentialWrite(iFdTest, 1, uiLoopTimes, 
                                          -1, uiAccurayWriteTotalSize, pMountPoint);
+}
+/*********************************************************************************************************
+** 函数名称: __fstesterSmallWrite
+** 功能描述: 随机写实现
+** 输　入  : iFdTest        待测试文件描述符
+**            uiTestRange   文件大小
+**            uiLoopTimes   外层循环测量次数
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __fstesterMount(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){
+    (VOID) iFdTest, uiTestRange;
+    PCHAR pFSType = lib_strcmp(pMountPoint, "/mnt/spiffs") == 0 ? "spiffs" : "hoitfs"; 
+    __fstester_prepare_test(LW_NULL, 0, pMountPoint, pFSType, FALSE);
+    return ERROR_NONE;
+}
+/*********************************************************************************************************
+** 函数名称: __fstesterGC
+** 功能描述: GC触发测试
+** 输　入  : iFdTest        待测试文件描述符
+**            uiTestRange   文件大小
+**            uiLoopTimes   外层循环测量次数
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __fstesterGC(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){
+    (VOID)  iFdTest, uiTestRange;
+    INT uiOccupyFactor = 10;
+    if(pUserValue != LW_NULL)
+        uiOccupyFactor = lib_atoi((PCHAR)pUserValue);
+    if(uiOccupyFactor > 10){
+        uiOccupyFactor = 10;
+        return PX_ERROR;
+    }
+    return __fstesterUtilSequentialWrite(iFdTest, IO_SZ, uiLoopTimes, 
+                                         uiOccupyFactor, -1, pMountPoint);
+}
+/*********************************************************************************************************
+** 函数名称: __fstesterMergeableTree
+** 功能描述: Mergeable Tree内存测试
+** 输　入  : 
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __fstesterMergeableTree(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){
+    (VOID)  uiTestRange;
+    INT uiAccurayWriteTotalSize = 1000;
+    struct stat stat;
+    if(pUserValue != LW_NULL)
+        uiAccurayWriteTotalSize = lib_atoi((PCHAR)pUserValue);
+    __fstesterUtilSequentialWrite(iFdTest, 1, uiLoopTimes, 
+                                  -1, uiAccurayWriteTotalSize, pMountPoint);
+    fstat(iFdTest, &stat);
+    return *(INT *)stat.st_resv1;
 }

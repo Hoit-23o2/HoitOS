@@ -729,6 +729,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
         if(EBSMode){
             /* EBS模式下, 如果下面函数返回全1代表该sector扫描可以提前结束, obsoleteFlag代表该Entry是否被标记过期 */
             UINT32 uSectorOffset = hoitSectorGetNextAddr(pfs->HOITFS_cacheHdr, sector_no, sectorIndex++, &obsoleteFlag);
+            printf("uSectorOffs: %d\n", uSectorOffset );
             pNow = pReadBuf + uSectorOffset;
             if(obsoleteFlag == HOIT_FLAG_OBSOLETE) continue;
             if(uSectorOffset == -1) break;
@@ -1717,8 +1718,8 @@ INT  __hoit_stat(PHOIT_INODE_INFO pInodeInfo, PHOIT_VOLUME  pfs, struct stat* ps
         pstat->st_blksize = 0;
         pstat->st_blocks = 0;
     }
-
-    pstat->st_resv1 = LW_NULL;
+    /* 2021-08-10 Added by PYQ，增加内存 */
+    pstat->st_resv1 = &(((PHOIT_FRAG_TREE)pInodeInfo->HOITN_rbtree)->uiMemoryBytes);
     pstat->st_resv2 = LW_NULL;
     pstat->st_resv3 = LW_NULL;
     return ERROR_NONE;
@@ -1906,12 +1907,16 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     LW_CLASS_THREADATTR scThreadAttr;
     LW_OBJECT_HANDLE ulObjectHandle[NOR_FLASH_NSECTOR];
     INT handleSize = 0;
-
+    i = 0;
     while (hoitGetSectorSize(sector_no) != -1) {
 
         ScanThreadAttr* pThreadAttr = (ScanThreadAttr*)lib_malloc(sizeof(ScanThreadAttr));
         pThreadAttr->pfs = pfs;
         pThreadAttr->sector_no = sector_no;
+        i++;
+        if(i == 18){
+            printf("debug\n");
+        }
 #ifndef MULTI_THREAD_ENABLE
         __hoit_scan_single_sector(pThreadAttr);
 #else
