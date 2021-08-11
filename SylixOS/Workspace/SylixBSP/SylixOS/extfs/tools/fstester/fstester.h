@@ -44,14 +44,15 @@ typedef enum test_type{
     TEST_TYPE_SEQ_WR,
     TEST_TYPE_SEQ_RD,           
 
-    TEST_TYPE_CLEAN_MNT,
-    TEST_TYPE_DIRTY_MNT,
-
-    TEST_TYPE_SMALL_WR
+    TEST_TYPE_SMALL_WR,
+    
+    TEST_TYPE_MOUNT,
+    TEST_TYPE_GC,
+    TEST_TYPE_MERGEABLE_TREE
 } TEST_TYPE;
 
 
-typedef INT (*fstester_functionality)(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint);
+typedef INT (*fstester_functionality)(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
 typedef fstester_functionality FSTESTER_FUNCTIONALITY;
 
 typedef struct fstester_func_node
@@ -61,6 +62,7 @@ typedef struct fstester_func_node
     PCHAR                  pUsage;
     TEST_TYPE              testType;
     FSTESTER_FUNCTIONALITY functionality;
+    PVOID                  pUserValue;
 } FSTESTER_FUNC_NODE;
 typedef FSTESTER_FUNC_NODE * PFSTESTER_FUNC_NODE;
 
@@ -90,11 +92,14 @@ DECLARE_LIST_TEMPLATE(FSTESTER_FUNC_NODE);
 /*********************************************************************************************************
   测试函数API
 *********************************************************************************************************/
-INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint);
-INT __fstesterSequentialRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint);
-INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint);
-INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint);
-INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint);
+INT __fstesterRandomRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterSequentialRead(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterMount(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterGC(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterMergeableTree(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
 /*********************************************************************************************************
   工具函数
 *********************************************************************************************************/
@@ -130,12 +135,14 @@ static inline const PCHAR translateTestType(TEST_TYPE testType){
         return "sequence-write-test";
     case TEST_TYPE_SEQ_RD:
         return "sequence-read-test";
-    case TEST_TYPE_CLEAN_MNT:
-        return "clean-mount-test";
-    case TEST_TYPE_DIRTY_MNT:
-        return "dirty-mount-test";
     case TEST_TYPE_SMALL_WR:
         return "small-write-test";
+    case TEST_TYPE_MOUNT:
+        return "mount-test";
+    case TEST_TYPE_GC:
+        return "gc-test";
+    case TEST_TYPE_MERGEABLE_TREE:
+        return "mergeable-tree-test";
     default:
         return "unsupported";
     }
@@ -245,14 +252,17 @@ static inline PCHAR getFSTestOutputPath(FS_TYPE fsType, TEST_TYPE testType){
     case TEST_TYPE_SEQ_RD:
         pOutputFileName = "out-sequence-read-test";
         break;
-    case TEST_TYPE_CLEAN_MNT:
-        pOutputFileName = "out-clean-mount-test";
-        break;
-    case TEST_TYPE_DIRTY_MNT:
-        pOutputFileName = "out-dirty-mount-test";
-        break;
     case TEST_TYPE_SMALL_WR:
         pOutputFileName = "out-small-write-test";
+        break;
+    case TEST_TYPE_MOUNT:
+        pOutputFileName = "out-mount-test";
+        break;
+    case TEST_TYPE_GC:
+        pOutputFileName = "out-gc-test";
+        break;
+    case TEST_TYPE_MERGEABLE_TREE:
+        pOutputFileName = "out-mergeable-tree-test";
         break;
     default:
         break;

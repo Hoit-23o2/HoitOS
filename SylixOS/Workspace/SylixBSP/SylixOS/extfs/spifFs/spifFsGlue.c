@@ -216,7 +216,13 @@ VOID __spiffs_unmount(PSPIFFS_VOLUME pfs){
             spiffsFdReturn(pfs,  pCurFd->fileN);    /* 释放文件描述符 */
         }
     }
+    
     pfs->uiMountedFlag = 0;
+    
+    lib_free(pfs->pucWorkBuffer);
+    lib_free(pfs->pCache);
+    lib_free(pfs->pucFdSpace);
+    lib_free(pfs);
     return;
 }
 /*********************************************************************************************************
@@ -1276,8 +1282,8 @@ INT __spif_lseek(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, UINT32 uiOffset){
 *********************************************************************************************************/
 INT __spif_statfs(PSPIF_VOLUME pfs, struct statfs *pstatfs){
     pstatfs->f_type = SPIFFS_CONFIG_MAGIC;  //需要修改
-    pstatfs->f_bsize = 0;
-    pstatfs->f_blocks = 0;
+    pstatfs->f_bsize  = 57288;              /* 与HOITFS保持一致 */
+    pstatfs->f_blocks = 28;
     pstatfs->f_bfree = 0;
     pstatfs->f_bavail = 1;
 
