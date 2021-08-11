@@ -738,7 +738,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
             if(sectorIndex > pfs->HOITFS_cacheHdr->HOITCACHE_PageAmount) break;
         }
         else {
-            if(pNow > pReadBuf + uiSectorSize) break;
+            if(pNow >= pReadBuf + uiSectorSize) break;
         }
 
 
