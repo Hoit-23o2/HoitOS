@@ -1,0 +1,5 @@
+[HOITFS-NO-OPT fstester -t hoitfs -gc -s 0.6 -l 100 -args 0.2]
+
+[HOITFS fstester -t hoitfs -gc -s 0.6 -l 100 -args 0.2]
+
+[SPIFFS fstester -t spiffs -gc -s 0.6 -l 100 -args 0.2]

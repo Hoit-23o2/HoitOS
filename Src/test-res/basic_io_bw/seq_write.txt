@@ -1,4 +1,4 @@
-[HOITFS-NO-OPT fstester -t hoitfs -l 100 -seqwr -s 0 -args 60]
+[HOITFS-NO-OPT fstester -t hoitfs -l 100 -seqwr -s 0 -args 0.6]
 971.79
 967.12
 915.35
@@ -100,7 +100,7 @@
 211.68
 285.47
 
-[HOITFS fstester -t hoitfs -l 100 -seqwr -s 0 -args 60]
+[HOITFS fstester -t hoitfs -l 100 -seqwr -s 0 -args 0.6]
 1906.60
 947.20
 947.20
@@ -203,7 +203,7 @@
 315.73
 
 
-[SPIFFS fstester -t spiffs -l 100 -seqwr -s 0 -args 60]
+[SPIFFS fstester -t spiffs -l 100 -seqwr -s 0 -args 0.6]
 1906.6
 947.2
 947.2

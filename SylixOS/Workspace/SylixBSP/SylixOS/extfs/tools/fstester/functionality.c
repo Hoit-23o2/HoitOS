@@ -33,13 +33,13 @@ extern INT __fstester_prepare_test(PCHAR pTestPath, double testFileSizeRate,
 ** 函数名称: __fstesterUtilSequentialWrite
 ** 功能描述: 顺序写工具，用于小数据连续写入与连续写入
 ** 输　入  : uiPerWriteSize  每次写数据大小
-**            uiOccupyFactor  占满空间百分比，[0 ~ 100]
+**            dOccupyFactor  占满空间百分比，[0 ~ 1]
 **            pMountPoint      挂载点： /mnt/hoitfs
 ** 输　出  : None
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-INT __fstesterUtilSequentialWrite(INT iFdTest, UINT uiPerWriteSize, UINT uiLoopTimes, UINT uiOccupyFactor, UINT uiAccurayWriteTotalSize, PCHAR pMountPoint){
+INT __fstesterUtilSequentialWrite(INT iFdTest, UINT uiPerWriteSize, UINT uiLoopTimes, double dOccupyFactor, UINT uiAccurayWriteTotalSize, PCHAR pMountPoint){
     UINT    i, j;
     UINT    uiWriteSize;
     UINT    uiInnerLoopTimes;
@@ -47,8 +47,8 @@ INT __fstesterUtilSequentialWrite(INT iFdTest, UINT uiPerWriteSize, UINT uiLoopT
     struct  statfs stat;
 
     statfs(pMountPoint, &stat);
-    if(uiOccupyFactor != -1){
-        uiWriteSize     = (stat.f_bsize * stat.f_blocks * uiOccupyFactor) / HUNDRED_PERCENT;      /* 写满fs的 @uiOccupyFactor% */
+    if(dOccupyFactor != -1){
+        uiWriteSize     = (stat.f_bsize * stat.f_blocks * dOccupyFactor);      /* 写满fs的 @uiOccupyFactor% */
     }
     else if(uiAccurayWriteTotalSize != -1){
         uiWriteSize = uiAccurayWriteTotalSize;
@@ -168,11 +168,11 @@ INT __fstesterRandomWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR
 *********************************************************************************************************/
 INT __fstesterSequentialWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){ 
     (VOID)  iFdTest, uiTestRange;
-    INT uiOccupyFactor = 60;
+    double dOccupyFactor = 0.6;
     if(pUserValue != LW_NULL)
-        uiOccupyFactor = lib_atoi((PCHAR)pUserValue);
+        dOccupyFactor = lib_atof((PCHAR)pUserValue);
     return __fstesterUtilSequentialWrite(iFdTest, IO_SZ, uiLoopTimes, 
-                                         uiOccupyFactor, -1, pMountPoint);
+                                         dOccupyFactor, -1, pMountPoint);
 }
 /*********************************************************************************************************
 ** 函数名称: __fstesterSmallWrite
@@ -220,17 +220,17 @@ INT __fstesterMount(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMoun
 *********************************************************************************************************/
 INT __fstesterGC(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){
     (VOID)  uiTestRange;
-    INT     uiOccupyFactor = 10;
+    double  dOccupyFactor = 0.5;
     INT     iIOBytes;
 
     if(pUserValue != LW_NULL)
-        uiOccupyFactor = lib_atoi((PCHAR)pUserValue);
-    if(uiOccupyFactor > 50){
-        uiOccupyFactor = 50;
+        dOccupyFactor = lib_atof((PCHAR)pUserValue);
+    if(dOccupyFactor > 0.5){
+        dOccupyFactor = 0.5;
         return PX_ERROR;
     }
     return __fstesterUtilSequentialWrite(iFdTest, IO_SZ, uiLoopTimes, 
-                                         uiOccupyFactor, -1, pMountPoint);
+                                         dOccupyFactor, -1, pMountPoint);
 }
 /*********************************************************************************************************
 ** 函数名称: __fstesterMergeableTree

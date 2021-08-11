@@ -90,7 +90,7 @@ INT __fstester_prepare_test(PCHAR pTestPath, double testFileSizeRate,
         if(access(pTestPath, F_OK) == ERROR_NONE){
             remove(pTestPath);
         }
-        iFdTest = open(pTestPath, O_CREAT | O_TRUNC | O_RDWR);
+        iFdTest = open(pTestPath, O_CREAT | O_TRUNC | O_RDWR, DEFAULT_FILE_PERM);
         if(iFdTest < 0){
             printf("[%s] can't create output file [%s]", __func__, pTestPath);
             return PX_ERROR;
@@ -162,7 +162,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     if(access(pOutputPath, F_OK) == ERROR_NONE){        /* 找到了Out文件 */
         remove(pOutputPath);                            /* 删除该文件 */
     }
-    iFdOut          = open(pOutputPath, O_CREAT | O_TRUNC | O_RDWR);
+    iFdOut          = open(pOutputPath, O_CREAT | O_TRUNC | O_RDWR, DEFAULT_FILE_PERM);
     if(iFdOut < 0){
         printf("[%s] can't create output file [%s]\n", __func__, pOutputPath);
         return;
@@ -193,7 +193,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         lib_free(pTestPath);          
 
         asprintf(&pTestPath, "%s/write-for-gc", pMountPoint);
-        iFdTest    = open(pTestPath, O_CREAT | O_TRUNC | O_RDWR);
+        iFdTest    = open(pTestPath, O_CREAT | O_TRUNC | O_RDWR, DEFAULT_FILE_PERM);
         if(iFdTest < 0){
             printf("[%s]: can not create gc file %s\n",__func__, pTestPath);
             return;
@@ -213,6 +213,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
             lib_gettimeofday(&timeEnd, LW_NULL);
 
             dTimeDiff       = CALC_TIME_DIFF(timeStart, timeEnd);
+            dTimeDiff       -= 1000;                                                        /* mount 后sleep 了1s */
             if(dTimeDiff < 0){
                 dTimeDiff = -dTimeDiff;
             }
@@ -490,13 +491,13 @@ VOID register_fstester_cmd(){
     PCHAR cOpt4[2] = {"-seqwr", "-swr"};
     fstester_register_functionality(cOpt4,  2, "Sequence Write Test", TEST_TYPE_SEQ_WR, __fstesterSequentialWrite);
 
-    PCHAR cOpt5[2] = {"-smlwr"};
+    PCHAR cOpt5[1] = {"-smlwr"};
     fstester_register_functionality(cOpt5,  1, "Small Write Test", TEST_TYPE_SMALL_WR, __fstesterSmallWrite);
 
     PCHAR cOpt6[2] = {"-mnt", "-mount"};
     fstester_register_functionality(cOpt6,  2, "Mount Test", TEST_TYPE_MOUNT, __fstesterMount);
 
-    PCHAR cOpt7[2] = {"-gc"};
+    PCHAR cOpt7[1] = {"-gc"};
     fstester_register_functionality(cOpt7,  1, "Garbage Collection Test", TEST_TYPE_GC, __fstesterGC);
     
     PCHAR cOpt8[2] = {"-mtree", "-mergeabletree"};
