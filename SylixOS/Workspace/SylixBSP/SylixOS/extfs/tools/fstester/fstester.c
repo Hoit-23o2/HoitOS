@@ -81,7 +81,7 @@ INT __fstester_prepare_test(PCHAR pTestPath, double testFileSizeRate,
 
     API_Mount("1", pMountPoint, pFSType);
     /* pTempPath = /mnt/fstype(hoitfs)/write-for-test */
-    sleep(1);
+    // sleep(1);
 
     //!ZN 写更大的文件，参数化
     if(bIsReset){
@@ -212,8 +212,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
             functionality(-1, 0, uiLoopTimes, pMountPoint, pUserValue);
             lib_gettimeofday(&timeEnd, LW_NULL);
 
-            dTimeDiff       = CALC_TIME_DIFF(timeStart, timeEnd);
-            dTimeDiff       -= 1000;                                                        /* mount 后sleep 了1s */
+            dTimeDiff       = CALC_TIME_DIFF(timeStart, timeEnd);                                                       /* mount 后sleep 了1s */
             if(dTimeDiff < 0){
                 dTimeDiff = -dTimeDiff;
             }
