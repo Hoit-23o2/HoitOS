@@ -114,8 +114,7 @@ INT __fstester_prepare_test(PCHAR pTestPath, double testFileSizeRate,
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-INT __fstester_terminate_test(INT iFdTest, PCHAR pTestPath, PCHAR pMountPoint, 
-                              PCHAR pFSType) {
+INT __fstester_terminate_test(INT iFdTest, PCHAR pTestPath, PCHAR pMountPoint) {
     close(iFdTest);
     remove(pTestPath);
     API_Unmount(pMountPoint);
@@ -170,11 +169,11 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     }
 
     if(testType == TEST_TYPE_GC){           /* 针对GC的参数 */
-        if(testFileSizeRate < 0.5){
-            testFileSizeRate = 0.5;
+        if(testFileSizeRate < 0.1){
+            testFileSizeRate = 0.1;
         }
-        else if(testFileSizeRate > 0.7){
-            testFileSizeRate = 0.7;
+        else if(testFileSizeRate > 0.9){
+            testFileSizeRate = 0.9;
         }
     }
 
@@ -188,13 +187,26 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         close(iFdTest);
     }
 
+    else if(testType == TEST_TYPE_GC){
+        close(iFdTest);
+        remove(pTestPath);
+        lib_free(pTestPath);          
+
+        asprintf(&pTestPath, "%s/write-for-gc", pMountPoint);
+        iFdTest    = open(pTestPath, O_CREAT | O_TRUNC | O_RDWR);
+        if(iFdTest < 0){
+            printf("[%s]: can not create gc file %s\n",__func__, pTestPath);
+            return;
+        } 
+    }
+
     for (i = 0; i < uiLoopTimes; i++)
     {
         printf("====== TEST %d ======\n", i);
         if(i == 2){
             printf("debug\n");
         }
-        if(testType == TEST_TYPE_MOUNT) { 
+        if(testType == TEST_TYPE_MOUNT) {                                                   /* 测试时延 */
             API_Unmount(pMountPoint);
             lib_gettimeofday(&timeStart, LW_NULL);
             functionality(-1, 0, uiLoopTimes, pMountPoint, pUserValue);
@@ -209,11 +221,11 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
             }
             dResult      = dTimeDiff;
         }
-        else if(testType == TEST_TYPE_MERGEABLE_TREE){
+        else if(testType == TEST_TYPE_MERGEABLE_TREE){                                      /* 测试内存 */
             dResult      = functionality(iFdTest, stat.st_size, uiLoopTimes, 
                                          pMountPoint, pUserValue);
         }
-        else if(testType != TEST_TYPE_MOUNT){
+        else if(testType != TEST_TYPE_MOUNT){                                               /* 测试吞吐 */
             lib_gettimeofday(&timeStart, LW_NULL);
             {
                 iIOBytes = functionality(iFdTest, stat.st_size, uiLoopTimes, pMountPoint, pUserValue);
@@ -237,13 +249,13 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         lib_free(pOutContent);
     }
 
-    if(testType == TEST_TYPE_MOUNT){        /* mount最后文件没有打开 */
+    if(testType == TEST_TYPE_MOUNT){        /* mount最后，初始化文件没有打开，无需close */
         remove(pTestPath);
         API_Unmount(pMountPoint);
         nor_reset(NOR_FLASH_BASE);
     }
     else {
-        __fstester_terminate_test(iFdTest, pTestPath, pMountPoint, pFSType);
+        __fstester_terminate_test(iFdTest, pTestPath, pMountPoint);
     }
     lib_free(pTestPath);
 

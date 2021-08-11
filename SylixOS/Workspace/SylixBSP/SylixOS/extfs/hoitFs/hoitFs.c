@@ -162,6 +162,8 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 
                                                                         /* GC相关 */
     pfs->HOITFS_curGCSector        = LW_NULL;
+    pfs->ulGCBackgroundTimes       = 0;
+    pfs->ulGCForegroundTimes       = 0;
     pfs->HOITFS_erasableSectorList = LW_NULL;
 
     InitList(pfs->HOITFS_dirtySectorList,hoitFs, HOIT_ERASABLE_SECTOR); /* 初始化模板链表 */
@@ -177,8 +179,11 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     //TODO 文件总大小暂时硬编码
     pfs->HOITFS_totalSize       = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize * 27;
     __hoit_mount(pfs);
-    // hoitStartGCThread(pfs, 64 * 26 * 1024);
-    
+
+#ifdef BACKGOURND_GC_ENABLE 
+    hoitStartGCThread(pfs, pfs->HOITFS_totalSize / 2);
+#endif  /* BACKGOURND_GC_ENABLE */
+
     if (iosDevAddEx(&pfs->HOITFS_devhdrHdr, pcName, _G_iHoitFsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
         API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);

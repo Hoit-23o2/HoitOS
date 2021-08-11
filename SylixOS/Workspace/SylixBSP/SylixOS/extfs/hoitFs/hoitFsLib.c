@@ -722,8 +722,8 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
 
     if(hoitCheckSectorCRC(pfs->HOITFS_cacheHdr,sector_no) == LW_FALSE) EBSMode = 0;
 
-    BOOL stopFlag   = 0;
-    INT sectorIndex = 0;
+    BOOL stopFlag       = 0;
+    INT sectorIndex     = 0;
     UINT32 obsoleteFlag = 0;
     while(1){
         if(EBSMode){
@@ -734,7 +734,8 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
             if(obsoleteFlag == HOIT_FLAG_OBSOLETE) continue;
             if(uSectorOffset == -1) break;
             if(sectorIndex > pfs->HOITFS_cacheHdr->HOITCACHE_PageAmount) break;
-        }else{
+        }
+        else {
             if(pNow > pReadBuf + uiSectorSize) break;
         }
 

@@ -49,19 +49,25 @@ VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs){
     {
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
         if(hoitLogCheckIfLog(pfs, pErasableSectorTraverse)){
-            printf(DIVIDER "SECTOR %d [*LOG] " DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
+            printf(DIVIDER "SECTOR %2d [*LOG] " DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
         }
         else if(pErasableSectorTraverse == pfs->HOITFS_now_sector){
-            printf(DIVIDER "SECTOR %d [*CUR] " DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
+            printf(DIVIDER "SECTOR %2d [*CUR] " DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
         }
         else {
-            printf(DIVIDER "SECTOR %d" DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
+            printf(DIVIDER "SECTOR %2d" DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
         }
         printf("UsedSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiUsedSize);
         printf("FreeSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiFreeSize);
         pErasableSectorTraverse = pErasableSectorTraverse->HOITS_next;
         API_TShellColorEnd(STD_OUT);
     }
+    API_TShellColorStart2(LW_TSHELL_COLOR_CYAN, STD_OUT);
+                   
+    printf(DIVIDER "MORE INFO" DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
+    printf("Foreground GC Times: %ld" NEXT_LINE, pfs->ulGCForegroundTimes);
+    printf("Background GC Times: %ld" NEXT_LINE, pfs->ulGCBackgroundTimes);
+    API_TShellColorEnd(STD_OUT);
 }
 
 

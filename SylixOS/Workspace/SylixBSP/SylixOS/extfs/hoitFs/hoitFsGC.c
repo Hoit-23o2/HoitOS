@@ -349,7 +349,7 @@ VOID hoitGCForegroundForce(PHOIT_VOLUME pfs){
     BOOL                    bIsCollectOver;
     
     pErasableSector = LW_NULL;
-    
+    pfs->ulGCForegroundTimes++;
     if(pfs->HOITFS_curGCSector == LW_NULL) {
         pErasableSector                 = __hoitGCFindErasableSector(pfs, GC_FOREGROUND);      
         pfs->HOITFS_curGCSector         = pErasableSector;   
@@ -400,6 +400,7 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
     CHAR                  acMsg[MAX_MSG_BYTE_SIZE];
     size_t                stLen;
 
+    pfs->ulGCBackgroundTimes++;
     while (LW_TRUE)
     {
         API_MsgQueueReceive(pfs->HOITFS_GCMsgQ, 

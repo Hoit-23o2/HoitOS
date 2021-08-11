@@ -219,12 +219,14 @@ INT __fstesterMount(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMoun
 ** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 INT __fstesterGC(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){
-    (VOID)  iFdTest, uiTestRange;
-    INT uiOccupyFactor = 10;
+    (VOID)  uiTestRange;
+    INT     uiOccupyFactor = 10;
+    INT     iIOBytes;
+
     if(pUserValue != LW_NULL)
         uiOccupyFactor = lib_atoi((PCHAR)pUserValue);
-    if(uiOccupyFactor > 10){
-        uiOccupyFactor = 10;
+    if(uiOccupyFactor > 50){
+        uiOccupyFactor = 50;
         return PX_ERROR;
     }
     return __fstesterUtilSequentialWrite(iFdTest, IO_SZ, uiLoopTimes, 

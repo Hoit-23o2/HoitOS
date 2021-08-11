@@ -60,7 +60,8 @@
 *********************************************************************************************************/
 //#define  MULTI_THREAD_ENABLE      /* 启用多线程 */
 //#define  EBS_ENABLE               /* 启用EBS */
-//#define  WRITE_BUFFER_ENABLE        /* 启用WriteBuffer */
+//#define  WRITE_BUFFER_ENABLE      /* 启用WriteBuffer */
+//#define  BACKGOURND_GC_ENABLE        /* 启用后台GC */
 //! 07-18 ZN 暂时注释log
 // #define  LOG_ENABLE
 
@@ -204,7 +205,7 @@ typedef struct HOIT_VOLUME{
     PHOIT_ERASABLE_SECTOR   HOITFS_now_sector;
     
                                                                            /*! GC 相关 */
-    PHOIT_ERASABLE_SECTOR   HOITFS_erasableSectorList;                     /* 可擦除Sector列表 */
+    PHOIT_ERASABLE_SECTOR           HOITFS_erasableSectorList;                     /* 可擦除Sector列表 */
     List(HOIT_ERASABLE_SECTOR)      HOITFS_dirtySectorList;                     /* 含有obsolete的块 */ 
     List(HOIT_ERASABLE_SECTOR)      HOITFS_cleanSectorList;                     /* 不含obsolete的块 */
     List(HOIT_ERASABLE_SECTOR)      HOITFS_freeSectorList;                      /* 啥都不含的块 */
@@ -213,6 +214,10 @@ typedef struct HOIT_VOLUME{
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
     LW_OBJECT_HANDLE        HOITFS_GCMsgQ;                                 /* GC线程消息队列*/
     LW_OBJECT_HANDLE        HOITFS_hGCThreadId;                            /* GC总线程ID */
+
+    ULONG                   ulGCForegroundTimes;                           /* GC前台计数 */
+    ULONG                   ulGCBackgroundTimes;                           /* GC后台计数 */
+    
     size_t                  HOITFS_totalUsedSize;                          /* hoitfs已使用Flash大小 */
     size_t                  HOITFS_totalSize;                              /* 总Flash大小 */
     
@@ -221,6 +226,7 @@ typedef struct HOIT_VOLUME{
 
                                                                            /*! Log相关 */
     PHOIT_LOG_INFO          HOITFS_logInfo;
+
 } HOIT_VOLUME;
 
 
