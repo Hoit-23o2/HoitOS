@@ -1161,6 +1161,8 @@ UINT32  hoitSectorGetNextAddr(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no, UINT 
         read_nor(norAddr, &entry, sizeof(HOIT_EBS_ENTRY));
         pentry = &entry;
     }
+        if(pentry->HOIT_EBS_ENTRY_inodeNo == (UINT32)-1)
+            return (UINT32)-1;
         if(pentry->HOIT_EBS_ENTRY_obsolete == 0) {
             *obsoleteFlag = 0;
         } else {

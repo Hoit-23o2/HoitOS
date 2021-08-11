@@ -729,7 +729,9 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
         if(EBSMode){
             /* EBS模式下, 如果下面函数返回全1代表该sector扫描可以提前结束, obsoleteFlag代表该Entry是否被标记过期 */
             UINT32 uSectorOffset = hoitSectorGetNextAddr(pfs->HOITFS_cacheHdr, sector_no, sectorIndex++, &obsoleteFlag);
-            printf("uSectorOffs: %d\n", uSectorOffset );
+//            if (uSectorOffset == 55328)
+//                printf("debug\n");
+//            printf("uSectorOffs: %d\n", uSectorOffset );
             pNow = pReadBuf + uSectorOffset;
             if(obsoleteFlag == HOIT_FLAG_OBSOLETE) continue;
             if(uSectorOffset == -1) break;
@@ -743,7 +745,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
         if(sector_no == 0 
         && pRawHeader->ino != -1
         && pRawHeader->magic_num == HOIT_MAGIC_NUM){
-            printf("offs: %d ino: %d\n", uiSectorOffset + (pNow - pReadBuf), pRawHeader->ino);
+            //printf("offs: %d ino: %d\n", uiSectorOffset + (pNow - pReadBuf), pRawHeader->ino);
         }
         if(pRawHeader->magic_num == HOIT_MAGIC_NUM){
             uiUsedSize += pRawHeader->totlen;
