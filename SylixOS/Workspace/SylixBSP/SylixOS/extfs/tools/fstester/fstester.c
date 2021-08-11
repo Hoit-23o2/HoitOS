@@ -124,7 +124,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     for (i = 0; i < uiLoopTimes; i++)
     {
         printf("====== TEST %d ======\n", i);
-        if(i == 72){
+        if(i == 94){
             printf("debug\n");
         }
         lib_gettimeofday(&timeStart, LW_NULL);
