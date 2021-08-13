@@ -360,10 +360,15 @@ VOID hoitGCForegroundForce(PHOIT_VOLUME pfs){
         LW_SPIN_LOCK_QUICK(&pErasableSector->HOITS_lock, &iregInterLevel);      /* 尝试加锁，阻塞整个回收 */
     }
 
+    int i=1;
     while (LW_TRUE)
     {
         if(pErasableSector) {
+            if(i==48){
+                printf("debug\n");
+            }
             bIsCollectOver = __hoitGCCollectSectorAlive(pfs, pErasableSector);
+            i++;
             if(bIsCollectOver){                                                  /*! 显示置空 */
                 pfs->HOITFS_curGCSector        = LW_NULL;                        /* 当前GC的Sector为空 */
                 hoitResetSectorState(pfs->HOITFS_cacheHdr, pErasableSector);     /* 重置该Sector状态，表明为空 */

@@ -129,7 +129,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
         return  (PX_ERROR);
     }
 
-    pfs = (PHOIT_VOLUME)__SHEAP_ALLOC(sizeof(HOIT_VOLUME));
+    pfs = (PHOIT_VOLUME)lib_malloc(sizeof(HOIT_VOLUME));
     if (pfs == LW_NULL) {
         _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
         _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
@@ -144,7 +144,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
         LW_OPTION_INHERIT_PRIORITY | LW_OPTION_OBJECT_GLOBAL,
         LW_NULL);
     if (!pfs->HOITFS_hVolLock) {                                      /*  无法创建卷锁                */
-        __SHEAP_FREE(pfs);
+        lib_free(pfs);
         return  (PX_ERROR);
     }
 
@@ -187,7 +187,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     if (iosDevAddEx(&pfs->HOITFS_devhdrHdr, pcName, _G_iHoitFsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
         API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);
-        __SHEAP_FREE(pfs);
+        lib_free(pfs);
         return  (PX_ERROR);
     }
 
@@ -490,7 +490,7 @@ __re_umount_vol:
         API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);
          
         __hoit_unmount(pfs);
-        __SHEAP_FREE(pfs);
+        lib_free(pfs);
 
         _DebugHandle(__LOGMESSAGE_LEVEL, "hoitfs unmount ok.\r\n");
 
@@ -928,7 +928,7 @@ static INT  __hoitFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
     INT                 iError;
 
     
-    PCHAR dirPath = (PCHAR)__SHEAP_ALLOC(lib_strlen(pfdentry->FDENTRY_pcName) + 1);
+    PCHAR dirPath = (PCHAR)lib_malloc(lib_strlen(pfdentry->FDENTRY_pcName) + 1);
     lib_bzero(dirPath, lib_strlen(pfdentry->FDENTRY_pcName) + 1);
     lib_memcpy(dirPath, pfdentry->FDENTRY_pcName, lib_strlen(pfdentry->FDENTRY_pcName));
     PCHAR pDivider = lib_rindex(dirPath, PX_DIVIDER);

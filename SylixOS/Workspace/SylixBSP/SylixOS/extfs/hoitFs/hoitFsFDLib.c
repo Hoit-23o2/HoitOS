@@ -34,7 +34,7 @@
 *********************************************************************************************************/
 BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFullDnode, INT flag) {
 	if (flag == 1) {	/* É¾Íê */
-		PCHAR read_buf = (PCHAR)__SHEAP_ALLOC(pFullDnode->HOITFD_raw_info->totlen);
+		PCHAR read_buf = (PCHAR)lib_malloc(pFullDnode->HOITFD_raw_info->totlen);
 
         hoitReadFromCache(pfs->HOITFS_cacheHdr, pFullDnode->HOITFD_raw_info->phys_addr, read_buf, pFullDnode->HOITFD_raw_info->totlen);
 
@@ -51,11 +51,11 @@ BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFullDnode, INT
 		__hoit_del_raw_info(pInodeCache, pFullDnode->HOITFD_raw_info);
         pFullDnode->HOITFD_raw_info->is_obsolete = HOIT_FLAG_OBSOLETE;
 		pFullDnode->HOITFD_raw_info = LW_NULL;
-		__SHEAP_FREE(pFullDnode);
+		lib_free(pFullDnode);
 		return LW_TRUE;
 	}
 	else {				/* Ö»É¾dnode */
-		__SHEAP_FREE(pFullDnode);
+		lib_free(pFullDnode);
 		return LW_TRUE;
 	}
 }
@@ -89,7 +89,7 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
     if (sizeof(struct HOIT_RAW_INODE) + offset > pRawInfo->totlen) {
         return LW_NULL;
     }
-    PCHAR read_buf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);     /* ×¢Òâ±ÜÃâÄÚ´æÐ¹Â¶ */
+    PCHAR read_buf = (PCHAR)lib_malloc(pRawInfo->totlen);     /* ×¢Òâ±ÜÃâÄÚ´æÐ¹Â¶ */
     if (!read_buf) {
         return LW_NULL;
     }
@@ -100,9 +100,9 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
     crc32_check(pRawInode);
 
     /* ÔÚwrite_bufÖÐ×é×°ºÃÒªÐ´ÈëµÄÊý¾Ý */
-    PCHAR write_buf = (PCHAR)__SHEAP_ALLOC(sizeof(struct HOIT_RAW_INODE) + length);  /* ×¢Òâ±ÜÃâÄÚ´æÐ¹Â¶ */
+    PCHAR write_buf = (PCHAR)lib_malloc(sizeof(struct HOIT_RAW_INODE) + length);  /* ×¢Òâ±ÜÃâÄÚ´æÐ¹Â¶ */
     if (!write_buf) {
-        __SHEAP_FREE(read_buf);
+        lib_free(read_buf);
         return LW_NULL;
     }
     lib_bzero(write_buf, sizeof(struct HOIT_RAW_INODE) + length);
@@ -125,10 +125,10 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
     pNewRawInode->crc = tempCRC;
     __hoit_write_flash(pfs, write_buf, sizeof(struct HOIT_RAW_INODE) + length, &phys_addr, 1);
 
-    PHOIT_RAW_INFO pNewRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(struct HOIT_RAW_INFO)); /* ×¢Òâ±ÜÃâÄÚ´æÐ¹Â¶ */
+    PHOIT_RAW_INFO pNewRawInfo = (PHOIT_RAW_INFO)lib_malloc(sizeof(struct HOIT_RAW_INFO)); /* ×¢Òâ±ÜÃâÄÚ´æÐ¹Â¶ */
     if (!pNewRawInfo) {
-        __SHEAP_FREE(write_buf);
-        __SHEAP_FREE(read_buf);
+        lib_free(write_buf);
+        lib_free(read_buf);
         return LW_NULL;
     }
     pNewRawInfo->phys_addr = phys_addr;
@@ -141,10 +141,10 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
     __hoit_add_to_inode_cache(pInodeCache, pNewRawInfo);
     __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pNewRawInfo);
 
-    PHOIT_FULL_DNODE pNewFullDnode = (PHOIT_FULL_DNODE)__SHEAP_ALLOC(sizeof(struct HOIT_FULL_DNODE));  /* ×¢Òâ±ÜÃâÄÚ´æÐ¹Â¶ */
+    PHOIT_FULL_DNODE pNewFullDnode = (PHOIT_FULL_DNODE)lib_malloc(sizeof(struct HOIT_FULL_DNODE));  /* ×¢Òâ±ÜÃâÄÚ´æÐ¹Â¶ */
     if (!pNewFullDnode) {
-        __SHEAP_FREE(write_buf);
-        __SHEAP_FREE(read_buf);
+        lib_free(write_buf);
+        lib_free(read_buf);
         return LW_NULL;
     }
     pNewFullDnode->HOITFD_file_type = pFullDnode->HOITFD_file_type;
@@ -153,8 +153,8 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
     pNewFullDnode->HOITFD_raw_info = pNewRawInfo;
     pNewFullDnode->HOITFD_version = pFullDnode->HOITFD_version;
 
-    __SHEAP_FREE(write_buf);
-    __SHEAP_FREE(read_buf);
+    lib_free(write_buf);
+    lib_free(read_buf);
     return pNewFullDnode;
 }
 
@@ -170,7 +170,7 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
 PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offset, UINT size, PCHAR pContent, UINT needLog) {
     PHOIT_VOLUME pfs = pInodeInfo->HOITN_volume;
     UINT totlen = sizeof(HOIT_RAW_INODE) + size;
-    PCHAR pBuf = (PCHAR)__SHEAP_ALLOC(sizeof(HOIT_RAW_INODE) + size);
+    PCHAR pBuf = (PCHAR)lib_malloc(sizeof(HOIT_RAW_INODE) + size);
     lib_bzero(pBuf, totlen);
     PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)pBuf;     /* ×¢ÒâÄÚ´æÐ¹Â¶ */
     if (pRawInode == LW_NULL) {
@@ -198,7 +198,7 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
     if(phys_addr == 1092504){
         __hoit_read_flash(pfs, phys_addr, pBuf, totlen);
     }
-    PHOIT_RAW_INFO pRawInfo = (PHOIT_RAW_INFO)__SHEAP_ALLOC(sizeof(HOIT_RAW_INFO));
+    PHOIT_RAW_INFO pRawInfo = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INFO));
     pRawInfo->phys_addr = phys_addr;
     pRawInfo->totlen = sizeof(HOIT_RAW_INODE) + size;
     pRawInfo->next_phys = LW_NULL;
@@ -213,14 +213,14 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
     //    PHOIT_RAW_HEADER rawHeader = (PHOIT_RAW_HEADER)buf;
     //    printf("debug %d\n", rawHeader->ino);
     // }
-    PHOIT_FULL_DNODE pFullDnode = (PHOIT_FULL_DNODE)__SHEAP_ALLOC(sizeof(HOIT_FULL_DNODE));
+    PHOIT_FULL_DNODE pFullDnode = (PHOIT_FULL_DNODE)lib_malloc(sizeof(HOIT_FULL_DNODE));
     pFullDnode->HOITFD_file_type = pInodeInfo->HOITN_mode;
     pFullDnode->HOITFD_length = size;
     pFullDnode->HOITFD_offset = offset;
     pFullDnode->HOITFD_raw_info = pRawInfo;
     pFullDnode->HOITFD_version = pRawInode->version;
     
-    __SHEAP_FREE(pBuf);
+    lib_free(pBuf);
 
     pInodeInfo->HOITN_stSize += size;
     return pFullDnode;
@@ -234,18 +234,18 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
 ** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 PHOIT_FULL_DNODE __hoit_bulid_full_dnode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
-    PCHAR read_buf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);        /* ×¢ÒâÄÚ´æÐ¹Â¶ */
+    PCHAR read_buf = (PCHAR)lib_malloc(pRawInfo->totlen);        /* ×¢ÒâÄÚ´æÐ¹Â¶ */
     hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
     PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)read_buf;
     crc32_check(pRawInode);
     
-    PHOIT_FULL_DNODE pFullDnode = (PHOIT_FULL_DNODE)__SHEAP_ALLOC(sizeof(HOIT_FULL_DNODE));
+    PHOIT_FULL_DNODE pFullDnode = (PHOIT_FULL_DNODE)lib_malloc(sizeof(HOIT_FULL_DNODE));
     pFullDnode->HOITFD_file_type = pRawInode->file_type;
     pFullDnode->HOITFD_length = pRawInode->totlen - sizeof(PHOIT_RAW_INODE);
     pFullDnode->HOITFD_offset = pRawInode->offset;
     pFullDnode->HOITFD_raw_info = pRawInfo;
     pFullDnode->HOITFD_version = pRawInode->version;
-    __SHEAP_FREE(read_buf);
+    lib_free(read_buf);
     return pFullDnode;
 }
 
@@ -258,14 +258,14 @@ PHOIT_FULL_DNODE __hoit_bulid_full_dnode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawIn
 ** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 PHOIT_FULL_DIRENT __hoit_bulid_full_dirent(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
-    PCHAR read_buf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);        /* ×¢ÒâÄÚ´æÐ¹Â¶ */
+    PCHAR read_buf = (PCHAR)lib_malloc(pRawInfo->totlen);        /* ×¢ÒâÄÚ´æÐ¹Â¶ */
     hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
     PHOIT_RAW_DIRENT pRawDirent = (PHOIT_RAW_DIRENT)read_buf;
     crc32_check(pRawDirent);
 
-    PHOIT_FULL_DIRENT pFullDirent = (PHOIT_FULL_DIRENT)__SHEAP_ALLOC(sizeof(HOIT_FULL_DIRENT));
+    PHOIT_FULL_DIRENT pFullDirent = (PHOIT_FULL_DIRENT)lib_malloc(sizeof(HOIT_FULL_DIRENT));
     PCHAR pFileName = read_buf + sizeof(HOIT_RAW_DIRENT);
-    PCHAR pNewFileName = (PCHAR)__SHEAP_ALLOC((pRawInfo->totlen - sizeof(HOIT_RAW_DIRENT))+1);
+    PCHAR pNewFileName = (PCHAR)lib_malloc((pRawInfo->totlen - sizeof(HOIT_RAW_DIRENT))+1);
     lib_memcpy(pNewFileName, pFileName, pRawInfo->totlen - sizeof(HOIT_RAW_DIRENT));
     pNewFileName[(pRawInfo->totlen - sizeof(HOIT_RAW_DIRENT))] = '\0';
 
@@ -279,6 +279,6 @@ PHOIT_FULL_DIRENT __hoit_bulid_full_dirent(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRaw
     pFullDirent->HOITFD_version = pRawDirent->version;
     
 
-    __SHEAP_FREE(read_buf);
+    lib_free(read_buf);
     return pFullDirent;
 }
