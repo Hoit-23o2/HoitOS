@@ -364,9 +364,6 @@ VOID hoitGCForegroundForce(PHOIT_VOLUME pfs){
     while (LW_TRUE)
     {
         if(pErasableSector) {
-            if(i==48){
-                printf("debug\n");
-            }
             bIsCollectOver = __hoitGCCollectSectorAlive(pfs, pErasableSector);
             i++;
             if(bIsCollectOver){                                                  /*! œ‘ æ÷√ø’ */

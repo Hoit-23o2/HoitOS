@@ -1136,6 +1136,7 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     }
     /* 将RawInfo从旧块搬到新块 */
     __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pRawInfo);
+    lib_free(pReadBuf);
     return LW_TRUE;
 }
 
@@ -1519,6 +1520,7 @@ VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag)
     }
     else if(S_ISLNK(pInodeInfo->HOITN_mode)){
         if (pInodeInfo->HOITN_metadata != LW_NULL) lib_free(pInodeInfo->HOITN_metadata);
+        if (pInodeInfo->HOITN_pcLink != LW_NULL) lib_free(pInodeInfo->HOITN_pcLink);
         lib_free(pInodeInfo);
     }
     else {

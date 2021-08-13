@@ -40,9 +40,9 @@ BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFullDnode, INT
 
 		PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)read_buf;
         crc32_check(pRawHeader);
-        if(pRawHeader->crc == 0x13797da2){
-            hoitReadFromCache(pfs->HOITFS_cacheHdr, pFullDnode->HOITFD_raw_info->phys_addr, read_buf, pFullDnode->HOITFD_raw_info->totlen);
-        }
+//        if(pRawHeader->crc == 0x13797da2){
+//            hoitReadFromCache(pfs->HOITFS_cacheHdr, pFullDnode->HOITFD_raw_info->phys_addr, read_buf, pFullDnode->HOITFD_raw_info->totlen);
+//        }
 		PHOIT_INODE_CACHE pInodeCache = __hoit_get_inode_cache(pfs, pRawHeader->ino);
 		if (!pInodeCache) {
 			return LW_FALSE;
@@ -51,6 +51,7 @@ BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFullDnode, INT
 		__hoit_del_raw_info(pInodeCache, pFullDnode->HOITFD_raw_info);
         pFullDnode->HOITFD_raw_info->is_obsolete = HOIT_FLAG_OBSOLETE;
 		pFullDnode->HOITFD_raw_info = LW_NULL;
+		lib_free(read_buf);
 		lib_free(pFullDnode);
 		return LW_TRUE;
 	}
@@ -207,12 +208,7 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
 
     __hoit_add_to_inode_cache(pInodeInfo->HOITN_inode_cache, pRawInfo);
     __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pRawInfo);
-    // if(pRawInfo->phys_addr == 1092504 && pRawInfo->totlen == 33){
-    //    CHAR buf[33];
-    //    hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, buf, 33);
-    //    PHOIT_RAW_HEADER rawHeader = (PHOIT_RAW_HEADER)buf;
-    //    printf("debug %d\n", rawHeader->ino);
-    // }
+
     PHOIT_FULL_DNODE pFullDnode = (PHOIT_FULL_DNODE)lib_malloc(sizeof(HOIT_FULL_DNODE));
     pFullDnode->HOITFD_file_type = pInodeInfo->HOITN_mode;
     pFullDnode->HOITFD_length = size;

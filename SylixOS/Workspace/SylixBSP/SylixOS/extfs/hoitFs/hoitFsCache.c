@@ -73,7 +73,7 @@ PHOIT_CACHE_HDR hoitEnableCache(UINT32 uiCacheBlockSize, UINT32 uiCacheBlockNums
     }
 
     pcacheHdr->HOITCACHE_cacheLineHdr    = (PHOIT_CACHE_BLK)__SHEAP_ALLOC(sizeof(HOIT_CACHE_BLK));
-    if (pcacheHdr == LW_NULL) {
+    if (pcacheHdr->HOITCACHE_cacheLineHdr == LW_NULL) {
         __SHEAP_FREE(pcacheHdr);
         _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
         _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
@@ -244,10 +244,6 @@ PHOIT_CACHE_BLK hoitCheckCacheHit(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo) 
 ** µ÷ÓÃÄ£¿é:    
 */
 BOOL hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
-    if(uiOfs == 1092504){
-        printf("debug\n");
-    }
-
     PCHAR   pucDest         = pContent;
     size_t  cacheBlkSize    = pcacheHdr->HOITCACHE_blockSize;
     size_t  sectorSize      = hoitGetSectorSize(8);
@@ -496,9 +492,6 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
 
     pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
 
-    if(writeAddrUpper - NOR_FLASH_START_OFFSET == 1088472){
-        printf("debug\n");
-    }
     return writeAddrUpper;
 }
 
@@ -610,7 +603,7 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
             }
             pSector = pSector->HOITS_next;
         }  
-        if(iFreeSectorNum <= 20){
+        if(iFreeSectorNum <= 2){
             hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
         }
     }
@@ -1133,6 +1126,7 @@ UINT32 hoitEBSEntryAmount(PHOIT_VOLUME pfs, UINT32 sector_no) {
                 amount++; 
             readNorAddr += sizeof(HOIT_EBS_ENTRY);           
         }
+        lib_free(pentry);
     }
     return amount;
 }
