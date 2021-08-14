@@ -165,6 +165,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->ulGCBackgroundTimes       = 0;
     pfs->ulGCForegroundTimes       = 0;
     pfs->HOITFS_erasableSectorList = LW_NULL;
+    pfs->HOITFS_bShouldKillGC      = LW_FALSE;
 
     InitList(pfs->HOITFS_dirtySectorList,hoitFs, HOIT_ERASABLE_SECTOR); /* 初始化模板链表 */
     InitList(pfs->HOITFS_cleanSectorList,hoitFs, HOIT_ERASABLE_SECTOR);
@@ -177,11 +178,11 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 
     hoitEnableCache(GET_SECTOR_SIZE(8), 8, pfs);
     //TODO 文件总大小暂时硬编码
-    pfs->HOITFS_totalSize       = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize * 27;
+    pfs->HOITFS_totalSize       = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize * 28;
     __hoit_mount(pfs);
 
 #ifdef BACKGOURND_GC_ENABLE 
-    hoitStartGCThread(pfs, pfs->HOITFS_totalSize / 2);
+    hoitStartGCThread(pfs, pfs->HOITFS_totalSize / 3);
 #endif  /* BACKGOURND_GC_ENABLE */
 
     if (iosDevAddEx(&pfs->HOITFS_devhdrHdr, pcName, _G_iHoitFsDrvNum, DT_DIR)
@@ -972,7 +973,7 @@ static INT  __hoitFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
     iError = __hoit_move(pInodeFather, phoitn, pcNewName);
 
     __HOIT_VOLUME_UNLOCK(pfs);
-
+    lib_free(dirPath);
     return  (iError);
 }
 

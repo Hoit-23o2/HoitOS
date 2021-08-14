@@ -345,7 +345,7 @@ UINT8 __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_
         return PX_ERROR;
     }
 
-    return 0;
+    return ERROR_NONE;
 }
 /*********************************************************************************************************
 ** 函数名称: __hoit_write_flash_thru
@@ -694,6 +694,8 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     pErasableSector->HOITS_pRawInfoPrevGC   = LW_NULL;
     pErasableSector->HOITS_pRawInfoLastGC   = LW_NULL;
     pErasableSector->HOITS_tBornAge         = API_TimeGet(); 
+    pErasableSector->HOITS_uiAvailableEntityCount = 0;
+    pErasableSector->HOITS_uiObsoleteEntityCount  = 0;
     
     LW_SPIN_INIT(&pErasableSector->HOITS_lock);         /* 初始化SPIN LOCK */
 
@@ -720,7 +722,9 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     EBSMode=0;
 #endif
 
-    if(hoitCheckSectorCRC(pfs->HOITFS_cacheHdr,sector_no) == LW_FALSE) EBSMode = 0;
+    if(hoitCheckSectorCRC(pfs->HOITFS_cacheHdr,sector_no) == LW_FALSE) {
+        EBSMode = 0;
+    }
 
     BOOL stopFlag       = 0;
     INT sectorIndex     = 0;
@@ -1099,7 +1103,11 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     //! 2021-05-16 修改 move home By PYQ，我们应该找一个新块来写
     PCHAR                   pReadBuf;
     PHOIT_RAW_LOG           pRawLog;
+    INT                     iRes;
     pReadBuf = (PCHAR)__SHEAP_ALLOC(pRawInfo->totlen);
+    if(pReadBuf == LW_NULL){
+        return LW_FALSE;
+    }
     /* 先读出旧数据 */
     lib_bzero(pReadBuf, pRawInfo->totlen);
     crc32_check(pReadBuf);
@@ -1128,7 +1136,7 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     
     pRawHeader->crc = 0;
     pRawHeader->crc = crc32_le(pRawHeader, pRawInfo->totlen);
-    __hoit_write_flash(pfs, pReadBuf, pRawInfo->totlen, &phys_addr, 1);
+    iRes = __hoit_write_flash(pfs, pReadBuf, pRawInfo->totlen, &phys_addr, 1);
     pRawInfo->phys_addr = phys_addr;
 
     if(__HOIT_IS_TYPE_LOG(pRawHeader)){                         /* 如果是LOG HDR，那么要调整logInfo里的信息 */
@@ -1139,7 +1147,7 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     }
     /* 将RawInfo从旧块搬到新块 */
     __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pRawInfo);
-    return LW_TRUE;
+    return iRes == PX_ERROR ? LW_FALSE : LW_TRUE;
 }
 
 /*********************************************************************************************************
