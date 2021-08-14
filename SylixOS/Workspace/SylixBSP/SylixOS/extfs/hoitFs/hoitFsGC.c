@@ -369,10 +369,13 @@ VOID hoitGCForegroundForce(PHOIT_VOLUME pfs){
     }
     // printf("************************************************\n");
     // __hoitShowSectorInfo(pfs);
+
+    INT i = 1;
     while (LW_TRUE)
     {
         if(pErasableSector) {
             bIsCollectOver = __hoitGCCollectSectorAlive(pfs, pErasableSector);
+            i++;
             if(bIsCollectOver){                                                  /*! 显示置空 */
                 pfs->HOITFS_curGCSector        = LW_NULL;                        /* 当前GC的Sector为空 */
                 hoitResetSectorState(pfs->HOITFS_cacheHdr, pErasableSector);     /* 重置该Sector状态，表明为空 */
