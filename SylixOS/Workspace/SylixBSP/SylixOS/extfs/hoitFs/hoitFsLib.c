@@ -701,13 +701,23 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     if(pfs->HOITFS_now_sector == LW_NULL){
         pfs->HOITFS_now_sector = pErasableSector;
     }
+    struct timeval timeStart;
+    struct timeval timeEnd;
 
+    /* malloc and zero 不是瓶颈 */
+    // lib_gettimeofday(&timeStart, LW_NULL);
     /* 再整个块进行扫描 */
     PCHAR pReadBuf = (PCHAR)lib_malloc(uiSectorSize);
     lib_bzero(pReadBuf, uiSectorSize);
-
+    // lib_gettimeofday(&timeEnd, LW_NULL);
+    // printf("[malloc and zero: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
+    
+    /* Read flash是一个很大的瓶颈 */
+    lib_gettimeofday(&timeStart, LW_NULL);
     __hoit_read_flash(pfs, uiSectorOffset, pReadBuf, uiSectorSize);
-
+    lib_gettimeofday(&timeEnd, LW_NULL);
+    printf("[__hoit_read_flash: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
+   
     /* 2021-07-10 Modified by HZS */
     size_t pageAmount       = uiSectorSize / (HOIT_FILTER_EBS_ENTRY_SIZE + HOIT_FILTER_PAGE_SIZE);
     size_t EBSStartAddr     = HOIT_FILTER_PAGE_SIZE * pageAmount;
@@ -716,17 +726,23 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
 
     BOOL EBSMode = 1;   /* EBSMode表示是否启用EBS结构, Sector的EBS的CRC校验不通过或宏定义取消则EBSMode为0 */
 
-#ifndef EBS_ENABLE
-    EBSMode=0;
-#endif
-
-    if(hoitCheckSectorCRC(pfs->HOITFS_cacheHdr,sector_no) == LW_FALSE) {
+#ifdef EBS_ENABLE
+    lib_gettimeofday(&timeStart, LW_NULL);
+    if(hoitCheckSectorCRC(pfs->HOITFS_cacheHdr, sector_no) == LW_FALSE) {
         EBSMode = 0;
     }
+    lib_gettimeofday(&timeEnd, LW_NULL);
+    printf("[hoitCheckSectorCRC: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
+#else
+    EBSMode = 0;
+#endif
+
 
     BOOL stopFlag       = 0;
     INT sectorIndex     = 0;
     UINT32 obsoleteFlag = 0;
+    
+    lib_gettimeofday(&timeStart, LW_NULL);
     while(1){
         if(EBSMode){
             /* EBS模式下, 如果下面函数返回全1代表该sector扫描可以提前结束, obsoleteFlag代表该Entry是否被标记过期 */
@@ -885,11 +901,19 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     pErasableSector->HOITS_uiUsedSize = uiUsedSize;
     pErasableSector->HOITS_uiFreeSize = uiFreeSize;
     pErasableSector->HOITS_offset = uiUsedSize;     /*! Modified By PYQ 更新写入偏移 */
-
+    lib_gettimeofday(&timeEnd, LW_NULL);
+    printf("[while loop: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
     __HOITFS_VOL_LOCK(pfs);
+    
+    lib_gettimeofday(&timeStart, LW_NULL);
     __hoit_add_to_sector_list(pfs, pErasableSector);
+    lib_gettimeofday(&timeEnd, LW_NULL);
+    printf("[add to sector: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
+    
     __HOITFS_VOL_UNLOCK(pfs);
-
+    
+    printf("\n");
+    
     lib_free(pReadBuf);
     lib_free(pThreadAttr);
     return LW_TRUE;
@@ -1917,6 +1941,10 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     LW_CLASS_THREADATTR scThreadAttr;
     LW_OBJECT_HANDLE ulObjectHandle[NOR_FLASH_NSECTOR];
     INT handleSize = 0;
+    struct timeval timeStart;
+    struct timeval timeEnd;
+
+    lib_gettimeofday(&timeStart, LW_NULL);
     while (hoitGetSectorSize(sector_no) != -1) {
 
         ScanThreadAttr* pThreadAttr = (ScanThreadAttr*)lib_malloc(sizeof(ScanThreadAttr));
@@ -1938,7 +1966,8 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
 #endif
         sector_no++;
     }
-
+    lib_gettimeofday(&timeEnd, LW_NULL);
+    printf("[scan sector: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
 #ifdef MULTI_THREAD_ENABLE
      for (i = 0; i < handleSize; i++) {
          API_ThreadJoin(ulObjectHandle[i], LW_NULL);
@@ -1948,17 +1977,17 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     pfs->HOITFS_highest_version++;
     printf("now sector offs: %d \n", pfs->HOITFS_now_sector->HOITS_offset);
     
+#ifdef LOG_ENABLE
    if (!hasLog) {
        hoitLogInit(pfs, hoitGetSectorSize(8), 1);
    }
    if (pRawLogHdr != LW_NULL){
        hoitLogOpen(pfs, pRawLogHdr);
    }
-
-#ifdef LOG_ENABLE
-//    __hoit_redo_log(pfs);
+    __hoit_redo_log(pfs);
 #endif // LOG_ENABLE
 
+    // lib_gettimeofday(&timeStart, LW_NULL);
     if (pfs->HOITFS_highest_ino == HOIT_ROOT_DIR_INO) {    /* 系统第一次运行, 创建根目录文件 */
         mode_t mode = S_IFDIR;
         PHOIT_INODE_INFO pRootDir = __hoit_new_inode_info(pfs, mode, LW_NULL);
@@ -1970,6 +1999,9 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     /* 基本的inode_cache和raw_info构建完毕  */
     /* 接下来要递归统计所有文件的nlink          */
     __hoit_get_nlink(pfs->HOITFS_pRootDir);
+    /* get nlink 不耗时 */
+    // lib_gettimeofday(&timeEnd, LW_NULL);
+    // printf("[get nlink: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
     register_hoitfs_cmd(pfs);
 }
 
