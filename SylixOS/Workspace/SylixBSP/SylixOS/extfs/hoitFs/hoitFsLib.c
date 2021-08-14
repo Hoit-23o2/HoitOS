@@ -741,7 +741,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     BOOL stopFlag       = 0;
     INT sectorIndex     = 0;
     UINT32 obsoleteFlag = 0;
-    
+
     lib_gettimeofday(&timeStart, LW_NULL);
     while(1){
         if(EBSMode){
@@ -1951,6 +1951,9 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
         pThreadAttr->pfs = pfs;
         pThreadAttr->sector_no = sector_no;
 #ifndef MULTI_THREAD_ENABLE
+        // if(sector_no == 12){
+        //     printf("debug\n");
+        // }
         __hoit_scan_single_sector(pThreadAttr);
 #else
         API_ThreadAttrBuild(&scThreadAttr,
