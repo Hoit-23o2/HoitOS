@@ -48,7 +48,7 @@
 *********************************************************************************************************/
 //#define FT_TEST
 //#define FT_DEBUG
-#define FT_OBSOLETE_hoitFragTreeOverlayFixUp             
+#define FT_OBSOLETE_TREE_LIST             
 
 /*********************************************************************************************************
   HoitFs LOG 相关测试
@@ -441,7 +441,7 @@ typedef enum vis_statue
     VIS_ERROR
 } VIS_STATUE;
 
-typedef VIS_STATUE (*visitorHoitFragTree)(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, PVOID pUserValue);
+typedef VIS_STATUE (*visitorHoitFragTree)(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, PVOID pUserValue, PVOID *ppReturn);
 /*********************************************************************************************************
   HOITFS cache结构
 *********************************************************************************************************/

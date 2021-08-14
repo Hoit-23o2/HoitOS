@@ -166,12 +166,18 @@ BOOL                          hoitFragTreeDeleteTree(PHOIT_FRAG_TREE pFTTree, BO
 PHOIT_FRAG_TREE_LIST_HEADER   hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh);
 VOID                          hoitFragTreeTraverse(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot);                     /* 中序遍历FragTree */
 
-VIS_STATUE                    hoitFragTreeTraverseVisitor(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot, visitorHoitFragTree visitor, PVOID pUserValue);
+VIS_STATUE                    hoitFragTreeTraverseVisitor(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot, visitorHoitFragTree visitor, PVOID pUserValue, PVOID *ppReturn);
 
 VOID                          hoitFragTreeShowMemory(PHOIT_FRAG_TREE pFTTree);
 /*********************************************************************************************************
   FragTree
 *********************************************************************************************************/
+typedef struct hoit_frag_tree_read_param
+{
+    UINT32 uiOfs;
+    UINT32 uiSize;
+} HOIT_FRAG_TREE_READ_PARAM;
+
 //TODO：读取FragTree，然后向下读取数据实体，基本逻辑为先读Cache，Cache未命中再读flash
 //!该部分可以移除
 BOOL hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, PCHAR pContent);
