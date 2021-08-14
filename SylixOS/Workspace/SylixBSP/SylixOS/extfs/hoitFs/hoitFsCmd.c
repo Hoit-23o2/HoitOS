@@ -59,6 +59,8 @@ VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs){
         }
         printf("UsedSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiUsedSize);
         printf("FreeSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiFreeSize);
+        printf("ObseletEntity:   %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiObsoleteEntityCount);
+        printf("AvailableEntity: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiAvailableEntityCount);
         pErasableSectorTraverse = pErasableSectorTraverse->HOITS_next;
         API_TShellColorEnd(STD_OUT);
     }

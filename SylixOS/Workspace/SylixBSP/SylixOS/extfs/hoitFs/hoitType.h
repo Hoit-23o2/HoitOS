@@ -37,8 +37,8 @@
 /*********************************************************************************************************
   HoitFs GC 相关测试
 *********************************************************************************************************/
-//#define GC_DEBUG
-//#define GC_TEST
+// #define GC_DEBUG
+// #define GC_TEST
 /*********************************************************************************************************
   HoitFs 红黑树 相关测试
 *********************************************************************************************************/
@@ -48,7 +48,7 @@
 *********************************************************************************************************/
 //#define FT_TEST
 //#define FT_DEBUG
-#define FT_OBSOLETE_hoitFragTreeOverlayFixUp             
+#define FT_OBSOLETE_TREE_LIST             
 
 /*********************************************************************************************************
   HoitFs LOG 相关测试
@@ -59,9 +59,13 @@
   HoitFs 特性宏控
 *********************************************************************************************************/
 //#define  MULTI_THREAD_ENABLE      /* 启用多线程 */
-//#define  EBS_ENABLE               /* 启用EBS */
+#define  EBS_ENABLE               /* 启用EBS */
 #define  WRITE_BUFFER_ENABLE      /* 启用WriteBuffer */
-//#define  BACKGOURND_GC_ENABLE        /* 启用后台GC */
+// #define  BACKGOURND_GC_ENABLE        /* 启用后台GC */
+/*********************************************************************************************************
+  HoitFs CRC DATA特性
+*********************************************************************************************************/
+// #define  CRC_DATA_ENABLE
 //! 07-18 ZN 暂时注释log
 // #define  LOG_ENABLE
 
@@ -214,7 +218,8 @@ typedef struct HOIT_VOLUME{
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
     LW_OBJECT_HANDLE        HOITFS_GCMsgQ;                                 /* GC线程消息队列*/
     LW_OBJECT_HANDLE        HOITFS_hGCThreadId;                            /* GC总线程ID */
-
+    BOOL                    HOITFS_bShouldKillGC;
+    
     ULONG                   ulGCForegroundTimes;                           /* GC前台计数 */
     ULONG                   ulGCBackgroundTimes;                           /* GC后台计数 */
     
@@ -440,7 +445,7 @@ typedef enum vis_statue
     VIS_ERROR
 } VIS_STATUE;
 
-typedef VIS_STATUE (*visitorHoitFragTree)(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, PVOID pUserValue);
+typedef VIS_STATUE (*visitorHoitFragTree)(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, PVOID pUserValue, PVOID *ppReturn);
 /*********************************************************************************************************
   HOITFS cache结构
 *********************************************************************************************************/

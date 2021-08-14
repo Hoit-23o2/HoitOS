@@ -222,7 +222,6 @@ VOID __spiffs_unmount(PSPIFFS_VOLUME pfs){
     lib_free(pfs->pucWorkBuffer);
     lib_free(pfs->pCache);
     lib_free(pfs->pucFdSpace);
-    //lib_free(pfs);
     return;
 }
 /*********************************************************************************************************

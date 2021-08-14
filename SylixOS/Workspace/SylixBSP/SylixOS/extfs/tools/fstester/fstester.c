@@ -188,6 +188,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     }
 
     else if(testType == TEST_TYPE_GC){
+        sleep(1);                           /* 等待GC线程启动 */
         close(iFdTest);
         remove(pTestPath);
         lib_free(pTestPath);          
@@ -243,6 +244,9 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
                 dTimeDiff = 1;                                                              /* 精度太低，至少1ms */                                        
             }
             dResult     = iIOBytes / dTimeDiff;                                             /* KB / s */
+            // if(testType == TEST_TYPE_GC){
+            //     sleep(1);                                                                  /* 等待GC线程响应 */
+            // }
         }
         iByteWriteOnce  = asprintf(&pOutContent, "%.2f\n", dResult);                        /* 保留2位小数 */
         write(iFdOut, pOutContent, iByteWriteOnce);

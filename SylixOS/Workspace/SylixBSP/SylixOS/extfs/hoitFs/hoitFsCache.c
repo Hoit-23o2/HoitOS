@@ -591,6 +591,8 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
     //TOOPT: 2021-07-04 如果当前块写不下，是否可以先从cache中找能放得下数据实体的空闲块，再去整个sector列表中找？
     //! 2021-07-04 ZN 添加EBS区域，与uiSize比较时减少一个cache块可写空间。
     PHOIT_ERASABLE_SECTOR pSector;
+    PHOIT_ERASABLE_SECTOR pTargetSector        = LW_NULL;
+    UINT32                uiMinimalUsedSize    = INT_MAX;
     Iterator(HOIT_ERASABLE_SECTOR) iter = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_sectorIterator;
     
     //! 2021-08-04 PYQ 强制GC功能
@@ -626,11 +628,19 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
             if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
                && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
                 if(pSector->HOITS_uiFreeSize  >= (size_t)uiSize) {
+                    // //! 2021-08-12 PYQ 找最少用的块
+                    // if(pSector->HOITS_uiUsedSize < uiMinimalUsedSize){
+                    //     uiMinimalUsedSize = pSector->HOITS_uiUsedSize;
+                    //     pTargetSector     = pSector;
+                    // }
                     return pSector->HOITS_bno;
                 }
             }
             pSector = pSector->HOITS_next;
-        }      
+        }
+        // if(pTargetSector != LW_NULL){
+        //     return pTargetSector->HOITS_bno;
+        // }      
         if (pSector == LW_NULL) {                                   /* flash空间整体不足，开始执行强制GC */
             hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
         }
@@ -774,9 +784,11 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
 ** 调用模块:
 */
 VOID hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr, PHOIT_ERASABLE_SECTOR pErasableSector){
-    pErasableSector->HOITS_uiFreeSize = pErasableSector->HOITS_length;
-    pErasableSector->HOITS_uiUsedSize = 0;
-    pErasableSector->HOITS_offset     = 0;
+    pErasableSector->HOITS_uiFreeSize             = pErasableSector->HOITS_length;
+    pErasableSector->HOITS_uiUsedSize             = 0;
+    pErasableSector->HOITS_offset                 = 0;
+    // pErasableSector->HOITS_uiAvailableEntityCount = 0;
+    // pErasableSector->HOITS_uiObsoleteEntityCount  = 0;
 }
 /*
 ** 函数名称: hoitOccupySectorState
