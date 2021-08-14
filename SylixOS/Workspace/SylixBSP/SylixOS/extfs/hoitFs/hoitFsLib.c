@@ -753,7 +753,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
             /* //TODO:后面这里还需添加CRC校验 */
             crc32_check(pRawHeader);
             PHOIT_RAW_INFO pRawInfo = LW_NULL;
-            crc32_check(pRawHeader);
+            //crc32_check(pRawHeader);
             if (__HOIT_IS_TYPE_INODE(pRawHeader)) {
                 PHOIT_RAW_INODE     pRawInode   = (PHOIT_RAW_INODE)pNow;
 
@@ -1053,7 +1053,7 @@ VOID __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO
                 ------------------------------------------------------------------
     */
     pRawInfo->next_phys = LW_NULL;
-    if(pRawInfo->is_obsolete){
+    if(pRawInfo->is_obsolete == HOIT_FLAG_OBSOLETE){
         pSector->HOITS_uiObsoleteEntityCount++;
     }
     else {

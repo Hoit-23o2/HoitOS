@@ -233,6 +233,7 @@ BOOL __hoit_refresh_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
                     char* pvBuffer = (char*)lib_malloc(right - left);
                     hoitFragTreeRead(pInodeInfo->HOITN_rbtree, left, right-left, pvBuffer);
                     __hoit_write(pInodeInfo, pvBuffer, right - left, left, 0);
+                    lib_free(pvBuffer);
                 }
                 left = pNowEntry->pTreeNode->uiOfs;
                 right = left + pNowEntry->pTreeNode->uiSize;
@@ -249,6 +250,7 @@ BOOL __hoit_refresh_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
         char* pvBuffer = (char*)lib_malloc(right - left);
         hoitFragTreeRead(pInodeInfo->HOITN_rbtree, left, right - left, pvBuffer);
         __hoit_write(pInodeInfo, pvBuffer, right - left, left, 0);
+        lib_free(pvBuffer);
     }
     /* MergeBuffer过长, 采取全部情空的策略 */
     if(pMergeBuffer->size > 100){

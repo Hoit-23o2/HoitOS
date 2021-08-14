@@ -647,10 +647,10 @@ PHOIT_FRAG_TREE_NODE hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_
 ** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 VOID hoitFragTreeShowMemory(PHOIT_FRAG_TREE pFTTree){
-    printf("\n============= checking fragtree statue ...  =============\n");
-    printf("nodes  count: %d.\n", pFTTree->uiNCnt);
-    printf("memory usage: %dB\n", pFTTree->uiMemoryBytes);
-    printf("============= checking fragtree statue over =============\n");
+//    printf("\n============= checking fragtree statue ...  =============\n");
+//    printf("nodes  count: %d.\n", pFTTree->uiNCnt);
+//    printf("memory usage: %dB\n", pFTTree->uiMemoryBytes);
+//    printf("============= checking fragtree statue over =============\n");
 }
 
 
