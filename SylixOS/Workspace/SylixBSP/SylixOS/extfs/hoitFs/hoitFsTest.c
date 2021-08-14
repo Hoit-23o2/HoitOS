@@ -1091,5 +1091,4 @@ VOID hoitGetRawInfoMemCost(PHOIT_VOLUME pfs){
     printf("Invalid RawInfo Count: %d\n", iInvalidCount);
     printf("Total Mem Cost: %d Bytes\n", (iValidCount+iInvalidCount)*sizeof(HOIT_RAW_INFO));
     return;
-
 }

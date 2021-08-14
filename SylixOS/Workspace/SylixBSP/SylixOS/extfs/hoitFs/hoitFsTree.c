@@ -789,7 +789,7 @@ BOOL hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyH
 #else
     UINT                        uiCount = 0;
     UINT8                       uiCase;
-
+    PHOIT_FRAG_TREE_NODE        pFTnNew;
     PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader;
     PHOIT_FRAG_TREE_LIST_NODE   pFTlistNode;
     UINT32                      uiConquerorLow = iKeyLow;

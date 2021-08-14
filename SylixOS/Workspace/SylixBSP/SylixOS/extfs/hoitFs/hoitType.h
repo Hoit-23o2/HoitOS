@@ -60,8 +60,8 @@
 *********************************************************************************************************/
 // #define  MULTI_THREAD_ENABLE      /* 启用多线程 */
 // #define  EBS_ENABLE               /* 启用EBS */
-#define  WRITE_BUFFER_ENABLE      /* 启用WriteBuffer */
-// #define  BACKGOURND_GC_ENABLE        /* 启用后台GC */
+// #define  WRITE_BUFFER_ENABLE         /* 启用WriteBuffer */
+// #define  BACKGOURND_GC_ENABLE     /* 启用后台GC */
 /*********************************************************************************************************
   HoitFs CRC DATA特性
 *********************************************************************************************************/
@@ -457,6 +457,8 @@ typedef struct HOIT_CACHE_BLK
     struct HOIT_CACHE_BLK       *HOITBLK_cacheListPrev;   /* 链表上上一个cache */
     struct HOIT_CACHE_BLK       *HOITBLK_cacheListNext;   /* 链表上下一个cache */
     PCHAR                       HOITBLK_buf;              /* 数据?? */
+    //! 2021-08-14 PYQ 观测
+    UINT32                      HOITBLK_uiCurOfs;
 }HOIT_CACHE_BLK;
 
 /*********************************************************************************************************
@@ -472,13 +474,14 @@ typedef struct HOIT_CACHE_HDR
     UINT32                  HOITCACHE_flashBlkNum;  /* 将flash分块后的块数 */
     UINT32                  HOITCACHE_nextBlkToWrite;/* 下一个要输出的块 */
     PHOIT_CACHE_BLK         HOITCACHE_cacheLineHdr;  /* cache链表头，注意该节点不保存数据 */
-
+    
     //! 2021-07-04 ZN filter层
     // size_t                  HOITCACHE_EBSEntrySize; /* EBS enty大小 */
     size_t                  HOITCACHE_CRCMagicAddr;   /* EBS 区域 CRC 校验码位置 */
     size_t                  HOITCACHE_EBSStartAddr;   /* EBS 在sector中起始地址 */
     size_t                  HOITCACHE_PageAmount;     /* 单个cache sector中的页数量，也是EBS entry的总数量(数量是1k -1) */
-}HOIT_CACHE_HDR;
+
+} HOIT_CACHE_HDR;
 
 //! 2021-7-04 ZN EBS项
 /*********************************************************************************************************

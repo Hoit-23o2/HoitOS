@@ -27,6 +27,7 @@
 #include "config.h"
 #include "../list/list_interface.h"
 
+// #define FSTESTER_WRRD_TEST
 #define MAX_FUNC_NAME_LEN  128
 
 typedef enum fs_type {

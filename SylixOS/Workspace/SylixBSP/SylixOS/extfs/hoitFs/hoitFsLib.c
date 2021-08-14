@@ -671,12 +671,13 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     UINT                    uiSectorOffset;
     UINT                    uiFreeSize;
     UINT                    uiUsedSize;
+    UINT                    uiUsedSizeAlign;
     PHOIT_ERASABLE_SECTOR   pErasableSector;
     UINT                    uiSectorNum;
 
 
     uiSectorSize            = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize;
-    uiSectorOffset          = hoitGetSectorOffset(sector_no);
+    uiSectorOffset          = sector_no * uiSectorSize;//hoitGetSectorOffset(sector_no); 
     uiFreeSize              = uiSectorSize;
     uiUsedSize              = 0;
 
@@ -712,11 +713,11 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     // lib_gettimeofday(&timeEnd, LW_NULL);
     // printf("[malloc and zero: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
     
-    /* Read flash是一个很大的瓶颈 */
-    lib_gettimeofday(&timeStart, LW_NULL);
+    /* //!Read flash是一个很大的瓶颈 */
+    // lib_gettimeofday(&timeStart, LW_NULL);
     __hoit_read_flash(pfs, uiSectorOffset, pReadBuf, uiSectorSize);
-    lib_gettimeofday(&timeEnd, LW_NULL);
-    printf("[__hoit_read_flash: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
+    // lib_gettimeofday(&timeEnd, LW_NULL);
+    // printf("[__hoit_read_flash: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
    
     /* 2021-07-10 Modified by HZS */
     size_t pageAmount       = uiSectorSize / (HOIT_FILTER_EBS_ENTRY_SIZE + HOIT_FILTER_PAGE_SIZE);
@@ -742,14 +743,17 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     INT sectorIndex     = 0;
     UINT32 obsoleteFlag = 0;
 
-    lib_gettimeofday(&timeStart, LW_NULL);
+    // lib_gettimeofday(&timeStart, LW_NULL);
     while(1){
         if(EBSMode){
             /* EBS模式下, 如果下面函数返回全1代表该sector扫描可以提前结束, obsoleteFlag代表该Entry是否被标记过期 */
             UINT32 uSectorOffset = hoitSectorGetNextAddr(pfs->HOITFS_cacheHdr, sector_no, sectorIndex++, &obsoleteFlag);
             pNow = pReadBuf + uSectorOffset;
-            if(obsoleteFlag == HOIT_FLAG_OBSOLETE) continue;
-            if(uSectorOffset == -1) break;
+            if(obsoleteFlag == HOIT_FLAG_OBSOLETE) {
+                continue;
+            }
+            if(uSectorOffset == -1) 
+                break;
             if(sectorIndex > pfs->HOITFS_cacheHdr->HOITCACHE_PageAmount) break;
         }
         else {
@@ -764,8 +768,14 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
             //printf("offs: %d ino: %d\n", uiSectorOffset + (pNow - pReadBuf), pRawHeader->ino);
         }
         if(pRawHeader->magic_num == HOIT_MAGIC_NUM){
-            uiUsedSize += pRawHeader->totlen;
-            uiFreeSize -= pRawHeader->totlen;
+            uiUsedSizeAlign = (pRawHeader->totlen % HOIT_FILTER_PAGE_SIZE ? 
+                               pRawHeader->totlen / HOIT_FILTER_PAGE_SIZE + 1 : 
+                               pRawHeader->totlen / HOIT_FILTER_PAGE_SIZE) * HOIT_FILTER_PAGE_SIZE;
+            uiUsedSize += uiUsedSizeAlign;
+            uiFreeSize -= uiUsedSizeAlign;
+            if(__HOIT_IS_OBSOLETE(pRawHeader)){
+                pErasableSector->HOITS_uiObsoleteEntityCount++;
+            }
         }
         if (pRawHeader->magic_num == HOIT_MAGIC_NUM && !__HOIT_IS_OBSOLETE(pRawHeader)) {
             /* //TODO:后面这里还需添加CRC校验 */
@@ -774,7 +784,6 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
 
             if (__HOIT_IS_TYPE_INODE(pRawHeader)) {
                 PHOIT_RAW_INODE     pRawInode   = (PHOIT_RAW_INODE)pNow;
-
                 __HOITFS_VOL_LOCK(pfs);
                 PHOIT_INODE_CACHE   pInodeCache = __hoit_get_inode_cache(pfs, pRawInode->ino);
                 __HOITFS_VOL_UNLOCK(pfs);
@@ -898,21 +907,25 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
             }
         }
     }
+    
+    
+    
+
     pErasableSector->HOITS_uiUsedSize = uiUsedSize;
     pErasableSector->HOITS_uiFreeSize = uiFreeSize;
-    pErasableSector->HOITS_offset = uiUsedSize;     /*! Modified By PYQ 更新写入偏移 */
-    lib_gettimeofday(&timeEnd, LW_NULL);
-    printf("[while loop: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
+    pErasableSector->HOITS_offset     = uiUsedSize;     /*! Modified By PYQ 更新写入偏移 */
+    // lib_gettimeofday(&timeEnd, LW_NULL);
+    // printf("[while loop: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
     __HOITFS_VOL_LOCK(pfs);
     
-    lib_gettimeofday(&timeStart, LW_NULL);
+    // lib_gettimeofday(&timeStart, LW_NULL);
     __hoit_add_to_sector_list(pfs, pErasableSector);
-    lib_gettimeofday(&timeEnd, LW_NULL);
-    printf("[add to sector: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
+    // lib_gettimeofday(&timeEnd, LW_NULL);
+    // printf("[add to sector: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
     
     __HOITFS_VOL_UNLOCK(pfs);
     
-    printf("\n");
+    // printf("\n");
     
     lib_free(pReadBuf);
     lib_free(pThreadAttr);
@@ -1079,7 +1092,7 @@ VOID __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO
                 ------------------------------------------------------------------
     */
     pRawInfo->next_phys = LW_NULL;
-    if(pRawInfo->is_obsolete){
+    if(pRawInfo->is_obsolete == HOIT_FLAG_OBSOLETE){
         pSector->HOITS_uiObsoleteEntityCount++;
     }
     else {
@@ -1869,10 +1882,14 @@ ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  st
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
+extern VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs);
 VOID  __hoit_unmount(PHOIT_VOLUME pfs)
 {
     /* TODO 释放RAW INFO需要把GC先关了*/
     //API_SpinDestory()
+#ifdef LIB_DEBUG
+    __hoitShowSectorInfo(pfs);
+#endif /* LIB_DEBUG */
     if (pfs == LW_NULL) {
         printf("Error in unmount.\n");
         return;
