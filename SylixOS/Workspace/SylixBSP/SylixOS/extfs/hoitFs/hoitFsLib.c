@@ -518,7 +518,6 @@ UINT8 __hoit_del_raw_data(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)buf;
     crc32_check(pRawHeader);
-
     if (pRawHeader->magic_num != HOIT_MAGIC_NUM || (pRawHeader->flag & HOIT_FLAG_NOT_OBSOLETE) == 0) {
         printk("Error in hoit_del_raw_data\n");
         return HOIT_ERROR;
@@ -603,7 +602,6 @@ UINT8 __hoit_get_inode_nodes(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeInfo, PHO
         __hoit_read_flash(pfs, pRawInfo->phys_addr, pBuf, pRawInfo->totlen);
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pBuf;
         crc32_check(pRawHeader);
-
         if (!__HOIT_IS_OBSOLETE(pRawHeader)) {
             if (__HOIT_IS_TYPE_DIRENT(pRawHeader)) {
                 PHOIT_RAW_DIRENT pRawDirent = (PHOIT_RAW_DIRENT)pRawHeader;
@@ -755,9 +753,9 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
         }
         if (pRawHeader->magic_num == HOIT_MAGIC_NUM && !__HOIT_IS_OBSOLETE(pRawHeader)) {
             /* //TODO:后面这里还需添加CRC校验 */
-            crc32_check(pRawHeader);
             PHOIT_RAW_INFO pRawInfo = LW_NULL;
             crc32_check(pRawHeader);
+
             if (__HOIT_IS_TYPE_INODE(pRawHeader)) {
                 PHOIT_RAW_INODE     pRawInode   = (PHOIT_RAW_INODE)pNow;
 
@@ -989,7 +987,8 @@ PHOIT_INODE_INFO __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode, CPCHAR pcL
 ** 调用模块:
 *********************************************************************************************************/
 VOID __hoit_get_nlink(PHOIT_INODE_INFO pInodeInfo){
-    if (!S_ISDIR(pInodeInfo->HOITN_mode)) return;
+    if (!S_ISDIR(pInodeInfo->HOITN_mode))
+        return;
     PHOIT_VOLUME pfs = pInodeInfo->HOITN_volume;
 
     PHOIT_FULL_DIRENT pTempDirent = pInodeInfo->HOITN_dents;
@@ -1025,7 +1024,6 @@ PCHAR __hoit_get_data_after_raw_inode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pInodeInf
 
     __hoit_read_flash(pfs, pInodeInfo->phys_addr, pTempBuf, pInodeInfo->totlen);
     crc32_check(pTempBuf);
-
     PCHAR pData = (PCHAR)lib_malloc(iDataLen + 1);
     lib_bzero(pData, iDataLen + 1);
     PCHAR pTempData = pTempBuf + sizeof(HOIT_RAW_INODE);
@@ -1108,7 +1106,6 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     /* 先读出旧数据 */
     lib_bzero(pReadBuf, pRawInfo->totlen);
     crc32_check(pReadBuf);
-
     __hoit_read_flash(pfs, pRawInfo->phys_addr, pReadBuf, pRawInfo->totlen);
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pReadBuf;

@@ -605,7 +605,7 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
             }
             pSector = pSector->HOITS_next;
         }  
-        if(iFreeSectorNum <= 20){
+        if(iFreeSectorNum <= 2){
             hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
         }
     }

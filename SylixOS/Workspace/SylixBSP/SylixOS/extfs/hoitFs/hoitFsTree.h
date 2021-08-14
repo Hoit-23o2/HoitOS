@@ -178,6 +178,11 @@ typedef struct hoit_frag_tree_read_param
     UINT32 uiSize;
 } HOIT_FRAG_TREE_READ_PARAM;
 
+typedef struct hoit_frag_tree_overlayfixup_param
+{
+    PHOIT_FRAG_TREE_NODE pFTn;
+    BOOL                 bDoDelete;
+} HOIT_FRAG_TREE_OVERLAY_FIXUP_RARAM;
 //TODO：读取FragTree，然后向下读取数据实体，基本逻辑为先读Cache，Cache未命中再读flash
 //!该部分可以移除
 BOOL hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, PCHAR pContent);
