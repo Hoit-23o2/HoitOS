@@ -69,8 +69,8 @@ VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs){
     printf(DIVIDER "MORE INFO" DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
     printf("Foreground GC Times: %ld" NEXT_LINE, pfs->ulGCForegroundTimes);
     printf("Background GC Times: %ld" NEXT_LINE, pfs->ulGCBackgroundTimes);
-    printf("Cur Memory Cost    : %ld" NEXT_LINE, pfs->HOITFS_ulCurBlk);
-    printf("Max Memory Cost    : %ld" NEXT_LINE, pfs->HOITFS_ulMaxBlk);
+    printf("Cur Memory Cost    : %u" NEXT_LINE, pfs->HOITFS_ulCurBlk);
+    printf("Max Memory Cost    : %u" NEXT_LINE, pfs->HOITFS_ulMaxBlk);
     API_TShellColorEnd(STD_OUT);
 }
 

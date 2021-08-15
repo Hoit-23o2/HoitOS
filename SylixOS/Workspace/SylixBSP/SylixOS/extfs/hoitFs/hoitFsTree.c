@@ -50,6 +50,19 @@ BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFDnode, BOOL b
 #define MIN(a, b)                   ((a) < (b) ? (a) : (b))    
 #define FT_GET_FIRST_NODE(pFTTree)  (__hoitFragTreeGetMinimum(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot))
 
+PHOIT_FRAG_TREE_NODE __hoitFragTreeGetMaximum(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot){
+    PHOIT_RB_NODE       pRbnTraverse; 
+    pRbnTraverse    =   &pFTnRoot->pRbn;
+    if(pRbnTraverse != RB_GUARD(pFTTree)){    
+        while (pRbnTraverse->pRbnRight != RB_GUARD(pFTTree))
+        {
+            pRbnTraverse = pRbnTraverse->pRbnRight;
+        }
+    }
+    return (PHOIT_FRAG_TREE_NODE)pRbnTraverse;
+}
+
+
 PHOIT_FRAG_TREE_NODE __hoitFragTreeGetMinimum(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot){
     PHOIT_RB_NODE       pRbnTraverse; 
     pRbnTraverse    =   &pFTnRoot->pRbn;
@@ -81,7 +94,8 @@ PHOIT_FRAG_TREE_NODE __hoitFragTreeGetSuccessor(PHOIT_FRAG_TREE pFTTree, PHOIT_F
     }
     return (PHOIT_FRAG_TREE_NODE)pRbnTraverse;
 }
-
+#ifndef FT_OBSOLETE_TREE_LIST
+#endif /* not FT_OBSOLETE_TREE_LIST */
 /*********************************************************************************************************
 ** 函数名称: __hoitFragTreeCollectRangeHelper
 ** 功能描述: 搜集iKeyLow至iKeyHigh的FragTree节点
@@ -166,6 +180,32 @@ VOID __hoitFragTreeCollectRangeHelper(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader,
                                      iKeyLow,
                                      iKeyHigh);
 }   
+/*********************************************************************************************************
+** 函数名称: hoitFragTreeCollectRange
+** 功能描述: 在FragTree中搜集[i, j]节点，其中 i <= iKeyLow, j >= iKeyHigh
+** 输　入  : pFTTree    FragTree
+**          iKeyLow       低键值
+**          iKeyHigh      高键值
+** 输　出  : 搜集链表头
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+PHOIT_FRAG_TREE_LIST_HEADER  hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh){
+    PHOIT_FRAG_TREE_LIST_HEADER     pFTlistHeader;
+    pFTlistHeader = hoitFragTreeListInit();
+    __hoitFragTreeCollectRangeHelper(pFTlistHeader, 
+                                     pFTTree, 
+                                     (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot,
+                                     iKeyLow,
+                                     iKeyHigh);
+    if(pFTlistHeader->uiHighBound == INT_MAX){
+        pFTlistHeader->uiHighBound = pFTlistHeader->uiLowBound;
+    }
+#ifdef FT_DEBUG
+    printf("Collecting Over\n");
+#endif //FT_DEBUG
+    return pFTlistHeader;
+}
 /*********************************************************************************************************
 ** 函数名称: __hoitFragTreeConquerNode
 ** 功能描述: 分四种情况征服一个节点
@@ -293,7 +333,6 @@ PHOIT_FRAG_TREE hoitInitFragTree(PHOIT_VOLUME pfs){
     pfs->HOITFS_ulCurBlk += sizeof(HOIT_RB_TREE);
     return pFTTree;
 }
-
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeSearchNode
 ** 功能描述: 在FragTree中根据键值搜索目标节点，已弃用
@@ -312,30 +351,16 @@ PHOIT_FRAG_TREE_NODE hoitFragTreeSearchNode(PHOIT_FRAG_TREE pFTTree, INT32 iKey)
     return pFTn;
 }
 /*********************************************************************************************************
-** 函数名称: hoitFragTreeCollectRange
-** 功能描述: 在FragTree中搜集[i, j]节点，其中 i <= iKeyLow, j >= iKeyHigh
+** 函数名称: hoitFragTreeGetLastNode
+** 功能描述: 获取FragTree的最后一个节点
 ** 输　入  : pFTTree    FragTree
-**          iKeyLow       低键值
-**          iKeyHigh      高键值
-** 输　出  : 搜集链表头
+**          iKey       键值
+** 输　出  : 被插入的节点
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-PHOIT_FRAG_TREE_LIST_HEADER  hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh){
-    PHOIT_FRAG_TREE_LIST_HEADER     pFTlistHeader;
-    pFTlistHeader = hoitFragTreeListInit();
-    __hoitFragTreeCollectRangeHelper(pFTlistHeader, 
-                                     pFTTree, 
-                                     (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot,
-                                     iKeyLow,
-                                     iKeyHigh);
-    if(pFTlistHeader->uiHighBound == INT_MAX){
-        pFTlistHeader->uiHighBound = pFTlistHeader->uiLowBound;
-    }
-#ifdef FT_DEBUG
-    printf("Collecting Over\n");
-#endif //FT_DEBUG
-    return pFTlistHeader;
+PHOIT_FRAG_TREE_NODE hoitFragTreeGetLastNode(PHOIT_FRAG_TREE pFTTree){
+    return __hoitFragTreeGetMaximum(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
 }
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeDeleteNode
@@ -753,10 +778,10 @@ PHOIT_FRAG_TREE_NODE hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_
 ** 调用模块:
 *********************************************************************************************************/
 VOID hoitFragTreeShowMemory(PHOIT_FRAG_TREE pFTTree){
-//    printf("\n============= checking fragtree statue ...  =============\n");
-//    printf("nodes  count: %d.\n", pFTTree->uiNCnt);
-//    printf("memory usage: %dB\n", pFTTree->uiMemoryBytes);
-//    printf("============= checking fragtree statue over =============\n");
+   printf("\n============= checking fragtree statue ...  =============\n");
+   printf("nodes  count: %d.\n", pFTTree->uiNCnt);
+   printf("memory usage: %dB\n", pFTTree->uiMemoryBytes);
+   printf("============= checking fragtree statue over =============\n");
 }
 
 

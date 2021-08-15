@@ -794,7 +794,7 @@ VOID hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr, PHOIT_ERASABLE_SECTOR pEras
     pErasableSector->HOITS_uiFreeSize             = pErasableSector->HOITS_length;
     pErasableSector->HOITS_uiUsedSize             = 0;
     pErasableSector->HOITS_offset                 = 0;
-    // pErasableSector->HOITS_uiAvailableEntityCount = 0;
+    pErasableSector->HOITS_uiAvailableEntityCount = 0;
     // pErasableSector->HOITS_uiObsoleteEntityCount  = 0;
 }
 /*
@@ -1067,7 +1067,7 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
     // PHOIT_ERASABLE_SECTOR pSector;
     PHOIT_EBS_ENTRY pentry  = LW_NULL;
     HOIT_EBS_ENTRY  entry;
-
+    
     UINT64 EBS_area_addr    = sectorNo*pcacheHdr->HOITCACHE_blockSize + 
                                 NOR_FLASH_START_OFFSET +
                                 pcacheHdr->HOITCACHE_EBSStartAddr;  /* EBS 区域在flash介质上的地址 */
@@ -1078,7 +1078,6 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
     
     
     pRawHeader->flag &= (~HOIT_FLAG_NOT_OBSOLETE);      //将obsolete标志变为0，代表过期
-    
     //! 2021-07-07 修改flash上EBS采用写不分配
     hoitWriteThroughCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, (PVOID)pRawHeader, pRawInfo->totlen);
     

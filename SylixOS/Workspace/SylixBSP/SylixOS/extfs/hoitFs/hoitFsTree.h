@@ -78,7 +78,6 @@ static inline PHOIT_FRAG_TREE_NODE newHoitFragTreeNode(PHOIT_VOLUME pfs,  PHOIT_
     return pFTn;
 }
 
-#ifndef FT_OBSOLETE_TREE_LIST
 /*********************************************************************************************************
  PHOIT_FRAG_TREE_LIST_NODE构造函数
 *********************************************************************************************************/
@@ -152,6 +151,8 @@ static inline VOID hoitFragTreeListFree(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeade
     }
     lib_free(pFTlistHeader);
 }
+PHOIT_FRAG_TREE_LIST_HEADER   hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh);
+#ifndef FT_OBSOLETE_TREE_LIST
 #endif  /* not FT_OBSOLETE_TREE_LIST */
 
 /*********************************************************************************************************
@@ -163,11 +164,11 @@ PHOIT_FRAG_TREE_NODE          hoitFragTreeSearchNode(PHOIT_FRAG_TREE pFTTree, IN
 BOOL                          hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, BOOL bDoDelete);                       /* 删除一个节点 */
 BOOL                          hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh, BOOL bDoDelete);
 BOOL                          hoitFragTreeDeleteTree(PHOIT_FRAG_TREE pFTTree, BOOL bDoDelete);
-PHOIT_FRAG_TREE_LIST_HEADER   hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh);
 VOID                          hoitFragTreeTraverse(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot);                     /* 中序遍历FragTree */
 
+//TODO: 获取任意一个节点
+PHOIT_FRAG_TREE_NODE          hoitFragTreeGetLastNode(PHOIT_FRAG_TREE pFTTree);
 VIS_STATUE                    hoitFragTreeTraverseVisitor(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot, visitorHoitFragTree visitor, PVOID pUserValue, PVOID *ppReturn);
-
 VOID                          hoitFragTreeShowMemory(PHOIT_FRAG_TREE pFTTree);
 /*********************************************************************************************************
   FragTree
