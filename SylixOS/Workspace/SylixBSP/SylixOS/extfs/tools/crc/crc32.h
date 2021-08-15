@@ -25,7 +25,7 @@ static UINT32 crc32_le(unsigned char* p, UINT len)
 			crc = (crc >> 1) ^ ((crc & 1) ? CRCPOLY_LE : 0);
 	}
 
-	if(crc == 0x13797da2){
+	if(crc == 2711013869){
 	    snprintf("%s \n", 925, originPC);
 	    printf("yes\n");
 	}

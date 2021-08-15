@@ -673,6 +673,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     UINT                    uiUsedSize;
     PHOIT_ERASABLE_SECTOR   pErasableSector;
     UINT                    uiSectorNum;
+    UINT                    uiUsedSizeAlign;
 
 
     uiSectorSize            = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize;
@@ -702,17 +703,12 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
         pfs->HOITFS_now_sector = pErasableSector;
     }
 
-    /* 再整个块进行扫描 */
-    PCHAR pReadBuf = (PCHAR)lib_malloc(uiSectorSize);
-    lib_bzero(pReadBuf, uiSectorSize);
 
-    __hoit_read_flash(pfs, uiSectorOffset, pReadBuf, uiSectorSize);
 
     /* 2021-07-10 Modified by HZS */
     size_t pageAmount       = uiSectorSize / (HOIT_FILTER_EBS_ENTRY_SIZE + HOIT_FILTER_PAGE_SIZE);
     size_t EBSStartAddr     = HOIT_FILTER_PAGE_SIZE * pageAmount;
 
-    PCHAR pNow              = pReadBuf;
 
     BOOL EBSMode = 1;   /* EBSMode表示是否启用EBS结构, Sector的EBS的CRC校验不通过或宏定义取消则EBSMode为0 */
 
@@ -724,17 +720,41 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
         EBSMode = 0;
     }
 
+    PCHAR pReadBuf              = LW_NULL;
+    PCHAR pNow                  = LW_NULL;
+    PCHAR pTempChar             = LW_NULL;
+    PHOIT_RAW_HEADER pTempRawHeader = LW_NULL;
+    UINT32 uInnerOffset         = 0;
+    if(EBSMode){
+        pTempChar = lib_malloc(sizeof(HOIT_RAW_HEADER));
+        lib_bzero(pTempChar, sizeof(HOIT_RAW_HEADER));
+    }else{
+        /* 再整个块进行扫描 */
+        pReadBuf    = (PCHAR)lib_malloc(uiSectorSize);
+        lib_bzero(pReadBuf, uiSectorSize);
+        __hoit_read_flash(pfs, uiSectorOffset, pReadBuf, uiSectorSize);
+        pNow        = pReadBuf;
+    }
+
     BOOL stopFlag       = 0;
     INT sectorIndex     = 0;
     UINT32 obsoleteFlag = 0;
     while(1){
         if(EBSMode){
             /* EBS模式下, 如果下面函数返回全1代表该sector扫描可以提前结束, obsoleteFlag代表该Entry是否被标记过期 */
-            UINT32 uSectorOffset = hoitSectorGetNextAddr(pfs->HOITFS_cacheHdr, sector_no, sectorIndex++, &obsoleteFlag);
-            pNow = pReadBuf + uSectorOffset;
-            if(obsoleteFlag == HOIT_FLAG_OBSOLETE) continue;
-            if(uSectorOffset == -1) break;
+            uInnerOffset = hoitSectorGetNextAddr(pfs->HOITFS_cacheHdr, sector_no, sectorIndex++, &obsoleteFlag);
+
+
+            if(uInnerOffset == -1) break;
             if(sectorIndex > pfs->HOITFS_cacheHdr->HOITCACHE_PageAmount) break;
+            lib_bzero(pTempChar, sizeof(HOIT_RAW_HEADER));
+            __hoit_read_flash(pfs, uiSectorOffset+uInnerOffset, pTempChar, sizeof(HOIT_RAW_HEADER));
+            pTempRawHeader = (PHOIT_RAW_HEADER) pTempChar;
+
+            UINT32 uLeng = pTempRawHeader->totlen;
+            pNow = lib_malloc(uLeng);
+            lib_bzero(pNow, uLeng);
+            __hoit_read_flash(pfs, uiSectorOffset+uInnerOffset, pNow, uLeng);
         }
         else {
             if(pNow >= pReadBuf + uiSectorSize) break;
@@ -748,9 +768,19 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
             //printf("offs: %d ino: %d\n", uiSectorOffset + (pNow - pReadBuf), pRawHeader->ino);
         }
         if(pRawHeader->magic_num == HOIT_MAGIC_NUM){
-            uiUsedSize += pRawHeader->totlen;
-            uiFreeSize -= pRawHeader->totlen;
+            uiUsedSizeAlign = (pRawHeader->totlen % HOIT_FILTER_PAGE_SIZE ?
+                               pRawHeader->totlen / HOIT_FILTER_PAGE_SIZE + 1 :
+                               pRawHeader->totlen / HOIT_FILTER_PAGE_SIZE) * HOIT_FILTER_PAGE_SIZE;
+            uiUsedSize += uiUsedSizeAlign;
+            uiFreeSize -= uiUsedSizeAlign;
         }
+
+        if(obsoleteFlag == HOIT_FLAG_OBSOLETE){
+            lib_free(pNow);
+            pNow = LW_NULL;
+            continue;
+        }
+
         if (pRawHeader->magic_num == HOIT_MAGIC_NUM && !__HOIT_IS_OBSOLETE(pRawHeader)) {
             /* //TODO:后面这里还需添加CRC校验 */
             PHOIT_RAW_INFO pRawInfo = LW_NULL;
@@ -778,7 +808,11 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
                     __HOITFS_VOL_UNLOCK(pfs);
                 }
                 pRawInfo                    = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INFO));
-                pRawInfo->phys_addr         = uiSectorOffset + (pNow - pReadBuf);
+                if(EBSMode){
+                    pRawInfo->phys_addr     = uiSectorOffset + uInnerOffset;
+                }else{
+                    pRawInfo->phys_addr     = uiSectorOffset + (pNow - pReadBuf);
+                }
                 pRawInfo->totlen            = pRawInode->totlen;
                 pRawInfo->is_obsolete       = HOIT_FLAG_NOT_OBSOLETE;
                 pRawInfo->next_logic = LW_NULL;
@@ -830,7 +864,11 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
                     __HOITFS_VOL_UNLOCK(pfs);
                 }
                 pRawInfo                = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INFO));
-                pRawInfo->phys_addr     = uiSectorOffset + (pNow - pReadBuf);
+                if(EBSMode){
+                    pRawInfo->phys_addr     = uiSectorOffset + uInnerOffset;
+                }else{
+                    pRawInfo->phys_addr     = uiSectorOffset + (pNow - pReadBuf);
+                }
                 pRawInfo->totlen        = pRawDirent->totlen;
                 pRawInfo->is_obsolete   = HOIT_FLAG_NOT_OBSOLETE;
                 pRawInfo->next_logic = LW_NULL;
@@ -869,14 +907,14 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
 
             }
             if(EBSMode){
-                ;
+                lib_free(pNow);
             }else{
                 pNow += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
             }
         }
         else {
             if(EBSMode){
-                ;
+                lib_free(pNow);
             }else{
                 pNow += 4;   /* 每次移动4字节 */
             }
@@ -889,8 +927,12 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     __HOITFS_VOL_LOCK(pfs);
     __hoit_add_to_sector_list(pfs, pErasableSector);
     __HOITFS_VOL_UNLOCK(pfs);
+    if(EBSMode){
+        lib_free(pTempChar);
+    }else{
+        lib_free(pReadBuf);
+    }
 
-    lib_free(pReadBuf);
     lib_free(pThreadAttr);
     return LW_TRUE;
 }

@@ -204,9 +204,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     for (i = 0; i < uiLoopTimes; i++)
     {
         printf("====== TEST %d ======\n", i);
-        if(i == 68){
-            printf("debug\n");
-        }
+
         if(testType == TEST_TYPE_MOUNT) {                                                   /* ²âÊÔÊ±ÑÓ */
             API_Unmount(pMountPoint);
             lib_gettimeofday(&timeStart, LW_NULL);
