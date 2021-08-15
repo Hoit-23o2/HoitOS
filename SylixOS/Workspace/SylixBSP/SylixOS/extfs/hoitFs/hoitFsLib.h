@@ -43,7 +43,7 @@ typedef struct scanThreadAttr { /* 一个局部定义的结构体, 只用来给scan_single_sec
 
 PHOIT_INODE_INFO        __hoit_just_open(PHOIT_INODE_INFO pdir, PCHAR pName);
 UINT                    __hoit_name_hash(CPCHAR pcName);
-UINT                    __hoit_free_full_dirent(PHOIT_FULL_DIRENT pDirent);
+UINT                    __hoit_free_full_dirent(PHOIT_VOLUME pfs, PHOIT_FULL_DIRENT pDirent);
 PHOIT_INODE_INFO        __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino);
 PHOIT_INODE_CACHE       __hoit_get_inode_cache(PHOIT_VOLUME pfs, UINT ino);
 VOID                    __hoit_add_dirent(PHOIT_INODE_INFO pFatherInode, PHOIT_FULL_DIRENT pSonDirent, UINT needLog);

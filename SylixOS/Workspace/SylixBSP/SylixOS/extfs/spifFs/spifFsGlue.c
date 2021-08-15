@@ -24,6 +24,8 @@
 #include "spifFsFDLib.h"
 #include "../driver/mtd/nor/nor.h"
 #include "spifFsGC.h"
+#define DIVIDER                         "================="
+#define NEXT_LINE                       "\n"
 
 #define __spiffsAlign8Byte(pMem, uiMemSZ) \
 do {\
@@ -218,10 +220,10 @@ VOID __spiffs_unmount(PSPIFFS_VOLUME pfs){
     }
     
     pfs->uiMountedFlag = 0;
-    
-    lib_free(pfs->pucWorkBuffer);
-    lib_free(pfs->pCache);
-    lib_free(pfs->pucFdSpace);
+
+    hoit_free(pfs, pfs->pucWorkBuffer, pfs->cfg.uiLogicBlkSize * 2);
+    hoit_free(pfs, pfs->pCache, pfs->uiCacheSize);
+    hoit_free(pfs, pfs->pucFdSpace, pfs->uiFdCount * sizeof(SPIFFS_FD));
     return;
 }
 /*********************************************************************************************************
@@ -1030,7 +1032,7 @@ INT __spif_mount(PSPIF_VOLUME pfs){
     PSPIFFS_FD      pFds; 
 
      /* 初始化配置*/
-    pConfig                     = (PSPIFFS_CONFIG)lib_malloc(sizeof(SPIFFS_CONFIG));
+    pConfig                     = (PSPIFFS_CONFIG)spif_malloc(pfs, sizeof(SPIFFS_CONFIG));
     pConfig->halEraseFunc       = LW_NULL;
     pConfig->halReadFunc        = LW_NULL;
     pConfig->halWriteFunc       = LW_NULL;
@@ -1046,9 +1048,9 @@ INT __spif_mount(PSPIF_VOLUME pfs){
                                   uiCachePages * (sizeof(SPIFFS_CACHE_PAGE) + pConfig->uiLogicPageSize);
     uiFdsSize                   = uiDescriptors * sizeof(SPIFFS_FD);
 
-    pucWorkBuffer               = (PUCHAR)lib_malloc(uiWorkSize);
-    pCache                      = (PUCHAR)lib_malloc(uiCacheSize);
-    pFds                        = (PSPIFFS_FD)lib_malloc(uiFdsSize);
+    pucWorkBuffer               = (PUCHAR)spif_malloc(pfs, uiWorkSize);
+    pCache                      = (PUCHAR)spif_malloc(pfs, uiCacheSize);
+    pFds                        = (PSPIFFS_FD)spif_malloc(pfs, uiFdsSize);
 
     return __spiffs_mount(SYLIX_TO_SPIFFS_PFS(pfs), pConfig, pucWorkBuffer, 
                           (UINT8 *)pFds, uiFdsSize, pCache, uiCacheSize, LW_NULL);
@@ -1063,6 +1065,13 @@ INT __spif_mount(PSPIF_VOLUME pfs){
 ** 调用模块:
 *********************************************************************************************************/
 INT __spif_unmount(PSPIF_VOLUME pfs){
+    
+    printf(DIVIDER "MORE INFO" DIVIDER NEXT_LINE);
+    printf("GC Times           : %d" NEXT_LINE, pfs->pfs->uiStatsGCRuns);
+    printf("Cur Memory Cost    : %ld" NEXT_LINE, pfs->SPIFFS_ulCurBlk);
+    printf("Max Memory Cost    : %ld" NEXT_LINE, pfs->SPIFFS_ulMaxBlk);
+    API_TShellColorEnd(STD_OUT);
+
     __spiffs_unmount(SYLIX_TO_SPIFFS_PFS(pfs));
     return SPIFFS_OK;
 }

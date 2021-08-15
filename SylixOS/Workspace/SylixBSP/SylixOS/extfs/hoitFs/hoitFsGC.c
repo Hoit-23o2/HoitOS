@@ -39,7 +39,7 @@ static BOOL _G_bShouldKillGC  = FALSE;
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
+BOOL __hoitGCSectorRawInfoFixUp(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector){
     PHOIT_RAW_INFO          pRawInfoFirst;
     PHOIT_RAW_INFO          pRawInfoLast;
     
@@ -68,7 +68,7 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
         pRawInfoObselete = pRawInfoTraverse;
         pRawInfoTraverse = pRawInfoTraverse->next_phys;
         if(pRawInfoObselete == pErasableSector->HOITS_pRawInfoLast){    /* 全是空，直接返回咯 */
-            lib_free(pRawInfoObselete);
+            hoit_free(pfs, pRawInfoObselete, sizeof(HOIT_RAW_INFO));
             pErasableSector->HOITS_pRawInfoFirst    = LW_NULL;
             pErasableSector->HOITS_pRawInfoLast     = LW_NULL;
             pErasableSector->HOITS_pRawInfoCurGC    = LW_NULL;
@@ -76,7 +76,7 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
             pErasableSector->HOITS_pRawInfoLastGC   = LW_NULL;
             return LW_FALSE;
         }
-        lib_free(pRawInfoObselete);
+        hoit_free(pfs, pRawInfoObselete, sizeof(HOIT_RAW_INFO));
     }
 
     pRawInfoFirst    = pRawInfoLast = pRawInfoTraverse;                 /* 设置RawInfo First与RawInfo Last */
@@ -101,7 +101,7 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
             // pErasableSector->HOITS_uiUsedSize   -= pRawInfoObselete->totlen; 
             // pErasableSector->HOITS_uiFreeSize   += pRawInfoObselete->totlen; 
             
-            lib_free(pRawInfoObselete);                                         /* 释放过期的块 */
+            hoit_free(pfs, pRawInfoObselete, sizeof(HOIT_RAW_INFO));                                         /* 释放过期的块 */
         }
         else {
             pRawInfoLast                = pRawInfoTraverse;                     /* 更新pRawInfoLast */
@@ -117,13 +117,13 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
         pErasableSector->HOITS_pRawInfoCurGC    = LW_NULL;
         pErasableSector->HOITS_pRawInfoPrevGC   = LW_NULL;
         if(pErasableSector->HOITS_pRawInfoLastGC == LW_NULL){
-            pErasableSector->HOITS_pRawInfoLastGC = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INODE));
+            pErasableSector->HOITS_pRawInfoLastGC = (PHOIT_RAW_INFO)hoit_malloc(pfs, sizeof(HOIT_RAW_INODE));
         }
         if(pRawInfoLast){
             lib_memcpy(pErasableSector->HOITS_pRawInfoLastGC, pRawInfoLast, sizeof(HOIT_RAW_INFO));
         }
         else {
-            lib_free(pErasableSector->HOITS_pRawInfoLastGC);
+            hoit_free(pfs, pErasableSector->HOITS_pRawInfoLastGC, sizeof(HOIT_RAW_INFO));
             pErasableSector->HOITS_pRawInfoLastGC = LW_NULL;        /* 该Sector中没有Raw Info了…… */
         }
     }
@@ -242,7 +242,7 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
     PHOIT_RAW_INFO          pRawInfoCurGC;
     PHOIT_RAW_INFO          pRawInfoPrevGC;
 
-    bIsNeedMoreCollect = __hoitGCSectorRawInfoFixUp(pErasableSector);            /* FixUp后，会更新 HOITS_pRawInfoCurGC，HOITS_pRawInfoPrevGC，HOITS_pRawInfoLastGC等 */
+    bIsNeedMoreCollect = __hoitGCSectorRawInfoFixUp(pfs, pErasableSector);            /* FixUp后，会更新 HOITS_pRawInfoCurGC，HOITS_pRawInfoPrevGC，HOITS_pRawInfoLastGC等 */
     if(!bIsNeedMoreCollect){
         bIsCollectOver = LW_TRUE;
         goto __hoitGCCollectSectorAliveEnd;                                      /* 结束了 */
@@ -313,7 +313,7 @@ __hoitGCCollectSectorAliveEnd:
     if(bIsCollectOver){
         pErasableSector->HOITS_pRawInfoCurGC  = LW_NULL;                  /* 当前Sector中GC的RawInfo为空 */
         pErasableSector->HOITS_pRawInfoPrevGC = LW_NULL;
-        lib_free(pErasableSector->HOITS_pRawInfoLastGC);                  /* Added By PYQ 2021-08-12 释放内存 */
+        hoit_free(pfs, pErasableSector->HOITS_pRawInfoLastGC, sizeof(HOIT_RAW_INFO));                  /* Added By PYQ 2021-08-12 释放内存 */
         pErasableSector->HOITS_pRawInfoLastGC = LW_NULL; 
 #ifdef GC_DEBUG
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
