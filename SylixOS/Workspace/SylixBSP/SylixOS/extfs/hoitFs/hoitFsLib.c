@@ -194,7 +194,11 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
            HOITN_stSize = __MAX(HOITN_stSize, pFTlistNode->pFTn->pFDnode->HOITFD_offset + pFTlistNode->pFTn->pFDnode->HOITFD_length);
            pFTlistNode = pFTlistNode->pFTlistNext;
         }
-
+        // /* //! 2021-08-15 Modified By PYQ 提高效率 */
+        // PHOIT_FRAG_TREE_NODE pFTn = hoitFragTreeGetLastNode(pNewInode->HOITN_rbtree);
+        // size_t HOITN_stSize       = 0;
+        // HOITN_stSize              = pFTn->uiOfs + pFTn->uiSize;
+        
         pNewInode->HOITN_stSize = HOITN_stSize;
         return pNewInode;
     }
@@ -247,7 +251,6 @@ VOID  __hoit_add_dirent(PHOIT_INODE_INFO  pFatherInode,
         _ErrorHandle(ENOMEM);
         return;
     }
-    PHOIT_VOLUME pfs = pFatherInode->HOITN_volume;
 
     lib_bzero(pWriteBuf, totlen);
     lib_bzero(pRawInfo, sizeof(HOIT_RAW_INFO));
@@ -675,11 +678,10 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     UINT                    uiUsedSizeAlign;
     PHOIT_ERASABLE_SECTOR   pErasableSector;
     UINT                    uiSectorNum;
-    UINT                    uiUsedSizeAlign;
 
 
     uiSectorSize            = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize;
-    uiSectorOffset          = sector_no * uiSectorSize;//hoitGetSectorOffset(sector_no); 
+    uiSectorOffset          = sector_no * uiSectorSize;  
     uiFreeSize              = uiSectorSize;
     uiUsedSize              = 0;
 
@@ -730,18 +732,21 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
 
     PCHAR pReadBuf              = LW_NULL;
     PCHAR pNow                  = LW_NULL;
+    UINT  pNowSize              = 0;
     PCHAR pTempChar             = LW_NULL;
     PHOIT_RAW_HEADER pTempRawHeader = LW_NULL;
     UINT32 uInnerOffset         = 0;
     if(EBSMode){
-        pTempChar = lib_malloc(sizeof(HOIT_RAW_HEADER));
+        pTempChar = hoit_malloc(pfs, sizeof(HOIT_RAW_HEADER));
         lib_bzero(pTempChar, sizeof(HOIT_RAW_HEADER));
-    }else{
+    }
+    else {
         /* 再整个块进行扫描 */
-        pReadBuf    = (PCHAR)lib_malloc(uiSectorSize);
+        pReadBuf    = (PCHAR)hoit_malloc(pfs, uiSectorSize);
         lib_bzero(pReadBuf, uiSectorSize);
         __hoit_read_flash(pfs, uiSectorOffset, pReadBuf, uiSectorSize);
         pNow        = pReadBuf;
+        pNowSize    = uiSectorSize;
     }
 
     BOOL stopFlag       = 0;
@@ -755,19 +760,23 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
             uInnerOffset = hoitSectorGetNextAddr(pfs->HOITFS_cacheHdr, sector_no, sectorIndex++, &obsoleteFlag);
 
 
-            if(uInnerOffset == -1) break;
-            if(sectorIndex > pfs->HOITFS_cacheHdr->HOITCACHE_PageAmount) break;
+            if(uInnerOffset == -1) 
+                break;
+            if(sectorIndex > pfs->HOITFS_cacheHdr->HOITCACHE_PageAmount) 
+                break;
             lib_bzero(pTempChar, sizeof(HOIT_RAW_HEADER));
-            __hoit_read_flash(pfs, uiSectorOffset+uInnerOffset, pTempChar, sizeof(HOIT_RAW_HEADER));
+            __hoit_read_flash(pfs, uiSectorOffset + uInnerOffset, pTempChar, sizeof(HOIT_RAW_HEADER));
             pTempRawHeader = (PHOIT_RAW_HEADER) pTempChar;
 
             UINT32 uLeng = pTempRawHeader->totlen;
-            pNow = lib_malloc(uLeng);
+            pNow     = hoit_malloc(pfs, uLeng);
+            pNowSize = uLeng;
             lib_bzero(pNow, uLeng);
-            __hoit_read_flash(pfs, uiSectorOffset+uInnerOffset, pNow, uLeng);
+            __hoit_read_flash(pfs, uiSectorOffset + uInnerOffset, pNow, uLeng);
         }
         else {
-            if(pNow >= pReadBuf + uiSectorSize) break;
+            if(pNow >= pReadBuf + uiSectorSize) 
+                break;
         }
 
 
@@ -785,8 +794,8 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
             uiFreeSize -= uiUsedSizeAlign;
         }
 
-        if(obsoleteFlag == HOIT_FLAG_OBSOLETE){
-            lib_free(pNow);
+        if(EBSMode && obsoleteFlag == HOIT_FLAG_OBSOLETE){
+            hoit_free(pfs, pNow, pNowSize);
             pNow = LW_NULL;
             continue;
         }
@@ -816,7 +825,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
                     __hoit_add_to_cache_list(pfs, pInodeCache);
                     __HOITFS_VOL_UNLOCK(pfs);
                 }
-                pRawInfo                    = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INFO));
+                pRawInfo                    = (PHOIT_RAW_INFO)hoit_malloc(pfs, sizeof(HOIT_RAW_INFO));
                 if(EBSMode){
                     pRawInfo->phys_addr     = uiSectorOffset + uInnerOffset;
                 }else{
@@ -872,7 +881,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
                     __hoit_add_to_cache_list(pfs, pInodeCache);
                     __HOITFS_VOL_UNLOCK(pfs);
                 }
-                pRawInfo                = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INFO));
+                pRawInfo                = (PHOIT_RAW_INFO)hoit_malloc(pfs, sizeof(HOIT_RAW_INFO));
                 if(EBSMode){
                     pRawInfo->phys_addr     = uiSectorOffset + uInnerOffset;
                 }else{
@@ -916,14 +925,14 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
 
             }
             if(EBSMode){
-                lib_free(pNow);
+                hoit_free(pfs, pNow, pNowSize);
             }else{
                 pNow += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
             }
         }
         else {
             if(EBSMode){
-                lib_free(pNow);
+                hoit_free(pfs, pNow, pNowSize);
             }else{
                 pNow += 4;   /* 每次移动4字节 */
             }
@@ -947,12 +956,13 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     
     __HOITFS_VOL_UNLOCK(pfs);
     if(EBSMode){
-        lib_free(pTempChar);
-    }else{
-        lib_free(pReadBuf);
+        hoit_free(pfs, pTempChar, sizeof(HOIT_RAW_HEADER));
+    }
+    else {
+        hoit_free(pfs, pReadBuf, uiSectorSize);
     }
 
-    lib_free(pThreadAttr);
+    hoit_free(pfs, pThreadAttr, sizeof(ScanThreadAttr));
     return LW_TRUE;
 }
 
@@ -1866,13 +1876,13 @@ ssize_t  __hoit_write(PHOIT_INODE_INFO  pInodeInfo, CPVOID  pvBuffer, size_t  st
         UINT uBufOffset = 0;
         UINT uOldNBytes = stNBytes;
         while(stNBytes > HOIT_MAX_DATA_SIZE){
-            __hoit_write(pInodeInfo, pvBuffer + uBufOffset, HOIT_MAX_DATA_SIZE, stOft + uBufOffset, needLog);
+            __hoit_write(pInodeInfo, ((PCHAR)pvBuffer + uBufOffset), HOIT_MAX_DATA_SIZE, stOft + uBufOffset, needLog);
 
             stNBytes -= HOIT_MAX_DATA_SIZE;
             uBufOffset += HOIT_MAX_DATA_SIZE;
         }
         if(stNBytes > 0){
-            __hoit_write(pInodeInfo, pvBuffer + uBufOffset, stNBytes, stOft + uBufOffset, needLog);
+            __hoit_write(pInodeInfo, ((PCHAR)pvBuffer + uBufOffset), stNBytes, stOft + uBufOffset, needLog);
         }
         return uOldNBytes;
     }
@@ -1916,8 +1926,8 @@ VOID  __hoit_unmount(PHOIT_VOLUME pfs)
 {
     /* TODO 释放RAW INFO需要把GC先关了*/
     //API_SpinDestory()
-#ifdef LIB_DEBUG
     __hoitShowSectorInfo(pfs);
+#ifdef LIB_DEBUG
 #endif /* LIB_DEBUG */
     if (pfs == LW_NULL) {
         printf("Error in unmount.\n");
@@ -2000,6 +2010,7 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
         // if(sector_no == 12){
         //     printf("debug\n");
         // }
+        printf("sector %d\n", sector_no);
         __hoit_scan_single_sector(pThreadAttr);
 #else
         API_ThreadAttrBuild(&scThreadAttr,
