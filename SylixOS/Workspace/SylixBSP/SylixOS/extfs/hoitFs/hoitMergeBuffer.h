@@ -36,7 +36,7 @@
 
 BOOL __hoit_new_merge_buffer(PHOIT_INODE_INFO pInodeInfo);
 BOOL __hoit_new_merge_entry(PHOIT_INODE_INFO pInodeInfo, PHOIT_MERGE_BUFFER pMergeBuffer, PHOIT_FRAG_TREE_NODE pTreeNode);
-BOOL __hoit_del_merge_entry(PHOIT_MERGE_BUFFER pMergeBuffer, PHOIT_MERGE_ENTRY pMergeEntry);
+BOOL __hoit_del_merge_entry(PHOIT_VOLUME pfs, PHOIT_MERGE_BUFFER pMergeBuffer, PHOIT_MERGE_ENTRY pMergeEntry);
 BOOL __hoit_refresh_merge_buffer(PHOIT_INODE_INFO pInodeInfo);
 BOOL __hoit_free_merge_buffer(PHOIT_INODE_INFO pInodeInfo);
 BOOL __hoit_clear_merge_buffer(PHOIT_INODE_INFO pInodeInfo);

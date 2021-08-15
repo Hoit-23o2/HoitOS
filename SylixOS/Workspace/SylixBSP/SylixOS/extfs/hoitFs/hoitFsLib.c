@@ -247,7 +247,6 @@ VOID  __hoit_add_dirent(PHOIT_INODE_INFO  pFatherInode,
         _ErrorHandle(ENOMEM);
         return;
     }
-    PHOIT_VOLUME pfs = pFatherInode->HOITN_volume;
 
     lib_bzero(pWriteBuf, totlen);
     lib_bzero(pRawInfo, sizeof(HOIT_RAW_INFO));
@@ -672,7 +671,6 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     UINT                    uiSectorOffset;
     UINT                    uiFreeSize;
     UINT                    uiUsedSize;
-    UINT                    uiUsedSizeAlign;
     PHOIT_ERASABLE_SECTOR   pErasableSector;
     UINT                    uiSectorNum;
     UINT                    uiUsedSizeAlign;
