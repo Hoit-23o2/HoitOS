@@ -192,6 +192,7 @@ PHOIT_CACHE_BLK hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo, UIN
         pcache->HOITBLK_cacheListNext   = cacheLineHdr->HOITBLK_cacheListNext;
         cacheLineHdr->HOITBLK_cacheListNext->HOITBLK_cacheListPrev  = pcache;
         cacheLineHdr->HOITBLK_cacheListNext     = pcache;
+        pcache->HOITBLK_uiCurOfs        = 0;
 
         pcacheHdr->HOITCACHE_blockNums++;
     }
@@ -468,6 +469,7 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
         pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache;
         pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext = pcache;
 
+        //! 2021-08-14 PYQ 方便调试
     }
 
     /* 更新EBS entry */
@@ -478,8 +480,10 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     pSector->HOITS_offset       += uiSizeAlign;
     pSector->HOITS_uiFreeSize   -= uiSizeAlign;
     pSector->HOITS_uiUsedSize   += uiSizeAlign;
+    pcache->HOITBLK_uiCurOfs    += uiSizeAlign;
     pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_totalUsedSize += uiSizeAlign;
-
+    
+    
     /* 当前写的块满了，则去找下一个仍有空闲的块 */
     //! 减去EBS区域
     if (pSector->HOITS_uiFreeSize  == 0) {
@@ -838,19 +842,19 @@ PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no
 ** 注意:    如果EBS entry进行更改，就需要调整代码
 *********************************************************************************************************/
 VOID    hoitWriteBackCache(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache){
-    UINT offset = pcache->HOITBLK_blkNo*GET_SECTOR_SIZE(8) + NOR_FLASH_START_OFFSET;
+    UINT offset = pcache->HOITBLK_blkNo * GET_SECTOR_SIZE(8) + NOR_FLASH_START_OFFSET;
     /* 先写数据 */
     //! 有问题
     write_nor(offset,
-                pcache->HOITBLK_buf, 
-                pcacheHdr->HOITCACHE_blockSize, 
-                WRITE_KEEP);
+              pcache->HOITBLK_buf, 
+              pcacheHdr->HOITCACHE_blockSize, 
+              WRITE_KEEP);
         
     /* 再写EBS */  
     write_nor(offset + pcacheHdr->HOITCACHE_EBSStartAddr,
-                pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr,
-                (pcacheHdr->HOITCACHE_PageAmount+1)*sizeof(HOIT_EBS_ENTRY),
-                WRITE_KEEP);
+              pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr,
+              (pcacheHdr->HOITCACHE_PageAmount+1)*sizeof(HOIT_EBS_ENTRY),
+              WRITE_KEEP);
 
     /* 最后写CRC校验码 */
     write_nor(offset + pcacheHdr->HOITCACHE_CRCMagicAddr,
@@ -1070,6 +1074,7 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
     
     
     pRawHeader->flag &= (~HOIT_FLAG_NOT_OBSOLETE);      //将obsolete标志变为0，代表过期
+    
     //! 2021-07-07 修改flash上EBS采用写不分配
     hoitWriteThroughCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, (PVOID)pRawHeader, pRawInfo->totlen);
     

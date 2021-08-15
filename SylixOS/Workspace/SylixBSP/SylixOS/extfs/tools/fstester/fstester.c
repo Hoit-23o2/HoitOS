@@ -52,6 +52,7 @@ UINT __fstester_write_test_file(INT iFdTest, ULONG testFileSize) {
         printf("%s lower memory, test fail!\n", __func__);
         return PX_ERROR;
     }
+    printf("\ttestFileSize: %ldB\n", testFileSize);
     dataSize    = lib_strlen(_G_pLoremFull);    /* 文件大小 */
     writeCount  = testFileSize / dataSize ;
     for (i = 0 ; i < writeCount ; i++){
@@ -167,6 +168,7 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         printf("[%s] can't create output file [%s]\n", __func__, pOutputPath);
         return;
     }
+    
 
     if(testType == TEST_TYPE_GC){           /* 针对GC的参数 */
         if(testFileSizeRate < 0.1){
@@ -178,6 +180,47 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     }
 
     asprintf(&pTestPath, "%s/write-for-test", pMountPoint);
+
+#ifdef FSTESTER_WRRD_TEST
+    INT   iFileSize = lib_atoi((PCHAR)pUserValue);
+    printf("%d\n", iFileSize);
+    PCHAR pTestBuffer = (PCHAR)lib_malloc(iFileSize);
+    PCHAR pWriteBuffer = (PCHAR)lib_malloc(iFileSize);
+    lib_memset(pWriteBuffer, 1, iFileSize);
+
+    API_Mount("1", pMountPoint, pFSType);
+    iFdTest = open(pTestPath, O_CREAT | O_TRUNC | O_RDWR, DEFAULT_FILE_PERM);
+    write(iFdTest, pWriteBuffer, iFileSize);
+    close(iFdTest);
+    iFdTest = open(pTestPath, O_RDWR, DEFAULT_FILE_PERM);
+    lib_memset(pTestBuffer, 0, iFileSize);
+    read(iFdTest, pTestBuffer, iFileSize);
+    if(lib_memcmp(pTestBuffer, pWriteBuffer, iFileSize) != 0){
+        printf("cycle 1: error\n");
+    }
+    else {
+        printf("\ncycle 1: pass\n");
+    }
+    close(iFdTest);
+    API_Unmount(pMountPoint);
+
+    API_Mount("1", pMountPoint, pFSType);
+    iFdTest = open(pTestPath, O_RDWR, DEFAULT_FILE_PERM);
+    lib_memset(pTestBuffer, 0, iFileSize);
+    read(iFdTest, pTestBuffer, iFileSize);
+    close(iFdTest);
+    if(lib_memcmp(pTestBuffer, pWriteBuffer, iFileSize) != 0){
+        printf("cycle 2: error\n");
+    }
+    else {
+        printf("\ncycle 2: pass\n");
+    }
+    API_Unmount(pMountPoint);
+    lib_free(pWriteBuffer);
+    lib_free(pTestBuffer);
+    return;
+#endif
+
     iFdTest = __fstester_prepare_test(pTestPath, testFileSizeRate, pMountPoint, pFSType, TRUE);
     if(iFdTest != PX_ERROR){
         fstat(iFdTest, &stat);
@@ -408,7 +451,7 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     UINT                         uiTestCount        = 10;
     PCHAR                        pUserValue         = LW_NULL;
     double                       dTestFileSizeRate  = 0.5;
-
+    
     InitIterator(iter, NAMESPACE, FSTESTER_FUNC_NODE);
     while (iArgPos <= iArgC)
     {

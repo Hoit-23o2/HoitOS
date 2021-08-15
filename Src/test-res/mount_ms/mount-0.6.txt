@@ -1,307 +1,383 @@
+<<<<<<< HEAD
+====== TEST 99 ======
+================ Goodbye GC ================
+[malloc and zero: 0.000000ms]
+[__hoit_read_flash: 11.060000ms]
+[hoitCheckSectorCRC: 0.633000ms]
+[while loop: 0.791000ms]
+[add to sector: 0.016000ms]
+=======
 [HOITFS-NO-OPT fstester -t hoitfs -l 100 -mnt -s 0.6] ( ms )
-55.09
-49.24
-50.24
-50.00
-50.00
-50.00
-57.74
-48.07
-47.64
-49.91
-49.16
-50.51
-57.91
-40.76
-50.00
-56.38
-40.81
-50.00
-50.00
-50.00
-59.80
-58.53
-49.26
-59.49
-50.00
-50.00
-59.87
-50.00
-50.00
-50.00
-50.00
-39.16
-50.00
-50.00
-49.68
-50.25
-48.43
-50.71
-49.13
-47.17
-49.45
-49.23
-49.78
-50.00
-47.66
-50.48
-50.16
-50.00
-50.00
-58.32
-48.39
-50.79
-59.67
-50.00
-50.00
-38.53
-50.68
-48.24
-49.00
-48.18
-49.27
-50.93
-47.74
-47.09
-48.13
-38.54
-50.00
-59.57
-50.00
-50.00
-50.20
-37.88
-49.37
-49.91
-48.39
-48.20
-54.57
-48.84
-48.72
-47.50
-48.45
-50.32
-49.89
-41.08
-50.00
-50.00
-50.00
-50.00
-50.00
-50.00
-61.22
-49.76
-49.29
-46.00
-49.19
-52.33
-48.84
-49.95
-51.12
-48.35
+>>>>>>> parent of b561162 (2021-08-11 第一版mount测试图)
 
+[malloc and zero: 0.063000ms]
+[__hoit_read_flash: 2.010000ms]
+[hoitCheckSectorCRC: 0.585000ms]
+[while loop: 0.553000ms]
+[add to sector: 0.000000ms]
 
+<<<<<<< HEAD
+[malloc and zero: 0.048000ms]
+[__hoit_read_flash: 0.015000ms]
+[hoitCheckSectorCRC: 0.000000ms]
+[while loop: 0.000000ms]
+[add to sector: 0.000000ms]
+=======
 [HOITFS fstester -t hoitfs -l 100 -mnt -s 0.6]
-52.74
-49.95
-59.11
-59.81
-50.00
-52.66
-48.18
-51.01
-48.28
-48.40
-46.36
-48.40
-48.66
+60.10
+58.43
+48.59
+58.56
+58.48
+48.58
+58.69
+58.42
+58.64
+58.58
+58.55
+48.54
+56.35
+56.61
+66.52
+66.68
+76.47
+76.55
+66.58
+66.84
+76.30
+66.44
+76.38
+76.44
+76.79
+66.42
+66.30
+56.42
+58.36
+65.81
+66.35
+56.46
+56.61
+66.47
+56.52
+56.74
+58.40
+65.73
+58.46
+66.35
+57.12
+66.57
+66.58
+66.55
+68.55
+58.16
+76.15
+58.51
+58.37
+66.58
+76.11
+66.42
+66.99
+66.33
+66.87
 50.17
-43.32
-50.00
-60.70
-54.89
-41.11
-55.24
-41.68
-50.00
-54.59
-42.12
-50.00
-50.00
-60.68
-54.02
-50.79
-50.00
-65.38
-42.85
-50.00
-49.34
-52.12
-44.34
-60.36
-49.48
-49.38
-47.90
-49.41
-49.05
-51.42
-44.97
-51.33
-48.24
-47.34
-48.96
-47.29
-46.79
-50.08
-49.94
-51.33
-59.26
-50.00
-58.61
-59.48
-58.45
-56.44
-46.53
-46.73
-46.57
-37.66
-60.40
-48.12
-38.13
-61.39
-54.41
-45.09
-47.36
-52.82
-46.44
-48.07
-47.47
-49.92
-51.85
-50.00
-50.00
-50.00
-39.43
-57.63
-45.24
-46.60
-45.55
-38.13
-39.86
-57.74
-46.42
-44.49
-36.52
-59.49
-55.85
-47.25
-44.32
-53.32
-42.39
-50.00
-58.91
-53.99
-44.92
+56.55
+66.42
+58.34
+66.77
+66.44
+66.77
+66.23
+66.63
+66.17
+66.57
+66.19
+66.60
+66.38
+56.23
+56.17
+56.22
+56.25
+66.22
+50.38
+66.65
+58.53
+66.72
+68.58
+76.25
+66.82
+66.42
+66.72
+76.46
+66.20
+65.54
+56.33
+66.11
+56.39
+56.28
+68.37
+66.00
+65.87
+66.14
+56.50
+66.79
+76.06
+65.16
+58.46
+55.76
+>>>>>>> parent of b561162 (2021-08-11 第一版mount测试图)
 
+[malloc and zero: 0.000000ms]
+[__hoit_read_flash: 11.124000ms]
+[hoitCheckSectorCRC: 0.585000ms]
+[while loop: 0.538000ms]
+[add to sector: 0.000000ms]
 
+<<<<<<< HEAD
+[malloc and zero: 0.064000ms]
+[__hoit_read_flash: 1.756000ms]
+[hoitCheckSectorCRC: 0.633000ms]
+[while loop: 0.538000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.063000ms]
+[__hoit_read_flash: -9.431000ms]
+[hoitCheckSectorCRC: 0.000000ms]
+[while loop: 0.000000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.000000ms]
+[__hoit_read_flash: 10.586000ms]
+[hoitCheckSectorCRC: 0.585000ms]
+[while loop: 0.602000ms]
+[add to sector: 0.015000ms]
+
+[malloc and zero: 0.064000ms]
+[__hoit_read_flash: 1.757000ms]
+[hoitCheckSectorCRC: 0.585000ms]
+[while loop: 0.617000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.047000ms]
+[__hoit_read_flash: -9.478000ms]
+[hoitCheckSectorCRC: 0.000000ms]
+[while loop: 0.000000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.000000ms]
+[__hoit_read_flash: 11.598000ms]
+[hoitCheckSectorCRC: 0.586000ms]
+[while loop: 0.570000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.047000ms]
+[__hoit_read_flash: 1.804000ms]
+[hoitCheckSectorCRC: 0.601000ms]
+[while loop: 0.633000ms]
+[add to sector: 0.016000ms]
+
+[malloc and zero: 0.047000ms]
+[__hoit_read_flash: 0.000000ms]
+[hoitCheckSectorCRC: 0.000000ms]
+[while loop: 0.000000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.000000ms]
+[__hoit_read_flash: 10.649000ms]
+[hoitCheckSectorCRC: 0.633000ms]
+[while loop: 0.032000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.048000ms]
+[__hoit_read_flash: 1.836000ms]
+[hoitCheckSectorCRC: 0.601000ms]
+[while loop: 0.048000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.047000ms]
+[__hoit_read_flash: -8.291000ms]
+[hoitCheckSectorCRC: 0.000000ms]
+[while loop: 0.000000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.000000ms]
+[__hoit_read_flash: 0.000000ms]
+[hoitCheckSectorCRC: 0.570000ms]
+[while loop: 0.031000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.064000ms]
+[__hoit_read_flash: 1.883000ms]
+[hoitCheckSectorCRC: 0.633000ms]
+[while loop: 0.032000ms]
+[add to sector: 0.016000ms]
+
+[malloc and zero: 0.063000ms]
+[__hoit_read_flash: 1.836000ms]
+[hoitCheckSectorCRC: -9.573000ms]
+[while loop: 0.000000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.000000ms]
+[__hoit_read_flash: 0.000000ms]
+[hoitCheckSectorCRC: 0.000000ms]
+[while loop: 0.000000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 10.095000ms]
+[__hoit_read_flash: 1.915000ms]
+[hoitCheckSectorCRC: 0.554000ms]
+[while loop: 0.047000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.048000ms]
+[__hoit_read_flash: 1.931000ms]
+[hoitCheckSectorCRC: 0.633000ms]
+[while loop: 0.048000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.064000ms]
+[__hoit_read_flash: 0.000000ms]
+[hoitCheckSectorCRC: 0.000000ms]
+[while loop: 0.000000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.000000ms]
+[__hoit_read_flash: 11.551000ms]
+[hoitCheckSectorCRC: 0.570000ms]
+[while loop: 0.048000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.047000ms]
+[__hoit_read_flash: 1.724000ms]
+[hoitCheckSectorCRC: 0.554000ms]
+[while loop: 0.048000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.063000ms]
+[__hoit_read_flash: -8.829000ms]
+[hoitCheckSectorCRC: 0.000000ms]
+[while loop: 0.000000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.000000ms]
+[__hoit_read_flash: 10.348000ms]
+[hoitCheckSectorCRC: 0.553000ms]
+[while loop: 0.047000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.048000ms]
+[__hoit_read_flash: 2.041000ms]
+[hoitCheckSectorCRC: 0.538000ms]
+[while loop: 0.032000ms]
+[add to sector: 0.000000ms]
+
+[malloc and zero: 0.048000ms]
+[__hoit_read_flash: 1.852000ms]
+[hoitCheckSectorCRC: 0.000000ms]
+[while loop: 0.000000ms]
+[add to sector: 0.000000ms]
+
+[scan sector: 90.000000ms]
+=======
 [SPIFFS fstester -t spiffs -l 100 -mnt -s 0.6]
-3.53
-9.11
-11.91
-3.04
-3.43
-9.95
-11.35
-3.32
-3.70
-9.92
-12.36
-3.31
-3.16
-1.00
-11.71
-3.58
-3.29
-1.00
-11.33
-3.37
-3.20
-9.40
-10.47
-3.28
-3.40
-8.65
-1.00
-3.37
-3.48
-8.31
-1.00
-3.48
-3.27
-7.94
-10.65
-3.50
-3.24
-8.86
-11.23
-3.35
-3.61
-9.75
-11.08
-3.43
-3.35
-9.40
-10.63
-3.23
-3.23
-8.51
-1.00
-3.24
-3.39
-7.67
-1.00
-12.42
-3.40
-6.79
-1.00
-11.52
-3.37
-3.29
-9.59
-10.52
-3.24
-3.28
-8.65
-10.06
-3.42
-3.27
-8.36
-1.00
-3.39
-3.58
+20.10
+7.45
+7.22
+7.56
+7.22
+7.20
+7.28
+7.31
+7.48
+7.69
+7.22
+7.39
+7.26
+7.44
+7.66
+7.01
+7.44
+6.87
+7.44
+7.28
+8.80
+7.18
+8.77
+7.47
+7.40
+7.07
+7.56
+7.12
+7.14
+7.34
+7.31
+7.50
+7.22
+7.53
+7.22
+8.15
+7.78
+7.34
+7.58
+7.80
+7.45
+7.58
+7.39
+7.44
+7.47
+7.37
+7.45
+7.58
+7.26
+7.64
+7.31
+7.56
+7.53
+7.45
+7.52
+7.42
+7.53
+7.10
+7.40
+7.53
+7.40
+7.25
+7.50
+7.48
+7.53
+7.63
+7.48
+7.60
+7.45
+7.63
+7.28
+7.33
+7.52
+8.23
+8.18
+7.93
+8.23
+8.16
+8.21
+7.91
+7.69
+7.77
+7.74
+7.71
+7.71
+8.23
 8.13
-10.51
-3.37
-3.40
-8.85
-10.43
-3.29
-3.32
-8.81
-10.81
-3.59
-3.21
-9.22
-11.30
-3.21
-3.51
-9.61
-12.07
-3.40
-3.34
-1.00
-12.69
-3.20
-6.96
-1.00
-13.32
+8.40
+8.02
+8.18
+8.07
+8.26
+7.89
+8.26
+8.23
+8.45
+7.96
+7.78
+7.42
+7.88
+>>>>>>> parent of b561162 (2021-08-11 第一版mount测试图)
