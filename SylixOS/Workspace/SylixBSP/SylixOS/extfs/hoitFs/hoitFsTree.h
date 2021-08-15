@@ -77,7 +77,7 @@ static inline PHOIT_FRAG_TREE_NODE newHoitFragTreeNode(PHOIT_VOLUME pfs,  PHOIT_
     pFTn->pMergeEntry = LW_NULL;    /* 07-18 By HZS */
     return pFTn;
 }
-
+#ifndef FT_OBSOLETE_TREE_LIST
 /*********************************************************************************************************
  PHOIT_FRAG_TREE_LIST_NODE¹¹Ôìº¯Êý
 *********************************************************************************************************/
@@ -152,7 +152,6 @@ static inline VOID hoitFragTreeListFree(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeade
     lib_free(pFTlistHeader);
 }
 PHOIT_FRAG_TREE_LIST_HEADER   hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh);
-#ifndef FT_OBSOLETE_TREE_LIST
 #endif  /* not FT_OBSOLETE_TREE_LIST */
 
 /*********************************************************************************************************

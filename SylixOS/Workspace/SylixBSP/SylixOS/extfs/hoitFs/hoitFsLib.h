@@ -30,7 +30,6 @@
 
 
 #include "hoitType.h"
-#include "../tools/crc/crc32.h"
 typedef struct scanThreadAttr { /* 一个局部定义的结构体, 只用来给scan_single_sector传参 */
     PHOIT_VOLUME    pfs;
     UINT8           sector_no;
@@ -114,7 +113,7 @@ static void crc32_check(PHOIT_RAW_HEADER pRawHeader) {
         printf("111\n");
     }
     pRawHeader->crc = 0;
-    UINT32 uNowCrc = crc32_le((unsigned char*)pRawHeader, pRawHeader->totlen);
+    UINT32 uNowCrc = hoit_crc32_le((unsigned char*)pRawHeader, pRawHeader->totlen);
     if (uPrevCrc != uNowCrc) {
         PHOIT_RAW_INODE pp = (PHOIT_RAW_INODE)pRawHeader;
         CHAR* pChar = ((char*)pp)+sizeof(HOIT_RAW_INODE);

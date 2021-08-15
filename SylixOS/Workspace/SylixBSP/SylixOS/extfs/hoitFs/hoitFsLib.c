@@ -186,18 +186,18 @@ PHOIT_INODE_INFO __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino) {
         pNewInode->HOITN_pMergeBuffer = LW_NULL;
         __hoit_new_merge_buffer(pNewInode); /* 07-18 增加初始化WriteBuffer By HZS */
 
-        PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader = hoitFragTreeCollectRange(pNewInode->HOITN_rbtree, 0, INT_MAX);
-        PHOIT_FRAG_TREE_LIST_NODE pFTlistNode = pFTlistHeader->pFTlistHeader->pFTlistNext;
-        size_t HOITN_stSize = 0;
-        while (pFTlistNode)
-        {
-           HOITN_stSize = __MAX(HOITN_stSize, pFTlistNode->pFTn->pFDnode->HOITFD_offset + pFTlistNode->pFTn->pFDnode->HOITFD_length);
-           pFTlistNode = pFTlistNode->pFTlistNext;
-        }
+        // PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader = hoitFragTreeCollectRange(pNewInode->HOITN_rbtree, 0, INT_MAX);
+        // PHOIT_FRAG_TREE_LIST_NODE pFTlistNode = pFTlistHeader->pFTlistHeader->pFTlistNext;
+        // size_t HOITN_stSize = 0;
+        // while (pFTlistNode)
+        // {
+        //    HOITN_stSize = __MAX(HOITN_stSize, pFTlistNode->pFTn->pFDnode->HOITFD_offset + pFTlistNode->pFTn->pFDnode->HOITFD_length);
+        //    pFTlistNode = pFTlistNode->pFTlistNext;
+        // }
         // /* //! 2021-08-15 Modified By PYQ 提高效率 */
-        // PHOIT_FRAG_TREE_NODE pFTn = hoitFragTreeGetLastNode(pNewInode->HOITN_rbtree);
-        // size_t HOITN_stSize       = 0;
-        // HOITN_stSize              = pFTn->uiOfs + pFTn->uiSize;
+        PHOIT_FRAG_TREE_NODE pFTn = hoitFragTreeGetLastNode(pNewInode->HOITN_rbtree);
+        size_t HOITN_stSize       = 0;
+        HOITN_stSize              = pFTn->uiOfs + pFTn->uiSize;
         
         pNewInode->HOITN_stSize = HOITN_stSize;
         return pNewInode;
@@ -269,7 +269,7 @@ VOID  __hoit_add_dirent(PHOIT_INODE_INFO  pFatherInode,
     UINT phys_addr = 0;
 
     pRawDirent->crc = 0;
-    pRawDirent->crc = crc32_le(pWriteBuf, totlen);
+    pRawDirent->crc = hoit_crc32_le(pWriteBuf, totlen);
     __hoit_write_flash(pfs, (PVOID)pWriteBuf, totlen, &phys_addr, needLog);
 
     pRawInfo->phys_addr = phys_addr;
@@ -530,7 +530,7 @@ UINT8 __hoit_del_raw_data(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     __hoit_mark_obsolete(pfs, pRawHeader, pRawInfo);
     // /* 将obsolete标志位清0后写回原地址 */
     // pRawHeader->crc = 0;
-    // pRawHeader->crc = crc32_le(pRawHeader, pRawInfo->totlen);
+    // pRawHeader->crc = hoit_crc32_le(pRawHeader, pRawInfo->totlen);
     // __hoit_write_flash_thru(pfs, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
 
     hoit_free(pfs, buf, pRawInfo->totlen);
@@ -719,12 +719,12 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     BOOL EBSMode = 1;   /* EBSMode表示是否启用EBS结构, Sector的EBS的CRC校验不通过或宏定义取消则EBSMode为0 */
 
 #ifdef EBS_ENABLE
-    lib_gettimeofday(&timeStart, LW_NULL);
-    if(hoitCheckSectorCRC(pfs->HOITFS_cacheHdr, sector_no) == LW_FALSE) {
-        EBSMode = 0;
-    }
-    lib_gettimeofday(&timeEnd, LW_NULL);
-    printf("[hoitCheckSectorCRC: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
+    // lib_gettimeofday(&timeStart, LW_NULL);
+    // if(hoitCheckSectorCRC(pfs->HOITFS_cacheHdr, sector_no) == LW_FALSE) {
+    //     EBSMode = 0;
+    // }
+    // lib_gettimeofday(&timeEnd, LW_NULL);
+    // printf("[hoitCheckSectorCRC: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
 #else
     EBSMode = 0;
 #endif
@@ -1019,11 +1019,11 @@ PHOIT_INODE_INFO __hoit_new_inode_info(PHOIT_VOLUME pfs, mode_t mode, CPCHAR pcL
     if (S_ISLNK(mode)) {
         PCHAR pLink = ((PCHAR)pRawInode) + sizeof(HOIT_RAW_INODE);
         lib_memcpy(pLink, cFullPathName, lib_strlen(cFullPathName));  /* 链接文件 */
-        pRawInode->crc = crc32_le(pRawInode, totlen);
+        pRawInode->crc = hoit_crc32_le(pRawInode, totlen);
         __hoit_write_flash(pfs, (PVOID)pRawInode, totlen, &phys_addr, 1);
     }
     else {
-        pRawInode->crc = crc32_le(pRawInode, sizeof(HOIT_RAW_INODE));
+        pRawInode->crc = hoit_crc32_le(pRawInode, sizeof(HOIT_RAW_INODE));
         __hoit_write_flash(pfs, (PVOID)pRawInode, sizeof(HOIT_RAW_INODE), &phys_addr, 1);
     }
     
@@ -1189,7 +1189,7 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     __hoit_mark_obsolete(pfs, pRawHeader, pRawInfo);
     // /* 将obsolete标志位清0后写回原地址 */
     // pRawHeader->crc = 0;
-    // pRawHeader->crc = crc32_le(pRawHeader, pRawInfo->totlen);
+    // pRawHeader->crc = hoit_crc32_le(pRawHeader, pRawInfo->totlen);
     // __hoit_write_flash_thru(pfs, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
     
     /* 将obsolete标志位恢复后写到新地址 */
@@ -1200,7 +1200,7 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     //pfs->HOITFS_now_sector = hoitFindNextToWrite(pfs->HOITFS_cacheHdr, HOIT_CACHE_TYPE_DATA, pRawInfo->totlen);
     
     pRawHeader->crc = 0;
-    pRawHeader->crc = crc32_le(pRawHeader, pRawInfo->totlen);
+    pRawHeader->crc = hoit_crc32_le(pRawHeader, pRawInfo->totlen);
     iRes = __hoit_write_flash(pfs, pReadBuf, pRawInfo->totlen, &phys_addr, 1);
     pRawInfo->phys_addr = phys_addr;
 
@@ -1580,6 +1580,8 @@ INT  __hoit_unlink_dir(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDirent
 VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag)
 {
     PHOIT_VOLUME pfs = pInodeInfo->HOITN_volume;
+    /* //! Add By PYQ 2021-08-15 关闭前查看红黑树内存 */
+    hoitFragTreeShowMemory(pInodeInfo->HOITN_rbtree);
     if((pInodeInfo->HOITN_ino == HOIT_ROOT_DIR_INO && iFlag != 0x3) || pInodeInfo == LW_NULL){ /* 不close根目录 */
         return;
     }
@@ -1610,6 +1612,7 @@ VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag)
             hoit_free(pfs, pInodeInfo->HOITN_metadata, sizeof(HOIT_FULL_DIRENT));
         hoit_free(pfs, pInodeInfo, sizeof(HOIT_INODE_INFO));
     }
+    
 }
 /*********************************************************************************************************
 ** 函数名称: __hoit_move_check
@@ -1926,8 +1929,8 @@ VOID  __hoit_unmount(PHOIT_VOLUME pfs)
 {
     /* TODO 释放RAW INFO需要把GC先关了*/
     //API_SpinDestory()
-    __hoitShowSectorInfo(pfs);
 #ifdef LIB_DEBUG
+    __hoitShowSectorInfo(pfs);
 #endif /* LIB_DEBUG */
     if (pfs == LW_NULL) {
         printf("Error in unmount.\n");
@@ -2000,7 +2003,7 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     struct timeval timeStart;
     struct timeval timeEnd;
 
-    lib_gettimeofday(&timeStart, LW_NULL);
+    // lib_gettimeofday(&timeStart, LW_NULL);
     while (hoitGetSectorSize(sector_no) != -1) {
 
         ScanThreadAttr* pThreadAttr = (ScanThreadAttr*)hoit_malloc(pfs, sizeof(ScanThreadAttr));
@@ -2010,12 +2013,12 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
         // if(sector_no == 12){
         //     printf("debug\n");
         // }
-        printf("sector %d\n", sector_no);
+        // printf("sector %d\n", sector_no);
         __hoit_scan_single_sector(pThreadAttr);
 #else
         API_ThreadAttrBuild(&scThreadAttr,
-             4 * LW_CFG_KB_SIZE,
-             LW_PRIO_NORMAL,
+             LW_CFG_KB_SIZE,
+             LW_PRIO_HIGHEST,
              LW_OPTION_THREAD_STK_CHK,
              (VOID*)pThreadAttr);
 
@@ -2026,12 +2029,12 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
 #endif
         sector_no++;
     }
-    lib_gettimeofday(&timeEnd, LW_NULL);
-    printf("[scan sector: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
+    // lib_gettimeofday(&timeEnd, LW_NULL);
+    // printf("[scan sector: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
 #ifdef MULTI_THREAD_ENABLE
-     for (i = 0; i < handleSize; i++) {
-         API_ThreadJoin(ulObjectHandle[i], LW_NULL);
-     }
+    for (i = 0; i < handleSize; i++) {
+       API_ThreadJoin(ulObjectHandle[i], LW_NULL);
+    }
 #endif
     pfs->HOITFS_highest_ino++;
     pfs->HOITFS_highest_version++;

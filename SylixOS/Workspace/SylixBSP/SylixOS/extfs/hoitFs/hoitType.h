@@ -24,6 +24,7 @@
 #include "stdio.h"
 #include "SylixOS.h"
 #include "../tools/list/list_interface.h"
+#include "../tools/crc/crc32.h"
 
 //!2021-06-06 修改块级管理结构（三个链表） by zn
 /*********************************************************************************************************
@@ -58,14 +59,11 @@
 /*********************************************************************************************************
   HoitFs 特性宏控
 *********************************************************************************************************/
-// #define  MULTI_THREAD_ENABLE      /* 启用多线程 */
-// #define  EBS_ENABLE               /* 启用EBS */
-// #define  WRITE_BUFFER_ENABLE         /* 启用WriteBuffer */
+#define  MULTI_THREAD_ENABLE      /* 启用多线程 */
+#define  EBS_ENABLE               /* 启用EBS */
+#define  WRITE_BUFFER_ENABLE      /* 启用WriteBuffer */
 // #define  BACKGOURND_GC_ENABLE     /* 启用后台GC */
-/*********************************************************************************************************
-  HoitFs CRC DATA特性
-*********************************************************************************************************/
-#define  CRC_DATA_ENABLE
+// #define  CRC_DATA_ENABLE          /*  CRC DATA特性 */
 //! 07-18 ZN 暂时注释log
 // #define  LOG_ENABLE
 
@@ -90,7 +88,7 @@
 #define HOIT_FLAG_OBSOLETE                  0x00000000
 #define HOIT_ERROR                          100
 #define HOIT_ROOT_DIR_INO                   1   /* HoitFs的根目录的ino为1 */
-#define HOIT_MAX_DATA_SIZE                  1024
+#define HOIT_MAX_DATA_SIZE                  4096
 #define __HOIT_IS_OBSOLETE(pRawHeader)      ((pRawHeader->flag & HOIT_FLAG_NOT_OBSOLETE)    == 0)
 #define __HOIT_IS_TYPE_INODE(pRawHeader)    ((pRawHeader->flag & HOIT_FLAG_TYPE_INODE)  != 0)
 #define __HOIT_IS_TYPE_DIRENT(pRawHeader)   ((pRawHeader->flag & HOIT_FLAG_TYPE_DIRENT) != 0)
@@ -549,7 +547,6 @@ struct hoit_merge_entry
 #define HOIT_RAW_DATA_MAX_SIZE      4096    /* 单位为 Byte */
 
 static inline PVOID hoit_malloc(PHOIT_VOLUME pfs, size_t stNBytes){
-    if(pfs == LW_NULL)
     pfs->HOITFS_ulCurBlk += stNBytes;
     if(pfs->HOITFS_ulCurBlk > pfs->HOITFS_ulMaxBlk){
        pfs->HOITFS_ulMaxBlk = pfs->HOITFS_ulCurBlk;
@@ -566,4 +563,14 @@ static inline PVOID hoit_free(PHOIT_VOLUME pfs, PVOID pvPtr, size_t stNBytes){
 *********************************************************************************************************/
 BOOL                  hoitLogCheckIfLog(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector);
 PHOIT_ERASABLE_SECTOR hoitFindAvailableSector(PHOIT_VOLUME pfs);
+
+#ifdef CRC_DATA_ENABLE
+static UINT32         hoit_crc32_le(PUCHAR p, UINT len){
+    return crc32_le(p, len);
+}
+#else 
+static UINT32         hoit_crc32_le(PUCHAR p, UINT len){
+
+}
+#endif  /* CRC_DATA_ENABLE */
 #endif /* SYLIXOS_EXTFS_HOITFS_HOITTYPE_H_ */
