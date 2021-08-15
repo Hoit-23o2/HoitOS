@@ -41,8 +41,9 @@
 ** 调用模块:
 *********************************************************************************************************/
 BOOL __hoit_new_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
+    PHOIT_VOLUME    pfs = pInodeInfo->HOITN_volume;
     if (pInodeInfo->HOITN_pMergeBuffer == LW_NULL) {
-        pInodeInfo->HOITN_pMergeBuffer              = (PHOIT_MERGE_BUFFER)lib_malloc(sizeof(HOIT_MERGE_BUFFER));
+        pInodeInfo->HOITN_pMergeBuffer              = (PHOIT_MERGE_BUFFER)hoit_malloc(pfs, sizeof(HOIT_MERGE_BUFFER));
         pInodeInfo->HOITN_pMergeBuffer->pList       = LW_NULL;
         pInodeInfo->HOITN_pMergeBuffer->threshold   = HOIT_MERGE_BUFFER_THRESHOLD;
         pInodeInfo->HOITN_pMergeBuffer->size        = 0;
@@ -59,7 +60,8 @@ BOOL __hoit_new_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
 *********************************************************************************************************/
 BOOL __hoit_new_merge_entry(PHOIT_INODE_INFO pInodeInfo, PHOIT_MERGE_BUFFER pMergeBuffer, PHOIT_FRAG_TREE_NODE pTreeNode) {
     /* 没有相关的Entry, 新建一个Entry */
-    PHOIT_MERGE_ENTRY pMergeEntry = (PHOIT_MERGE_ENTRY)lib_malloc(sizeof(HOIT_MERGE_ENTRY));
+    PHOIT_VOLUME      pfs = pInodeInfo->HOITN_volume;
+    PHOIT_MERGE_ENTRY pMergeEntry = (PHOIT_MERGE_ENTRY)hoit_malloc(pfs, sizeof(HOIT_MERGE_ENTRY));
     pMergeEntry->pTreeNode = pTreeNode;
     pMergeEntry->pNext = LW_NULL;
     pMergeEntry->pPrev = LW_NULL;
@@ -90,7 +92,7 @@ BOOL __hoit_new_merge_entry(PHOIT_INODE_INFO pInodeInfo, PHOIT_MERGE_BUFFER pMer
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-BOOL __hoit_del_merge_entry(PHOIT_MERGE_BUFFER pMergeBuffer, PHOIT_MERGE_ENTRY pMergeEntry) {
+BOOL __hoit_del_merge_entry(PHOIT_VOLUME pfs, PHOIT_MERGE_BUFFER pMergeBuffer, PHOIT_MERGE_ENTRY pMergeEntry) {
     if (pMergeEntry == LW_NULL) {
         return LW_FALSE;
     }
@@ -105,7 +107,7 @@ BOOL __hoit_del_merge_entry(PHOIT_MERGE_BUFFER pMergeBuffer, PHOIT_MERGE_ENTRY p
         pMergeBuffer->pList = pMergeEntry->pNext;
     }
 
-    __SHEAP_FREE(pMergeEntry);
+    hoit_free(pfs, pMergeEntry, sizeof(HOIT_MERGE_ENTRY));
     pMergeBuffer->size -=1 ;
     return LW_TRUE;
 }
@@ -119,6 +121,7 @@ BOOL __hoit_del_merge_entry(PHOIT_MERGE_BUFFER pMergeBuffer, PHOIT_MERGE_ENTRY p
 ** 调用模块:
 *********************************************************************************************************/
 BOOL __hoit_free_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
+    PHOIT_VOLUME    pfs = pInodeInfo->HOITN_volume;
     if (pInodeInfo == LW_NULL || pInodeInfo->HOITN_pMergeBuffer == LW_NULL) {
         return LW_FALSE;
     }
@@ -128,10 +131,10 @@ BOOL __hoit_free_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
     PHOIT_MERGE_ENTRY pNextWriteEntry   = LW_NULL;
     while (pNowWriteEntry) {
         pNextWriteEntry = pNowWriteEntry->pNext;
-        __SHEAP_FREE(pNowWriteEntry);
+        hoit_free(pfs, pNowWriteEntry, sizeof(HOIT_MERGE_ENTRY));
         pNowWriteEntry = pNextWriteEntry;
     }
-    __SHEAP_FREE(pMergeBuffer);
+    hoit_free(pfs, pMergeBuffer, sizeof(HOIT_MERGE_BUFFER));
     pInodeInfo->HOITN_pMergeBuffer = LW_NULL;
 
     return LW_TRUE;
@@ -146,6 +149,7 @@ BOOL __hoit_free_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
 ** 调用模块:
 *********************************************************************************************************/
 BOOL __hoit_clear_merge_buffer(PHOIT_INODE_INFO pInodeInfo){
+    PHOIT_VOLUME       pfs = pInodeInfo->HOITN_volume; 
     if (pInodeInfo == LW_NULL || pInodeInfo->HOITN_pMergeBuffer == LW_NULL) {
         return LW_FALSE;
     }
@@ -155,7 +159,7 @@ BOOL __hoit_clear_merge_buffer(PHOIT_INODE_INFO pInodeInfo){
     PHOIT_MERGE_ENTRY pNextWriteEntry   = LW_NULL;
     while (pNowWriteEntry) {
         pNextWriteEntry = pNowWriteEntry->pNext;
-        __SHEAP_FREE(pNowWriteEntry);
+        hoit_free(pfs, pNowWriteEntry, sizeof(HOIT_MERGE_ENTRY));
         pNowWriteEntry = pNextWriteEntry;
     }
 
@@ -175,6 +179,7 @@ BOOL __hoit_clear_merge_buffer(PHOIT_INODE_INFO pInodeInfo){
 *********************************************************************************************************/
 BOOL __hoit_refresh_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
     PHOIT_MERGE_BUFFER pMergeBuffer = pInodeInfo->HOITN_pMergeBuffer;
+    PHOIT_VOLUME       pfs          = pInodeInfo->HOITN_volume;
     INT32   i;
     if (pMergeBuffer == LW_NULL) {
         return LW_FALSE;
@@ -188,7 +193,7 @@ BOOL __hoit_refresh_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
             pNextEntry = pNowEntry->pNext;
             /* 修复small write越来越慢的原因: MergeBuffer没有删除那些已经失效的Entry */
             if(pNowEntry->pTreeNode == LW_NULL){
-                __hoit_del_merge_entry(pMergeBuffer, pNowEntry);
+                __hoit_del_merge_entry(pfs, pMergeBuffer, pNowEntry);
                 pNowEntry = pNextEntry;
                 continue;
             }
@@ -230,7 +235,7 @@ BOOL __hoit_refresh_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
                         pLastEntry = pLastEntry->pPrev;
                         jump_count -= 1;
                     }
-                    char* pvBuffer = (char*)lib_malloc(right - left);
+                    char* pvBuffer = (char*)hoit_malloc(pfs, right - left);
                     hoitFragTreeRead(pInodeInfo->HOITN_rbtree, left, right-left, pvBuffer);
                     __hoit_write(pInodeInfo, pvBuffer, right - left, left, 0);
                 }
@@ -246,7 +251,7 @@ BOOL __hoit_refresh_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
             pLastEntry = pLastEntry->pPrev;
             jump_count -= 1;
         }
-        char* pvBuffer = (char*)lib_malloc(right - left);
+        char* pvBuffer = (char*)hoit_malloc(pfs, right - left);
         hoitFragTreeRead(pInodeInfo->HOITN_rbtree, left, right - left, pvBuffer);
         __hoit_write(pInodeInfo, pvBuffer, right - left, left, 0);
     }

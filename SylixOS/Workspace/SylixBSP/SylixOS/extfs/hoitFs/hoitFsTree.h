@@ -68,8 +68,8 @@ BOOL             __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFD
 
 #endif // FT_TEST
 
-static inline PHOIT_FRAG_TREE_NODE newHoitFragTreeNode(PHOIT_FULL_DNODE pFDnode, UINT32 uiSize, UINT32 uiOfs, UINT32 iKey){
-    PHOIT_FRAG_TREE_NODE pFTn = (PHOIT_FRAG_TREE_NODE)lib_malloc(sizeof(HOIT_FRAG_TREE_NODE));
+static inline PHOIT_FRAG_TREE_NODE newHoitFragTreeNode(PHOIT_VOLUME pfs,  PHOIT_FULL_DNODE pFDnode, UINT32 uiSize, UINT32 uiOfs, UINT32 iKey){
+    PHOIT_FRAG_TREE_NODE pFTn = (PHOIT_FRAG_TREE_NODE)hoit_malloc(pfs, sizeof(HOIT_FRAG_TREE_NODE));
     pFTn->pRbn.iKey = iKey;
     pFTn->uiOfs = uiOfs;
     pFTn->uiSize = uiSize;
@@ -78,7 +78,7 @@ static inline PHOIT_FRAG_TREE_NODE newHoitFragTreeNode(PHOIT_FULL_DNODE pFDnode,
     return pFTn;
 }
 
-
+#ifndef FT_OBSOLETE_TREE_LIST
 /*********************************************************************************************************
  PHOIT_FRAG_TREE_LIST_NODE构造函数
 *********************************************************************************************************/
@@ -152,7 +152,7 @@ static inline VOID hoitFragTreeListFree(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeade
     }
     lib_free(pFTlistHeader);
 }
-
+#endif  /* not FT_OBSOLETE_TREE_LIST */
 
 /*********************************************************************************************************
   FragTree基本操作 - 线程不安全 - 不同进程同时打开文件，需要做锁操作

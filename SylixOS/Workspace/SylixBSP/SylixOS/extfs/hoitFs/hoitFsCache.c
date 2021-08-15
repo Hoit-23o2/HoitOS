@@ -53,7 +53,7 @@
 PHOIT_CACHE_HDR hoitEnableCache(UINT32 uiCacheBlockSize, UINT32 uiCacheBlockNums, PHOIT_VOLUME phoitfs){
     PHOIT_CACHE_HDR pcacheHdr;
 
-    pcacheHdr = (PHOIT_CACHE_HDR)__SHEAP_ALLOC(sizeof(HOIT_CACHE_HDR));
+    pcacheHdr = (PHOIT_CACHE_HDR)hoit_malloc(phoitfs, sizeof(HOIT_CACHE_HDR));
     if (pcacheHdr == LW_NULL) {
         _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
         _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
@@ -68,13 +68,13 @@ PHOIT_CACHE_HDR hoitEnableCache(UINT32 uiCacheBlockSize, UINT32 uiCacheBlockNums
                                              LW_NULL);
 
     if (!pcacheHdr->HOITCACHE_hLock) {
-        __SHEAP_FREE(pcacheHdr);
+        hoit_free(phoitfs, pcacheHdr, sizeof(HOIT_CACHE_HDR));
         return  (LW_NULL);
     }
 
-    pcacheHdr->HOITCACHE_cacheLineHdr    = (PHOIT_CACHE_BLK)__SHEAP_ALLOC(sizeof(HOIT_CACHE_BLK));
+    pcacheHdr->HOITCACHE_cacheLineHdr    = (PHOIT_CACHE_BLK)hoit_malloc(phoitfs, sizeof(HOIT_CACHE_BLK));
     if (pcacheHdr->HOITCACHE_cacheLineHdr == LW_NULL) {
-        __SHEAP_FREE(pcacheHdr);
+        hoit_free(phoitfs, pcacheHdr, sizeof(HOIT_CACHE_HDR));
         _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
         _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
         return  (LW_NULL);        
@@ -112,6 +112,7 @@ PHOIT_CACHE_HDR hoitEnableCache(UINT32 uiCacheBlockSize, UINT32 uiCacheBlockNums
 BOOL hoitFreeCache(PHOIT_CACHE_HDR pcacheHdr) {
     PHOIT_CACHE_BLK pcache;
     PHOIT_CACHE_BLK pfree;
+    PHOIT_VOLUME    pfs = pcacheHdr->HOITCACHE_hoitfsVol;
     if (pcacheHdr == LW_NULL) {
         _DebugHandle(__ERRORMESSAGE_LEVEL, "hoitfs cache header is null.\r\n");
         _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
@@ -125,11 +126,11 @@ BOOL hoitFreeCache(PHOIT_CACHE_HDR pcacheHdr) {
         pcache->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache->HOITBLK_cacheListPrev;
         pfree = pcache;
         pcache = pcache->HOITBLK_cacheListNext;
-        __SHEAP_FREE(pfree->HOITBLK_buf);
-        __SHEAP_FREE(pfree);        
+        hoit_free(pfs, pfree->HOITBLK_buf, pcacheHdr->HOITCACHE_blockSize);
+        hoit_free(pfs, pfree, sizeof(HOIT_CACHE_BLK));        
     }
-    __SHEAP_FREE(pcache->HOITBLK_buf);  /* 释放循环链表头 */
-    __SHEAP_FREE(pcacheHdr);
+    hoit_free(pfs, pcache->HOITBLK_buf, pcacheHdr->HOITCACHE_blockSize);  /* 释放循环链表头 */
+    hoit_free(pfs, pcacheHdr, sizeof(HOIT_CACHE_HDR));
     if(pcacheHdr->HOITCACHE_hLock){
         API_SemaphoreMDelete(&pcacheHdr->HOITCACHE_hLock);
     }
@@ -175,13 +176,13 @@ PHOIT_CACHE_BLK hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo, UIN
         cacheLineHdr->HOITBLK_cacheListNext     = pcache;
     } else {
         flag = LW_FALSE;
-        pcache = (PHOIT_CACHE_BLK)__SHEAP_ALLOC(sizeof(HOIT_CACHE_BLK));
+        pcache = (PHOIT_CACHE_BLK)hoit_malloc(pcacheHdr->HOITCACHE_hoitfsVol, sizeof(HOIT_CACHE_BLK));
         if (pcache == NULL) {
             _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
             return LW_NULL;
         }
 
-        pcache->HOITBLK_buf = (PCHAR)__SHEAP_ALLOC(cacheBlkSize);
+        pcache->HOITBLK_buf = (PCHAR)hoit_malloc(pcacheHdr->HOITCACHE_hoitfsVol, cacheBlkSize);
         if (pcache->HOITBLK_buf == NULL) {
             _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
             return LW_NULL;
@@ -562,15 +563,16 @@ UINT32 hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache) {
 */
 BOOL hoitReleaseCache(PHOIT_CACHE_HDR pcacheHdr) {
     PHOIT_CACHE_BLK tempCache, tempCachePre;
+    PHOIT_VOLUME    pfs = pcacheHdr->HOITCACHE_hoitfsVol;
     tempCache = pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext;
     while (tempCache!= pcacheHdr->HOITCACHE_cacheLineHdr)
     {
         if (tempCache->HOITBLK_buf != LW_NULL) {
-            __SHEAP_FREE(tempCache->HOITBLK_buf);
+            hoit_free(pfs, tempCache->HOITBLK_buf, pcacheHdr->HOITCACHE_blockSize);
         }
         tempCachePre = tempCache;
         tempCache = tempCache->HOITBLK_cacheListNext;
-        __SHEAP_FREE(tempCachePre);
+        hoit_free(pfs, tempCachePre, sizeof(HOIT_CACHE_BLK));
     }
     return LW_TRUE;
 }
@@ -579,8 +581,9 @@ BOOL hoitReleaseCache(PHOIT_CACHE_HDR pcacheHdr) {
     释放cache头
 */
 BOOL hoitReleaseCacheHDR(PHOIT_CACHE_HDR pcacheHdr) {
+    PHOIT_VOLUME    pfs = pcacheHdr->HOITCACHE_hoitfsVol;
     if (pcacheHdr->HOITCACHE_cacheLineHdr != LW_NULL) {
-        __SHEAP_FREE(pcacheHdr->HOITCACHE_cacheLineHdr);
+        hoit_free(pfs, pcacheHdr->HOITCACHE_cacheLineHdr, sizeof(HOIT_CACHE_BLK));
     }
     API_SemaphoreMDelete(&pcacheHdr->HOITCACHE_hLock);
 }
@@ -977,8 +980,9 @@ inline UINT32  hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcach
                                     pcacheHdr->HOITCACHE_EBSStartAddr;
     PHOIT_EBS_ENTRY     pentry;
     PCHAR               pEBSarea    = LW_NULL;
+    PHOIT_VOLUME        pfs     = pcacheHdr->HOITCACHE_hoitfsVol;
     if (pcache == LW_NULL) {
-        pEBSarea    = (PCHAR)__SHEAP_ALLOC((pcacheHdr->HOITCACHE_PageAmount+1)*sizeof(HOIT_EBS_ENTRY));
+        pEBSarea    = (PCHAR)hoit_malloc(pcacheHdr->HOITCACHE_hoitfsVol, (pcacheHdr->HOITCACHE_PageAmount+1)*sizeof(HOIT_EBS_ENTRY));
         if (pEBSarea == LW_NULL)
             return  PX_ERROR;
         pentry      = (PHOIT_EBS_ENTRY)pEBSarea;
@@ -996,7 +1000,7 @@ inline UINT32  hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcach
             crc = (crc >> 1) ^ ((crc & 1) ? CRCPOLY_LE : 0);  
         pentry ++;      
     }
-    __SHEAP_FREE(pEBSarea);
+    hoit_free(pfs, pEBSarea, (pcacheHdr->HOITCACHE_PageAmount+1)*sizeof(HOIT_EBS_ENTRY));
     return crc;
 }
 
@@ -1131,7 +1135,7 @@ UINT32 hoitEBSEntryAmount(PHOIT_VOLUME pfs, UINT32 sector_no) {
             pentry++;
         }
     } else {
-        pentry = (PHOIT_EBS_ENTRY)__SHEAP_ALLOC(sizeof(HOIT_EBS_ENTRY));
+        pentry = (PHOIT_EBS_ENTRY)hoit_malloc(pfs, sizeof(HOIT_EBS_ENTRY));
         if (pentry==LW_NULL) {
             return PX_ERROR;
         }
@@ -1143,7 +1147,7 @@ UINT32 hoitEBSEntryAmount(PHOIT_VOLUME pfs, UINT32 sector_no) {
                 amount++; 
             readNorAddr += sizeof(HOIT_EBS_ENTRY);           
         }
-        lib_free(pentry);
+        hoit_free(pfs, pentry, sizeof(HOIT_EBS_ENTRY));
     }
     return amount;
 }

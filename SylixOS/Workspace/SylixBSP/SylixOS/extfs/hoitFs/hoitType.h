@@ -214,7 +214,7 @@ typedef struct HOIT_VOLUME{
     List(HOIT_ERASABLE_SECTOR)      HOITFS_cleanSectorList;                     /* 不含obsolete的块 */
     List(HOIT_ERASABLE_SECTOR)      HOITFS_freeSectorList;                      /* 啥都不含的块 */
     Iterator(HOIT_ERASABLE_SECTOR)  HOITFS_sectorIterator;                      /* 统一sector迭代器 */
-
+    
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
     LW_OBJECT_HANDLE        HOITFS_GCMsgQ;                                 /* GC线程消息队列*/
     LW_OBJECT_HANDLE        HOITFS_hGCThreadId;                            /* GC总线程ID */
@@ -548,6 +548,19 @@ struct hoit_merge_entry
 
 #define HOIT_RAW_DATA_MAX_SIZE      4096    /* 单位为 Byte */
 
+static inline PVOID hoit_malloc(PHOIT_VOLUME pfs, size_t stNBytes){
+    if(pfs == LW_NULL)
+    pfs->HOITFS_ulCurBlk += stNBytes;
+    if(pfs->HOITFS_ulCurBlk > pfs->HOITFS_ulMaxBlk){
+       pfs->HOITFS_ulMaxBlk = pfs->HOITFS_ulCurBlk;
+    }
+    return lib_malloc(stNBytes);
+}
+
+static inline PVOID hoit_free(PHOIT_VOLUME pfs, PVOID pvPtr, size_t stNBytes){
+    pfs->HOITFS_ulCurBlk -= stNBytes;
+    lib_free(pvPtr);
+}
 /*********************************************************************************************************
   Common 公用方法区
 *********************************************************************************************************/

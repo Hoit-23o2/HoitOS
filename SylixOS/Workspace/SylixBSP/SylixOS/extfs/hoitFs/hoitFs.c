@@ -144,7 +144,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
         LW_OPTION_INHERIT_PRIORITY | LW_OPTION_OBJECT_GLOBAL,
         LW_NULL);
     if (!pfs->HOITFS_hVolLock) {                                      /*  无法创建卷锁                */
-        lib_free(pfs);
+        hoit_free(pfs, pfs, sizeof(HOIT_VOLUME));
         return  (PX_ERROR);
     }
 
@@ -154,6 +154,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_time            = lib_time(LW_NULL);
     //TODO 内存消耗空间计算
     pfs->HOITFS_ulCurBlk        = 0ul;
+    pfs->HOITFS_ulMaxBlk        = 0ul;
     pfs->HOITFS_now_sector      = LW_NULL;
     pfs->HOITFS_pRootDir        = LW_NULL;
     pfs->HOITFS_totalUsedSize   = 0;
@@ -188,7 +189,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     if (iosDevAddEx(&pfs->HOITFS_devhdrHdr, pcName, _G_iHoitFsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
         API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);
-        lib_free(pfs);
+        hoit_free(pfs, pfs, sizeof(HOIT_VOLUME));
         return  (PX_ERROR);
     }
 
@@ -491,7 +492,7 @@ __re_umount_vol:
         API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);
          
         __hoit_unmount(pfs);
-        lib_free(pfs);
+        hoit_free(pfs, pfs, sizeof(HOIT_VOLUME));
 
         _DebugHandle(__LOGMESSAGE_LEVEL, "hoitfs unmount ok.\r\n");
 
@@ -929,7 +930,7 @@ static INT  __hoitFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
     INT                 iError;
 
     
-    PCHAR dirPath = (PCHAR)lib_malloc(lib_strlen(pfdentry->FDENTRY_pcName) + 1);
+    PCHAR dirPath = (PCHAR)hoit_malloc(pfs, lib_strlen(pfdentry->FDENTRY_pcName) + 1);
     lib_bzero(dirPath, lib_strlen(pfdentry->FDENTRY_pcName) + 1);
     lib_memcpy(dirPath, pfdentry->FDENTRY_pcName, lib_strlen(pfdentry->FDENTRY_pcName));
     PCHAR pDivider = lib_rindex(dirPath, PX_DIVIDER);
@@ -973,7 +974,7 @@ static INT  __hoitFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
     iError = __hoit_move(pInodeFather, phoitn, pcNewName);
 
     __HOIT_VOLUME_UNLOCK(pfs);
-    lib_free(dirPath);
+    hoit_free(pfs, dirPath, lib_strlen(pfdentry->FDENTRY_pcName) + 1);
     return  (iError);
 }
 

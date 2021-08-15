@@ -25,7 +25,7 @@
 
 #ifdef FT_TEST
 PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFDnode, UINT uiOffset, UINT uiSize){
-    PHOIT_FULL_DNODE pFDNode = (PHOIT_FULL_DNODE)lib_malloc(sizeof(HOIT_FULL_DNODE));
+    PHOIT_FULL_DNODE pFDNode = (PHOIT_FULL_DNODE)hoit_malloc(pfs, sizeof(HOIT_FULL_DNODE));
     pFDNode->HOITFD_length = uiSize;
     pFDNode->HOITFD_offset = uiOffset;
     return pFDNode;
@@ -33,7 +33,7 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
 
 BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFDnode, BOOL bDoDelete){
     if(!bDoDelete){
-        lib_free(pFDnode);
+        hoit_free(pfs, pFDnode, sizeof(HOIT_FULL_DNODE));
     }
     return LW_TRUE;
 }
@@ -233,7 +233,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
             pFTn->uiSize = uiLeftRemainSize;                                            /* 设置被征服节点的大小 */
             pFTn->pFDnode->HOITFD_length = uiLeftRemainSize;                            /* 更新FDNode的大小 */
 
-            *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 生成FragTree节点 */
+            *pFTnNew = newHoitFragTreeNode(pFTTree->pfs, pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 生成FragTree节点 */
                                            pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
 
             hoitFragTreeInsertNode(pFTTree, *pFTnNew);                                   /* 把该节点放入FragTree中 */
@@ -251,7 +251,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
                                                     pFTn->pFDnode,
                                                     uiConquerorHigh - uiCurLow + 1,
                                                     uiRightRemainSize);
-            *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 根据pFDNodeNew生成新的FragTree节点 */
+            *pFTnNew = newHoitFragTreeNode(pFTTree->pfs, pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 根据pFDNodeNew生成新的FragTree节点 */
                                            pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
             hoitFragTreeInsertNode(pFTTree, *pFTnNew);
             hoitFragTreeDeleteNode(pFTTree, pFTn, bDoDelete);                            /* 删除pFTn节点，因为[CurLow, ConquerorHigh]已经被征服 */
@@ -281,11 +281,16 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
 PHOIT_FRAG_TREE hoitInitFragTree(PHOIT_VOLUME pfs){
     PHOIT_FRAG_TREE         pFTTree;
 
-    pFTTree = (PHOIT_FRAG_TREE)lib_malloc(sizeof(HOIT_FRAG_TREE));
+    pFTTree = (PHOIT_FRAG_TREE)hoit_malloc(pfs, sizeof(HOIT_FRAG_TREE));
     pFTTree->pRbTree = hoitRbInitTree();
     pFTTree->uiNCnt = 0;
     pFTTree->pfs = pfs;
     pFTTree->uiMemoryBytes = 0;
+
+    /* //! Add By PYQ 2021-08-15 我们不能修改Rb的lib_malloc为hoit_malloc */
+    pfs->HOITFS_ulCurBlk += sizeof(HOIT_RB_NODE);
+    pfs->HOITFS_ulCurBlk += sizeof(HOIT_RB_NODE);
+    pfs->HOITFS_ulCurBlk += sizeof(HOIT_RB_TREE);
     return pFTTree;
 }
 
@@ -360,7 +365,7 @@ BOOL hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, 
         pFTTree->uiNCnt--;
         pFTTree->uiMemoryBytes -= sizeof(HOIT_FRAG_TREE_NODE);
         __hoit_delete_full_dnode(pFTTree->pfs, pFTn->pFDnode, bDoDelete); /* 删除pFDNode */
-        lib_free(pFTn);                                                   /* 删除整个TreeNode */
+        hoit_free(pFTTree->pfs, pFTn, sizeof(HOIT_FRAG_TREE_NODE));                                                   /* 删除整个TreeNode */
     }
     return res;
 }
@@ -677,12 +682,12 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
             uiPerSize = uiSize;
         }
 
-        pPerContent = (PCHAR)lib_malloc(uiPerSize);                                 /* 每一次读取的内容 */
+        pPerContent = (PCHAR)hoit_malloc(pfs, uiPerSize);                                 /* 每一次读取的内容 */
         //TODO: 待实现
         hoitReadFromCache(pFTTree->pfs->HOITFS_cacheHdr, uiPerOfs, pPerContent, uiPerSize);
 
         lib_memcpy(pContent + uiSizeRead, pPerContent, uiPerSize);
-        lib_free(pPerContent);
+        hoit_free(pfs, pPerContent);
         
         pFTlist = pFTlist->pFTlistNext;
 
@@ -823,11 +828,12 @@ BOOL hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyH
 *********************************************************************************************************/
 BOOL hoitFragTreeDeleteTree(PHOIT_FRAG_TREE pFTTree, BOOL bDoDelete){
     BOOL                          res;
+    PHOIT_VOLUME                  pfs = pFTTree->pfs;
     res = hoitFragTreeDeleteRange(pFTTree, INT_MIN, INT_MAX, bDoDelete);
-    lib_free(pFTTree->pRbTree->pRbnGuard->pRbnLeft);
-    lib_free(pFTTree->pRbTree->pRbnGuard);
-    lib_free(pFTTree->pRbTree);
-    lib_free(pFTTree);
+    hoit_free(pfs, pFTTree->pRbTree->pRbnGuard->pRbnLeft, sizeof(HOIT_RB_NODE));
+    hoit_free(pfs, pFTTree->pRbTree->pRbnGuard, sizeof(HOIT_RB_NODE));
+    hoit_free(pfs, pFTTree->pRbTree, sizeof(HOIT_RB_TREE));
+    hoit_free(pfs, pFTTree, sizeof(HOIT_FRAG_TREE));
     
 #ifdef FT_DEBUG
     hoitFragTreeTraverse(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
@@ -977,7 +983,7 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
                         
                         pFTlistNext = pFTlistCur->pFTlistNext;
                         hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistCur);                      /* 从链表中删除Cur */
-                        lib_free(pFTlistCur);
+                        hoit_free(pfs, pFTlistCur);
 
                         pFTlistCur = pFTlistNext;                                                   /* 置当前被征服节点为下一个 */
                         pFTlistConqueror = pFTlistHeader->pFTlistHeader;                            /* 征服者从头开始征服 */
@@ -997,7 +1003,7 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
                 case 4:
                     pFTlistNext = pFTlistCur->pFTlistNext;
                     hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistCur);                        /* 从链表中删除Cur */
-                    lib_free(pFTlistCur);
+                    hoit_free(pfs, pFTlistCur);
 
                     pFTlistCur = pFTlistNext;                                                     /* 置当前被征服节点为下一个 */
                     pFTlistConqueror = pFTlistHeader->pFTlistHeader;                              /* 征服者从头开始征服 */
@@ -1034,7 +1040,7 @@ VOID hoitFTTreeTest(){
     //INT testArray[10] = {8,11,14,15,1,2,4,5,7, 1};
     INT testArray[10] = {0, 1,2,3, 4,5,7,11,14,15};
     
-    pfs = (PHOIT_VOLUME)lib_malloc(sizeof(HOIT_VOLUME));
+    pfs = (PHOIT_VOLUME)hoit_malloc(pfs, sizeof(HOIT_VOLUME));
     pFTTree = hoitInitFragTree(pfs);
     
     for (i = 0; i < 10; i++)
