@@ -59,7 +59,7 @@
   HoitFs 特性宏控
 *********************************************************************************************************/
 //#define  MULTI_THREAD_ENABLE      /* 启用多线程 */
-//#define  EBS_ENABLE               /* 启用EBS */
+#define  EBS_ENABLE               /* 启用EBS */
 #define  WRITE_BUFFER_ENABLE      /* 启用WriteBuffer */
 //#define  BACKGOURND_GC_ENABLE        /* 启用后台GC */
 //! 07-18 ZN 暂时注释log
@@ -86,7 +86,7 @@
 #define HOIT_FLAG_OBSOLETE                  0x00000000
 #define HOIT_ERROR                          100
 #define HOIT_ROOT_DIR_INO                   1   /* HoitFs的根目录的ino为1 */
-#define HOIT_MAX_DATA_SIZE                  1024
+#define HOIT_MAX_DATA_SIZE                  (56*16)
 #define __HOIT_IS_OBSOLETE(pRawHeader)      ((pRawHeader->flag & HOIT_FLAG_NOT_OBSOLETE)    == 0)
 #define __HOIT_IS_TYPE_INODE(pRawHeader)    ((pRawHeader->flag & HOIT_FLAG_TYPE_INODE)  != 0)
 #define __HOIT_IS_TYPE_DIRENT(pRawHeader)   ((pRawHeader->flag & HOIT_FLAG_TYPE_DIRENT) != 0)
