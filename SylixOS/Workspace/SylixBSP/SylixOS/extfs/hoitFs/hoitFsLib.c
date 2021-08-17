@@ -1126,12 +1126,13 @@ VOID __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO
                 ------------------------------------------------------------------
     */
     pRawInfo->next_phys = LW_NULL;
-    if(pRawInfo->is_obsolete == HOIT_FLAG_OBSOLETE){
-        pSector->HOITS_uiObsoleteEntityCount++;
-    }
-    else {
-        pSector->HOITS_uiAvailableEntityCount++;
-    }
+    //! 2021-08-17 转移到Cache层完成 Edit By PYQ 
+    // if(pRawInfo->is_obsolete == HOIT_FLAG_OBSOLETE){
+    //     pSector->HOITS_uiObsoleteEntityCount++;
+    // }
+    // else {
+    //     pSector->HOITS_uiAvailableEntityCount++;
+    // }
 
     //调用转移函数
 #ifdef LIB_DEBUG
@@ -1185,12 +1186,12 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
         //printf("Error in hoit_move_home\n");
         return LW_FALSE;
     }
-    //!pRawHeader->flag &= (~HOIT_FLAG_NOT_OBSOLETE);      //将obsolete标志变为0，代表过期
-    __hoit_mark_obsolete(pfs, pRawHeader, pRawInfo);
     // /* 将obsolete标志位清0后写回原地址 */
     // pRawHeader->crc = 0;
     // pRawHeader->crc = hoit_crc32_le(pRawHeader, pRawInfo->totlen);
     // __hoit_write_flash_thru(pfs, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
+    //!pRawHeader->flag &= (~HOIT_FLAG_NOT_OBSOLETE);      //将obsolete标志变为0，代表过期
+    __hoit_mark_obsolete(pfs, pRawHeader, pRawInfo);
     
     /* 将obsolete标志位恢复后写到新地址 */
     pRawHeader->flag |= HOIT_FLAG_NOT_OBSOLETE;         //将obsolete标志变为1，代表未过期
@@ -1204,6 +1205,7 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     iRes = __hoit_write_flash(pfs, pReadBuf, pRawInfo->totlen, &phys_addr, 1);
     pRawInfo->phys_addr = phys_addr;
 
+    
     if(__HOIT_IS_TYPE_LOG(pRawHeader)){                         /* 如果是LOG HDR，那么要调整logInfo里的信息 */
         pRawLog = (PHOIT_RAW_LOG)pRawHeader;
         if (pRawLog->uiLogFirstAddr != -1) {                    /* LOG HDR */
@@ -1929,8 +1931,8 @@ VOID  __hoit_unmount(PHOIT_VOLUME pfs)
 {
     /* TODO 释放RAW INFO需要把GC先关了*/
     //API_SpinDestory()
-#ifdef LIB_DEBUG
     __hoitShowSectorInfo(pfs);
+#ifdef LIB_DEBUG
 #endif /* LIB_DEBUG */
     if (pfs == LW_NULL) {
         printf("Error in unmount.\n");

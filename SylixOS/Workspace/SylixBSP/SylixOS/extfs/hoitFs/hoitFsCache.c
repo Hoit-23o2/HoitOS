@@ -497,7 +497,8 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     }
 
     pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
-
+    //! 2021-08-17 不确定这样改是否有问题
+    pSector->HOITS_uiAvailableEntityCount++;
     return writeAddrUpper;
 }
 
@@ -1065,7 +1066,7 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
     UINT32  i;
     PHOIT_ERASABLE_SECTOR pEraseableSector;
     //TODO 三个链表还未使用
-    UINT32  sectorNo = (UINT32)hoitGetSectorNo(pRawInfo->phys_addr);    /* 要标注过期的pRawInfo所在块号 */
+    UINT32  sectorNo = pRawInfo->phys_addr / pcacheHdr->HOITCACHE_blockSize; //(UINT32)hoitGetSectorNo(pRawInfo->phys_addr);    /* 要标注过期的pRawInfo所在块号 */
     PHOIT_EBS_ENTRY pentry  = LW_NULL;
     HOIT_EBS_ENTRY  entry;
     

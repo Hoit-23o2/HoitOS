@@ -67,7 +67,7 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
     {
         pRawInfoObselete = pRawInfoTraverse;
         pRawInfoTraverse = pRawInfoTraverse->next_phys;
-        //! 2021-08-17 Added By PYQ 添加对ObsoleteEntity计数  
+        //! 2021-08-17 Added By PYQ 添加对ObsoleteEntity计数，
         pErasableSector->HOITS_uiObsoleteEntityCount--;
         if(pRawInfoObselete == pErasableSector->HOITS_pRawInfoLast){                          /* 全是空，直接返回咯 */
             hoit_free(pfs, pRawInfoObselete, sizeof(HOIT_RAW_INFO));
@@ -221,6 +221,9 @@ BOOL __hoitGCCollectRawInfoAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasab
     }
     
     pNowSectorOrigin = pfs->HOITFS_now_sector;              /* 保存原有now_sector */
+    // if(pErasableSector->HOITS_bno == 27){
+    //     printf("debug\n");
+    // }
     //!把RawInfo及其对应的数据实体搬家
     bIsMoveSuccess = __hoit_move_home(pfs, pRawInfoCurGC);  /* 搬家失败，说明该RawInfo要么是LOG要么是一段错误的数据，我们直接跳过 */
     pfs->HOITFS_now_sector = pNowSectorOrigin;              /* 恢复原有now_sector */
@@ -248,6 +251,9 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
     PHOIT_RAW_INFO          pRawInfoPrevGC;
 
     bIsNeedMoreCollect = __hoitGCSectorRawInfoFixUp(pfs, pErasableSector);            /* FixUp后，会更新 HOITS_pRawInfoCurGC，HOITS_pRawInfoPrevGC，HOITS_pRawInfoLastGC等 */
+    // if(pErasableSector->HOITS_bno == 27){
+    //     __hoitShowSectorInfo(pfs);
+    // }
     if(!bIsNeedMoreCollect){
         bIsCollectOver = LW_TRUE;
         goto __hoitGCCollectSectorAliveEnd;                                      /* 结束了 */
@@ -307,7 +313,8 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
                 }
             }
         }
-        //! 2021-08-17 Added By PYQ uiObsoleteEntityCount减少
+        //! 2021-08-17  Added By PYQ move home更新当前sector位过期+1，有效-1，
+        //! uiObsoleteEntityCount减少，减少过期
         pErasableSector->HOITS_uiObsoleteEntityCount--;
     }
     else {                                                               /* 如果没有MOVE成功，说明没有空间了 */
