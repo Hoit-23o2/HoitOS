@@ -95,7 +95,6 @@ PHOIT_FRAG_TREE_NODE __hoitFragTreeGetSuccessor(PHOIT_FRAG_TREE pFTTree, PHOIT_F
     return (PHOIT_FRAG_TREE_NODE)pRbnTraverse;
 }
 #ifndef FT_OBSOLETE_TREE_LIST
-#endif /* not FT_OBSOLETE_TREE_LIST */
 /*********************************************************************************************************
 ** 函数名称: __hoitFragTreeCollectRangeHelper
 ** 功能描述: 搜集iKeyLow至iKeyHigh的FragTree节点
@@ -206,6 +205,7 @@ PHOIT_FRAG_TREE_LIST_HEADER  hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, I
 #endif //FT_DEBUG
     return pFTlistHeader;
 }
+#endif /* not FT_OBSOLETE_TREE_LIST */
 /*********************************************************************************************************
 ** 函数名称: __hoitFragTreeConquerNode
 ** 功能描述: 分四种情况征服一个节点

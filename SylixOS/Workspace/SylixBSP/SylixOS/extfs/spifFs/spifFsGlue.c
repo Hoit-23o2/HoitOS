@@ -223,7 +223,7 @@ VOID __spiffs_unmount(PSPIFFS_VOLUME pfs){
 
     spif_free(pfs, pfs->pucWorkBuffer, pfs->cfg.uiLogicBlkSize * 2);
     spif_free(pfs, pfs->pCache, pfs->uiCacheSize);
-    spif_free(pfs, pfs->pucFdSpace, pfs->uiFdCount * sizeof(SPIFFS_FD));
+    // spif_free(pfs, pfs->pucFdSpace, pfs->uiFdCount * sizeof(SPIFFS_FD));
     return;
 }
 /*********************************************************************************************************

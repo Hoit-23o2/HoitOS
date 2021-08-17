@@ -1161,28 +1161,18 @@ UINT32 hoitEBSEntryAmount(PHOIT_VOLUME pfs, UINT32 sector_no) {
 ** 调用模块:
 *********************************************************************************************************/
 UINT32  hoitSectorGetNextAddr(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no, UINT i, UINT32 *obsoleteFlag){
-    PHOIT_CACHE_BLK pcache;
     PHOIT_EBS_ENTRY pentry;
     HOIT_EBS_ENTRY  entry;
     UINT32          norAddr;
-    pcache = hoitCheckCacheHit(pcacheHdr, sector_no);
-    if (pcache != LW_NULL) {/* 命中 */
-        pentry = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr);
-        pentry += i;
-    } else {/* 未命中 */
-        norAddr = NOR_FLASH_START_OFFSET + sector_no*GET_SECTOR_SIZE(8) + pcacheHdr->HOITCACHE_EBSStartAddr;
-        norAddr += i*sizeof(HOIT_EBS_ENTRY);
-        read_nor(norAddr, &entry, sizeof(HOIT_EBS_ENTRY));
-        pentry = &entry;
-    }
-        if(pentry->HOIT_EBS_ENTRY_inodeNo == (UINT32)-1)
-            return (UINT32)-1;
-        if(pentry->HOIT_EBS_ENTRY_obsolete == 0) {
-            *obsoleteFlag = 0;
-        } else {
-            *obsoleteFlag = 1;
-        }
-        return pentry->HOIT_EBS_ENTRY_pageNo*HOIT_FILTER_PAGE_SIZE;
+    /* 无需检查，绝对不命中 */
+    norAddr = NOR_FLASH_START_OFFSET + sector_no * GET_SECTOR_SIZE(8) + pcacheHdr->HOITCACHE_EBSStartAddr;
+    norAddr += i * sizeof(HOIT_EBS_ENTRY);
+    read_nor(norAddr, &entry, sizeof(HOIT_EBS_ENTRY));
+    pentry = &entry;
+    if(pentry->HOIT_EBS_ENTRY_inodeNo == (UINT32)-1)
+        return (UINT32)-1;
+    *obsoleteFlag = pentry->HOIT_EBS_ENTRY_obsolete;
+    return pentry->HOIT_EBS_ENTRY_pageNo * HOIT_FILTER_PAGE_SIZE;
 }
 /*********************************************************************************************************
 ** 函数名称: hoitCheckSectorCRC
