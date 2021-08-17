@@ -677,6 +677,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     UINT                    uiUsedSize;
     PHOIT_ERASABLE_SECTOR   pErasableSector;
     UINT                    uiSectorNum;
+    UINT                    uiUsedSizeAlign;
 
 
     uiSectorSize            = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize;
@@ -751,6 +752,7 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     BOOL stopFlag       = 0;
     INT sectorIndex     = 0;
     UINT32 obsoleteFlag = 0;
+
 
     // lib_gettimeofday(&timeStart, LW_NULL);
     while(1){
