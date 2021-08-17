@@ -484,10 +484,11 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     pSector->HOITS_uiUsedSize   += uiSizeAlign;
     pcache->HOITBLK_uiCurOfs    += uiSizeAlign;
     pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_totalUsedSize += uiSizeAlign;
-    
+
     //! 2021-08-17 不确定这样改是否有问题
     pSector->HOITS_uiAvailableEntityCount++;
-    
+    __hoit_fix_up_sector_list(pcacheHdr->HOITCACHE_hoitfsVol, pSector);
+
     /* 当前写的块满了，则去找下一个仍有空闲的块 */
     //! 减去EBS区域
     if (pSector->HOITS_uiFreeSize  == 0) {
@@ -597,184 +598,104 @@ BOOL hoitReleaseCacheHDR(PHOIT_CACHE_HDR pcacheHdr) {
     uiSize      块的剩余空间要求，只有cacheType == HOIT_CACHE_TYPE_DATA下才有意义。
                 如果HOITFS_now_sector空间充足，则默认返回HOITFS_now_sector号
 */
-UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 uiSize) {
-    //TOOPT: 2021-07-04 如果当前块写不下，是否可以先从cache中找能放得下数据实体的空闲块，再去整个sector列表中找？
-    //! 2021-07-04 ZN 添加EBS区域，与uiSize比较时减少一个cache块可写空间。
-    PHOIT_ERASABLE_SECTOR pSector;
-    PHOIT_ERASABLE_SECTOR pTargetSector        = LW_NULL;
-    UINT32                uiMinimalUsedSize    = INT_MAX;
-    
-    //! 2021-08-04 PYQ 强制GC功能
-    INT                   iFreeSectorNum = 0;
-    if(pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_curGCSector == LW_NULL){  /* 避免递归调用 */
-        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
-        while (pSector != LW_NULL) {
-            if(pSector->HOITS_uiUsedSize == 0){
-                iFreeSectorNum++;
-            }
-            pSector = pSector->HOITS_next;
-        }  
-        if(iFreeSectorNum <= 20){
-            hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
-        }
-    }
-
-    switch (cacheType)
-    {
-    case HOIT_CACHE_TYPE_INVALID:
-        return (PX_ERROR);
-    case HOIT_CACHE_TYPE_DATA:
-        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector;
-        /* 如果当前块写不下，找下一块 */
-        //TODO 改成从三种列表中查找
-        if (pSector->HOITS_uiFreeSize  < (size_t)uiSize) {
-            pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
-        } else {
-            return pSector->HOITS_bno;
-        }
-
-        while (pSector != LW_NULL) {
-            if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
-               && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
-                if(pSector->HOITS_uiFreeSize  >= (size_t)uiSize) {
-                    // //! 2021-08-12 PYQ 找最少用的块
-                    // if(pSector->HOITS_uiUsedSize < uiMinimalUsedSize){
-                    //     uiMinimalUsedSize = pSector->HOITS_uiUsedSize;
-                    //     pTargetSector     = pSector;
-                    // }
-                    return pSector->HOITS_bno;
-                }
-            }
-            pSector = pSector->HOITS_next;
-        }
-        // if(pTargetSector != LW_NULL){
-        //     return pTargetSector->HOITS_bno;
-        // }      
-        if (pSector == LW_NULL) {                                   /* flash空间整体不足，开始执行强制GC */
-            hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
-        }
-
-        /* GC之后重新找块 */
-        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
-
-        while (pSector != LW_NULL) {
-            if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
-               && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
-                if(pSector->HOITS_uiFreeSize  >= (size_t)uiSize) {
-                    return pSector->HOITS_bno;
-                }
-            }
-            pSector = pSector->HOITS_next;
-        }
-        /* 仍然没有可用块则返回错误 */
-        return PX_ERROR;
-
-    case HOIT_CACHE_TYPE_DATA_EMPTY:
-        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
-        while (pSector != LW_NULL)
-        {
-            if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
-               && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
-                if(pSector->HOITS_uiFreeSize == pcacheHdr->HOITCACHE_blockSize) {
-                    return pSector->HOITS_bno;
-                }
-            }
-            pSector = pSector->HOITS_next;
-        }
-        /* 找不到，调用GC */
-        if (pSector == LW_NULL) {
-            hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
-            while (pSector != LW_NULL)
-            {
-                //! 2021-05-04 Modified By PYQ
-                if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
-                && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
-                    if(pSector->HOITS_uiFreeSize == pcacheHdr->HOITCACHE_blockSize) {
-                        return pSector->HOITS_bno;
-                    }
-                }
-                pSector = pSector->HOITS_next;
-            }            
-        }
-        return (PX_ERROR);
-    default:
-        _ErrorHandle(ENOSYS);
-        return  (PX_ERROR);
-    }
-    
-}
-//! 使用了三个sector列表的版本
 // UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 uiSize) {
 //     //TOOPT: 2021-07-04 如果当前块写不下，是否可以先从cache中找能放得下数据实体的空闲块，再去整个sector列表中找？
 //     //! 2021-07-04 ZN 添加EBS区域，与uiSize比较时减少一个cache块可写空间。
-//     PHOIT_ERASABLE_SECTOR pSector = LW_NULL;
-//     PHOIT_VOLUME    pfs = pcacheHdr->HOITCACHE_hoitfsVol;
-//     BOOL            findFlag = LW_FALSE;
-//     Iterator(HOIT_ERASABLE_SECTOR) iter = pfs->HOITFS_sectorIterator;
+//     PHOIT_ERASABLE_SECTOR pSector;
+//     PHOIT_ERASABLE_SECTOR pTargetSector        = LW_NULL;
+//     UINT32                uiMinimalUsedSize    = INT_MAX;
+    
+//     //! 2021-08-04 PYQ 强制GC功能
+//     INT                   iFreeSectorNum = 0;
+//     if(pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_curGCSector == LW_NULL){  /* 避免递归调用 */
+//         pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+//         while (pSector != LW_NULL) {
+//             if(pSector->HOITS_uiUsedSize == 0){
+//                 iFreeSectorNum++;
+//             }
+//             pSector = pSector->HOITS_next;
+//         }  
+//         if(iFreeSectorNum <= 20){
+//             hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
+//         }
+//     }
+
 //     switch (cacheType)
 //     {
 //     case HOIT_CACHE_TYPE_INVALID:
 //         return (PX_ERROR);
 //     case HOIT_CACHE_TYPE_DATA:
 //         pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector;
-        
+//         /* 如果当前块写不下，找下一块 */
 //         //TODO 改成从三种列表中查找
-//         if (pSector->HOITS_uiFreeSize  >= (size_t)uiSize) {
-//             /* 如果当前块写得下，返回当前块 */
+//         if (pSector->HOITS_uiFreeSize  < (size_t)uiSize) {
+//             pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+//         } else {
 //             return pSector->HOITS_bno;
 //         }
 
-//         /* 先找不含obsolete块，再找空块 */
-//         for(iter->begin(iter, pfs->HOITFS_cleanSectorList); iter->isValid(iter); iter->next(iter)){
-//             pSector = iter->get(iter);
-//             if (pSector->HOITS_uiFreeSize >= (size_t)uiSize) {
-//                 return pSector->HOITS_bno;
+//         while (pSector != LW_NULL) {
+//             if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
+//                && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
+//                 if(pSector->HOITS_uiFreeSize  >= (size_t)uiSize) {
+//                     // //! 2021-08-12 PYQ 找最少用的块
+//                     // if(pSector->HOITS_uiUsedSize < uiMinimalUsedSize){
+//                     //     uiMinimalUsedSize = pSector->HOITS_uiUsedSize;
+//                     //     pTargetSector     = pSector;
+//                     // }
+//                     return pSector->HOITS_bno;
+//                 }
 //             }
+//             pSector = pSector->HOITS_next;
 //         }
-//         pSector = LW_NULL;
-//         for(iter->begin(iter, pfs->HOITFS_cleanSectorList) ; iter->isValid(iter); iter->next(iter)) {
-//             pSector = iter->get(iter);
-//             if (pSector->HOITS_uiFreeSize >= (size_t)uiSize){
-//                 return pSector->HOITS_bno;
-//             }
-//         }
-//         pSector = LW_NULL;
+//         // if(pTargetSector != LW_NULL){
+//         //     return pTargetSector->HOITS_bno;
+//         // }      
 //         if (pSector == LW_NULL) {                                   /* flash空间整体不足，开始执行强制GC */
 //             hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
 //         }
 
 //         /* GC之后重新找块 */
-//         for(iter->begin(iter, pfs->HOITFS_cleanSectorList); iter->isValid(iter); iter->next(iter)){
-//             pSector = iter->get(iter);
-//             if (pSector->HOITS_uiFreeSize >= (size_t)uiSize) {
-//                 return pSector->HOITS_bno;
-//             }
-//         }
-//         pSector = LW_NULL;
-//         for(iter->begin(iter, pfs->HOITFS_cleanSectorList) ; iter->isValid(iter); iter->next(iter)) {
-//             pSector = iter->get(iter);
-//             if (pSector->HOITS_uiFreeSize >= (size_t)uiSize){
-//                 return pSector->HOITS_bno;
-//             }
-//         }
+//         pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
 
+//         while (pSector != LW_NULL) {
+//             if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
+//                && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
+//                 if(pSector->HOITS_uiFreeSize  >= (size_t)uiSize) {
+//                     return pSector->HOITS_bno;
+//                 }
+//             }
+//             pSector = pSector->HOITS_next;
+//         }
 //         /* 仍然没有可用块则返回错误 */
 //         return PX_ERROR;
 
 //     case HOIT_CACHE_TYPE_DATA_EMPTY:
-//         iter->begin(iter, pfs->HOITFS_freeSectorList);
-//         if (iter->isValid(iter)) {
-//             pSector = iter->get(iter);
-//             return pSector->HOITS_bno;
+//         pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+//         while (pSector != LW_NULL)
+//         {
+//             if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
+//                && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
+//                 if(pSector->HOITS_uiFreeSize == pcacheHdr->HOITCACHE_blockSize) {
+//                     return pSector->HOITS_bno;
+//                 }
+//             }
+//             pSector = pSector->HOITS_next;
 //         }
 //         /* 找不到，调用GC */
 //         if (pSector == LW_NULL) {
 //             hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
-//             iter->begin(iter, pfs->HOITFS_freeSectorList);
-//             if (iter->isValid(iter)) {
-//                 pSector = iter->get(iter);
-//                 return pSector->HOITS_bno;
-//             }       
+//             while (pSector != LW_NULL)
+//             {
+//                 //! 2021-05-04 Modified By PYQ
+//                 if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
+//                 && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
+//                     if(pSector->HOITS_uiFreeSize == pcacheHdr->HOITCACHE_blockSize) {
+//                         return pSector->HOITS_bno;
+//                     }
+//                 }
+//                 pSector = pSector->HOITS_next;
+//             }            
 //         }
 //         return (PX_ERROR);
 //     default:
@@ -783,6 +704,87 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
 //     }
     
 // }
+
+//! 使用了三个sector列表的版本
+UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 uiSize) {
+    //TOOPT: 2021-07-04 如果当前块写不下，是否可以先从cache中找能放得下数据实体的空闲块，再去整个sector列表中找？
+    //! 2021-07-04 ZN 添加EBS区域，与uiSize比较时减少一个cache块可写空间。
+    PHOIT_ERASABLE_SECTOR pSector = LW_NULL;
+    PHOIT_VOLUME    pfs = pcacheHdr->HOITCACHE_hoitfsVol;
+    BOOL            findFlag = LW_FALSE;
+    Iterator(HOIT_ERASABLE_SECTOR) iter = pfs->HOITFS_sectorIterator;
+    switch (cacheType)
+    {
+    case HOIT_CACHE_TYPE_INVALID:
+        return (PX_ERROR);
+    case HOIT_CACHE_TYPE_DATA:
+        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector;
+        
+        //TODO 改成从三种列表中查找
+        if (pSector->HOITS_uiFreeSize  >= (size_t)uiSize) {
+            /* 如果当前块写得下，返回当前块 */
+            return pSector->HOITS_bno;
+        }
+
+        /* 先找不含obsolete块，再找空块 */
+        for(iter->begin(iter, pfs->HOITFS_cleanSectorList); iter->isValid(iter); iter->next(iter)){
+            pSector = iter->get(iter);
+            if (pSector->HOITS_uiFreeSize >= (size_t)uiSize) {
+                return pSector->HOITS_bno;
+            }
+        }
+        pSector = LW_NULL;
+        for(iter->begin(iter, pfs->HOITFS_cleanSectorList) ; iter->isValid(iter); iter->next(iter)) {
+            pSector = iter->get(iter);
+            if (pSector->HOITS_uiFreeSize >= (size_t)uiSize){
+                return pSector->HOITS_bno;
+            }
+        }
+        pSector = LW_NULL;
+        if (pSector == LW_NULL) {                                   /* flash空间整体不足，开始执行强制GC */
+            hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
+        }
+
+        /* GC之后重新找块 */
+        for(iter->begin(iter, pfs->HOITFS_cleanSectorList); iter->isValid(iter); iter->next(iter)){
+            pSector = iter->get(iter);
+            if (pSector->HOITS_uiFreeSize >= (size_t)uiSize) {
+                return pSector->HOITS_bno;
+            }
+        }
+        pSector = LW_NULL;
+        for(iter->begin(iter, pfs->HOITFS_cleanSectorList) ; iter->isValid(iter); iter->next(iter)) {
+            pSector = iter->get(iter);
+            if (pSector->HOITS_uiFreeSize >= (size_t)uiSize){
+                return pSector->HOITS_bno;
+            }
+        }
+
+        /* 仍然没有可用块则返回错误 */
+        return PX_ERROR;
+
+    case HOIT_CACHE_TYPE_DATA_EMPTY:
+        iter->begin(iter, pfs->HOITFS_freeSectorList);
+        if (iter->isValid(iter)) {
+            pSector = iter->get(iter);
+            return pSector->HOITS_bno;
+        }
+        /* 找不到，调用GC */
+        if (pSector == LW_NULL) {
+            hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
+            iter->begin(iter, pfs->HOITFS_freeSectorList);
+            if (iter->isValid(iter)) {
+                pSector = iter->get(iter);
+                return pSector->HOITS_bno;
+            }       
+        }
+        return (PX_ERROR);
+    default:
+        _ErrorHandle(ENOSYS);
+        return  (PX_ERROR);
+    }
+    
+}
 /*
 ** 函数名称: hoitResetSectorState
 ** 功能描述: 重置一个Sector的状态， Added By PYQ
@@ -850,7 +852,6 @@ PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no
 VOID    hoitWriteBackCache(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache){
     UINT offset = pcache->HOITBLK_blkNo * GET_SECTOR_SIZE(8) + NOR_FLASH_START_OFFSET;
     /* 先写数据 */
-    //! 有问题
     write_nor(offset,
               pcache->HOITBLK_buf, 
               pcacheHdr->HOITCACHE_blockSize, 
@@ -1090,6 +1091,8 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
     //! 2021-08-17 Added By PYQ 统计数据实体
     pEraseableSector->HOITS_uiAvailableEntityCount--;   
     pEraseableSector->HOITS_uiObsoleteEntityCount++;
+    __hoit_fix_up_sector_list(pfs, pEraseableSector);
+
     //! 2021-07-07 修改flash上EBS采用写不分配
     hoitWriteThroughCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, (PVOID)pRawHeader, pRawInfo->totlen);
     
