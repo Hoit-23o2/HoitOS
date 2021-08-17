@@ -512,9 +512,8 @@ typedef SPIFFS_FREE_OBJ_ID_STATE * PSPIFFS_FREE_OBJ_ID_STATE;
 #define SPIFFS_OBJ_LOOKUP_MAX_ENTRIES(pfs)              (SPIFFS_PAGES_PER_BLOCK(pfs) - SPIFFS_OBJ_LOOKUP_PAGES(pfs))
 #define SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(pfs, blkIX, iEntry)\
                                                         ((blkIX)*SPIFFS_PAGES_PER_BLOCK(pfs) + (SPIFFS_OBJ_LOOKUP_PAGES(pfs) + iEntry))
-#define SPIFFS_OBJ_LOOKUP_ENTRY_TO_PADDR(pfs, blkIX, iEntry) \
-                                                        (SPIFFS_BLOCK_TO_PADDR(pfs, blkIX) + (SPIFFS_OBJ_LOOKUP_PAGES(pfs) + iEntry) \ 
-                                                        * SPIFFS_CFG_LOGIC_PAGE_SZ(pfs))
+#define SPIFFS_OBJ_LOOKUP_ENTRY_TO_PADDR(pfs, blkIX, iEntry)\
+                                                        (SPIFFS_BLOCK_TO_PADDR(pfs, blkIX) + (SPIFFS_OBJ_LOOKUP_PAGES(pfs) + iEntry) * SPIFFS_CFG_LOGIC_PAGE_SZ(pfs))
 /* 倒数第二个Lookup Entry为块的擦写次数 */
 #define SPIFFS_ERASE_COUNT_PADDR(pfs, blkIX)            (SPIFFS_BLOCK_TO_PADDR(pfs, blkIX) + SPIFFS_OBJ_LOOKUP_PAGES(pfs) *\
                                                         SPIFFS_CFG_LOGIC_PAGE_SZ(pfs) - sizeof(SPIFFS_OBJ_ID))
@@ -587,7 +586,7 @@ if ((res) < SPIFFS_OK) { \
 *********************************************************************************************************/
 #define SYLIX_TO_SPIFFS_PFS(pfs)        (pfs->pfs)
 #define SYLIX_TO_SPIFFS_FD(pspifn)      (pspifn->pFd->fileN)
-
+;
 typedef struct spif_volume {
     LW_DEV_HDR          SPIFFS_devhdrHdr;                                /*  spiffs 文件系统设备头        */
     LW_OBJECT_HANDLE    SPIFFS_hVolLock;                                 /*  卷操作锁                    */
@@ -627,6 +626,19 @@ typedef struct spif_node {
     PSPIFFS_FD          pFd;                                              /*  Spiffs文件描述 */
 } SPIFN_NODE;
 typedef SPIFN_NODE       *PSPIFN_NODE;
+
+static inline PVOID spif_malloc(PSPIF_VOLUME pfs, size_t stNBytes){
+    pfs->SPIFFS_ulCurBlk += stNBytes;
+    if(pfs->SPIFFS_ulCurBlk > pfs->SPIFFS_ulMaxBlk){
+       pfs->SPIFFS_ulMaxBlk = pfs->SPIFFS_ulCurBlk;
+    }
+    return lib_malloc(stNBytes);
+}
+
+static inline PVOID spif_free(PSPIF_VOLUME pfs, PVOID pvPtr, size_t stNBytes){
+    pfs->SPIFFS_ulCurBlk -= stNBytes;
+    lib_free(pvPtr);
+}
 /*********************************************************************************************************
   检测路径字串是否为根目录或者直接指向设备
 *********************************************************************************************************/

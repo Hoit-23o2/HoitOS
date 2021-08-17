@@ -59,7 +59,7 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
     
     if((pErasableSector->HOITS_pRawInfoCurGC 
     && pErasableSector->HOITS_pRawInfoCurGC->is_obsolete == HOIT_FLAG_OBSOLETE) 
-    || pErasableSector->HOITS_pRawInfoCurGC == LW_NULL){                /* 如果当前GC RawInfo过期，或还不存在当前GC RawInfo，则重新开始RawInfo的GC */
+    || pErasableSector->HOITS_pRawInfoCurGC == LW_NULL){                                     /* 如果当前GC RawInfo过期，或还不存在当前GC RawInfo，则重新开始RawInfo的GC */
         bIsReset = LW_TRUE;
     }
     
@@ -67,7 +67,9 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
     {
         pRawInfoObselete = pRawInfoTraverse;
         pRawInfoTraverse = pRawInfoTraverse->next_phys;
-        if(pRawInfoObselete == pErasableSector->HOITS_pRawInfoLast){    /* 全是空，直接返回咯 */
+        //! 2021-08-17 Added By PYQ 添加对ObsoleteEntity计数  
+        pErasableSector->HOITS_uiObsoleteEntityCount--;
+        if(pRawInfoObselete == pErasableSector->HOITS_pRawInfoLast){                          /* 全是空，直接返回咯 */
             hoit_free(pfs, pRawInfoObselete, sizeof(HOIT_RAW_INFO));
             pErasableSector->HOITS_pRawInfoFirst    = LW_NULL;
             pErasableSector->HOITS_pRawInfoLast     = LW_NULL;
@@ -76,6 +78,8 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
             pErasableSector->HOITS_pRawInfoLastGC   = LW_NULL;
             return LW_FALSE;
         }
+        // pErasableSector->HOITS_uiUsedSize   -= pRawInfoObselete->totlen; 
+        // pErasableSector->HOITS_uiFreeSize   += pRawInfoObselete->totlen; 
         hoit_free(pfs, pRawInfoObselete, sizeof(HOIT_RAW_INFO));
     }
 
@@ -92,7 +96,7 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
         || pRawInfoTraverse == LW_NULL){    /* 扫描完毕 */
             break;
         }
-        if(pRawInfoTraverse->is_obsolete == HOIT_FLAG_OBSOLETE){                                      /* 如果过期 */
+        if(pRawInfoTraverse->is_obsolete == HOIT_FLAG_OBSOLETE){                /* 如果过期，回收咯 */
             pRawInfoObselete                    = pRawInfoTraverse;             
             pRawInfoTrailing->next_phys         = pRawInfoTraverse->next_phys;  /* 修改指针——前一块指向当前块的下一块 */
             pRawInfoTraverse                    = pRawInfoTraverse->next_phys;  /* 置当前块为下一块 */
@@ -100,7 +104,8 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
             //!不能在GC过程中修改一个Sector的各种Size，否则会出现很严重的情况
             // pErasableSector->HOITS_uiUsedSize   -= pRawInfoObselete->totlen; 
             // pErasableSector->HOITS_uiFreeSize   += pRawInfoObselete->totlen; 
-            
+            //! 2021-08-17 Added By PYQ 添加对ObsoleteEntity计数
+            pErasableSector->HOITS_uiObsoleteEntityCount--;
             hoit_free(pfs, pRawInfoObselete, sizeof(HOIT_RAW_INFO));                                         /* 释放过期的块 */
         }
         else {
@@ -281,6 +286,7 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
         bIsCollectOver = LW_TRUE;
     }
 
+    /* 标记pRawInfoCurGC过期 */
     bIsMoveSuccess = __hoitGCCollectRawInfoAlive(pfs, pErasableSector, pRawInfoCurGC);
 
 
@@ -301,8 +307,10 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
                 }
             }
         }
+        //! 2021-08-17 Added By PYQ uiObsoleteEntityCount减少
+        pErasableSector->HOITS_uiObsoleteEntityCount--;
     }
-    else {                                                               /* 如果没有MOVE成功 */
+    else {                                                               /* 如果没有MOVE成功，说明没有空间了 */
         bIsCollectOver = LW_TRUE;
         goto __hoitGCCollectSectorAliveEnd;
     }

@@ -203,29 +203,32 @@ VOID __hoitRbInsertFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
                 RB_GRAND(pRbn)->uiColor = RB_RED;
                 pRbn = RB_GRAND(pRbn);
             }
-            /* 该节点是右孩子，叔叔是黑色
-                      PP(B)
-                      /   \
-                   P(R)    uncle(B)
-                      \
+            else {
+                /* 该节点是右孩子，叔叔是黑色
+                        PP(B)
+                        /   \
+                    P(R)    uncle(B)
+                        \
+                        pRbn(R)
+                */
+                if(RB_IS_RIGHT_CHILD(pRbn)){
+                    pRbn = RB_PARENT(pRbn);
+                    __hoitRbLeftRotate(pRbTree, pRbn);
+                }
+                /* 该节点的叔叔是黑色的，且自己是左孩子
+                          PP(B)
+                          /   \
+                       P(R)    uncle(B)
+                       /
                     pRbn(R)
-            */
-            else if(RB_IS_RIGHT_CHILD(pRbn)){
-                pRbn = RB_PARENT(pRbn);
-                __hoitRbLeftRotate(pRbTree, pRbn);
+                */
+                if(RB_IS_LEFT_CHILD(pRbn) && RB_UNCLE_RIGHT(pRbn)->uiColor == RB_BLACK){
+                    RB_PARENT(pRbn)->uiColor = RB_BLACK;
+                    RB_GRAND(pRbn)->uiColor = RB_RED;
+                    __hoitRbRightRotate(pRbTree, RB_GRAND(pRbn));
+                }
             }
-            /* 该节点的叔叔是黑色的，且自己是左孩子
-                      PP(B)
-                      /   \
-                   P(R)    uncle(B)
-                   /
-                pRbn(R)
-            */
-            if(RB_IS_LEFT_CHILD(pRbn) && RB_UNCLE_RIGHT(pRbn)->uiColor == RB_BLACK){
-                RB_PARENT(pRbn)->uiColor = RB_BLACK;
-                RB_GRAND(pRbn)->uiColor = RB_RED;
-                __hoitRbRightRotate(pRbTree, RB_GRAND(pRbn));
-            }
+
         }
         else {
             /* 父亲是右孩子, 叔叔节点为左侧, 且是红色 */
@@ -236,16 +239,19 @@ VOID __hoitRbInsertFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
                 pRbn = RB_GRAND(pRbn);
             }
             /* 该节点是右孩子 */
-            else if(RB_IS_LEFT_CHILD(pRbn)){
-                pRbn = RB_PARENT(pRbn);
-                __hoitRbRightRotate(pRbTree, pRbn);
+            else{
+                if(RB_IS_LEFT_CHILD(pRbn)){
+                    pRbn = RB_PARENT(pRbn);
+                    __hoitRbRightRotate(pRbTree, pRbn);
+                }
+
+                if(RB_IS_RIGHT_CHILD(pRbn) && RB_UNCLE_LEFT(pRbn)->uiColor == RB_BLACK){
+                    RB_PARENT(pRbn)->uiColor = RB_BLACK;
+                    RB_GRAND(pRbn)->uiColor = RB_RED;
+                    __hoitRbLeftRotate(pRbTree, RB_GRAND(pRbn));
+                }
             }
 
-            if(RB_IS_RIGHT_CHILD(pRbn) && RB_UNCLE_LEFT(pRbn)->uiColor == RB_BLACK){
-                RB_PARENT(pRbn)->uiColor = RB_BLACK;
-                RB_GRAND(pRbn)->uiColor = RB_RED;
-                __hoitRbLeftRotate(pRbTree, RB_GRAND(pRbn));
-            }
         }
     }
     pRbTree->pRbnRoot->uiColor = RB_BLACK;
@@ -269,7 +275,7 @@ VOID __hoitRbDeleteFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
             pRbnBrother = RB_RIGHT_CHILD(RB_PARENT(pRbn));
             if(pRbnBrother->uiColor == RB_RED){                                 /* 情况1：待更新节点的兄弟节点为红色，将其转为黑色，变成情况2、3、4 */
                 pRbnBrother->uiColor = RB_BLACK;
-                pRbnBrother->pRbnParent->uiColor = RB_RED;
+                pRbn->pRbnParent->uiColor = RB_RED;
                 __hoitRbLeftRotate(pRbTree, RB_PARENT(pRbn));
                 pRbnBrother = RB_RIGHT_CHILD(RB_PARENT(pRbn));
             }
@@ -304,7 +310,7 @@ VOID __hoitRbDeleteFixUp(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
             pRbnBrother = RB_LEFT_CHILD(RB_PARENT(pRbn));
             if(pRbnBrother->uiColor == RB_RED){
                 pRbnBrother->uiColor = RB_BLACK;
-                pRbnBrother->pRbnParent->uiColor = RB_RED;
+                pRbn->pRbnParent->uiColor = RB_RED;
                 __hoitRbRightRotate(pRbTree, RB_PARENT(pRbn));
                 pRbnBrother = RB_LEFT_CHILD(RB_PARENT(pRbn));
             }
@@ -451,6 +457,7 @@ BOOL hoitRbDeleteNode(PHOIT_RB_TREE pRbTree, PHOIT_RB_NODE pRbn){
     UINT32                  uiTraverseOriginColor;
 
     pRbnTraverse = pRbn;                            /* 记录待删除节点颜色 */
+    
     uiTraverseOriginColor = pRbnTraverse->uiColor;
     /* 待删除节点的右孩子为空，则直接移动 (同样适于LC是NIL的情况)
               |                             |

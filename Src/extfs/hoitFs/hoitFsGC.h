@@ -63,7 +63,7 @@ static inline VOID hoitStartGCThread(PHOIT_VOLUME pfs, UINT uiThreshold){
     LW_CLASS_THREADATTR     gcThreadAttr;
     PHOIT_GC_ATTR           pGCAttr;
 
-    pGCAttr                 = (PHOIT_GC_ATTR)lib_malloc(sizeof(HOIT_GC_ATTR));
+    pGCAttr                 = (PHOIT_GC_ATTR)hoit_malloc(pfs, sizeof(HOIT_GC_ATTR));
     pGCAttr->pfs            = pfs;
     pGCAttr->uiThreshold    = uiThreshold;
     

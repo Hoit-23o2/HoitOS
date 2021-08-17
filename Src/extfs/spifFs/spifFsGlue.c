@@ -24,6 +24,8 @@
 #include "spifFsFDLib.h"
 #include "../driver/mtd/nor/nor.h"
 #include "spifFsGC.h"
+#define DIVIDER                         "================="
+#define NEXT_LINE                       "\n"
 
 #define __spiffsAlign8Byte(pMem, uiMemSZ) \
 do {\
@@ -185,7 +187,7 @@ INT32 __spiffs_mount(PSPIFFS_VOLUME pfs, PSPIFFS_CONFIG pConfig, PUCHAR pucWorkB
     SPIFFS_DBG("total blocks:                "_SPIPRIi"\n", (UINT32)(SPIFFS_CFG_PHYS_SZ(pfs) / SPIFFS_CFG_LOGIC_BLOCK_SZ(pfs)));
     SPIFFS_DBG("free blocks:                 "_SPIPRIi"\n", (UINT32)pfs->uiFreeBlks);
 
-    // printf("Spiffs is a flat file system, which means directory is not permitted here\n");
+    printf("Spiffs is a flat file system, which means directory is not permitted here\n");
     pfs->checkCallbackFunc = checkCallbackFunc;
     pfs->uiMountedFlag = 1;
     
@@ -216,7 +218,12 @@ VOID __spiffs_unmount(PSPIFFS_VOLUME pfs){
             spiffsFdReturn(pfs,  pCurFd->fileN);    /* 释放文件描述符 */
         }
     }
+    
     pfs->uiMountedFlag = 0;
+
+    spif_free(pfs, pfs->pucWorkBuffer, pfs->cfg.uiLogicBlkSize * 2);
+    spif_free(pfs, pfs->pCache, pfs->uiCacheSize);
+    // spif_free(pfs, pfs->pucFdSpace, pfs->uiFdCount * sizeof(SPIFFS_FD));
     return;
 }
 /*********************************************************************************************************
@@ -450,7 +457,7 @@ INT32 __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler,  PCHAR pcConte
             uiOffset = MAX(uiOffset, pFd->pCachePage->uiOffset + pFd->pCachePage->uiSize);
         }
     }
-
+    
     if ((pFd->flags & SPIFFS_O_DIRECT) == 0) {
         if (iLen < (INT32)SPIFFS_CFG_LOGIC_PAGE_SZ(pfs)) {
             // small write, try to pCache it
@@ -465,7 +472,7 @@ INT32 __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler,  PCHAR pcConte
                     SPIFFS_CACHE_DBG("CACHE_WR_DUMP: dumping pCache page "_SPIPRIi" for pFd "_SPIPRIfd":"_SPIPRIid", boundary viol, offs:"_SPIPRIi" uiSize:"_SPIPRIi"\n",
                                      pFd->pCachePage->uiIX, pFd->fileN, pFd->objId, 
                                      pFd->pCachePage->uiOffset, pFd->pCachePage->uiSize);
-                    iRes = spiffsFileWrite(pfs, pFd, SPIFFS_GET_CACHE_PAGE_CONTENT(pfs, SPIFFS_GET_CACHE_HDR(pfs), pFd->pCachePage->uiIX),
+                    iRes = spiffsFileWrite(pfs, pFd->fileN, SPIFFS_GET_CACHE_PAGE_CONTENT(pfs, SPIFFS_GET_CACHE_HDR(pfs), pFd->pCachePage->uiIX),
                                            pFd->pCachePage->uiOffset, pFd->pCachePage->uiSize);
                     spiffsCacheFdRelease(pfs, pFd->pCachePage);
                     //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
@@ -503,7 +510,7 @@ INT32 __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler,  PCHAR pcConte
                 return iLen;
             } 
             else {                          /* 否则直接写文件 */
-                iRes = spiffsFileWrite(pfs, pFd, pcContent, uiOffset, iLen);
+                iRes = spiffsFileWrite(pfs, pFd->fileN, pcContent, uiOffset, iLen);
                 //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
                 SPIFFS_API_CHECK_RES(pfs, iRes);
                 pFd->uiFdOffset += iLen;
@@ -518,7 +525,7 @@ INT32 __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler,  PCHAR pcConte
                 SPIFFS_CACHE_DBG("CACHE_WR_DUMP: dumping pCache page "_SPIPRIi" for pFd "_SPIPRIfd":"_SPIPRIid", big write, offs:"_SPIPRIi" uiSize:"_SPIPRIi"\n",
                                  pFd->pCachePage->uiIX, pFd->fileN, pFd->objId, 
                                  pFd->pCachePage->uiOffset, pFd->pCachePage->uiSize);
-                iRes = spiffsFileWrite(pfs, pFd, SPIFFS_GET_CACHE_PAGE_CONTENT(pfs, SPIFFS_GET_CACHE_HDR(pfs), pFd->pCachePage->uiIX),
+                iRes = spiffsFileWrite(pfs, pFd->fileN, SPIFFS_GET_CACHE_PAGE_CONTENT(pfs, SPIFFS_GET_CACHE_HDR(pfs), pFd->pCachePage->uiIX),
                                        pFd->pCachePage->uiOffset, pFd->pCachePage->uiSize);
                 spiffsCacheFdRelease(pfs, pFd->pCachePage);
                 //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
@@ -528,7 +535,7 @@ INT32 __spiffs_write(PSPIFFS_VOLUME pfs, SPIFFS_FILE fileHandler,  PCHAR pcConte
         }
     }
 
-    iRes = spiffsFileWrite(pfs, pFd, pcContent, uiOffset, iLen);
+    iRes = spiffsFileWrite(pfs, pFd->fileN, pcContent, uiOffset, iLen);
     //SPIFFS_API_CHECK_RES_UNLOCK(pfs, iRes);
     SPIFFS_API_CHECK_RES(pfs, iRes);
     pFd->uiFdOffset += iLen;
@@ -1016,7 +1023,7 @@ INT __spif_mount(PSPIF_VOLUME pfs){
     UINT32          uiWorkSize;
     PUCHAR          pucWorkBuffer;
     
-    UINT32          uiCachePages = 8;
+    UINT32          uiCachePages = 224 * 8;                 /* 256 * 224 * 8 B */
     UINT32          uiCacheSize;
     PUCHAR          pCache;
 
@@ -1025,7 +1032,7 @@ INT __spif_mount(PSPIF_VOLUME pfs){
     PSPIFFS_FD      pFds; 
 
      /* 初始化配置*/
-    pConfig                     = (PSPIFFS_CONFIG)lib_malloc(sizeof(SPIFFS_CONFIG));
+    pConfig                     = (PSPIFFS_CONFIG)spif_malloc(pfs, sizeof(SPIFFS_CONFIG));
     pConfig->halEraseFunc       = LW_NULL;
     pConfig->halReadFunc        = LW_NULL;
     pConfig->halWriteFunc       = LW_NULL;
@@ -1041,9 +1048,9 @@ INT __spif_mount(PSPIF_VOLUME pfs){
                                   uiCachePages * (sizeof(SPIFFS_CACHE_PAGE) + pConfig->uiLogicPageSize);
     uiFdsSize                   = uiDescriptors * sizeof(SPIFFS_FD);
 
-    pucWorkBuffer               = (PUCHAR)lib_malloc(uiWorkSize);
-    pCache                      = (PUCHAR)lib_malloc(uiCacheSize);
-    pFds                        = (PSPIFFS_FD)lib_malloc(uiFdsSize);
+    pucWorkBuffer               = (PUCHAR)spif_malloc(pfs, uiWorkSize);
+    pCache                      = (PUCHAR)spif_malloc(pfs, uiCacheSize);
+    pFds                        = (PSPIFFS_FD)spif_malloc(pfs, uiFdsSize);
 
     return __spiffs_mount(SYLIX_TO_SPIFFS_PFS(pfs), pConfig, pucWorkBuffer, 
                           (UINT8 *)pFds, uiFdsSize, pCache, uiCacheSize, LW_NULL);
@@ -1058,6 +1065,13 @@ INT __spif_mount(PSPIF_VOLUME pfs){
 ** 调用模块:
 *********************************************************************************************************/
 INT __spif_unmount(PSPIF_VOLUME pfs){
+    
+    printf(DIVIDER "MORE INFO" DIVIDER NEXT_LINE);
+    printf("GC Times           : %d" NEXT_LINE, pfs->pfs->uiStatsGCRuns);
+    printf("Cur Memory Cost    : %ld" NEXT_LINE, pfs->SPIFFS_ulCurBlk);
+    printf("Max Memory Cost    : %ld" NEXT_LINE, pfs->SPIFFS_ulMaxBlk);
+    API_TShellColorEnd(STD_OUT);
+
     __spiffs_unmount(SYLIX_TO_SPIFFS_PFS(pfs));
     return SPIFFS_OK;
 }
@@ -1276,8 +1290,8 @@ INT __spif_lseek(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, UINT32 uiOffset){
 *********************************************************************************************************/
 INT __spif_statfs(PSPIF_VOLUME pfs, struct statfs *pstatfs){
     pstatfs->f_type = SPIFFS_CONFIG_MAGIC;  //需要修改
-    pstatfs->f_bsize = 0;
-    pstatfs->f_blocks = 0;
+    pstatfs->f_bsize  = 57288;              /* 与HOITFS保持一致 */
+    pstatfs->f_blocks = 28;
     pstatfs->f_bfree = 0;
     pstatfs->f_bavail = 1;
 
