@@ -377,6 +377,7 @@ UINT8 __hoit_add_to_inode_cache(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pR
         printk("Error in %s\n", __func__);
         return HOIT_ERROR;
     }
+
     pRawInfo->next_logic = pInodeCache->HOITC_nodes;
     pInodeCache->HOITC_nodes = pRawInfo;
     return 0;
@@ -604,6 +605,7 @@ UINT8 __hoit_get_inode_nodes(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeInfo, PHO
         PCHAR pBuf = (PCHAR)hoit_malloc(pfs, pRawInfo->totlen);
         
         __hoit_read_flash(pfs, pRawInfo->phys_addr, pBuf, pRawInfo->totlen);
+
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pBuf;
         crc32_check(pRawHeader);
         if (!__HOIT_IS_OBSOLETE(pRawHeader)) {
@@ -1179,6 +1181,7 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     /* 先读出旧数据 */
     lib_bzero(pReadBuf, pRawInfo->totlen);
     crc32_check(pReadBuf);
+
     __hoit_read_flash(pfs, pRawInfo->phys_addr, pReadBuf, pRawInfo->totlen);
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pReadBuf;
@@ -1192,6 +1195,7 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     // pRawHeader->crc = hoit_crc32_le(pRawHeader, pRawInfo->totlen);
     // __hoit_write_flash_thru(pfs, (PVOID)pRawHeader, pRawInfo->totlen, pRawInfo->phys_addr);
     //!pRawHeader->flag &= (~HOIT_FLAG_NOT_OBSOLETE);      //将obsolete标志变为0，代表过期
+
     __hoit_mark_obsolete(pfs, pRawHeader, pRawInfo);
     
     /* 将obsolete标志位恢复后写到新地址 */
@@ -1204,6 +1208,7 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     pRawHeader->crc = 0;
     pRawHeader->crc = hoit_crc32_le(pRawHeader, pRawInfo->totlen);
     iRes = __hoit_write_flash(pfs, pReadBuf, pRawInfo->totlen, &phys_addr, 1);
+
     pRawInfo->phys_addr = phys_addr;
 
     
@@ -1458,7 +1463,7 @@ INT  __hoit_unlink_regular(PHOIT_INODE_INFO pInodeFather, PHOIT_FULL_DIRENT  pDi
     PHOIT_RAW_INFO pRawInfo = pDirent->HOITFD_raw_info;
     __hoit_del_raw_info(pFatherInodeCache, pRawInfo);     //将RawInfo从InodeCache的链表中删除
     __hoit_del_raw_data(pfs, pRawInfo);
-    pRawInfo->is_obsolete = 1;
+    pRawInfo->is_obsolete = HOIT_FLAG_OBSOLETE;
 
     /*
     *将该FullDirent从父目录文件中的dents链表删除
