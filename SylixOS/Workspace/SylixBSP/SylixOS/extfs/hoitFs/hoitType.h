@@ -88,7 +88,7 @@
 #define HOIT_FLAG_OBSOLETE                  0x00000000
 #define HOIT_ERROR                          100
 #define HOIT_ROOT_DIR_INO                   1   /* HoitFs的根目录的ino为1 */
-#define HOIT_MAX_DATA_SIZE                  1024
+#define HOIT_MAX_DATA_SIZE                  (56*16)
 #define __HOIT_IS_OBSOLETE(pRawHeader)      ((pRawHeader->flag & HOIT_FLAG_NOT_OBSOLETE)    == 0)
 #define __HOIT_IS_TYPE_INODE(pRawHeader)    ((pRawHeader->flag & HOIT_FLAG_TYPE_INODE)  != 0)
 #define __HOIT_IS_TYPE_DIRENT(pRawHeader)   ((pRawHeader->flag & HOIT_FLAG_TYPE_DIRENT) != 0)
@@ -128,6 +128,7 @@ typedef struct HOIT_FULL_DIRENT           HOIT_FULL_DIRENT;
 typedef struct HOIT_INODE_CACHE           HOIT_INODE_CACHE;
 typedef struct HOIT_INODE_INFO            HOIT_INODE_INFO;
 typedef struct HOIT_ERASABLE_SECTOR       HOIT_ERASABLE_SECTOR;
+typedef struct HOIT_ERASABLE_SECTOR_REF   HOIT_ERASABLE_SECTOR_REF;
 typedef struct HOIT_LOG_SECTOR            HOIT_LOG_SECTOR;
 typedef struct hoit_rb_node               HOIT_RB_NODE;
 typedef struct hoit_rb_tree               HOIT_RB_TREE;
@@ -156,6 +157,7 @@ typedef HOIT_FULL_DIRENT*                 PHOIT_FULL_DIRENT;
 typedef HOIT_INODE_CACHE*                 PHOIT_INODE_CACHE;
 typedef HOIT_INODE_INFO*                  PHOIT_INODE_INFO;
 typedef HOIT_ERASABLE_SECTOR*             PHOIT_ERASABLE_SECTOR;
+typedef HOIT_ERASABLE_SECTOR_REF*         PHOIT_ERASABLE_SECTOR_REF;
 typedef HOIT_LOG_SECTOR*                  PHOIT_LOG_SECTOR;
 typedef HOIT_RB_NODE *                    PHOIT_RB_NODE;
 typedef HOIT_RB_TREE *                    PHOIT_RB_TREE;
@@ -176,7 +178,7 @@ typedef HOIT_MERGE_BUFFER *               PHOIT_MERGE_BUFFER;
 typedef HOIT_MERGE_ENTRY *                PHOIT_MERGE_ENTRY;
 DEV_HDR          HOITFS_devhdrHdr;
 
-DECLARE_LIST_TEMPLATE(PHOIT_ERASABLE_SECTOR);
+DECLARE_LIST_TEMPLATE(HOIT_ERASABLE_SECTOR_REF);
 // USE_LIST_TEMPLATE(hoitType, HOIT_FRAG_TREE_NODE);
 /*********************************************************************************************************
   HoitFs super block类型
@@ -206,10 +208,10 @@ typedef struct HOIT_VOLUME{
     
                                                                            /*! GC 相关 */
     PHOIT_ERASABLE_SECTOR           HOITFS_erasableSectorList;                  /* 可擦除Sector列表 */
-    List(PHOIT_ERASABLE_SECTOR)     HOITFS_dirtySectorList;                     /* 含有obsolete的块 */ 
-    List(PHOIT_ERASABLE_SECTOR)     HOITFS_cleanSectorList;                     /* 不含obsolete的块 */
-    List(PHOIT_ERASABLE_SECTOR)     HOITFS_freeSectorList;                      /* 啥都不含的块 */
-    Iterator(PHOIT_ERASABLE_SECTOR) HOITFS_sectorIterator;                      /* 统一sector迭代器 */
+    List(HOIT_ERASABLE_SECTOR_REF)     HOITFS_dirtySectorList;                     /* 含有obsolete的块 */ 
+    List(HOIT_ERASABLE_SECTOR_REF)     HOITFS_cleanSectorList;                     /* 不含obsolete的块 */
+    List(HOIT_ERASABLE_SECTOR_REF)     HOITFS_freeSectorList;                      /* 啥都不含的块 */
+    Iterator(HOIT_ERASABLE_SECTOR_REF) HOITFS_sectorIterator;                      /* 统一sector迭代器 */
     
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
     LW_OBJECT_HANDLE        HOITFS_GCMsgQ;                                 /* GC线程消息队列*/
@@ -355,6 +357,10 @@ struct HOIT_ERASABLE_SECTOR{  //100B
     PHOIT_RAW_INFO                HOITS_pRawInfoLastGC;                           /* 最后一块应当被GC的Raw Info */
   
     ULONG                         HOITS_tBornAge;                                 /* 当前Sector的出生时间 */                        
+};
+
+struct HOIT_ERASABLE_SECTOR_REF{
+    PHOIT_ERASABLE_SECTOR  pErasableSetcor
 };
 
 struct HOIT_LOG_SECTOR{

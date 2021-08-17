@@ -108,7 +108,7 @@ INT  API_HoitFsDrvInstall(VOID)
                                            API 函数
 *********************************************************************************************************/
 #define NAMESPACE   hoitFs
-USE_LIST_TEMPLATE(NAMESPACE, PHOIT_ERASABLE_SECTOR);
+USE_LIST_TEMPLATE(NAMESPACE, HOIT_ERASABLE_SECTOR_REF);
 LW_API
 INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 {
@@ -168,10 +168,10 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_erasableSectorList = LW_NULL;
     pfs->HOITFS_bShouldKillGC      = LW_FALSE;
 
-    InitList(pfs->HOITFS_dirtySectorList,hoitFs, PHOIT_ERASABLE_SECTOR); /* 初始化模板链表 */
-    InitList(pfs->HOITFS_cleanSectorList,hoitFs, PHOIT_ERASABLE_SECTOR);
-    InitList(pfs->HOITFS_freeSectorList,hoitFs, PHOIT_ERASABLE_SECTOR);
-    InitIterator(pfs->HOITFS_sectorIterator, hoitFs, PHOIT_ERASABLE_SECTOR);
+    InitList(pfs->HOITFS_dirtySectorList,    NAMESPACE, HOIT_ERASABLE_SECTOR_REF); /* 初始化模板链表 */
+    InitList(pfs->HOITFS_cleanSectorList,    NAMESPACE, HOIT_ERASABLE_SECTOR_REF);
+    InitList(pfs->HOITFS_freeSectorList,     NAMESPACE, HOIT_ERASABLE_SECTOR_REF);
+    InitIterator(pfs->HOITFS_sectorIterator, NAMESPACE, HOIT_ERASABLE_SECTOR_REF);
 
                                                                         /* Log相关 */
     pfs->HOITFS_logInfo            = LW_NULL;
