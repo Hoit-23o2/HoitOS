@@ -59,6 +59,8 @@ VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs){
         }
         printf("UsedSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiUsedSize);
         printf("FreeSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiFreeSize);
+        printf("ObseletEntity:   %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiObsoleteEntityCount);
+        printf("AvailableEntity: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiAvailableEntityCount);
         pErasableSectorTraverse = pErasableSectorTraverse->HOITS_next;
         API_TShellColorEnd(STD_OUT);
     }
@@ -67,6 +69,8 @@ VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs){
     printf(DIVIDER "MORE INFO" DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
     printf("Foreground GC Times: %ld" NEXT_LINE, pfs->ulGCForegroundTimes);
     printf("Background GC Times: %ld" NEXT_LINE, pfs->ulGCBackgroundTimes);
+    printf("Cur Memory Cost    : %u" NEXT_LINE, pfs->HOITFS_ulCurBlk);
+    printf("Max Memory Cost    : %u" NEXT_LINE, pfs->HOITFS_ulMaxBlk);
     API_TShellColorEnd(STD_OUT);
 }
 

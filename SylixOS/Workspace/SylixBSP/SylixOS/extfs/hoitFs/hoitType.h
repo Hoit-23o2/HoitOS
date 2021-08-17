@@ -24,6 +24,7 @@
 #include "stdio.h"
 #include "SylixOS.h"
 #include "../tools/list/list_interface.h"
+#include "../tools/crc/crc32.h"
 
 //!2021-06-06 修改块级管理结构（三个链表） by zn
 /*********************************************************************************************************
@@ -37,8 +38,8 @@
 /*********************************************************************************************************
   HoitFs GC 相关测试
 *********************************************************************************************************/
-//#define GC_DEBUG
-//#define GC_TEST
+// #define GC_DEBUG
+// #define GC_TEST
 /*********************************************************************************************************
   HoitFs 红黑树 相关测试
 *********************************************************************************************************/
@@ -48,7 +49,7 @@
 *********************************************************************************************************/
 //#define FT_TEST
 //#define FT_DEBUG
-#define FT_OBSOLETE_hoitFragTreeOverlayFixUp             
+#define FT_OBSOLETE_TREE_LIST             
 
 /*********************************************************************************************************
   HoitFs LOG 相关测试
@@ -58,10 +59,11 @@
 /*********************************************************************************************************
   HoitFs 特性宏控
 *********************************************************************************************************/
-//#define  MULTI_THREAD_ENABLE      /* 启用多线程 */
+#define  MULTI_THREAD_ENABLE      /* 启用多线程 */
 #define  EBS_ENABLE               /* 启用EBS */
 #define  WRITE_BUFFER_ENABLE      /* 启用WriteBuffer */
-//#define  BACKGOURND_GC_ENABLE        /* 启用后台GC */
+// #define  BACKGOURND_GC_ENABLE     /* 启用后台GC */
+// #define  CRC_DATA_ENABLE          /*  CRC DATA特性 */
 //! 07-18 ZN 暂时注释log
 // #define  LOG_ENABLE
 
@@ -95,9 +97,9 @@
 #define __HOIT_VOLUME_LOCK(pfs)             API_SemaphoreMPend(pfs->HOITFS_hVolLock, \
                                             LW_OPTION_WAIT_INFINITE)
 #define __HOIT_VOLUME_UNLOCK(pfs)           API_SemaphoreMPost(pfs->HOITFS_hVolLock)
-#define GET_FREE_LIST(pfs)   pfs->HOITFS_freeSectorList
-#define GET_DIRTY_LIST(pfs)   pfs->HOITFS_dirtySectorList
-#define GET_CLEAN_LIST(pfs)   pfs->HOITFS_cleanSectorList
+#define GET_FREE_LIST(pfs)                  pfs->HOITFS_freeSectorList
+#define GET_DIRTY_LIST(pfs)                 pfs->HOITFS_dirtySectorList
+#define GET_CLEAN_LIST(pfs)                 pfs->HOITFS_cleanSectorList
 #define __HOIT_MIN_4_TIMES(value)           ((value+3)/4*4) /* 将value扩展到4的倍数 */
 
 /*********************************************************************************************************
@@ -174,9 +176,7 @@ typedef HOIT_MERGE_BUFFER *               PHOIT_MERGE_BUFFER;
 typedef HOIT_MERGE_ENTRY *                PHOIT_MERGE_ENTRY;
 DEV_HDR          HOITFS_devhdrHdr;
 
-DECLARE_LIST_TEMPLATE(HOIT_ERASABLE_SECTOR);
-DECLARE_LIST_TEMPLATE(HOIT_FRAG_TREE_NODE);
-
+DECLARE_LIST_TEMPLATE(PHOIT_ERASABLE_SECTOR);
 // USE_LIST_TEMPLATE(hoitType, HOIT_FRAG_TREE_NODE);
 /*********************************************************************************************************
   HoitFs super block类型
@@ -205,16 +205,17 @@ typedef struct HOIT_VOLUME{
     PHOIT_ERASABLE_SECTOR   HOITFS_now_sector;
     
                                                                            /*! GC 相关 */
-    PHOIT_ERASABLE_SECTOR           HOITFS_erasableSectorList;                     /* 可擦除Sector列表 */
-    List(HOIT_ERASABLE_SECTOR)      HOITFS_dirtySectorList;                     /* 含有obsolete的块 */ 
-    List(HOIT_ERASABLE_SECTOR)      HOITFS_cleanSectorList;                     /* 不含obsolete的块 */
-    List(HOIT_ERASABLE_SECTOR)      HOITFS_freeSectorList;                      /* 啥都不含的块 */
-    Iterator(HOIT_ERASABLE_SECTOR)  HOITFS_sectorIterator;                      /* 统一sector迭代器 */
-
+    PHOIT_ERASABLE_SECTOR           HOITFS_erasableSectorList;                  /* 可擦除Sector列表 */
+    List(PHOIT_ERASABLE_SECTOR)     HOITFS_dirtySectorList;                     /* 含有obsolete的块 */ 
+    List(PHOIT_ERASABLE_SECTOR)     HOITFS_cleanSectorList;                     /* 不含obsolete的块 */
+    List(PHOIT_ERASABLE_SECTOR)     HOITFS_freeSectorList;                      /* 啥都不含的块 */
+    Iterator(PHOIT_ERASABLE_SECTOR) HOITFS_sectorIterator;                      /* 统一sector迭代器 */
+    
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
     LW_OBJECT_HANDLE        HOITFS_GCMsgQ;                                 /* GC线程消息队列*/
     LW_OBJECT_HANDLE        HOITFS_hGCThreadId;                            /* GC总线程ID */
-
+    BOOL                    HOITFS_bShouldKillGC;                          /* 是否停止后台GC */
+    
     ULONG                   ulGCForegroundTimes;                           /* GC前台计数 */
     ULONG                   ulGCBackgroundTimes;                           /* GC后台计数 */
     
@@ -440,7 +441,7 @@ typedef enum vis_statue
     VIS_ERROR
 } VIS_STATUE;
 
-typedef VIS_STATUE (*visitorHoitFragTree)(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, PVOID pUserValue);
+typedef VIS_STATUE (*visitorHoitFragTree)(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, PVOID pUserValue, PVOID *ppReturn);
 /*********************************************************************************************************
   HOITFS cache结构
 *********************************************************************************************************/
@@ -452,6 +453,8 @@ typedef struct HOIT_CACHE_BLK
     struct HOIT_CACHE_BLK       *HOITBLK_cacheListPrev;   /* 链表上上一个cache */
     struct HOIT_CACHE_BLK       *HOITBLK_cacheListNext;   /* 链表上下一个cache */
     PCHAR                       HOITBLK_buf;              /* 数据?? */
+    //! 2021-08-14 PYQ 观测
+    UINT32                      HOITBLK_uiCurOfs;
 }HOIT_CACHE_BLK;
 
 /*********************************************************************************************************
@@ -467,13 +470,14 @@ typedef struct HOIT_CACHE_HDR
     UINT32                  HOITCACHE_flashBlkNum;  /* 将flash分块后的块数 */
     UINT32                  HOITCACHE_nextBlkToWrite;/* 下一个要输出的块 */
     PHOIT_CACHE_BLK         HOITCACHE_cacheLineHdr;  /* cache链表头，注意该节点不保存数据 */
-
+    
     //! 2021-07-04 ZN filter层
     // size_t                  HOITCACHE_EBSEntrySize; /* EBS enty大小 */
     size_t                  HOITCACHE_CRCMagicAddr;   /* EBS 区域 CRC 校验码位置 */
     size_t                  HOITCACHE_EBSStartAddr;   /* EBS 在sector中起始地址 */
     size_t                  HOITCACHE_PageAmount;     /* 单个cache sector中的页数量，也是EBS entry的总数量(数量是1k -1) */
-}HOIT_CACHE_HDR;
+
+} HOIT_CACHE_HDR;
 
 //! 2021-7-04 ZN EBS项
 /*********************************************************************************************************
@@ -540,9 +544,31 @@ struct hoit_merge_entry
 
 #define HOIT_RAW_DATA_MAX_SIZE      4096    /* 单位为 Byte */
 
+static inline PVOID hoit_malloc(PHOIT_VOLUME pfs, size_t stNBytes){
+    pfs->HOITFS_ulCurBlk += stNBytes;
+    if(pfs->HOITFS_ulCurBlk > pfs->HOITFS_ulMaxBlk){
+       pfs->HOITFS_ulMaxBlk = pfs->HOITFS_ulCurBlk;
+    }
+    return lib_malloc(stNBytes);
+}
+
+static inline PVOID hoit_free(PHOIT_VOLUME pfs, PVOID pvPtr, size_t stNBytes){
+    pfs->HOITFS_ulCurBlk -= stNBytes;
+    lib_free(pvPtr);
+}
 /*********************************************************************************************************
   Common 公用方法区
 *********************************************************************************************************/
 BOOL                  hoitLogCheckIfLog(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector);
 PHOIT_ERASABLE_SECTOR hoitFindAvailableSector(PHOIT_VOLUME pfs);
+
+#ifdef CRC_DATA_ENABLE
+static UINT32         hoit_crc32_le(PUCHAR p, UINT len){
+    return crc32_le(p, len);
+}
+#else 
+static UINT32         hoit_crc32_le(PUCHAR p, UINT len){
+
+}
+#endif  /* CRC_DATA_ENABLE */
 #endif /* SYLIXOS_EXTFS_HOITFS_HOITTYPE_H_ */

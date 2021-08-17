@@ -10,9 +10,6 @@
 #include "SylixOS.h"
 
 #define DECLARE_LIST_TEMPLATE(TYPE)\
-/*********************************************************************************************************\
-  列表相关结构定义\
-*********************************************************************************************************/\ 
 typedef struct node##TYPE {\
     struct node##TYPE * next;\
     struct node##TYPE * prev;\
@@ -29,9 +26,6 @@ typedef struct list##TYPE\
     BOOL     (*removeObject)(struct list##TYPE * self, TYPE * data);\
     BOOL     (*removeIndex)(struct list##TYPE * self, UINT uiIndex);\
 } List##TYPE ;\
-/*********************************************************************************************************\
-  迭代器结构定义\
-*********************************************************************************************************/\ 
 typedef struct iter##TYPE\
 {\
     ListNode##TYPE  *  traverse;\
@@ -44,9 +38,6 @@ typedef struct iter##TYPE\
 
 
 #define USE_LIST_TEMPLATE_(NAMESPACE, TYPE)\
-/*********************************************************************************************************\
-  列表方法定义，使用前需要声明\
-*********************************************************************************************************/\ 
 UINT NAMESPACE##listSize##TYPE(struct list##TYPE* self) {\
     return self->uiSize;\
 }\
@@ -129,9 +120,6 @@ BOOL NAMESPACE##listRemoveIndex##TYPE(struct list##TYPE* self, UINT uiIndex){\
     }\
     return LW_FALSE;\
 }\
-/*********************************************************************************************************\
-  迭代器方法\
-*********************************************************************************************************/\                       
 VOID NAMESPACE##freeIterator##TYPE(Iterator##TYPE* iter){\
     lib_free(iter);\
 }\

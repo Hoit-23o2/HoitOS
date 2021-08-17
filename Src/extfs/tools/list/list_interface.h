@@ -34,7 +34,7 @@
     lib_free(list);\
 }
 
-#define InitList(iter,NAMESPACE, TYPE)    InitList_(iter,NAMESPACE, TYPE)
+#define InitList(list,NAMESPACE, TYPE)    InitList_(list,NAMESPACE, TYPE)
 /********************************************************************************************************* 
   µü´úÆ÷ÉùÃ÷                                                                                          
 *********************************************************************************************************/ 

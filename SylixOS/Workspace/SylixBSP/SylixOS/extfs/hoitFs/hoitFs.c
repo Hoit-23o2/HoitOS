@@ -108,7 +108,7 @@ INT  API_HoitFsDrvInstall(VOID)
                                            API 函数
 *********************************************************************************************************/
 #define NAMESPACE   hoitFs
-USE_LIST_TEMPLATE(NAMESPACE, HOIT_ERASABLE_SECTOR);
+USE_LIST_TEMPLATE(NAMESPACE, PHOIT_ERASABLE_SECTOR);
 LW_API
 INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 {
@@ -129,7 +129,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
         return  (PX_ERROR);
     }
 
-    pfs = (PHOIT_VOLUME)__SHEAP_ALLOC(sizeof(HOIT_VOLUME));
+    pfs = (PHOIT_VOLUME)lib_malloc(sizeof(HOIT_VOLUME));
     if (pfs == LW_NULL) {
         _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
         _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
@@ -144,7 +144,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
         LW_OPTION_INHERIT_PRIORITY | LW_OPTION_OBJECT_GLOBAL,
         LW_NULL);
     if (!pfs->HOITFS_hVolLock) {                                      /*  无法创建卷锁                */
-        __SHEAP_FREE(pfs);
+        hoit_free(pfs, pfs, sizeof(HOIT_VOLUME));
         return  (PX_ERROR);
     }
 
@@ -154,6 +154,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_time            = lib_time(LW_NULL);
     //TODO 内存消耗空间计算
     pfs->HOITFS_ulCurBlk        = 0ul;
+    pfs->HOITFS_ulMaxBlk        = 0ul;
     pfs->HOITFS_now_sector      = LW_NULL;
     pfs->HOITFS_pRootDir        = LW_NULL;
     pfs->HOITFS_totalUsedSize   = 0;
@@ -165,11 +166,12 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->ulGCBackgroundTimes       = 0;
     pfs->ulGCForegroundTimes       = 0;
     pfs->HOITFS_erasableSectorList = LW_NULL;
+    pfs->HOITFS_bShouldKillGC      = LW_FALSE;
 
-    InitList(pfs->HOITFS_dirtySectorList,hoitFs, HOIT_ERASABLE_SECTOR); /* 初始化模板链表 */
-    InitList(pfs->HOITFS_cleanSectorList,hoitFs, HOIT_ERASABLE_SECTOR);
-    InitList(pfs->HOITFS_freeSectorList,hoitFs, HOIT_ERASABLE_SECTOR);
-    InitIterator(pfs->HOITFS_sectorIterator, hoitFs, HOIT_ERASABLE_SECTOR);
+    InitList(pfs->HOITFS_dirtySectorList,hoitFs, PHOIT_ERASABLE_SECTOR); /* 初始化模板链表 */
+    InitList(pfs->HOITFS_cleanSectorList,hoitFs, PHOIT_ERASABLE_SECTOR);
+    InitList(pfs->HOITFS_freeSectorList,hoitFs, PHOIT_ERASABLE_SECTOR);
+    InitIterator(pfs->HOITFS_sectorIterator, hoitFs, PHOIT_ERASABLE_SECTOR);
 
                                                                         /* Log相关 */
     pfs->HOITFS_logInfo            = LW_NULL;
@@ -177,17 +179,17 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 
     hoitEnableCache(GET_SECTOR_SIZE(8), 8, pfs);
     //TODO 文件总大小暂时硬编码
-    pfs->HOITFS_totalSize       = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize * 27;
+    pfs->HOITFS_totalSize       = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize * 28;
     __hoit_mount(pfs);
 
 #ifdef BACKGOURND_GC_ENABLE 
-    hoitStartGCThread(pfs, pfs->HOITFS_totalSize / 2);
+    hoitStartGCThread(pfs, pfs->HOITFS_totalSize / 3);
 #endif  /* BACKGOURND_GC_ENABLE */
 
     if (iosDevAddEx(&pfs->HOITFS_devhdrHdr, pcName, _G_iHoitFsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
         API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);
-        __SHEAP_FREE(pfs);
+        hoit_free(pfs, pfs, sizeof(HOIT_VOLUME));
         return  (PX_ERROR);
     }
 
@@ -490,7 +492,7 @@ __re_umount_vol:
         API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);
          
         __hoit_unmount(pfs);
-        __SHEAP_FREE(pfs);
+        hoit_free(pfs, pfs, sizeof(HOIT_VOLUME));
 
         _DebugHandle(__LOGMESSAGE_LEVEL, "hoitfs unmount ok.\r\n");
 
@@ -928,7 +930,7 @@ static INT  __hoitFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
     INT                 iError;
 
     
-    PCHAR dirPath = (PCHAR)__SHEAP_ALLOC(lib_strlen(pfdentry->FDENTRY_pcName) + 1);
+    PCHAR dirPath = (PCHAR)hoit_malloc(pfs, lib_strlen(pfdentry->FDENTRY_pcName) + 1);
     lib_bzero(dirPath, lib_strlen(pfdentry->FDENTRY_pcName) + 1);
     lib_memcpy(dirPath, pfdentry->FDENTRY_pcName, lib_strlen(pfdentry->FDENTRY_pcName));
     PCHAR pDivider = lib_rindex(dirPath, PX_DIVIDER);
@@ -972,7 +974,7 @@ static INT  __hoitFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
     iError = __hoit_move(pInodeFather, phoitn, pcNewName);
 
     __HOIT_VOLUME_UNLOCK(pfs);
-
+    hoit_free(pfs, dirPath, lib_strlen(pfdentry->FDENTRY_pcName) + 1);
     return  (iError);
 }
 

@@ -25,7 +25,7 @@
 
 #ifdef FT_TEST
 PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFDnode, UINT uiOffset, UINT uiSize){
-    PHOIT_FULL_DNODE pFDNode = (PHOIT_FULL_DNODE)lib_malloc(sizeof(HOIT_FULL_DNODE));
+    PHOIT_FULL_DNODE pFDNode = (PHOIT_FULL_DNODE)hoit_malloc(pfs, sizeof(HOIT_FULL_DNODE));
     pFDNode->HOITFD_length = uiSize;
     pFDNode->HOITFD_offset = uiOffset;
     return pFDNode;
@@ -33,7 +33,7 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
 
 BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFDnode, BOOL bDoDelete){
     if(!bDoDelete){
-        lib_free(pFDnode);
+        hoit_free(pfs, pFDnode, sizeof(HOIT_FULL_DNODE));
     }
     return LW_TRUE;
 }
@@ -48,6 +48,19 @@ BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFDnode, BOOL b
 
 #define MAX(a, b)                   ((a) > (b) ? (a) : (b))
 #define MIN(a, b)                   ((a) < (b) ? (a) : (b))    
+#define FT_GET_FIRST_NODE(pFTTree)  (__hoitFragTreeGetMinimum(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot))
+
+PHOIT_FRAG_TREE_NODE __hoitFragTreeGetMaximum(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot){
+    PHOIT_RB_NODE       pRbnTraverse; 
+    pRbnTraverse    =   &pFTnRoot->pRbn;
+    if(pRbnTraverse != RB_GUARD(pFTTree)){    
+        while (pRbnTraverse->pRbnRight != RB_GUARD(pFTTree))
+        {
+            pRbnTraverse = pRbnTraverse->pRbnRight;
+        }
+    }
+    return (PHOIT_FRAG_TREE_NODE)pRbnTraverse;
+}
 
 
 PHOIT_FRAG_TREE_NODE __hoitFragTreeGetMinimum(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot){
@@ -81,7 +94,7 @@ PHOIT_FRAG_TREE_NODE __hoitFragTreeGetSuccessor(PHOIT_FRAG_TREE pFTTree, PHOIT_F
     }
     return (PHOIT_FRAG_TREE_NODE)pRbnTraverse;
 }
-
+#ifndef FT_OBSOLETE_TREE_LIST
 /*********************************************************************************************************
 ** 函数名称: __hoitFragTreeCollectRangeHelper
 ** 功能描述: 搜集iKeyLow至iKeyHigh的FragTree节点
@@ -167,6 +180,33 @@ VOID __hoitFragTreeCollectRangeHelper(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader,
                                      iKeyHigh);
 }   
 /*********************************************************************************************************
+** 函数名称: hoitFragTreeCollectRange
+** 功能描述: 在FragTree中搜集[i, j]节点，其中 i <= iKeyLow, j >= iKeyHigh
+** 输　入  : pFTTree    FragTree
+**          iKeyLow       低键值
+**          iKeyHigh      高键值
+** 输　出  : 搜集链表头
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+PHOIT_FRAG_TREE_LIST_HEADER  hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh){
+    PHOIT_FRAG_TREE_LIST_HEADER     pFTlistHeader;
+    pFTlistHeader = hoitFragTreeListInit();
+    __hoitFragTreeCollectRangeHelper(pFTlistHeader, 
+                                     pFTTree, 
+                                     (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot,
+                                     iKeyLow,
+                                     iKeyHigh);
+    if(pFTlistHeader->uiHighBound == INT_MAX){
+        pFTlistHeader->uiHighBound = pFTlistHeader->uiLowBound;
+    }
+#ifdef FT_DEBUG
+    printf("Collecting Over\n");
+#endif //FT_DEBUG
+    return pFTlistHeader;
+}
+#endif /* not FT_OBSOLETE_TREE_LIST */
+/*********************************************************************************************************
 ** 函数名称: __hoitFragTreeConquerNode
 ** 功能描述: 分四种情况征服一个节点
 ** 输　入  : pFTTree                 FragTree
@@ -233,7 +273,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
             pFTn->uiSize = uiLeftRemainSize;                                            /* 设置被征服节点的大小 */
             pFTn->pFDnode->HOITFD_length = uiLeftRemainSize;                            /* 更新FDNode的大小 */
 
-            *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 生成FragTree节点 */
+            *pFTnNew = newHoitFragTreeNode(pFTTree->pfs, pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 生成FragTree节点 */
                                            pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
 
             hoitFragTreeInsertNode(pFTTree, *pFTnNew);                                   /* 把该节点放入FragTree中 */
@@ -251,7 +291,7 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
                                                     pFTn->pFDnode,
                                                     uiConquerorHigh - uiCurLow + 1,
                                                     uiRightRemainSize);
-            *pFTnNew = newHoitFragTreeNode(pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 根据pFDNodeNew生成新的FragTree节点 */
+            *pFTnNew = newHoitFragTreeNode(pFTTree->pfs, pFDNodeNew, pFDNodeNew->HOITFD_length,       /* 根据pFDNodeNew生成新的FragTree节点 */
                                            pFDNodeNew->HOITFD_offset, pFDNodeNew->HOITFD_offset);
             hoitFragTreeInsertNode(pFTTree, *pFTnNew);
             hoitFragTreeDeleteNode(pFTTree, pFTn, bDoDelete);                            /* 删除pFTn节点，因为[CurLow, ConquerorHigh]已经被征服 */
@@ -281,14 +321,18 @@ BOOL __hoitFragTreeConquerNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFT
 PHOIT_FRAG_TREE hoitInitFragTree(PHOIT_VOLUME pfs){
     PHOIT_FRAG_TREE         pFTTree;
 
-    pFTTree = (PHOIT_FRAG_TREE)lib_malloc(sizeof(HOIT_FRAG_TREE));
+    pFTTree = (PHOIT_FRAG_TREE)hoit_malloc(pfs, sizeof(HOIT_FRAG_TREE));
     pFTTree->pRbTree = hoitRbInitTree();
     pFTTree->uiNCnt = 0;
     pFTTree->pfs = pfs;
     pFTTree->uiMemoryBytes = 0;
+
+    /* //! Add By PYQ 2021-08-15 我们不能修改Rb的lib_malloc为hoit_malloc */
+    pfs->HOITFS_ulCurBlk += sizeof(HOIT_RB_NODE);
+    pfs->HOITFS_ulCurBlk += sizeof(HOIT_RB_NODE);
+    pfs->HOITFS_ulCurBlk += sizeof(HOIT_RB_TREE);
     return pFTTree;
 }
-
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeSearchNode
 ** 功能描述: 在FragTree中根据键值搜索目标节点，已弃用
@@ -307,30 +351,16 @@ PHOIT_FRAG_TREE_NODE hoitFragTreeSearchNode(PHOIT_FRAG_TREE pFTTree, INT32 iKey)
     return pFTn;
 }
 /*********************************************************************************************************
-** 函数名称: hoitFragTreeCollectRange
-** 功能描述: 在FragTree中搜集[i, j]节点，其中 i <= iKeyLow, j >= iKeyHigh
+** 函数名称: hoitFragTreeGetLastNode
+** 功能描述: 获取FragTree的最后一个节点
 ** 输　入  : pFTTree    FragTree
-**          iKeyLow       低键值
-**          iKeyHigh      高键值
-** 输　出  : 搜集链表头
+**          iKey       键值
+** 输　出  : 被插入的节点
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-PHOIT_FRAG_TREE_LIST_HEADER  hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh){
-    PHOIT_FRAG_TREE_LIST_HEADER     pFTlistHeader;
-    pFTlistHeader = hoitFragTreeListInit();
-    __hoitFragTreeCollectRangeHelper(pFTlistHeader, 
-                                     pFTTree, 
-                                     (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot,
-                                     iKeyLow,
-                                     iKeyHigh);
-    if(pFTlistHeader->uiHighBound == INT_MAX){
-        pFTlistHeader->uiHighBound = pFTlistHeader->uiLowBound;
-    }
-#ifdef FT_DEBUG
-    printf("Collecting Over\n");
-#endif //FT_DEBUG
-    return pFTlistHeader;
+PHOIT_FRAG_TREE_NODE hoitFragTreeGetLastNode(PHOIT_FRAG_TREE pFTTree){
+    return __hoitFragTreeGetMaximum(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
 }
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeDeleteNode
@@ -360,7 +390,7 @@ BOOL hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTn, 
         pFTTree->uiNCnt--;
         pFTTree->uiMemoryBytes -= sizeof(HOIT_FRAG_TREE_NODE);
         __hoit_delete_full_dnode(pFTTree->pfs, pFTn->pFDnode, bDoDelete); /* 删除pFDNode */
-        lib_free(pFTn);                                                   /* 删除整个TreeNode */
+        hoit_free(pFTTree->pfs, pFTn, sizeof(HOIT_FRAG_TREE_NODE));                                                   /* 删除整个TreeNode */
     }
     return res;
 }
@@ -395,19 +425,21 @@ VOID hoitFragTreeTraverse(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VIS_STATUE __hoitFragTreeInsertOverlayFixUpVisitor(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot, PVOID pUserValue){
-    PHOIT_FRAG_TREE_NODE    pFTnConqueror   = (PHOIT_FRAG_TREE_NODE)pUserValue;
-    PHOIT_FRAG_TREE_NODE    pFTnVictim      = pFTnRoot;
-    PHOIT_FRAG_TREE_NODE    pFTnNew;
-    BOOL                    bIsOverlay      = LW_FALSE;
-    UINT                    uiCase          = 0;
-    UINT32                  uiConquerorLow  = pFTnConqueror->uiOfs;
-    UINT32                  uiConquerorHigh = uiConquerorLow + pFTnConqueror->uiSize == 0 ?
+VIS_STATUE __hoitFragTreeInsertOverlayFixUpVisitor(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot, PVOID pUserValue, PVOID *ppReturn){
+    HOIT_FRAG_TREE_OVERLAY_FIXUP_RARAM *pParam = (HOIT_FRAG_TREE_OVERLAY_FIXUP_RARAM *) pUserValue;
+    PHOIT_FRAG_TREE_NODE    pFTnConqueror      = (PHOIT_FRAG_TREE_NODE)pParam->pFTn;
+    BOOL                    bDoDelete          = pParam->bDoDelete;
+    PHOIT_FRAG_TREE_NODE    pFTnVictim         = pFTnRoot;
+    PHOIT_FRAG_TREE_NODE    pFTnNew;   
+    BOOL                    bIsOverlay         = LW_FALSE;
+    UINT                    uiCase             = 0;
+    UINT32                  uiConquerorLow     = pFTnConqueror->uiOfs;
+    UINT32                  uiConquerorHigh    = uiConquerorLow + pFTnConqueror->uiSize == 0 ?
                                               0 : uiConquerorLow + pFTnConqueror->uiSize - 1;
     VIS_STATUE              visStatue = VIS_CONTINUE;
 
     bIsOverlay = __hoitFragTreeConquerNode(pFTTree, pFTnVictim, uiConquerorLow, uiConquerorHigh,
-                                           &pFTnNew, &uiCase, LW_TRUE);
+                                           &pFTnNew, &uiCase, bDoDelete);
     if(bIsOverlay){
         switch (uiCase)
         {
@@ -485,7 +517,7 @@ VIS_STATUE __hoitFragTreeInsertOverlayFixUpVisitor(PHOIT_FRAG_TREE pFTTree, PHOI
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VIS_STATUE hoitFragTreeTraverseVisitor(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnStart, visitorHoitFragTree visitor, PVOID pUserValue){
+VIS_STATUE hoitFragTreeTraverseVisitor(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnStart, visitorHoitFragTree visitor, PVOID pUserValue, PVOID *ppReturn){
     VIS_STATUE  visStatue = VIS_CONTINUE;
     UINT        i;
     PHOIT_FRAG_TREE_NODE    pFTnNext;
@@ -493,7 +525,7 @@ VIS_STATUE hoitFragTreeTraverseVisitor(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_
     {
         pFTnNext = __hoitFragTreeGetSuccessor(pFTTree, pFTnStart);
         if(visitor) {
-            visStatue = visitor(pFTTree, pFTnStart, pUserValue);
+            visStatue = visitor(pFTTree, pFTnStart, pUserValue, ppReturn);
             if(visStatue == VIS_END){
                 break;
             }
@@ -502,6 +534,96 @@ VIS_STATUE hoitFragTreeTraverseVisitor(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_
     }
     
     return visStatue;
+}
+/*********************************************************************************************************
+** 函数名称: __hoitFragTreeReadVisitor
+** 功能描述: 读FragTree的内容
+** 输　入  : pFTTree    FragTree
+**          uiOfs       偏移
+**          uiSize      大小
+**          pContent    读取的内容
+** 输　出  : ERROR_NONE 无错误
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VIS_STATUE __hoitFragTreeReadVisitor(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot, 
+                                     PVOID pUserValue, PVOID *ppReturn){
+    
+    HOIT_FRAG_TREE_READ_PARAM *pParam        = (HOIT_FRAG_TREE_READ_PARAM *)pUserValue; 
+  
+    UINT                      uiCurLow       = pFTnRoot->uiOfs;
+    UINT                      uiCurHigh      = uiCurLow + pFTnRoot->uiSize == 0 ?
+                                               0 : uiCurLow + pFTnRoot->uiSize - 1;
+    
+    UINT                      uiTargetLow    = pParam->uiOfs;
+    UINT                      uiTargetHigh   = uiTargetLow + pParam->uiSize == 0 ?
+                                               0 : uiTargetLow + pParam->uiSize - 1;
+
+    PHOIT_VOLUME              pfs            = pFTTree->pfs;
+
+    UINT                      uiReadOfs      = 0;           /* 读出物理偏移 */
+    UINT                      uiReadSize     = 0;           /* 读出大小 */
+    UINT                      uiReadBias     = 0;           /* 相对pContent的偏移 */
+    if(!ppReturn){
+        return VIS_END;
+    }
+    uiReadOfs = pFTnRoot->pFDnode->HOITFD_raw_info->phys_addr + sizeof(HOIT_RAW_INODE);  /* 找到真实位置 */
+
+    /* 
+        [uiTargetLow, uiTargetHigh] | [uiCurLow, uiCurHigh]
+     */
+    if(uiCurLow > uiTargetHigh){
+        return VIS_END;
+    }
+    /* 
+        [uiCurLow, uiCurHigh] | [uiTargetLow, uiTargetHigh]  
+     */
+    else if(uiCurHigh < uiTargetLow){   
+        return VIS_CONTINUE;
+    }
+    /* 
+                     [uiTargetLow, uiTargetHigh]  
+        [uiCurLow,                          uiCurHigh]
+     */
+    else if(uiCurLow <= uiTargetLow && uiCurHigh >= uiTargetHigh){
+        uiReadBias = 0;
+        uiReadSize = uiTargetHigh - uiTargetLow + 1;
+        uiReadOfs  += (uiTargetLow - uiCurLow);
+        hoitReadFromCache(pfs->HOITFS_cacheHdr, uiReadOfs, 
+                          ((PCHAR)*(ppReturn)) + uiReadBias, uiReadSize);
+        return VIS_END;
+    }   
+
+    /* 
+                     [uiTargetLow, uiTargetHigh]  
+        [uiCurLow, uiCurHigh] 
+     */
+    if(uiCurLow <= uiTargetLow && uiCurHigh <= uiTargetHigh){          /* 三种情况 */
+        uiReadBias = 0;
+        uiReadSize = uiCurHigh - uiTargetLow + 1;
+        uiReadOfs  += (uiTargetLow - uiCurLow);
+    }   
+    /* 
+        [uiTargetLow,                   uiTargetHigh]
+                    [uiCurLow, uiCurHigh]  
+     */
+    else if(uiCurLow >= uiTargetLow && uiCurHigh <= uiTargetHigh){
+        uiReadBias = uiCurLow - uiTargetLow;
+        uiReadSize = uiCurHigh - uiCurLow + 1;
+        uiReadOfs  += (uiCurLow - uiCurLow);
+    }       
+    /* 
+                [uiTargetLow, uiTargetHigh]  
+                                    [uiCurLow, uiCurHigh] 
+     */      
+    else if(uiCurLow >= uiTargetLow && uiCurHigh >= uiTargetHigh){
+        uiReadBias = uiCurLow - uiTargetLow;
+        uiReadSize = uiTargetHigh - uiCurLow + 1;
+        uiReadOfs  += (uiCurLow - uiCurLow);
+    }
+    hoitReadFromCache(pfs->HOITFS_cacheHdr, uiReadOfs, 
+                      ((PCHAR)*(ppReturn)) + uiReadBias, uiReadSize);
+    return VIS_CONTINUE;
 }
 /*********************************************************************************************************
 ** 函数名称: hoitFragTreeRead
@@ -518,8 +640,8 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
     UINT32                      iKeyLow;
     UINT32                      iKeyHigh;
     UINT32                      uiBias;
-    PHOIT_FRAG_TREE_LIST_NODE   pFTlist;
-    PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader;
+    // PHOIT_FRAG_TREE_LIST_NODE   pFTlist;
+    // PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader;
 
     UINT32                      uiPhyOfs;
     UINT32                      uiPhySize;
@@ -529,13 +651,21 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
 
     UINT32                      uiPerOfs;
     UINT32                      uiPerSize;
-    PCHAR                       pPerContent;
+    // PCHAR                       pPerContent;
+    // CHAR                        cPerContent[HOIT_MAX_DATA_SIZE];
+#ifdef FT_OBSOLETE_TREE_LIST
+    PHOIT_FRAG_TREE_NODE        pFTnStart;
+    HOIT_FRAG_TREE_READ_PARAM   param;
 
-    uiSizeRead          = 0;
-    uiSizeRemain        = uiSize;
-    iKeyLow             = uiOfs;
-    iKeyHigh            = uiOfs + uiSize;
-
+    // uiSizeRead          = 0;
+    // uiSizeRemain        = uiSize;
+    // iKeyLow             = uiOfs;
+    // iKeyHigh            = uiOfs + uiSize;
+    param.uiOfs         = uiOfs;
+    param.uiSize        = uiSize;
+    pFTnStart           = FT_GET_FIRST_NODE(pFTTree);
+    hoitFragTreeTraverseVisitor(pFTTree, pFTnStart, __hoitFragTreeReadVisitor, &param, (PVOID)&pContent);
+#else
     pFTlistHeader       = hoitFragTreeCollectRange(pFTTree, iKeyLow, iKeyHigh);
     uiBias              = uiOfs - pFTlistHeader->uiLowBound; 
 
@@ -577,12 +707,12 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
             uiPerSize = uiSize;
         }
 
-        pPerContent = (PCHAR)lib_malloc(uiPerSize);                                 /* 每一次读取的内容 */
+        pPerContent = (PCHAR)hoit_malloc(pfs, uiPerSize);                                 /* 每一次读取的内容 */
         //TODO: 待实现
         hoitReadFromCache(pFTTree->pfs->HOITFS_cacheHdr, uiPerOfs, pPerContent, uiPerSize);
 
         lib_memcpy(pContent + uiSizeRead, pPerContent, uiPerSize);
-        lib_free(pPerContent);
+        hoit_free(pfs, pPerContent);
         
         pFTlist = pFTlist->pFTlistNext;
 
@@ -596,6 +726,7 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
     }
 
     hoitFragTreeListFree(pFTlistHeader);                                             /* 释放收集链表 */
+#endif
     return ERROR_NONE;
 }
 
@@ -613,17 +744,17 @@ PHOIT_FRAG_TREE_NODE hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_
     printf("Insert: [%d, %d]\n", pFTn->pRbn.iKey, pFTn->uiSize + pFTn->pRbn.iKey - 1);
 #endif
 
-#ifndef FT_OBSOLETE_hoitFragTreeOverlayFixUp /* 未定义过期时，采用 Insert + OverlayFix Up做法 */
+#ifndef FT_OBSOLETE_TREE_LIST /* 未定义过期时，采用 Insert + OverlayFix Up做法 */
     hoitRbInsertNode(pFTTree->pRbTree, &pFTn->pRbn);
 #else
+    HOIT_FRAG_TREE_OVERLAY_FIXUP_RARAM param;
+    param.pFTn      = pFTn;
+    param.bDoDelete = LW_TRUE;
     PHOIT_FRAG_TREE_NODE pFTnStart = __hoitFragTreeGetMinimum(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
-    // if(pFTn->uiOfs == 7 && pFTn->uiSize == 107){
-    //     hoitFragTreeTraverse(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
-    // }
     if(pFTTree->uiNCnt != 0){
         hoitFragTreeTraverseVisitor(pFTTree, pFTnStart, 
                                     __hoitFragTreeInsertOverlayFixUpVisitor, 
-                                    (PVOID)pFTn);
+                                    (PVOID)&param, NULL);
     }
     hoitRbInsertNode(pFTTree->pRbTree, &pFTn->pRbn);
 #ifdef FT_DEBUG
@@ -633,7 +764,7 @@ PHOIT_FRAG_TREE_NODE hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_
     printf("==================Insert End      ==================\n\n");
 #endif  /* FT_DEBUG */
 
-#endif  /* FT_OBSOLETE_hoitFragTreeOverlayFixUp */
+#endif  /* FT_OBSOLETE_TREE_LIST */
     pFTTree->uiNCnt++;
     pFTTree->uiMemoryBytes += sizeof(HOIT_FRAG_TREE_NODE);
     return pFTn;
@@ -647,10 +778,10 @@ PHOIT_FRAG_TREE_NODE hoitFragTreeInsertNode(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_
 ** 调用模块:
 *********************************************************************************************************/
 VOID hoitFragTreeShowMemory(PHOIT_FRAG_TREE pFTTree){
-    printf("\n============= checking fragtree statue ...  =============\n");
-    printf("nodes  count: %d.\n", pFTTree->uiNCnt);
-    printf("memory usage: %dB\n", pFTTree->uiMemoryBytes);
-    printf("============= checking fragtree statue over =============\n");
+   printf("\n============= checking fragtree statue ...  =============\n");
+   printf("nodes  count: %d.\n", pFTTree->uiNCnt);
+   printf("memory usage: %dB\n", pFTTree->uiMemoryBytes);
+   printf("============= checking fragtree statue over =============\n");
 }
 
 
@@ -666,43 +797,50 @@ VOID hoitFragTreeShowMemory(PHOIT_FRAG_TREE pFTTree){
 ** 调用模块:
 *********************************************************************************************************/
 BOOL hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh, BOOL bDoDelete){
-    // PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader;
-    // PHOIT_FRAG_TREE_LIST_NODE   pFTlistNode;
-    
-    HOIT_FRAG_TREE_NODE         pFTn;
+    HOIT_FRAG_TREE_OVERLAY_FIXUP_RARAM param;
+    HOIT_FRAG_TREE_NODE         FTn;
 
     BOOL                        bRes = LW_TRUE;
-    UINT                        uiCount = 0;
-    UINT8                       uiCase;
 
-    UINT32                      uiConquerorLow = iKeyLow;
-    UINT32                      uiConquerorHigh = iKeyHigh;
+    /* 构造征服者 */
+    FTn.uiOfs      = iKeyLow < 0 ? 0 : iKeyLow;
+    FTn.uiSize     = iKeyHigh + 1 - FTn.uiOfs;
 
+#ifdef FT_OBSOLETE_TREE_LIST
     PHOIT_FRAG_TREE_NODE        pFTnStart = __hoitFragTreeGetMinimum(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
-    pFTn.uiOfs      = iKeyLow < 0 ? 0 : iKeyLow;
-    pFTn.uiSize     = iKeyHigh + 1 - pFTn.uiOfs;
-
+    param.bDoDelete = bDoDelete;
+    param.pFTn      = &FTn;
     if(pFTTree->uiNCnt != 0){
         hoitFragTreeTraverseVisitor(pFTTree, pFTnStart, 
                                     __hoitFragTreeInsertOverlayFixUpVisitor, 
-                                    (PVOID)&pFTn);
+                                    (PVOID)&param, NULL);
+        return LW_TRUE;
     }
-    //     pFTlistHeader = hoitFragTreeCollectRange(pFTTree, iKeyLow, iKeyHigh);
-    //     pFTlistNode = pFTlistHeader->pFTlistHeader->pFTlistNext;
-    //     while (pFTlistNode)
-    //     {
-    //         uiCount++;
-    // #ifdef FT_DEBUG
-    //         printf("count %d\n", uiCount);
-    // #endif
-    //         //TODO: 验证可行性
-    //         __hoitFragTreeConquerNode(pFTTree, pFTlistNode->pFTn, uiConquerorLow, uiConquerorHigh, 
-    //                                   &pFTnNew, &uiCase, bDoDelete);
-            
-    //         pFTlistNode = pFTlistNode->pFTlistNext;
-    //     }
-    //     hoitFragTreeListFree(pFTlistHeader);
-    return bRes;    
+#else
+    UINT                        uiCount = 0;
+    UINT8                       uiCase;
+    PHOIT_FRAG_TREE_NODE        pFTnNew;
+    PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeader;
+    PHOIT_FRAG_TREE_LIST_NODE   pFTlistNode;
+    UINT32                      uiConquerorLow = iKeyLow;
+    UINT32                      uiConquerorHigh = iKeyHigh;
+    pFTlistHeader = hoitFragTreeCollectRange(pFTTree, iKeyLow, iKeyHigh);
+    pFTlistNode = pFTlistHeader->pFTlistHeader->pFTlistNext;
+    while (pFTlistNode)
+    {
+        uiCount++;
+#ifdef FT_DEBUG
+        printf("count %d\n", uiCount);
+#endif
+        //TODO: 验证可行性
+        __hoitFragTreeConquerNode(pFTTree, pFTlistNode->pFTn, uiConquerorLow, uiConquerorHigh, 
+                                    &pFTnNew, &uiCase, bDoDelete);
+        
+        pFTlistNode = pFTlistNode->pFTlistNext;
+    }
+    hoitFragTreeListFree(pFTlistHeader);
+    return bRes;  
+#endif  
 }
 
 /*********************************************************************************************************
@@ -715,14 +853,16 @@ BOOL hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyH
 *********************************************************************************************************/
 BOOL hoitFragTreeDeleteTree(PHOIT_FRAG_TREE pFTTree, BOOL bDoDelete){
     BOOL                          res;
+    PHOIT_VOLUME                  pfs = pFTTree->pfs;
     res = hoitFragTreeDeleteRange(pFTTree, INT_MIN, INT_MAX, bDoDelete);
-    lib_free(pFTTree->pRbTree->pRbnGuard->pRbnLeft);
-    lib_free(pFTTree->pRbTree->pRbnGuard);
-    lib_free(pFTTree->pRbTree);
-    lib_free(pFTTree);
+    hoit_free(pfs, pFTTree->pRbTree->pRbnGuard->pRbnLeft, sizeof(HOIT_RB_NODE));
+    hoit_free(pfs, pFTTree->pRbTree->pRbnGuard, sizeof(HOIT_RB_NODE));
+    hoit_free(pfs, pFTTree->pRbTree, sizeof(HOIT_RB_TREE));
+    hoit_free(pfs, pFTTree, sizeof(HOIT_FRAG_TREE));
+    
+#ifdef FT_DEBUG
     hoitFragTreeTraverse(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
     hoitFragTreeShowMemory(pFTTree);
-#ifdef FT_DEBUG
 #endif
     return res;
 }
@@ -735,7 +875,7 @@ BOOL hoitFragTreeDeleteTree(PHOIT_FRAG_TREE pFTTree, BOOL bDoDelete){
 ** 调用模块:
 *********************************************************************************************************/
 //TODO: 性能降为 O(n)，参数添加最近节点
-#ifdef FT_OBSOLETE_hoitFragTreeOverlayFixUp
+#ifdef FT_OBSOLETE_TREE_LIST
 BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
     /* 虚假接口 */
 }
@@ -868,7 +1008,7 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
                         
                         pFTlistNext = pFTlistCur->pFTlistNext;
                         hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistCur);                      /* 从链表中删除Cur */
-                        lib_free(pFTlistCur);
+                        hoit_free(pfs, pFTlistCur);
 
                         pFTlistCur = pFTlistNext;                                                   /* 置当前被征服节点为下一个 */
                         pFTlistConqueror = pFTlistHeader->pFTlistHeader;                            /* 征服者从头开始征服 */
@@ -888,7 +1028,7 @@ BOOL hoitFragTreeOverlayFixUp(PHOIT_FRAG_TREE pFTTree){
                 case 4:
                     pFTlistNext = pFTlistCur->pFTlistNext;
                     hoitFragTreeListDeleteNode(pFTlistHeader, pFTlistCur);                        /* 从链表中删除Cur */
-                    lib_free(pFTlistCur);
+                    hoit_free(pfs, pFTlistCur);
 
                     pFTlistCur = pFTlistNext;                                                     /* 置当前被征服节点为下一个 */
                     pFTlistConqueror = pFTlistHeader->pFTlistHeader;                              /* 征服者从头开始征服 */
@@ -925,7 +1065,7 @@ VOID hoitFTTreeTest(){
     //INT testArray[10] = {8,11,14,15,1,2,4,5,7, 1};
     INT testArray[10] = {0, 1,2,3, 4,5,7,11,14,15};
     
-    pfs = (PHOIT_VOLUME)lib_malloc(sizeof(HOIT_VOLUME));
+    pfs = (PHOIT_VOLUME)hoit_malloc(pfs, sizeof(HOIT_VOLUME));
     pFTTree = hoitInitFragTree(pfs);
     
     for (i = 0; i < 10; i++)

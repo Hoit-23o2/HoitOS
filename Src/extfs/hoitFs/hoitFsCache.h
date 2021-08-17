@@ -75,8 +75,8 @@ static inline UINT hoitGetSectorSize(UINT8 sector_no){
         return -1;
     }
     UINT origin_sector_size = 1024 * (_G_am29LV160DB_sector_infos[sector_no].sector_size);
-    UINT pageNum = origin_sector_size/(HOIT_FILTER_EBS_ENTRY_SIZE + HOIT_FILTER_PAGE_SIZE);
-    return origin_sector_size - pageNum * HOIT_FILTER_EBS_ENTRY_SIZE - HOIT_FILTER_PAGE_SIZE;     
+//    UINT pageNum = origin_sector_size/(HOIT_FILTER_EBS_ENTRY_SIZE + HOIT_FILTER_PAGE_SIZE);
+    return origin_sector_size;
 }
 /*
     获取flash sector的regoin_no
@@ -131,7 +131,8 @@ BOOL                hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr,
                                       UINT32 uiOfs, 
                                       PCHAR pContent, 
                                       UINT32 uiSize);
-UINT32              hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr);
+UINT32              hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr, 
+                                    PHOIT_CACHE_BLK pcache);
 UINT32              hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, 
                                         UINT32 cacheType,
                                         UINT32 uiSize);
@@ -145,12 +146,16 @@ UINT32              hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr,
 PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, 
                                      UINT32 sector_no);
 VOID                hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr, 
-                                         PHOIT_ERASABLE_SECTOR pErasableSector);        
+                                         PHOIT_ERASABLE_SECTOR pErasableSector); 
+VOID                hoitOccupySectorState(PHOIT_CACHE_HDR pcacheHdr, 
+                                          PHOIT_ERASABLE_SECTOR pErasableSector);   
+VOID                hoitWriteBackCache(PHOIT_CACHE_HDR pcacheHdr, 
+                                        PHOIT_CACHE_BLK pcache);
 
 /*********************************************************************************************************
  * filter层函数
 *********************************************************************************************************/
-UINT32              hoitInitFilter(PHOIT_CACHE_HDR pcacheHdr, 
+UINT32              hoitInitEBS(PHOIT_CACHE_HDR pcacheHdr, 
                                     UINT32 uiCacheBlockSize);
 UINT32              hoitUpdateEBS(PHOIT_CACHE_HDR pcacheHdr, 
                                     PHOIT_CACHE_BLK pcache, 
@@ -159,6 +164,20 @@ UINT32              hoitUpdateEBS(PHOIT_CACHE_HDR pcacheHdr,
 VOID                __hoit_mark_obsolete(PHOIT_VOLUME pfs, 
                                         PHOIT_RAW_HEADER pRawHeader, 
                                         PHOIT_RAW_INFO pRawInfo);
+VOID                hoitCheckEBS(PHOIT_VOLUME pfs, 
+                                    UINT32 sector_no, 
+                                    UINT32 n); 
+inline UINT32  hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr, 
+                                    PHOIT_CACHE_BLK pcache, 
+                                    UINT32 sector_no);
+UINT32              hoitEBSEntryAmount(PHOIT_VOLUME pfs, 
+                                        UINT32 sector_no); 
+UINT32              hoitSectorGetNextAddr(PHOIT_CACHE_HDR pcacheHdr, 
+                                            UINT32 sector_no, 
+                                            UINT i, 
+                                            UINT32 *obsoleteFlag);
+BOOL                hoitCheckSectorCRC(PHOIT_CACHE_HDR pcacheHdr, 
+                                            UINT32 sector_no);                                                                                                        
 #ifdef HOIT_CACHE_TEST
 BOOL    test_hoit_cache();
 #endif

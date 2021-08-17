@@ -29,6 +29,8 @@
 #define IS_MSG_GC_END(acMsg, stLen)             lib_memcmp(acMsg, MSG_GC_END, stLen) == 0
 #define IS_MSG_BG_GC_END(acMsg, stLen)          lib_memcmp(acMsg, MSG_BG_GC_END, stLen) == 0
 #define KILL_LOOP()                             break
+
+static BOOL _G_bShouldKillGC  = FALSE;
 /*********************************************************************************************************
 ** 函数名称: __hoitGCSectorRawInfoFixUp
 ** 功能描述: 释放所有pErasableSector中的过期RawInfo，修改next_phys关系
@@ -37,7 +39,7 @@
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
+BOOL __hoitGCSectorRawInfoFixUp(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector){
     PHOIT_RAW_INFO          pRawInfoFirst;
     PHOIT_RAW_INFO          pRawInfoLast;
     
@@ -57,7 +59,7 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
     
     if((pErasableSector->HOITS_pRawInfoCurGC 
     && pErasableSector->HOITS_pRawInfoCurGC->is_obsolete == HOIT_FLAG_OBSOLETE) 
-    || pErasableSector->HOITS_pRawInfoCurGC == LW_NULL){                /* 如果当前GC RawInfo过期，或还不存在当前GC RawInfo，则重新开始RawInfo的GC */
+    || pErasableSector->HOITS_pRawInfoCurGC == LW_NULL){                                     /* 如果当前GC RawInfo过期，或还不存在当前GC RawInfo，则重新开始RawInfo的GC */
         bIsReset = LW_TRUE;
     }
     
@@ -65,8 +67,10 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
     {
         pRawInfoObselete = pRawInfoTraverse;
         pRawInfoTraverse = pRawInfoTraverse->next_phys;
-        if(pRawInfoObselete == pErasableSector->HOITS_pRawInfoLast){    /* 全是空，直接返回咯 */
-            lib_free(pRawInfoObselete);
+        //! 2021-08-17 Added By PYQ 添加对ObsoleteEntity计数，
+        pErasableSector->HOITS_uiObsoleteEntityCount--;
+        if(pRawInfoObselete == pErasableSector->HOITS_pRawInfoLast){                          /* 全是空，直接返回咯 */
+            hoit_free(pfs, pRawInfoObselete, sizeof(HOIT_RAW_INFO));
             pErasableSector->HOITS_pRawInfoFirst    = LW_NULL;
             pErasableSector->HOITS_pRawInfoLast     = LW_NULL;
             pErasableSector->HOITS_pRawInfoCurGC    = LW_NULL;
@@ -74,7 +78,9 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
             pErasableSector->HOITS_pRawInfoLastGC   = LW_NULL;
             return LW_FALSE;
         }
-        lib_free(pRawInfoObselete);
+        // pErasableSector->HOITS_uiUsedSize   -= pRawInfoObselete->totlen; 
+        // pErasableSector->HOITS_uiFreeSize   += pRawInfoObselete->totlen; 
+        hoit_free(pfs, pRawInfoObselete, sizeof(HOIT_RAW_INFO));
     }
 
     pRawInfoFirst    = pRawInfoLast = pRawInfoTraverse;                 /* 设置RawInfo First与RawInfo Last */
@@ -90,7 +96,7 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
         || pRawInfoTraverse == LW_NULL){    /* 扫描完毕 */
             break;
         }
-        if(pRawInfoTraverse->is_obsolete == HOIT_FLAG_OBSOLETE){                                      /* 如果过期 */
+        if(pRawInfoTraverse->is_obsolete == HOIT_FLAG_OBSOLETE){                /* 如果过期，回收咯 */
             pRawInfoObselete                    = pRawInfoTraverse;             
             pRawInfoTrailing->next_phys         = pRawInfoTraverse->next_phys;  /* 修改指针——前一块指向当前块的下一块 */
             pRawInfoTraverse                    = pRawInfoTraverse->next_phys;  /* 置当前块为下一块 */
@@ -98,8 +104,9 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
             //!不能在GC过程中修改一个Sector的各种Size，否则会出现很严重的情况
             // pErasableSector->HOITS_uiUsedSize   -= pRawInfoObselete->totlen; 
             // pErasableSector->HOITS_uiFreeSize   += pRawInfoObselete->totlen; 
-            
-            lib_free(pRawInfoObselete);                                         /* 释放过期的块 */
+            //! 2021-08-17 Added By PYQ 添加对ObsoleteEntity计数
+            pErasableSector->HOITS_uiObsoleteEntityCount--;
+            hoit_free(pfs, pRawInfoObselete, sizeof(HOIT_RAW_INFO));                                         /* 释放过期的块 */
         }
         else {
             pRawInfoLast                = pRawInfoTraverse;                     /* 更新pRawInfoLast */
@@ -115,13 +122,13 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_ERASABLE_SECTOR pErasableSector){
         pErasableSector->HOITS_pRawInfoCurGC    = LW_NULL;
         pErasableSector->HOITS_pRawInfoPrevGC   = LW_NULL;
         if(pErasableSector->HOITS_pRawInfoLastGC == LW_NULL){
-            pErasableSector->HOITS_pRawInfoLastGC = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INODE));
+            pErasableSector->HOITS_pRawInfoLastGC = (PHOIT_RAW_INFO)hoit_malloc(pfs, sizeof(HOIT_RAW_INODE));
         }
         if(pRawInfoLast){
             lib_memcpy(pErasableSector->HOITS_pRawInfoLastGC, pRawInfoLast, sizeof(HOIT_RAW_INFO));
         }
         else {
-            lib_free(pErasableSector->HOITS_pRawInfoLastGC);
+            hoit_free(pfs, pErasableSector->HOITS_pRawInfoLastGC, sizeof(HOIT_RAW_INFO));
             pErasableSector->HOITS_pRawInfoLastGC = LW_NULL;        /* 该Sector中没有Raw Info了…… */
         }
     }
@@ -139,14 +146,15 @@ PHOIT_ERASABLE_SECTOR __hoitGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_GC_
     PHOIT_ERASABLE_SECTOR       pErasableVictimSector;
     PHOIT_ERASABLE_SECTOR       pErasableListTraverse;
     
-    UINT                        uiMinVictimSan;            /* 最小受害者San值 */
-    UINT                        uiVictimSan;               /* 受害者San值，越小越受害 */
+    INT                         iMinVictimSan;            /* 最小受害者San值 */
+    INT                         iVictimSan;               /* 受害者San值，越小越受害 */
 
     UINT                        uiFreeSize;
+    UINT                        uiObsoleteEntityCount;
     UINT                        uiAge;
 
     pErasableVictimSector       = LW_NULL;
-    uiMinVictimSan              = INT_MAX;
+    iMinVictimSan               = INT_MAX;
 
     pErasableListTraverse       = pfs->HOITFS_erasableSectorList;
     
@@ -156,7 +164,8 @@ PHOIT_ERASABLE_SECTOR __hoitGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_GC_
             pErasableListTraverse   = pErasableListTraverse->HOITS_next;
             continue;
         }
-        uiFreeSize  = pErasableListTraverse->HOITS_uiFreeSize;   
+        uiFreeSize             = pErasableListTraverse->HOITS_uiFreeSize;   
+        uiObsoleteEntityCount  = pErasableListTraverse->HOITS_uiObsoleteEntityCount;   
 #ifdef GC_TEST                                  
         if(pErasableListTraverse->HOITS_next == LW_NULL){           /* 如果最后一个Sector了 */
             pErasableListTraverse->HOITS_uiFreeSize -= 3;           /* 适配一下 */
@@ -172,20 +181,20 @@ PHOIT_ERASABLE_SECTOR __hoitGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_GC_
         {
         case GC_BACKGROUND:{
             uiAge       = API_TimeGet() - pErasableListTraverse->HOITS_tBornAge;
-            uiVictimSan = (0.5 / uiAge) + 0.5 * uiFreeSize;  
+            iVictimSan = (0.2 / uiAge) + 0.2 * uiFreeSize - 0.4 * uiObsoleteEntityCount;  
         }
             break;
         case GC_FOREGROUND:{
-            uiVictimSan = uiFreeSize;
+            iVictimSan = -uiObsoleteEntityCount; // uiFreeSize;
         }
             break;
         default:
             break;
         }
 
-        if(uiVictimSan < uiMinVictimSan){
+        if(iVictimSan < iMinVictimSan){
             pErasableVictimSector   = pErasableListTraverse;
-            uiMinVictimSan          = uiVictimSan;
+            iMinVictimSan           = iVictimSan;
         }
 
         pErasableListTraverse   = pErasableListTraverse->HOITS_next;
@@ -212,6 +221,9 @@ BOOL __hoitGCCollectRawInfoAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasab
     }
     
     pNowSectorOrigin = pfs->HOITFS_now_sector;              /* 保存原有now_sector */
+    // if(pErasableSector->HOITS_bno == 27){
+    //     printf("debug\n");
+    // }
     //!把RawInfo及其对应的数据实体搬家
     bIsMoveSuccess = __hoit_move_home(pfs, pRawInfoCurGC);  /* 搬家失败，说明该RawInfo要么是LOG要么是一段错误的数据，我们直接跳过 */
     pfs->HOITFS_now_sector = pNowSectorOrigin;              /* 恢复原有now_sector */
@@ -238,7 +250,10 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
     PHOIT_RAW_INFO          pRawInfoCurGC;
     PHOIT_RAW_INFO          pRawInfoPrevGC;
 
-    bIsNeedMoreCollect = __hoitGCSectorRawInfoFixUp(pErasableSector);            /* FixUp后，会更新 HOITS_pRawInfoCurGC，HOITS_pRawInfoPrevGC，HOITS_pRawInfoLastGC等 */
+    bIsNeedMoreCollect = __hoitGCSectorRawInfoFixUp(pfs, pErasableSector);            /* FixUp后，会更新 HOITS_pRawInfoCurGC，HOITS_pRawInfoPrevGC，HOITS_pRawInfoLastGC等 */
+    // if(pErasableSector->HOITS_bno == 27){
+    //     __hoitShowSectorInfo(pfs);
+    // }
     if(!bIsNeedMoreCollect){
         bIsCollectOver = LW_TRUE;
         goto __hoitGCCollectSectorAliveEnd;                                      /* 结束了 */
@@ -277,6 +292,7 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
         bIsCollectOver = LW_TRUE;
     }
 
+    /* 标记pRawInfoCurGC过期 */
     bIsMoveSuccess = __hoitGCCollectRawInfoAlive(pfs, pErasableSector, pRawInfoCurGC);
 
 
@@ -297,9 +313,13 @@ BOOL __hoitGCCollectSectorAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
                 }
             }
         }
+        //! 2021-08-17  Added By PYQ move home更新当前sector位过期+1，有效-1，
+        //! uiObsoleteEntityCount减少，减少过期
+        pErasableSector->HOITS_uiObsoleteEntityCount--;
     }
-    else {                                                               /* 如果没有MOVE成功 */
-        pErasableSector->HOITS_pRawInfoPrevGC = pRawInfoCurGC;           /* Prev就是当前的RawInfo */
+    else {                                                               /* 如果没有MOVE成功，说明没有空间了 */
+        bIsCollectOver = LW_TRUE;
+        goto __hoitGCCollectSectorAliveEnd;
     }
 
     pErasableSector->HOITS_pRawInfoCurGC  = pRawInfoNextGC;              /* 调整Cur指针 */
@@ -308,10 +328,12 @@ __hoitGCCollectSectorAliveEnd:
     if(bIsCollectOver){
         pErasableSector->HOITS_pRawInfoCurGC  = LW_NULL;                  /* 当前Sector中GC的RawInfo为空 */
         pErasableSector->HOITS_pRawInfoPrevGC = LW_NULL;
+        hoit_free(pfs, pErasableSector->HOITS_pRawInfoLastGC, sizeof(HOIT_RAW_INFO));                  /* Added By PYQ 2021-08-12 释放内存 */
+        pErasableSector->HOITS_pRawInfoLastGC = LW_NULL; 
 #ifdef GC_DEBUG
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
-        printf("[%s] Sector %d is collected Over, Total Moved %dKB to Survivor Sector %d\n", 
-                __func__, pErasableSector->HOITS_bno;
+        printf("[%s]: Sector %d is collected Over\n", 
+                __func__, pErasableSector->HOITS_bno);
         API_TShellColorEnd(STD_OUT);
 #endif
     }
@@ -330,7 +352,7 @@ __hoitGCCollectSectorAliveEnd:
 VOID __hoitGCClearBackground(PHOIT_VOLUME pfs, BOOL * pBIsBackgroundThreadStart, LW_OBJECT_HANDLE hGcThreadId){
     if(*pBIsBackgroundThreadStart){
         API_MsgQueueSend(pfs->HOITFS_GCMsgQ, MSG_BG_GC_END, sizeof(MSG_BG_GC_END));
-        API_ThreadWakeup(hGcThreadId);
+        // API_ThreadWakeup(hGcThreadId);
         API_ThreadJoin(hGcThreadId, LW_NULL);
         *pBIsBackgroundThreadStart = LW_FALSE;
     }
@@ -343,6 +365,7 @@ VOID __hoitGCClearBackground(PHOIT_VOLUME pfs, BOOL * pBIsBackgroundThreadStart,
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
+extern VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs);
 VOID hoitGCForegroundForce(PHOIT_VOLUME pfs){
     PHOIT_ERASABLE_SECTOR   pErasableSector;
     INTREG                  iregInterLevel;
@@ -359,11 +382,15 @@ VOID hoitGCForegroundForce(PHOIT_VOLUME pfs){
     if(pErasableSector){
         LW_SPIN_LOCK_QUICK(&pErasableSector->HOITS_lock, &iregInterLevel);      /* 尝试加锁，阻塞整个回收 */
     }
+    // printf("************************************************\n");
+    // __hoitShowSectorInfo(pfs);
 
+    INT i = 1;
     while (LW_TRUE)
     {
         if(pErasableSector) {
             bIsCollectOver = __hoitGCCollectSectorAlive(pfs, pErasableSector);
+            i++;
             if(bIsCollectOver){                                                  /*! 显示置空 */
                 pfs->HOITFS_curGCSector        = LW_NULL;                        /* 当前GC的Sector为空 */
                 hoitResetSectorState(pfs->HOITFS_cacheHdr, pErasableSector);     /* 重置该Sector状态，表明为空 */
@@ -379,7 +406,10 @@ VOID hoitGCForegroundForce(PHOIT_VOLUME pfs){
             break;
         }
     }
-
+    // printf("\n");
+    // __hoitShowSectorInfo(pfs);
+    // printf("************************************************\n");
+    // sleep(1);
     if(pErasableSector){
         LW_SPIN_UNLOCK_QUICK(&pErasableSector->HOITS_lock, iregInterLevel);              /* 尝试解锁 */
     }
@@ -400,18 +430,20 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
     CHAR                  acMsg[MAX_MSG_BYTE_SIZE];
     size_t                stLen;
 
-    pfs->ulGCBackgroundTimes++;
     while (LW_TRUE)
     {
+        pfs->ulGCBackgroundTimes++;
         API_MsgQueueReceive(pfs->HOITFS_GCMsgQ, 
                             acMsg, 
                             sizeof(acMsg), 
                             &stLen, 
                             LW_OPTION_NOT_WAIT);
+        if(_G_bShouldKillGC){
+            KILL_LOOP();
+        }
         if(IS_MSG_BG_GC_END(acMsg, stLen)){
             KILL_LOOP();
         }
-
         if(pfs->HOITFS_curGCSector == LW_NULL) {
             pErasableSector                 = __hoitGCFindErasableSector(pfs, GC_BACKGROUND);
             pfs->HOITFS_curGCSector         = pErasableSector;     
@@ -434,7 +466,7 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
             API_ThreadUnlock();
 #endif // GC_DEBUG
         }
-        sleep(5);
+        sleep(1);
     }
 }
 
@@ -479,6 +511,10 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
                             sizeof(acMsg), 
                             &stLen, 
                             10);
+        if(_G_bShouldKillGC){
+            __hoitGCClearBackground(pfs, &bIsBackgroundThreadStart, hGcThreadId);   /* 关闭后台GC线程 */
+            KILL_LOOP();
+        }
         if(IS_MSG_GC_END(acMsg, stLen)){                                            /* 关闭GC监听线程  */
             printf("[%s] recev msg %s\n", __func__, MSG_GC_END);                
             __hoitGCClearBackground(pfs, &bIsBackgroundThreadStart, hGcThreadId);   /* 关闭后台GC线程 */
@@ -486,29 +522,30 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
         }
         
         uiCurUsedSize = pfs->HOITFS_totalUsedSize;
-        if(uiCurUsedSize > uiThreshold){                                            /* 执行Foreground */
-            //__hoitGCClearBackground(pfs, &bIsBackgroundThreadStart, hGcThreadId); /* 好像没必要终止GC后台线程，因为引入了锁机制，呵呵 */
-            hoitGCForegroundForce(pfs);
-        }
-        else {
-            if(!bIsBackgroundThreadStart 
-                && uiCurUsedSize > (pfs->HOITFS_totalSize / 2)){                    /* 执行Background */
-                
-                bIsBackgroundThreadStart = LW_TRUE;
-                
-                API_ThreadAttrBuild(&gcThreadAttr, 
-                                    4 * LW_CFG_KB_SIZE, 
-                                    LW_PRIO_NORMAL,
-                                    LW_OPTION_THREAD_STK_CHK, 
-                                    (VOID *)pfs);
+        // if(uiCurUsedSize > uiThreshold){                                          /* 执行Foreground */
+        //     //__hoitGCClearBackground(pfs, &bIsBackgroundThreadStart, hGcThreadId); /* 好像没必要终止GC后台线程，因为引入了锁机制，呵呵 */
+        //     hoitGCForegroundForce(pfs);
+        // }
+        // else {
 
-                hGcThreadId = API_ThreadCreate("t_gc_background_thread",
-						                       (PTHREAD_START_ROUTINE)hoitGCBackgroundThread,
-        						               &gcThreadAttr,
-		        				               LW_NULL);
-            }
+        if(!bIsBackgroundThreadStart 
+            && uiCurUsedSize > uiThreshold){                                         /* 执行Background */
+            
+            bIsBackgroundThreadStart = LW_TRUE;
+            
+            API_ThreadAttrBuild(&gcThreadAttr, 
+                                4 * LW_CFG_KB_SIZE, 
+                                LW_PRIO_NORMAL,
+                                LW_OPTION_THREAD_STK_CHK, 
+                                (VOID *)pfs);
+
+            hGcThreadId = API_ThreadCreate("t_gc_background_thread",
+                                            (PTHREAD_START_ROUTINE)hoitGCBackgroundThread,
+                                            &gcThreadAttr,
+                                            LW_NULL);
         }
-        sleep(5);
+
+        //}
     }
 
 }
@@ -524,9 +561,11 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
 *********************************************************************************************************/
 VOID hoitGCClose(PHOIT_VOLUME pfs){
     if(pfs->HOITFS_hGCThreadId){
+        pfs->HOITFS_bShouldKillGC = LW_TRUE;
+        _G_bShouldKillGC = LW_TRUE;
         API_MsgQueueSend(pfs->HOITFS_GCMsgQ, MSG_GC_END, sizeof(MSG_GC_END));
         API_MsgQueueShow(pfs->HOITFS_GCMsgQ);
-        API_ThreadWakeup(pfs->HOITFS_hGCThreadId);                              /* 强制唤醒GC线程 */
+        // API_ThreadWakeup(pfs->HOITFS_hGCThreadId);                              /* 强制唤醒GC线程 */
         API_ThreadJoin(pfs->HOITFS_hGCThreadId, LW_NULL);
         API_MsgQueueDelete(&pfs->HOITFS_GCMsgQ);
         pfs->HOITFS_hGCThreadId = LW_NULL;

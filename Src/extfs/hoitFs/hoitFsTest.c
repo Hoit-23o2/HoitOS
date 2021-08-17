@@ -331,6 +331,9 @@ INT hoitTestFileOverWrite (INT  iArgC, PCHAR  ppcArgV[]) {
     /* 初始写入64个'1' */
     for (i=0 ; i<64 ; i++) {
         lseek(iFd, (i)*sizeof(CHAR), SEEK_SET);
+        if(i == 15){
+            printf("=========== TEST %d ===========\n", i);
+        }
         write(iFd, &data, sizeof(CHAR));
         writeData[i] = data;
     }
@@ -940,8 +943,9 @@ INT hoitTestGC(PHOIT_VOLUME pfs){
 
 /*********************************************************************************************************
  * EBS测试
+ * 向第一块sector写入一个inode和dirent，然后查看EBS区域的更新情况
 *********************************************************************************************************/
-INT hoitTestEBS(PHOIT_VOLUME pfs) {
+INT hoitEBSTest(PHOIT_VOLUME pfs) {
     PHOIT_CACHE_HDR     pcacheHdr = pfs->HOITFS_cacheHdr;
     PHOIT_RAW_INODE     pRawInode;
     PCHAR               pRawInodeData;
@@ -1023,3 +1027,70 @@ INT hoitTestEBS(PHOIT_VOLUME pfs) {
     hoitCheckEBS(pfs, 0, 8);
     return ERROR_NONE;
 }
+/*********************************************************************************************************
+ * EBS检查
+ * 检查某一块sector前n项数据
+ * 第一个参数为sector号，范围是0~26
+ * 第二个参数为检查前n个EBS表项的数量，范围是0~1K
+*********************************************************************************************************/
+INT hoitEBSCheckCmd(PHOIT_VOLUME pfs, INT  iArgC, PCHAR  ppcArgV[]) {
+    UINT32  sector_no;
+    UINT32  n;
+
+    if (pfs == LW_NULL || pfs->HOITFS_cacheHdr == LW_NULL){
+        printk("hoitEBSCheckCmd failed : pfs == NULL or cache header == NULL\n");
+        return PX_ERROR;
+    }
+    if (iArgC != 3) {
+        fprintf(stderr, "arguments error!\n");
+        return  (-ERROR_TSHELL_EPARAM);        
+    }
+    
+    sector_no   = lib_atoi(ppcArgV[1]);
+    n           = lib_atoi(ppcArgV[2]);
+    if (sector_no>26 || n > pfs->HOITFS_cacheHdr->HOITCACHE_PageAmount) {
+        fprintf(stderr, "arguments out of range!\n");
+        return  (-ERROR_TSHELL_EPARAM); 
+    }
+
+    hoitCheckEBS(pfs, sector_no, n);
+}
+/*********************************************************************************************************
+** 函数名称: hoitGetRawInfoMemCost
+** 功能描述: 获取整个文件系统中raw_info的内存占用情况
+** 输　入  :
+**          pfs                 文件卷
+** 输　出  :
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID hoitGetRawInfoMemCost(PHOIT_VOLUME pfs){
+    PHOIT_ERASABLE_SECTOR pSector = pfs->HOITFS_cacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+    INT iValidCount = 0;
+    INT iInvalidCount = 0;
+    while (pSector != LW_NULL)
+    {
+        PHOIT_RAW_INFO pRawInfo = pSector->HOITS_pRawInfoFirst;
+        PHOIT_RAW_INFO pRawNext = LW_NULL;
+        while(pRawInfo != LW_NULL){
+            pRawNext = pRawInfo->next_phys;
+            if(pRawInfo->is_obsolete == HOIT_FLAG_NOT_OBSOLETE){
+                iValidCount++;
+            }
+            else{
+                iInvalidCount++;
+            }
+            pRawInfo = pRawNext;
+        }
+
+        pSector = pSector->HOITS_next;
+    }
+
+    printf("====== RawInfo Mem Cost ======\n");
+    printf("Valid RawInfo Count: %d\n", iValidCount);
+    printf("Invalid RawInfo Count: %d\n", iInvalidCount);
+    printf("Total Mem Cost: %d Bytes\n", (iValidCount+iInvalidCount)*sizeof(HOIT_RAW_INFO));
+    return;
+}
+
+
