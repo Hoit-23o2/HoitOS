@@ -111,7 +111,7 @@ VOID __hoitDeleteLogSectorList(PHOIT_VOLUME pfs, PHOIT_LOG_SECTOR pLogSector){
 
     if(pfs->HOITFS_logInfo->pLogSectorList == pLogSector){
         pfs->HOITFS_logInfo->pLogSectorList = pLogSector->pErasableNextLogSector;
-        lib_free(pLogSector);
+        hoit_free(pfs, pLogSector, sizeof(HOIT_LOG_SECTOR));
         return;
     }
 
@@ -125,7 +125,7 @@ VOID __hoitDeleteLogSectorList(PHOIT_VOLUME pfs, PHOIT_LOG_SECTOR pLogSector){
         
         if(pLogSectorTraverse == pLogSector){
             pLogSectorTrailling->pErasableNextLogSector = pLogSector->pErasableNextLogSector;
-            lib_free(pLogSector);
+            hoit_free(pfs, pLogSector, sizeof(HOIT_LOG_SECTOR));
             break;
         }
     }
@@ -223,7 +223,7 @@ UINT __hoitScanLogSector(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLogHdr, PHOIT_ERASA
     uiSectorAddr    = pRawLogHdr->uiLogFirstAddr;
     uiOfs           = 0;
 
-    pcLogSector = (PCHAR)lib_malloc(uiSectorSize);
+    pcLogSector = (PCHAR)hoit_malloc(pfs, uiSectorSize);
     hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawLogHdr->uiLogFirstAddr, pcLogSector, uiSectorSize);
     pcCurSectorPos = pcLogSector;
     
@@ -233,7 +233,7 @@ UINT __hoitScanLogSector(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLogHdr, PHOIT_ERASA
             && __HOIT_IS_TYPE_LOG(pRawHeader)) {
             
             /* 将初始的pRawLog对应的RawInfo加入到 LOG SECTOR 中 */
-            pRawInfo                = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INFO));
+            pRawInfo                = (PHOIT_RAW_INFO)hoit_malloc(pfs, sizeof(HOIT_RAW_INFO));
             pRawInfo->phys_addr     = uiSectorAddr + (pcCurSectorPos - pcLogSector);
             pRawInfo->totlen        = pRawHeader->totlen;
             pRawInfo->is_obsolete   = HOIT_FLAG_NOT_OBSOLETE;
@@ -249,7 +249,7 @@ UINT __hoitScanLogSector(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLogHdr, PHOIT_ERASA
             pcCurSectorPos += 4;   /* 每次移动4字节 */
         }
     }
-    lib_free(pcLogSector);
+    hoit_free(pfs, pcLogSector, uiSectorSize);
     return uiOfs;
 }
 /*********************************************************************************************************
@@ -283,7 +283,7 @@ PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
         return LW_NULL;
     }
     
-    pRawLogHdr            = (PHOIT_RAW_LOG)lib_malloc(sizeof(HOIT_RAW_LOG));
+    pRawLogHdr            = (PHOIT_RAW_LOG)hoit_malloc(pfs, sizeof(HOIT_RAW_LOG));
     lib_memset(pRawLogHdr, 0, sizeof(HOIT_RAW_LOG));
     pRawLogHdr->file_type = S_IFLOG;
     pRawLogHdr->magic_num = HOIT_MAGIC_NUM;
@@ -311,7 +311,7 @@ PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
             __func__, pRawLogHdr->version, pRawLogHdr->ino, pErasableSector->HOITS_bno);
 
     /* 将初始的pRawLogHdr对应的RawInfo加入到管理中 */
-    pRawInfo                = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INFO));
+    pRawInfo                = (PHOIT_RAW_INFO)hoit_malloc(pfs, sizeof(HOIT_RAW_INFO));
     pRawInfo->phys_addr     = uiSectorAddr;
     pRawInfo->totlen        = pRawLogHdr->totlen;
     pRawInfo->is_obsolete   = HOIT_FLAG_NOT_OBSOLETE;
@@ -319,10 +319,10 @@ PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
     pRawInfo->next_phys     = LW_NULL;
     __hoit_add_raw_info_to_sector(pfs->HOITFS_now_sector, pRawInfo); 
 
-    pLogInfo = (PHOIT_LOG_INFO)lib_malloc(sizeof(HOIT_LOG_INFO));
+    pLogInfo = (PHOIT_LOG_INFO)hoit_malloc(pfs, sizeof(HOIT_LOG_INFO));
     lib_memset(pLogInfo, 0, sizeof(HOIT_LOG_INFO));
     
-    pLogSector = (PHOIT_LOG_SECTOR)lib_malloc(sizeof(HOIT_LOG_SECTOR));
+    pLogSector = (PHOIT_LOG_SECTOR)hoit_malloc(pfs, sizeof(HOIT_LOG_SECTOR));
     lib_memset(pLogSector, 0, sizeof(HOIT_LOG_SECTOR));
     pLogSector->pErasableSetcor = pErasableSector;
     
@@ -336,7 +336,7 @@ PHOIT_LOG_INFO hoitLogInit(PHOIT_VOLUME pfs, UINT uiLogSize, UINT uiSectorNum){
     pLogInfo->uiRawLogHdrAddr          = uiSectorAddr;
     
     if(pfs->HOITFS_logInfo != LW_NULL){
-        lib_free(pfs->HOITFS_logInfo);
+        hoit_free(pfs, pfs->HOITFS_logInfo, sizeof(HOIT_LOG_INFO));
         pfs->HOITFS_logInfo = LW_NULL;
     }
 
@@ -365,10 +365,10 @@ PHOIT_LOG_INFO hoitLogOpen(PHOIT_VOLUME pfs, PHOIT_RAW_LOG pRawLogHdr){
     
     uiEntityCnt = 0;
 
-    pLogInfo = (PHOIT_LOG_INFO)lib_malloc(sizeof(HOIT_LOG_INFO));
+    pLogInfo = (PHOIT_LOG_INFO)hoit_malloc(pfs, sizeof(HOIT_LOG_INFO));
     lib_memset(pLogInfo, 0, sizeof(HOIT_LOG_INFO));
 
-    pLogSector = (PHOIT_LOG_SECTOR)lib_malloc(sizeof(HOIT_LOG_SECTOR));
+    pLogSector = (PHOIT_LOG_SECTOR)hoit_malloc(pfs, sizeof(HOIT_LOG_SECTOR));
     lib_memset(pLogInfo, 0, sizeof(HOIT_LOG_SECTOR));
     
     pErasableLogSector = LW_NULL;
@@ -438,7 +438,7 @@ PCHAR hoitLogEntityGet(PHOIT_VOLUME pfs, UINT uiEntityNum){
     }
     
     uiEntitySize = pRawInfoTraverse->totlen - sizeof(HOIT_RAW_LOG);
-    pcEntity = (PCHAR)lib_malloc(uiEntitySize);
+    pcEntity = (PCHAR)hoit_malloc(pfs, uiEntitySize);
 
     hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfoTraverse->phys_addr + sizeof(HOIT_RAW_LOG),     /* 目标 Entity 所在RawInfo */
                       pcEntity, uiEntitySize);  
@@ -501,7 +501,7 @@ INT hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
     uiLogRemainSize         = uiLogSize - uiLogCurOfs;
     uiSize                  = uiEntitySize + sizeof(HOIT_RAW_LOG);
                                                             /* 声明一个LOG实体头 */                                                                        
-    pRawLog                 = (PHOIT_RAW_LOG)lib_malloc(sizeof(HOIT_RAW_LOG));
+    pRawLog                 = (PHOIT_RAW_LOG)hoit_malloc(pfs, sizeof(HOIT_RAW_LOG));
     pRawLog->file_type      = S_IFLOG;
     pRawLog->flag           = HOIT_FLAG_TYPE_LOG | HOIT_FLAG_NOT_OBSOLETE;
     pRawLog->magic_num      = HOIT_MAGIC_NUM;
@@ -512,11 +512,11 @@ INT hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
     pRawLog->ino            = __hoit_alloc_ino(pfs);
 
 
-    pcLogContent            = (PCHAR)lib_malloc(uiSize);
+    pcLogContent            = (PCHAR)hoit_malloc(pfs, uiSize);
     lib_memcpy(pcLogContent, pRawLog, sizeof(HOIT_RAW_LOG));
     lib_memcpy(pcLogContent + sizeof(HOIT_RAW_LOG), pcEntityContent, uiEntitySize);
 
-    pRawInfo                = (PHOIT_RAW_INFO)lib_malloc(sizeof(HOIT_RAW_INFO));    /* 建立RawInfo */
+    pRawInfo                = (PHOIT_RAW_INFO)hoit_malloc(pfs, sizeof(HOIT_RAW_INFO));    /* 建立RawInfo */
     pRawInfo->is_obsolete   = HOIT_FLAG_NOT_OBSOLETE;
     pRawInfo->next_logic    = LW_NULL;
     pRawInfo->next_phys     = LW_NULL;
@@ -547,7 +547,7 @@ INT hoitLogAppend(PHOIT_VOLUME pfs, PCHAR pcEntityContent, UINT uiEntitySize){
     pfs->HOITFS_logInfo->uiLogEntityCnt++;
     pfs->HOITFS_logInfo->uiLogCurOfs += uiSize;
 
-    lib_free(pcLogContent);
+    hoit_free(pfs, pcLogContent, uiSize);
 
     return (LOG_APPEND_OK);
 }

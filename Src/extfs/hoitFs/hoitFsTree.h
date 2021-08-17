@@ -68,17 +68,16 @@ BOOL             __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFD
 
 #endif // FT_TEST
 
-static inline PHOIT_FRAG_TREE_NODE newHoitFragTreeNode(PHOIT_FULL_DNODE pFDnode, UINT32 uiSize, UINT32 uiOfs, UINT32 iKey){
-    PHOIT_FRAG_TREE_NODE pFTn = (PHOIT_FRAG_TREE_NODE)lib_malloc(sizeof(HOIT_FRAG_TREE_NODE));
+static inline PHOIT_FRAG_TREE_NODE newHoitFragTreeNode(PHOIT_VOLUME pfs,  PHOIT_FULL_DNODE pFDnode, UINT32 uiSize, UINT32 uiOfs, UINT32 iKey){
+    PHOIT_FRAG_TREE_NODE pFTn = (PHOIT_FRAG_TREE_NODE)hoit_malloc(pfs, sizeof(HOIT_FRAG_TREE_NODE));
     pFTn->pRbn.iKey = iKey;
     pFTn->uiOfs = uiOfs;
     pFTn->uiSize = uiSize;
     pFTn->pFDnode = pFDnode;
-    pFTn->pWriteEntry = LW_NULL;    /* 07-18 By HZS */
+    pFTn->pMergeEntry = LW_NULL;    /* 07-18 By HZS */
     return pFTn;
 }
-
-
+#ifndef FT_OBSOLETE_TREE_LIST
 /*********************************************************************************************************
  PHOIT_FRAG_TREE_LIST_NODE构造函数
 *********************************************************************************************************/
@@ -152,7 +151,8 @@ static inline VOID hoitFragTreeListFree(PHOIT_FRAG_TREE_LIST_HEADER pFTlistHeade
     }
     lib_free(pFTlistHeader);
 }
-
+PHOIT_FRAG_TREE_LIST_HEADER   hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh);
+#endif  /* not FT_OBSOLETE_TREE_LIST */
 
 /*********************************************************************************************************
   FragTree基本操作 - 线程不安全 - 不同进程同时打开文件，需要做锁操作
@@ -164,11 +164,25 @@ BOOL                          hoitFragTreeDeleteNode(PHOIT_FRAG_TREE pFTTree, PH
 BOOL                          hoitFragTreeDeleteRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh, BOOL bDoDelete);
 BOOL                          hoitFragTreeDeleteTree(PHOIT_FRAG_TREE pFTTree, BOOL bDoDelete);
 VOID                          hoitFragTreeTraverse(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot);                     /* 中序遍历FragTree */
-PHOIT_FRAG_TREE_LIST_HEADER   hoitFragTreeCollectRange(PHOIT_FRAG_TREE pFTTree, INT32 iKeyLow, INT32 iKeyHigh);
 
+//TODO: 获取任意一个节点
+PHOIT_FRAG_TREE_NODE          hoitFragTreeGetLastNode(PHOIT_FRAG_TREE pFTTree);
+VIS_STATUE                    hoitFragTreeTraverseVisitor(PHOIT_FRAG_TREE pFTTree, PHOIT_FRAG_TREE_NODE pFTnRoot, visitorHoitFragTree visitor, PVOID pUserValue, PVOID *ppReturn);
+VOID                          hoitFragTreeShowMemory(PHOIT_FRAG_TREE pFTTree);
 /*********************************************************************************************************
   FragTree
 *********************************************************************************************************/
+typedef struct hoit_frag_tree_read_param
+{
+    UINT32 uiOfs;
+    UINT32 uiSize;
+} HOIT_FRAG_TREE_READ_PARAM;
+
+typedef struct hoit_frag_tree_overlayfixup_param
+{
+    PHOIT_FRAG_TREE_NODE pFTn;
+    BOOL                 bDoDelete;
+} HOIT_FRAG_TREE_OVERLAY_FIXUP_RARAM;
 //TODO：读取FragTree，然后向下读取数据实体，基本逻辑为先读Cache，Cache未命中再读flash
 //!该部分可以移除
 BOOL hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, PCHAR pContent);

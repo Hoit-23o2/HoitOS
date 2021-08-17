@@ -88,7 +88,7 @@
 #define HOIT_FLAG_OBSOLETE                  0x00000000
 #define HOIT_ERROR                          100
 #define HOIT_ROOT_DIR_INO                   1   /* HoitFs的根目录的ino为1 */
-#define HOIT_MAX_DATA_SIZE                  4096
+#define HOIT_MAX_DATA_SIZE                  1024
 #define __HOIT_IS_OBSOLETE(pRawHeader)      ((pRawHeader->flag & HOIT_FLAG_NOT_OBSOLETE)    == 0)
 #define __HOIT_IS_TYPE_INODE(pRawHeader)    ((pRawHeader->flag & HOIT_FLAG_TYPE_INODE)  != 0)
 #define __HOIT_IS_TYPE_DIRENT(pRawHeader)   ((pRawHeader->flag & HOIT_FLAG_TYPE_DIRENT) != 0)
@@ -97,9 +97,9 @@
 #define __HOIT_VOLUME_LOCK(pfs)             API_SemaphoreMPend(pfs->HOITFS_hVolLock, \
                                             LW_OPTION_WAIT_INFINITE)
 #define __HOIT_VOLUME_UNLOCK(pfs)           API_SemaphoreMPost(pfs->HOITFS_hVolLock)
-#define GET_FREE_LIST(pfs)   pfs->HOITFS_freeSectorList
-#define GET_DIRTY_LIST(pfs)   pfs->HOITFS_dirtySectorList
-#define GET_CLEAN_LIST(pfs)   pfs->HOITFS_cleanSectorList
+#define GET_FREE_LIST(pfs)                  pfs->HOITFS_freeSectorList
+#define GET_DIRTY_LIST(pfs)                 pfs->HOITFS_dirtySectorList
+#define GET_CLEAN_LIST(pfs)                 pfs->HOITFS_cleanSectorList
 #define __HOIT_MIN_4_TIMES(value)           ((value+3)/4*4) /* 将value扩展到4的倍数 */
 
 /*********************************************************************************************************
@@ -176,9 +176,7 @@ typedef HOIT_MERGE_BUFFER *               PHOIT_MERGE_BUFFER;
 typedef HOIT_MERGE_ENTRY *                PHOIT_MERGE_ENTRY;
 DEV_HDR          HOITFS_devhdrHdr;
 
-DECLARE_LIST_TEMPLATE(HOIT_ERASABLE_SECTOR);
-DECLARE_LIST_TEMPLATE(HOIT_FRAG_TREE_NODE);
-
+DECLARE_LIST_TEMPLATE(PHOIT_ERASABLE_SECTOR);
 // USE_LIST_TEMPLATE(hoitType, HOIT_FRAG_TREE_NODE);
 /*********************************************************************************************************
   HoitFs super block类型
@@ -207,16 +205,16 @@ typedef struct HOIT_VOLUME{
     PHOIT_ERASABLE_SECTOR   HOITFS_now_sector;
     
                                                                            /*! GC 相关 */
-    PHOIT_ERASABLE_SECTOR           HOITFS_erasableSectorList;                     /* 可擦除Sector列表 */
-    List(HOIT_ERASABLE_SECTOR)      HOITFS_dirtySectorList;                     /* 含有obsolete的块 */ 
-    List(HOIT_ERASABLE_SECTOR)      HOITFS_cleanSectorList;                     /* 不含obsolete的块 */
-    List(HOIT_ERASABLE_SECTOR)      HOITFS_freeSectorList;                      /* 啥都不含的块 */
-    Iterator(HOIT_ERASABLE_SECTOR)  HOITFS_sectorIterator;                      /* 统一sector迭代器 */
+    PHOIT_ERASABLE_SECTOR           HOITFS_erasableSectorList;                  /* 可擦除Sector列表 */
+    List(PHOIT_ERASABLE_SECTOR)     HOITFS_dirtySectorList;                     /* 含有obsolete的块 */ 
+    List(PHOIT_ERASABLE_SECTOR)     HOITFS_cleanSectorList;                     /* 不含obsolete的块 */
+    List(PHOIT_ERASABLE_SECTOR)     HOITFS_freeSectorList;                      /* 啥都不含的块 */
+    Iterator(PHOIT_ERASABLE_SECTOR) HOITFS_sectorIterator;                      /* 统一sector迭代器 */
     
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
     LW_OBJECT_HANDLE        HOITFS_GCMsgQ;                                 /* GC线程消息队列*/
     LW_OBJECT_HANDLE        HOITFS_hGCThreadId;                            /* GC总线程ID */
-    BOOL                    HOITFS_bShouldKillGC;
+    BOOL                    HOITFS_bShouldKillGC;                          /* 是否停止后台GC */
     
     ULONG                   ulGCForegroundTimes;                           /* GC前台计数 */
     ULONG                   ulGCBackgroundTimes;                           /* GC后台计数 */

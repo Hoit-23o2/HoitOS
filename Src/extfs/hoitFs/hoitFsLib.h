@@ -30,8 +30,6 @@
 
 
 #include "hoitType.h"
-#include "../tools/crc/crc32.h"
-
 typedef struct scanThreadAttr { /* 一个局部定义的结构体, 只用来给scan_single_sector传参 */
     PHOIT_VOLUME    pfs;
     UINT8           sector_no;
@@ -44,7 +42,7 @@ typedef struct scanThreadAttr { /* 一个局部定义的结构体, 只用来给scan_single_sec
 
 PHOIT_INODE_INFO        __hoit_just_open(PHOIT_INODE_INFO pdir, PCHAR pName);
 UINT                    __hoit_name_hash(CPCHAR pcName);
-UINT                    __hoit_free_full_dirent(PHOIT_FULL_DIRENT pDirent);
+UINT                    __hoit_free_full_dirent(PHOIT_VOLUME pfs, PHOIT_FULL_DIRENT pDirent);
 PHOIT_INODE_INFO        __hoit_get_full_file(PHOIT_VOLUME pfs, UINT ino);
 PHOIT_INODE_CACHE       __hoit_get_inode_cache(PHOIT_VOLUME pfs, UINT ino);
 VOID                    __hoit_add_dirent(PHOIT_INODE_INFO pFatherInode, PHOIT_FULL_DIRENT pSonDirent, UINT needLog);
@@ -103,16 +101,33 @@ VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasable
 BOOL __hoit_erasable_sector_list_check_exist(PHOIT_VOLUME pfs, List(HOIT_ERASABLE_SECTOR) HOITFS_sectorList, PHOIT_ERASABLE_SECTOR pErasableSector);
 VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_RAW_INFO pRawInfo);
 
+
+#ifdef CRC_DATA_ENABLE
 static void crc32_check(PHOIT_RAW_HEADER pRawHeader) {
+    if(pRawHeader == LW_NULL){
+        return;
+    }
     /* 检查crc校验码 */
     UINT32 uPrevCrc = pRawHeader->crc;
+    if(uPrevCrc == 1938479914){
+        printf("111\n");
+    }
     pRawHeader->crc = 0;
-    UINT32 uNowCrc = crc32_le((unsigned char*)pRawHeader, pRawHeader->totlen);
+    UINT32 uNowCrc = hoit_crc32_le((unsigned char*)pRawHeader, pRawHeader->totlen);
     if (uPrevCrc != uNowCrc) {
-        printf("Error in CRC!\n");
+        PHOIT_RAW_INODE pp = (PHOIT_RAW_INODE)pRawHeader;
+        CHAR* pChar = ((char*)pp)+sizeof(HOIT_RAW_INODE);
+        snprintf("%s", 925, pChar);
+        printf("\nError in CRC!\n");
     }
 
     pRawHeader->crc = uPrevCrc; /* 还原CRC到进入函数之前 */
 }
+#else 
+static void crc32_check(PHOIT_RAW_HEADER pRawHeader) {
+
+}
+#endif      /* CRC_DATA_ENABLE */
+
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0       */
 #endif                                                                  /*  __HOITFSLIB_H                */

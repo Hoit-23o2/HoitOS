@@ -21,7 +21,7 @@
 #include "hoitFsCache.h"
 #include "hoitFsGC.h"
 #include "../../driver/mtd/nor/nor.h"
-
+#include "../tools/crc/crc32.h"
 //TODO: 1. now_sector不能与LOG重叠，可是为啥还是重叠了？    DONE
 //TODO: 2. 强制GC                                         DONE  
 //TODO: 3. 注意无空间了就报错                              DONE 
@@ -53,7 +53,7 @@
 PHOIT_CACHE_HDR hoitEnableCache(UINT32 uiCacheBlockSize, UINT32 uiCacheBlockNums, PHOIT_VOLUME phoitfs){
     PHOIT_CACHE_HDR pcacheHdr;
 
-    pcacheHdr = (PHOIT_CACHE_HDR)__SHEAP_ALLOC(sizeof(HOIT_CACHE_HDR));
+    pcacheHdr = (PHOIT_CACHE_HDR)hoit_malloc(phoitfs, sizeof(HOIT_CACHE_HDR));
     if (pcacheHdr == LW_NULL) {
         _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
         _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
@@ -68,13 +68,13 @@ PHOIT_CACHE_HDR hoitEnableCache(UINT32 uiCacheBlockSize, UINT32 uiCacheBlockNums
                                              LW_NULL);
 
     if (!pcacheHdr->HOITCACHE_hLock) {
-        __SHEAP_FREE(pcacheHdr);
+        hoit_free(phoitfs, pcacheHdr, sizeof(HOIT_CACHE_HDR));
         return  (LW_NULL);
     }
 
-    pcacheHdr->HOITCACHE_cacheLineHdr    = (PHOIT_CACHE_BLK)__SHEAP_ALLOC(sizeof(HOIT_CACHE_BLK));
-    if (pcacheHdr == LW_NULL) {
-        __SHEAP_FREE(pcacheHdr);
+    pcacheHdr->HOITCACHE_cacheLineHdr    = (PHOIT_CACHE_BLK)hoit_malloc(phoitfs, sizeof(HOIT_CACHE_BLK));
+    if (pcacheHdr->HOITCACHE_cacheLineHdr == LW_NULL) {
+        hoit_free(phoitfs, pcacheHdr, sizeof(HOIT_CACHE_HDR));
         _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
         _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
         return  (LW_NULL);        
@@ -95,7 +95,7 @@ PHOIT_CACHE_HDR hoitEnableCache(UINT32 uiCacheBlockSize, UINT32 uiCacheBlockNums
 
     phoitfs->HOITFS_cacheHdr = pcacheHdr;
 
-    hoitInitFilter(pcacheHdr,uiCacheBlockSize);
+    hoitInitEBS(pcacheHdr,uiCacheBlockSize);
 
     return pcacheHdr;
 }
@@ -112,6 +112,7 @@ PHOIT_CACHE_HDR hoitEnableCache(UINT32 uiCacheBlockSize, UINT32 uiCacheBlockNums
 BOOL hoitFreeCache(PHOIT_CACHE_HDR pcacheHdr) {
     PHOIT_CACHE_BLK pcache;
     PHOIT_CACHE_BLK pfree;
+    PHOIT_VOLUME    pfs = pcacheHdr->HOITCACHE_hoitfsVol;
     if (pcacheHdr == LW_NULL) {
         _DebugHandle(__ERRORMESSAGE_LEVEL, "hoitfs cache header is null.\r\n");
         _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
@@ -125,11 +126,11 @@ BOOL hoitFreeCache(PHOIT_CACHE_HDR pcacheHdr) {
         pcache->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache->HOITBLK_cacheListPrev;
         pfree = pcache;
         pcache = pcache->HOITBLK_cacheListNext;
-        __SHEAP_FREE(pfree->HOITBLK_buf);
-        __SHEAP_FREE(pfree);        
+        hoit_free(pfs, pfree->HOITBLK_buf, pcacheHdr->HOITCACHE_blockSize);
+        hoit_free(pfs, pfree, sizeof(HOIT_CACHE_BLK));        
     }
-    __SHEAP_FREE(pcache->HOITBLK_buf);  /* 释放循环链表头 */
-    __SHEAP_FREE(pcacheHdr);
+    hoit_free(pfs, pcache->HOITBLK_buf, pcacheHdr->HOITCACHE_blockSize);  /* 释放循环链表头 */
+    hoit_free(pfs, pcacheHdr, sizeof(HOIT_CACHE_HDR));
     if(pcacheHdr->HOITCACHE_hLock){
         API_SemaphoreMDelete(&pcacheHdr->HOITCACHE_hLock);
     }
@@ -151,7 +152,7 @@ PHOIT_CACHE_BLK hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo, UIN
     INT             i;
     PHOIT_CACHE_BLK pcache;/* 当前创建的cache指针 */
     PHOIT_CACHE_BLK cacheLineHdr = pcacheHdr->HOITCACHE_cacheLineHdr; /* cache链表头指针 */
-    size_t          cacheBlkSize = pcacheHdr->HOITCACHE_blockSize;
+    size_t          cacheBlkSize = hoitGetSectorSize(8);
     BOOL            flag; /* 换块标记 */
 
     if (!pcacheHdr || !pSector) {
@@ -175,13 +176,13 @@ PHOIT_CACHE_BLK hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo, UIN
         cacheLineHdr->HOITBLK_cacheListNext     = pcache;
     } else {
         flag = LW_FALSE;
-        pcache = (PHOIT_CACHE_BLK)__SHEAP_ALLOC(sizeof(HOIT_CACHE_BLK));
+        pcache = (PHOIT_CACHE_BLK)hoit_malloc(pcacheHdr->HOITCACHE_hoitfsVol, sizeof(HOIT_CACHE_BLK));
         if (pcache == NULL) {
             _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
             return LW_NULL;
         }
 
-        pcache->HOITBLK_buf = (PCHAR)__SHEAP_ALLOC(cacheBlkSize);
+        pcache->HOITBLK_buf = (PCHAR)hoit_malloc(pcacheHdr->HOITCACHE_hoitfsVol, cacheBlkSize);
         if (pcache->HOITBLK_buf == NULL) {
             _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
             return LW_NULL;
@@ -192,16 +193,14 @@ PHOIT_CACHE_BLK hoitAllocCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo, UIN
         pcache->HOITBLK_cacheListNext   = cacheLineHdr->HOITBLK_cacheListNext;
         cacheLineHdr->HOITBLK_cacheListNext->HOITBLK_cacheListPrev  = pcache;
         cacheLineHdr->HOITBLK_cacheListNext     = pcache;
+        pcache->HOITBLK_uiCurOfs        = 0;
 
         pcacheHdr->HOITCACHE_blockNums++;
     }
 
     if (flag) { 
-        /* 换了块要写回 */
-        write_nor(pcache->HOITBLK_blkNo*pcacheHdr->HOITCACHE_blockSize + NOR_FLASH_START_OFFSET,
-                    pcache->HOITBLK_buf, 
-                    pcacheHdr->HOITCACHE_blockSize, 
-                    WRITE_KEEP);
+        //!采用hoitWriteBackCache写回
+        hoitWriteBackCache(pcacheHdr,pcache);
     }
 
     lib_bzero(pcache->HOITBLK_buf,cacheBlkSize);
@@ -247,50 +246,60 @@ PHOIT_CACHE_BLK hoitCheckCacheHit(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo) 
 ** 调用模块:    
 */
 BOOL hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
-    // read_nor(uiOfs, pContent, uiSize);
-   PCHAR   pucDest         = pContent;
-   size_t  cacheBlkSize    = pcacheHdr->HOITCACHE_blockSize;
-   size_t  stStart         = uiOfs % cacheBlkSize;
-   PHOIT_CACHE_BLK pcache;
-   //UINT32  blkNoStart      = uiOfs/cacheBlkSize;
-   //UINT32  blkNoEnd        = (uiOfs + uiSize) / cacheBlkSize;
-   UINT32  readBytes      = 0;
-   UINT32  i;
+    PCHAR   pucDest         = pContent;
+    size_t  cacheBlkSize    = pcacheHdr->HOITCACHE_blockSize;
+    size_t  sectorSize      = hoitGetSectorSize(8);
+    size_t  stStart         = uiOfs % cacheBlkSize;
+    
+    PHOIT_CACHE_BLK pcache;
 
-   while(uiSize != 0) {
-       UINT32  stBufSize = (cacheBlkSize - stStart);
-       i = (uiOfs + readBytes)/cacheBlkSize;
-       if (stBufSize > uiSize) {
-           pcache = hoitCheckCacheHit(pcacheHdr, i);
-           if (!pcache) {
-                read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, uiSize);
-           } else {
-               /* 命中了 */
-               lib_memcpy(pContent, pcache->HOITBLK_buf+stStart, uiSize);
-           }
-           readBytes   += uiSize;
-           uiSize       = 0;
-       } else {
-           pcache = hoitCheckCacheHit(pcacheHdr, i);
-           read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, stBufSize);
-           if (!pcache) {
-                read_nor(uiOfs + readBytes + NOR_FLASH_START_OFFSET, pucDest, stBufSize);
-           } else {
-               /* 命中了 */
-               lib_memcpy(pContent, pcache->HOITBLK_buf+stStart, uiSize);
-           }
-           pucDest     += stBufSize;
-           uiSize      -= stBufSize;
-           readBytes   += stBufSize;
-           stStart      = 0;
-       }
-   }
+    UINT32  readAddr;   /* 注意上下层地址的切换 */
+    UINT32  readBytes      = 0;
+    UINT32  i;
+
+    while(uiSize != 0) {
+        UINT32  stBufSize = (cacheBlkSize - stStart);
+        i = (uiOfs + readBytes)/cacheBlkSize;
+        readAddr = i * sectorSize +     /* 读地址实际块起始位置 */
+                    stStart +           /* 读地址块内偏移 */
+                    NOR_FLASH_START_OFFSET;
+
+        if (stBufSize > uiSize) {
+            pcache = hoitCheckCacheHit(pcacheHdr, i);
+            if (!pcache) {
+                //!
+                    read_nor(readAddr, pucDest, uiSize);
+            } else {
+                /* 命中了 */
+                lib_memcpy(pContent, pcache->HOITBLK_buf+stStart, uiSize);
+            }
+            readBytes   += uiSize;
+            uiSize       = 0;
+        } else {    
+            /* 
+                数据实体是不会分成两部分分别保存在不同sector中的 。
+                因此这部分代码正常情况下不会被执行。
+            */
+            pcache = hoitCheckCacheHit(pcacheHdr, i);
+            //!
+            if (!pcache) {
+                    read_nor(readAddr, pucDest, stBufSize);
+            } else {
+                /* 命中了 */
+                lib_memcpy(pContent, pcache->HOITBLK_buf+stStart, stBufSize);
+            }
+            pucDest     += stBufSize;
+            uiSize      -= stBufSize;
+            readBytes   += stBufSize;
+            stStart      = 0;
+        }
+    }
 
     return LW_TRUE;
 }
 /*    
 ** 函数名称:    hoitWriteThroughCache
-** 功能描述:    将一段给定长度的数据实体写入特定地址。
+** 功能描述:    将一段给定长度的数据实体写入特定地址，写回数据长度不能超过剩余空间。
 ** 输　入  :    pcacheHdr               cache头结构
 **              uiOfs                   数据写入起始位置，上层将flash介质中的NOR_FLASH_START_OFFSET位置视为0地址。
 **              pContent                原地址
@@ -302,46 +311,39 @@ BOOL hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, 
 BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
     PCHAR   pucDest         = pContent;
     size_t  cacheBlkSize    = pcacheHdr->HOITCACHE_blockSize;
-    size_t  stStart         = uiOfs % cacheBlkSize;
-    UINT32  blkNoStart      = uiOfs/cacheBlkSize;
-    UINT32  blkNoEnd        = (uiOfs + uiSize) / cacheBlkSize;
+    
+    size_t  stStart         = uiOfs % cacheBlkSize; 
+    //!2021年8月6日
+    //UINT32  blkNoStart      = uiOfs/cacheBlkSize;
+
+    size_t  sectorSize      = hoitGetSectorSize(8);
     UINT32  writeBytes      = 0;
     UINT32  i;                      /* 下一块要写入的flash块 */
-    UINT32                  writeAddr = uiOfs + writeBytes + NOR_FLASH_START_OFFSET;
+
+    //!2021年8月6日
+    /* 注意上下层的地址切换，上下层只有sector号是一样的 */
+    //UINT32  writeAddr = blkNoStart * sectorSize + stStart + NOR_FLASH_START_OFFSET;     
+    UINT32  writeAddr;
+
     PHOIT_CACHE_BLK         pcache;
     PHOIT_ERASABLE_SECTOR   pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
     
     //! 22021-07-07 既然这个写函数主要用于标记过期，改成写不分配以及FIFO比较好
     while(uiSize != 0) {
-        size_t  stBufSize = (cacheBlkSize - stStart);
+        size_t  stBufSize = (cacheBlkSize - stStart);   /* 当前sector剩余空间 */
         i = (uiOfs + writeBytes)/cacheBlkSize;
-
         pSector = hoitFindSector(pcacheHdr, i);/* 查找块号对应的pSector */
-
-        writeAddr = uiOfs + writeBytes + NOR_FLASH_START_OFFSET;
+        
+        //!2021年8月6日
+        // writeAddr = uiOfs + writeBytes + NOR_FLASH_START_OFFSET;
+        writeAddr = i * sectorSize + stStart + NOR_FLASH_START_OFFSET;
 
         pcache = hoitCheckCacheHit(pcacheHdr, i);
         if (stBufSize > uiSize) { /* 不用写满整个sector */
             if (pcache == LW_NULL) { /* 未命中 */
-                // pcache = hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA, pSector);
-                // if (pcache == LW_NULL) { /* 未成功分配cache，直接写入flash */                      
-                //     write_nor(writeAddr, pContent, uiSize, WRITE_KEEP);
-                // }
-                // else { /* 成功分配cache，则写入cache */
-                //     lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, uiSize);
-                // }
                 write_nor(writeAddr, pContent, uiSize, WRITE_KEEP);
             } else {    /* cache命中则直接写入数据，并将链表提前到链表头 */
-                lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, uiSize);
-                //! 2021-07-04 ZN cache替换修改为LRU
-                // pcache->HOITBLK_cacheListPrev->HOITBLK_cacheListNext = pcache->HOITBLK_cacheListNext;
-                // pcache->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache->HOITBLK_cacheListPrev;
-                
-                // pcache->HOITBLK_cacheListPrev = pcacheHdr->HOITCACHE_cacheLineHdr;
-                // pcache->HOITBLK_cacheListNext = pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext;
-                
-                // pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache;
-                // pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext = pcache;                
+                lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, uiSize);               
             }
 
             writeBytes += uiSize;
@@ -356,25 +358,9 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
             break;
         } else { /* 写满整个sector */
             if (pcache == LW_NULL) { /* 未命中 */
-                // pcache = hoitAllocCache(pcacheHdr, i, HOIT_CACHE_TYPE_DATA, pSector);
-                // if (pcache == LW_NULL) { /* 未成功分配cache，直接写入flash */
-                //     write_nor(writeAddr, pContent, stBufSize, WRITE_KEEP);
-                // }
-                // else { /* 成功分配cache，则写入cache */
-                //     lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, stBufSize);
-                // }
-                write_nor(writeAddr, pContent, uiSize, WRITE_KEEP);
+                write_nor(writeAddr, pContent, stBufSize, WRITE_KEEP);
             } else {
                 lib_memcpy(pcache->HOITBLK_buf + stStart, pucDest, stBufSize);
-                //! 2021-07-04 ZN cache替换修改为LRU
-                // pcache->HOITBLK_cacheListPrev->HOITBLK_cacheListNext = pcache->HOITBLK_cacheListNext;
-                // pcache->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache->HOITBLK_cacheListPrev;
-                
-                // pcache->HOITBLK_cacheListPrev = pcacheHdr->HOITCACHE_cacheLineHdr;
-                // pcache->HOITBLK_cacheListNext = pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext;
-                
-                // pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache;
-                // pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext = pcache;                 
             }
 
             pucDest     += stBufSize;
@@ -385,15 +371,11 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
             pSector->HOITS_offset       = cacheBlkSize;
             pSector->HOITS_uiFreeSize   = 0;
             pSector->HOITS_uiUsedSize   = cacheBlkSize;
+            //!2021年8月6日
+            pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_totalUsedSize += stBufSize;
         }
     }
-    // if(uiSize >= sizeof(HOIT_RAW_HEADER)){  /* 实体头 */
-    //     PHOIT_RAW_HEADER headr = (PHOIT_RAW_HEADER)pContent;
-    //     headr->magic_num == HOIT_MAGIC_NUM
-    //     {
-    //         pSector.usedCount++;               
-    //     }
-    // }
+
     return LW_TRUE;   
 }
 
@@ -410,10 +392,13 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
 */
 UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize){
     PCHAR   pucDest         = pContent;
-    UINT32  writeAddr       = 0;
+    UINT32  writeAddrUpper;      /* 上层视角中的地址 */
+    UINT32  writeAddrLower;          /* cache层视角中的地址 */
     UINT32  i;
     UINT32  inode;          /* 数据实体所属文件inode号 */
     UINT32  pageNum;        /* 数据实体需要页数量 */
+    UINT32  uiSizeAlign;    /* 对齐之后数据实体写入大小 */
+    UINT32  m = NOR_FLASH_START_OFFSET;
     PHOIT_CACHE_BLK         pcache;
     PHOIT_ERASABLE_SECTOR   pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
 
@@ -438,10 +423,10 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     //! 2021-07-04 添加EBS处理
     inode       = ((PHOIT_RAW_HEADER)pContent)->ino;
     pageNum     = uiSize%HOIT_FILTER_PAGE_SIZE?uiSize/HOIT_FILTER_PAGE_SIZE+1:uiSize/HOIT_FILTER_PAGE_SIZE;
-
+    uiSizeAlign = pageNum * HOIT_FILTER_PAGE_SIZE;
     //i = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA, uiSize);
     //! 设成页对齐
-    i = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA, pageNum*HOIT_FILTER_PAGE_SIZE);
+    i = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA, uiSizeAlign);
 
     if (i == PX_ERROR) {
         return PX_ERROR;
@@ -449,16 +434,26 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
         pSector = hoitFindSector(pcacheHdr, i);      
     }
 
-    writeAddr = pSector->HOITS_bno * 
-                pcacheHdr->HOITCACHE_blockSize + 
-                pSector->HOITS_offset + 
-                NOR_FLASH_START_OFFSET;         /* 确定数据实体写入的flash地址 */
+    /* cache层的视角中，一个块有64KB；但在上层视角中一个块只有1023*56B = 57288B */
+    writeAddrUpper = pSector->HOITS_bno * 
+                    pcacheHdr->HOITCACHE_blockSize + 
+                    pSector->HOITS_offset;         /* 确定上层数据实体写入的逻辑地址 */
+
+    writeAddrLower = pSector->HOITS_bno * 
+                    hoitGetSectorSize(8) + 
+                    pSector->HOITS_offset + 
+                    NOR_FLASH_START_OFFSET;         /* 确定下层数据实体写入的物理地址 */ 
+
+    //FOR TEST
+    // if (i == 19 && writeAddr <= 1092504 + NOR_FLASH_START_OFFSET && writeAddr >=19*pcacheHdr->HOITCACHE_blockSize + NOR_FLASH_START_OFFSET) {
+    //     i = 0;
+    // }
 
     pcache = hoitCheckCacheHit(pcacheHdr, pSector->HOITS_bno);
     if (pcache == LW_NULL) {                                    /* 未命中 */
         pcache = hoitAllocCache(pcacheHdr, pSector->HOITS_bno, HOIT_CACHE_TYPE_DATA, pSector);
         if (pcache == LW_NULL) {                                /* 未成功分配cache，直接写入flash */                        
-            write_nor(writeAddr, pContent, uiSize, WRITE_KEEP);
+            write_nor(writeAddrLower, pContent, uiSize, WRITE_KEEP);
         }
         else {                                                  /* 成功分配cache，则写入cache，并将该cache块提到表头 */
             lib_memcpy(pcache->HOITBLK_buf + pSector->HOITS_offset, pucDest, uiSize);
@@ -475,17 +470,21 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
         pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext->HOITBLK_cacheListPrev = pcache;
         pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext = pcache;
 
+        //! 2021-08-14 PYQ 方便调试
     }
 
     /* 更新EBS entry */
     hoitUpdateEBS(pcacheHdr, pcache, inode, pSector->HOITS_offset);
 
     /* 更新HOITFS_now_sector */
-    pSector->HOITS_offset       += uiSize;
-    pSector->HOITS_uiFreeSize   -= uiSize;
-    pSector->HOITS_uiUsedSize   += uiSize;
-    pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_totalUsedSize += uiSize;
-
+    //! 改用对齐之后的大小
+    pSector->HOITS_offset       += uiSizeAlign;
+    pSector->HOITS_uiFreeSize   -= uiSizeAlign;
+    pSector->HOITS_uiUsedSize   += uiSizeAlign;
+    pcache->HOITBLK_uiCurOfs    += uiSizeAlign;
+    pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_totalUsedSize += uiSizeAlign;
+    
+    
     /* 当前写的块满了，则去找下一个仍有空闲的块 */
     //! 减去EBS区域
     if (pSector->HOITS_uiFreeSize  == 0) {
@@ -498,8 +497,7 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
 
     pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
 
-    
-    return writeAddr - NOR_FLASH_START_OFFSET;
+    return writeAddrUpper;
 }
 
 /*
@@ -522,38 +520,37 @@ VOID hoitCheckCacheList(PHOIT_CACHE_HDR pcacheHdr) {
             printf("Cache Free Size: %d\n",tempCache->HOITBLK_sector->HOITS_uiFreeSize);
         }
     }
-    
 }
 
 /*    
 ** 函数名称:    hoitFlushCache
 ** 功能描述:    将所有cache数据写回flash
 ** 输　入  :    pcacheHdr               cache头结构
+**              pcache                  要写回的cache块，为-1时将所有cache块全部写回。为LW_NULL时不写回。
 ** 输　出  :    写回的cache块数量
 ** 全局变量:
 ** 调用模块:    
 */
-UINT32 hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr) {
+UINT32 hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache) {
     PHOIT_CACHE_BLK tempCache;
     UINT32  writeCount = 0;
     UINT32  writeAddr;
-    if (pcacheHdr->HOITCACHE_blockNums == 0)
+    if (pcacheHdr->HOITCACHE_blockNums == 0 || pcache == LW_NULL)
         return 0;
-    
-    tempCache = pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext;
-    while (tempCache != pcacheHdr->HOITCACHE_cacheLineHdr) {
-        if (tempCache->HOITBLK_sector == LW_NULL)
-            continue;
-        writeAddr   = tempCache->HOITBLK_blkNo*pcacheHdr->HOITCACHE_blockSize + NOR_FLASH_START_OFFSET;
-        write_nor(  writeAddr, 
-                    tempCache->HOITBLK_buf, 
-                    pcacheHdr->HOITCACHE_blockSize, 
-                    WRITE_KEEP);
-
-        tempCache = tempCache->HOITBLK_cacheListNext;
-        writeCount ++;
+    if (pcache!=(PHOIT_CACHE_BLK)-1) {
+        hoitWriteBackCache(pcacheHdr,pcache);
+        writeCount++;
+    } else {
+        tempCache = pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext;
+        while (tempCache != pcacheHdr->HOITCACHE_cacheLineHdr) {
+            if (tempCache->HOITBLK_sector == LW_NULL)
+                continue;
+            //! 采用hoitWriteBackCache写回
+            hoitWriteBackCache(pcacheHdr,tempCache);
+            tempCache = tempCache->HOITBLK_cacheListNext;
+            writeCount ++;
+        }
     }
-
     return writeCount;
 }
 /*    
@@ -566,15 +563,16 @@ UINT32 hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr) {
 */
 BOOL hoitReleaseCache(PHOIT_CACHE_HDR pcacheHdr) {
     PHOIT_CACHE_BLK tempCache, tempCachePre;
+    PHOIT_VOLUME    pfs = pcacheHdr->HOITCACHE_hoitfsVol;
     tempCache = pcacheHdr->HOITCACHE_cacheLineHdr->HOITBLK_cacheListNext;
     while (tempCache!= pcacheHdr->HOITCACHE_cacheLineHdr)
     {
         if (tempCache->HOITBLK_buf != LW_NULL) {
-            __SHEAP_FREE(tempCache->HOITBLK_buf);
+            hoit_free(pfs, tempCache->HOITBLK_buf, pcacheHdr->HOITCACHE_blockSize);
         }
         tempCachePre = tempCache;
         tempCache = tempCache->HOITBLK_cacheListNext;
-        __SHEAP_FREE(tempCachePre);
+        hoit_free(pfs, tempCachePre, sizeof(HOIT_CACHE_BLK));
     }
     return LW_TRUE;
 }
@@ -583,8 +581,9 @@ BOOL hoitReleaseCache(PHOIT_CACHE_HDR pcacheHdr) {
     释放cache头
 */
 BOOL hoitReleaseCacheHDR(PHOIT_CACHE_HDR pcacheHdr) {
+    PHOIT_VOLUME    pfs = pcacheHdr->HOITCACHE_hoitfsVol;
     if (pcacheHdr->HOITCACHE_cacheLineHdr != LW_NULL) {
-        __SHEAP_FREE(pcacheHdr->HOITCACHE_cacheLineHdr);
+        hoit_free(pfs, pcacheHdr->HOITCACHE_cacheLineHdr, sizeof(HOIT_CACHE_BLK));
     }
     API_SemaphoreMDelete(&pcacheHdr->HOITCACHE_hLock);
 }
@@ -599,7 +598,25 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
     //TOOPT: 2021-07-04 如果当前块写不下，是否可以先从cache中找能放得下数据实体的空闲块，再去整个sector列表中找？
     //! 2021-07-04 ZN 添加EBS区域，与uiSize比较时减少一个cache块可写空间。
     PHOIT_ERASABLE_SECTOR pSector;
+    PHOIT_ERASABLE_SECTOR pTargetSector        = LW_NULL;
+    UINT32                uiMinimalUsedSize    = INT_MAX;
     Iterator(HOIT_ERASABLE_SECTOR) iter = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_sectorIterator;
+    
+    //! 2021-08-04 PYQ 强制GC功能
+    INT                   iFreeSectorNum = 0;
+    if(pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_curGCSector == LW_NULL){  /* 避免递归调用 */
+        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+        while (pSector != LW_NULL) {
+            if(pSector->HOITS_uiUsedSize == 0){
+                iFreeSectorNum++;
+            }
+            pSector = pSector->HOITS_next;
+        }  
+        if(iFreeSectorNum <= 2){
+            hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
+        }
+    }
+
     switch (cacheType)
     {
     case HOIT_CACHE_TYPE_INVALID:
@@ -618,11 +635,19 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
             if(!hoitLogCheckIfLog(pcacheHdr->HOITCACHE_hoitfsVol, pSector)                  /* 当不是LOG SECTOR*/
                && pSector != pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector){            /* 且不是NOW SECTOR时，才检查 */
                 if(pSector->HOITS_uiFreeSize  >= (size_t)uiSize) {
+                    // //! 2021-08-12 PYQ 找最少用的块
+                    // if(pSector->HOITS_uiUsedSize < uiMinimalUsedSize){
+                    //     uiMinimalUsedSize = pSector->HOITS_uiUsedSize;
+                    //     pTargetSector     = pSector;
+                    // }
                     return pSector->HOITS_bno;
                 }
             }
             pSector = pSector->HOITS_next;
-        }      
+        }
+        // if(pTargetSector != LW_NULL){
+        //     return pTargetSector->HOITS_bno;
+        // }      
         if (pSector == LW_NULL) {                                   /* flash空间整体不足，开始执行强制GC */
             hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
         }
@@ -766,9 +791,25 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
 ** 调用模块:
 */
 VOID hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr, PHOIT_ERASABLE_SECTOR pErasableSector){
-    pErasableSector->HOITS_uiFreeSize = pErasableSector->HOITS_length;
-    pErasableSector->HOITS_uiUsedSize = 0;
-    pErasableSector->HOITS_offset     = 0;
+    pErasableSector->HOITS_uiFreeSize             = pErasableSector->HOITS_length;
+    pErasableSector->HOITS_uiUsedSize             = 0;
+    pErasableSector->HOITS_offset                 = 0;
+    pErasableSector->HOITS_uiAvailableEntityCount = 0;
+    // pErasableSector->HOITS_uiObsoleteEntityCount  = 0;
+}
+/*
+** 函数名称: hoitOccupySectorState
+** 功能描述: 标记一个Sector占满的状态，用于GC Added By PYQ
+** 输　入  : pcacheHdr        缓存信息头部
+**          pErasableSector   目标Sector
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*/
+VOID hoitOccupySectorState(PHOIT_CACHE_HDR pcacheHdr, PHOIT_ERASABLE_SECTOR pErasableSector){
+    pErasableSector->HOITS_uiFreeSize = 0;
+    pErasableSector->HOITS_uiUsedSize = pErasableSector->HOITS_length;
+    pErasableSector->HOITS_offset     = pErasableSector->HOITS_length;
 }
 
                                      
@@ -791,6 +832,38 @@ PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no
         pSector = pSector->HOITS_next;
     }
     return pSector;
+}
+
+/*********************************************************************************************************
+** 函数名称: hoitWriteBackCache
+** 功能描述: 写回单个cache块，先写数据区，再写EBS区，最后写CRC magic number
+** 输　入  :    pcacheHdr       cache头结构
+**              pcache          数据cache块结构
+** 输　出  : 
+** 全局变量:
+** 调用模块:
+** 注意:    如果EBS entry进行更改，就需要调整代码
+*********************************************************************************************************/
+VOID    hoitWriteBackCache(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache){
+    UINT offset = pcache->HOITBLK_blkNo * GET_SECTOR_SIZE(8) + NOR_FLASH_START_OFFSET;
+    /* 先写数据 */
+    //! 有问题
+    write_nor(offset,
+              pcache->HOITBLK_buf, 
+              pcacheHdr->HOITCACHE_blockSize, 
+              WRITE_KEEP);
+        
+    /* 再写EBS */  
+    write_nor(offset + pcacheHdr->HOITCACHE_EBSStartAddr,
+              pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr,
+              (pcacheHdr->HOITCACHE_PageAmount+1)*sizeof(HOIT_EBS_ENTRY),
+              WRITE_KEEP);
+
+    /* 最后写CRC校验码 */
+    write_nor(offset + pcacheHdr->HOITCACHE_CRCMagicAddr,
+                pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_CRCMagicAddr,
+                sizeof(UINT32),
+                WRITE_KEEP);                                             
 }
 
 //! 2021-07-04 ZN 创建过滤层
@@ -818,9 +891,12 @@ PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no
  *              48~63位为过期标记在inode号（前32位）不为全1时才有意义，全1时表示未过期，全0为过期。
  *          PageSize        = 56B
  *          PageAmount      =  64KB / 64B = 1K    
+ *          Magic Number (CRC) 保存在最后一页中，所以数据区域实际可用空间为(PageAmount - 1)*PAGE_SIZE。
+ *          每次添加数据项时（调用WriteToCache），便会重新计算CRC，但是标注过期不会更改CRC（调用WriteThrough）。
+ *          GetSectorSize 结果不再是整个Sector大小（64KB）而是减去magic number和EBS区域后的大小 1023*56B = 57288B。
 *********************************************************************************************************/ 
 /*    
-** 函数名称:    hoitInitFilter
+** 函数名称:    hoitInitEBS
 ** 功能描述:    初始化过滤层，计算EBS区域
 ** 输　入  :    pcacheHdr               cache头结构
                 uiCacheBlockSize        单个cache大小，暂时为一个sector大小：64KB(设备为Am29LV160DB)
@@ -828,37 +904,45 @@ PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no
 ** 全局变量:
 ** 调用模块:    
 */
-UINT32 hoitInitFilter(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiCacheBlockSize) {
+UINT32 hoitInitEBS(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiCacheBlockSize) {
+    size_t addr;
     if (!pcacheHdr || uiCacheBlockSize < (HOIT_FILTER_EBS_ENTRY_SIZE+HOIT_FILTER_PAGE_SIZE)) {
         return PX_ERROR;
     }
-    pcacheHdr->HOITCACHE_PageAmount     = uiCacheBlockSize/(HOIT_FILTER_EBS_ENTRY_SIZE+HOIT_FILTER_PAGE_SIZE) - 1;
-    pcacheHdr->HOITCACHE_EBSStartAddr   = HOIT_FILTER_PAGE_SIZE * pcacheHdr->HOITCACHE_PageAmount;      /* 减去一个页的空间用于保存EBS校验码 */
+    pcacheHdr->HOITCACHE_PageAmount     = uiCacheBlockSize/(HOIT_FILTER_EBS_ENTRY_SIZE+HOIT_FILTER_PAGE_SIZE); 
+    addr = HOIT_FILTER_PAGE_SIZE * pcacheHdr->HOITCACHE_PageAmount; 
+    pcacheHdr->HOITCACHE_EBSStartAddr   = addr;
+    pcacheHdr->HOITCACHE_CRCMagicAddr   = addr - HOIT_FILTER_PAGE_SIZE; 
+    //! 2021-08-04 ZN
+    pcacheHdr->HOITCACHE_PageAmount --;/* 减去一个页的空间用于保存EBS校验码 */
+    /* 添加了EBS区域和修正一个块的大小 */
+    pcacheHdr->HOITCACHE_blockSize      =  pcacheHdr->HOITCACHE_blockSize - 
+                                            HOIT_FILTER_PAGE_SIZE - 
+                                            (pcacheHdr->HOITCACHE_PageAmount+1) * sizeof(HOIT_EBS_ENTRY);
     return ERROR_NONE;
 }
 /*    
 ** 函数名称:    hoitUpdateEBS
-** 功能描述:    在写入一个数据实体之后，调用该函数更新相应的EBS entry 
-** 输　入  :    pcache                   cache块结构体
+** 功能描述:    在写入一个数据实体到cache块之后，调用该函数更新相应的EBS entry。要求更新的sector必须在块中
+** 输　入  :    pcacheHdr               cache头结构体
+                pcache                   cache块结构体
                 inode                   数据实体对应的文件inode号
-                pageNum                 数据实体所占页数
-                offset                  数据实体写入的sector内位置
+                offset                  数据实体在的sector内偏移
 ** 输　出  :    
 ** 全局变量:
 ** 调用模块:    
 */
-//! 修改更新EBS entry的方式
 UINT32 hoitUpdateEBS(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache, UINT32 inode,UINT32 offset) {
     UINT32          startPageNo = offset/HOIT_FILTER_PAGE_SIZE;     /* 起始页号 */
     UINT32          i;
     PHOIT_EBS_ENTRY pentry;
-    UINT64          magic_number;
+    UINT32          *pcrc;
     if(pcacheHdr==LW_NULL || pcache== LW_NULL) {
         return PX_ERROR;
     }
-
-    pentry      = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr + (size_t)startPageNo * HOIT_FILTER_EBS_ENTRY_SIZE);
-
+    
+    //pentry      = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr + (size_t)startPageNo * HOIT_FILTER_EBS_ENTRY_SIZE);
+    pentry      = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr);
     // if ( (pentry+pageNum-1) > pcacheHdr->HOITCACHE_blockSize ) {    /* 越界检测 */
     //     return PX_ERROR;
     // }
@@ -872,13 +956,54 @@ UINT32 hoitUpdateEBS(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache, UINT32 i
         pentry++;
     }
     
-    //TODO 校验码更新
-    magic_number = (UINT64)*(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr);
-    if (magic_number == (UINT64)-1) {       /* EBS区域未写过数据，在norflash上表现为全1 */
-        magic_number = HOIT_FILTER_EBS_MAGIC_NUMBER;
-    }
+    //TODO 校验码更新需要调用CRC
+    pcrc = (UINT32 *)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_CRCMagicAddr);
+    *pcrc = hoitEBSupdateCRC(pcacheHdr, pcache, pcache->HOITBLK_blkNo);
     return ERROR_NONE;
 }
+/*********************************************************************************************************
+** 函数名称: hoitEBSupdateCRC
+** 功能描述: 在添加新的EBS项之后，重新计算整个EBS区域新的CRC校验码。pcache为空时，去flash中计算。
+** 输　入  :    pcacheHdr       cache头结构
+**              pcache          数据cache块结构
+** 输　出  : 
+** 全局变量:
+** 调用模块:
+** 注意:    如果EBS entry进行更改，就需要调整代码
+*********************************************************************************************************/
+inline UINT32  hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache, UINT32 sector_no) {
+    UINT32              i,j;
+    UINT32              crc     = 0;
+    UINT32              count   = pcacheHdr->HOITCACHE_PageAmount;
+    UINT32              norAddr = NOR_FLASH_START_OFFSET + 
+                                    sector_no*GET_SECTOR_SIZE(8) +
+                                    pcacheHdr->HOITCACHE_EBSStartAddr;
+    PHOIT_EBS_ENTRY     pentry;
+    PCHAR               pEBSarea    = LW_NULL;
+    PHOIT_VOLUME        pfs     = pcacheHdr->HOITCACHE_hoitfsVol;
+    if (pcache == LW_NULL) {
+        pEBSarea    = (PCHAR)hoit_malloc(pcacheHdr->HOITCACHE_hoitfsVol, (pcacheHdr->HOITCACHE_PageAmount+1)*sizeof(HOIT_EBS_ENTRY));
+        if (pEBSarea == LW_NULL)
+            return  PX_ERROR;
+        pentry      = (PHOIT_EBS_ENTRY)pEBSarea;
+        read_nor(norAddr, pEBSarea, (pcacheHdr->HOITCACHE_PageAmount+1)*sizeof(HOIT_EBS_ENTRY));
+    } else {
+        pentry  = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr);
+    }
+    
+    for (i=0 ; i<count ; i++) {
+        crc ^= pentry->HOIT_EBS_ENTRY_inodeNo;
+        for(j=0 ; j<8 ; j++)
+            crc = (crc >> 1) ^ ((crc & 1) ? CRCPOLY_LE : 0);
+        crc ^= (UINT32)pentry->HOIT_EBS_ENTRY_pageNo;
+        for(j=0 ; j<8 ; j++)
+            crc = (crc >> 1) ^ ((crc & 1) ? CRCPOLY_LE : 0);  
+        pentry ++;      
+    }
+    hoit_free(pfs, pEBSarea, (pcacheHdr->HOITCACHE_PageAmount+1)*sizeof(HOIT_EBS_ENTRY));
+    return crc;
+}
+
 /*********************************************************************************************************
 ** 函数名称: hoitCheckEBS
 ** 功能描述: 检查一个sector上的EBS区域前n项entry的数据
@@ -900,13 +1025,13 @@ VOID hoitCheckEBS(PHOIT_VOLUME pfs, UINT32 sector_no, UINT32 n) {
         n = pcacheHdr->HOITCACHE_PageAmount;
     printk("*****************************************************************************\n");
     printk("\t\t\tCheck No.%d sector EBS area...\n", sector_no);
-    printk("inode \t\t obsolete flag \t\t page number \n");
+    printk("inode\t\t\tobsolete flag\t\tpage number\n");
     pcache = hoitCheckCacheHit(pcacheHdr, sector_no);
 
     if (pcache != LW_NULL) {    /* 要修改的EBS entry在cache中 */
-        pentry = pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr;
+        pentry = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr);
         for(i=0 ; i<n ; i++) {
-            printk(" %d \t\t %d \t\t\t %d \n",  pentry->HOIT_EBS_ENTRY_inodeNo,
+            printk("%-8u\t\t%-8u\t\t%-8u\n",  pentry->HOIT_EBS_ENTRY_inodeNo,
                                                         pentry->HOIT_EBS_ENTRY_obsolete, 
                                                         pentry->HOIT_EBS_ENTRY_pageNo);
             pentry ++;
@@ -914,7 +1039,7 @@ VOID hoitCheckEBS(PHOIT_VOLUME pfs, UINT32 sector_no, UINT32 n) {
     } else {        /* 要修改的EBS entry不在cache中 */
         for(i=0 ; i <n ; i++ ) {
             read_nor(EBS_area_addr, (PCHAR)&entry, sizeof(HOIT_FILTER_EBS_ENTRY_SIZE));
-            printk("%d \t\t %d \t\t\t %d \n",  entry.HOIT_EBS_ENTRY_inodeNo,
+            printk("%-8u\t\t%-8u\t\t%-8u\n",  entry.HOIT_EBS_ENTRY_inodeNo,
                                                         entry.HOIT_EBS_ENTRY_obsolete, 
                                                         entry.HOIT_EBS_ENTRY_pageNo);
             EBS_area_addr += sizeof(HOIT_EBS_ENTRY);
@@ -942,7 +1067,7 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
     // PHOIT_ERASABLE_SECTOR pSector;
     PHOIT_EBS_ENTRY pentry  = LW_NULL;
     HOIT_EBS_ENTRY  entry;
-
+    
     UINT64 EBS_area_addr    = sectorNo*pcacheHdr->HOITCACHE_blockSize + 
                                 NOR_FLASH_START_OFFSET +
                                 pcacheHdr->HOITCACHE_EBSStartAddr;  /* EBS 区域在flash介质上的地址 */
@@ -978,7 +1103,92 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
             EBS_area_addr += sizeof(HOIT_EBS_ENTRY);
         }
     }
-    /* 写入位置在介质上 */
+
+}
+
+/*********************************************************************************************************
+** 函数名称: hoitEBSEntryAmount
+** 功能描述: 将一个sector上EBS中有效entry的数量
+** 输　入  :    pfs             HoitFs 文件卷
+**              sector_no       需要检查的sector号
+** 输　出  :    未过期的entry数量，内存不够时返回PX_ERROR
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+UINT32 hoitEBSEntryAmount(PHOIT_VOLUME pfs, UINT32 sector_no) {
+    PHOIT_CACHE_HDR pcacheHdr = pfs->HOITFS_cacheHdr;
+    PHOIT_EBS_ENTRY pentry;
+    PHOIT_CACHE_BLK pcache;
+    UINT32  i;
+    UINT32  amount = 0;
+    size_t  readNorAddr =   hoitGetSectorOffset(sector_no) + 
+                            NOR_FLASH_START_OFFSET + 
+                            pcacheHdr->HOITCACHE_EBSStartAddr;    /* EBS在Nor flash上的首地址 */
+
+    pcache = hoitCheckCacheHit(pcacheHdr, sector_no);
+    if (pcache != LW_NULL) {    /* 检查sector在缓存中 */
+        pentry = (PHOIT_EBS_ENTRY)(pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr);
+        for (i=0 ; i<pcacheHdr->HOITCACHE_PageAmount ; i++) {
+            if (pentry->HOIT_EBS_ENTRY_inodeNo != (UINT32)-1 && pentry->HOIT_EBS_ENTRY_obsolete != 0)
+                amount++;
+            pentry++;
+        }
+    } else {
+        pentry = (PHOIT_EBS_ENTRY)hoit_malloc(pfs, sizeof(HOIT_EBS_ENTRY));
+        if (pentry==LW_NULL) {
+            return PX_ERROR;
+        }
+        for (i=0; i<pcacheHdr->HOITCACHE_PageAmount ; i++) {
+            if(read_nor(readNorAddr, pentry, sizeof(HOIT_EBS_ENTRY))!=0) {
+                return PX_ERROR;
+            }
+            if (pentry->HOIT_EBS_ENTRY_inodeNo != (UINT32)-1 && pentry->HOIT_EBS_ENTRY_obsolete != 0)
+                amount++; 
+            readNorAddr += sizeof(HOIT_EBS_ENTRY);           
+        }
+        hoit_free(pfs, pentry, sizeof(HOIT_EBS_ENTRY));
+    }
+    return amount;
+}
+/*********************************************************************************************************
+** 函数名称: hoitSectorGetNextAddr
+** 功能描述: 获取该sector号下第i项有效EBS entry的地址
+** 输　入  :    
+**              sector_no        sector号
+**              i               EBS entry index
+** 输　出  :    第i
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+UINT32  hoitSectorGetNextAddr(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no, UINT i, UINT32 *obsoleteFlag){
+    PHOIT_EBS_ENTRY pentry;
+    HOIT_EBS_ENTRY  entry;
+    UINT32          norAddr;
+    /* 无需检查，绝对不命中 */
+    norAddr = NOR_FLASH_START_OFFSET + sector_no * GET_SECTOR_SIZE(8) + pcacheHdr->HOITCACHE_EBSStartAddr;
+    norAddr += i * sizeof(HOIT_EBS_ENTRY);
+    read_nor(norAddr, &entry, sizeof(HOIT_EBS_ENTRY));
+    pentry = &entry;
+    if(pentry->HOIT_EBS_ENTRY_inodeNo == (UINT32)-1)
+        return (UINT32)-1;
+    *obsoleteFlag = pentry->HOIT_EBS_ENTRY_obsolete;
+    return pentry->HOIT_EBS_ENTRY_pageNo * HOIT_FILTER_PAGE_SIZE;
+}
+/*********************************************************************************************************
+** 函数名称: hoitCheckSectorCRC
+** 功能描述: 检查该sector号EBS CRC校验码是否正确
+** 输　入  :    sector_no        sector号
+** 输　出  :    若校验码正确，返回LW_TRUE，否则返回LW_FALSE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+BOOL    hoitCheckSectorCRC(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no) {
+    UINT32 old_crc;
+    UINT32 new_crc;
+    new_crc = hoitEBSupdateCRC(pcacheHdr, LW_NULL, sector_no);
+    /* 计算crc */
+    read_nor(NOR_FLASH_START_OFFSET + sector_no*GET_SECTOR_SIZE(8) + pcacheHdr->HOITCACHE_CRCMagicAddr, &old_crc, sizeof(UINT32));
+    return new_crc == old_crc?LW_TRUE:LW_FALSE;
 }
 
 #ifdef HOIT_CACHE_TEST

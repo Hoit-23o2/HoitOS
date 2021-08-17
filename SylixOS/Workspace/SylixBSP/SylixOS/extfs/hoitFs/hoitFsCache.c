@@ -390,6 +390,7 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
 ** 全局变量:
 ** 调用模块:    
 */
+//TODO: 添加对数据实体写入Sector的AvailableEntity计数
 UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize){
     PCHAR   pucDest         = pContent;
     UINT32  writeAddrUpper;      /* 上层视角中的地址 */
@@ -496,7 +497,8 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     }
 
     pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
-
+    //! 2021-08-17 不确定这样改是否有问题
+    pSector->HOITS_uiAvailableEntityCount++;
     return writeAddrUpper;
 }
 
@@ -600,7 +602,6 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
     PHOIT_ERASABLE_SECTOR pSector;
     PHOIT_ERASABLE_SECTOR pTargetSector        = LW_NULL;
     UINT32                uiMinimalUsedSize    = INT_MAX;
-    Iterator(HOIT_ERASABLE_SECTOR) iter = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_sectorIterator;
     
     //! 2021-08-04 PYQ 强制GC功能
     INT                   iFreeSectorNum = 0;
@@ -612,7 +613,7 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
             }
             pSector = pSector->HOITS_next;
         }  
-        if(iFreeSectorNum <= 2){
+        if(iFreeSectorNum <= 20){
             hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
         }
     }
@@ -790,11 +791,12 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
 ** 全局变量:
 ** 调用模块:
 */
+//TODO: Add By PYQ 实现有问题，需要重新检查
 VOID hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr, PHOIT_ERASABLE_SECTOR pErasableSector){
     pErasableSector->HOITS_uiFreeSize             = pErasableSector->HOITS_length;
     pErasableSector->HOITS_uiUsedSize             = 0;
     pErasableSector->HOITS_offset                 = 0;
-    pErasableSector->HOITS_uiAvailableEntityCount = 0;
+    // pErasableSector->HOITS_uiAvailableEntityCount = 0;
     // pErasableSector->HOITS_uiObsoleteEntityCount  = 0;
 }
 /*
@@ -1062,9 +1064,9 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
     PHOIT_CACHE_BLK pcache;
     UINT16  EBS_entry_flag  = 0;
     UINT32  i;
+    PHOIT_ERASABLE_SECTOR pEraseableSector;
     //TODO 三个链表还未使用
-    UINT32  sectorNo = (UINT32)hoitGetSectorNo(pRawInfo->phys_addr);    /* 要标注过期的pRawInfo所在块号 */
-    // PHOIT_ERASABLE_SECTOR pSector;
+    UINT32  sectorNo = pRawInfo->phys_addr / pcacheHdr->HOITCACHE_blockSize; //(UINT32)hoitGetSectorNo(pRawInfo->phys_addr);    /* 要标注过期的pRawInfo所在块号 */
     PHOIT_EBS_ENTRY pentry  = LW_NULL;
     HOIT_EBS_ENTRY  entry;
     
@@ -1076,8 +1078,11 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
                                         HOIT_FILTER_PAGE_SIZE);     /* 要标记过期的数据所在的首个页号 */
     
     
-    
+    pEraseableSector        = hoitFindSector(pcacheHdr, sectorNo);
     pRawHeader->flag &= (~HOIT_FLAG_NOT_OBSOLETE);      //将obsolete标志变为0，代表过期
+    //! 2021-08-17 Added By PYQ 统计数据实体
+    pEraseableSector->HOITS_uiAvailableEntityCount--;   
+    pEraseableSector->HOITS_uiObsoleteEntityCount++;
     //! 2021-07-07 修改flash上EBS采用写不分配
     hoitWriteThroughCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, (PVOID)pRawHeader, pRawInfo->totlen);
     

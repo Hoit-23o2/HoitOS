@@ -175,7 +175,7 @@ INT  API_SpifFsDevCreate (PCHAR   pcName, PLW_BLK_DEV  pblkd)
         return  (PX_ERROR);
     }
    
-    pfs                         = (PSPIF_VOLUME)__SHEAP_ALLOC(sizeof(SPIF_VOLUME));
+    pfs  = (PSPIF_VOLUME)lib_malloc(sizeof(SPIF_VOLUME));
 
     if (pfs == LW_NULL) {
         _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
@@ -191,7 +191,7 @@ INT  API_SpifFsDevCreate (PCHAR   pcName, PLW_BLK_DEV  pblkd)
                                              LW_OPTION_INHERIT_PRIORITY | LW_OPTION_OBJECT_GLOBAL,
                                              LW_NULL);
     if (!pfs->SPIFFS_hVolLock) {                                      /*  无法创建卷锁                */
-        __SHEAP_FREE(pfs);
+        spif_free(pfs, pfs, sizeof(SPIF_VOLUME));
         return  (PX_ERROR);
     }
     
@@ -200,7 +200,8 @@ INT  API_SpifFsDevCreate (PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->SPIFFS_gid      = getgid();
     pfs->SPIFFS_time     = lib_time(LW_NULL);
     pfs->SPIFFS_ulCurBlk = 0ul;
-    pfs->pfs             = (PSPIFFS_VOLUME)__SHEAP_ALLOC(sizeof(SPIFFS_VOLUME));
+    pfs->SPIFFS_ulMaxBlk = 0ul;
+    pfs->pfs             = (PSPIFFS_VOLUME)spif_malloc(pfs, sizeof(SPIFFS_VOLUME));
     
     //TODO 挂载函数
     __spif_mount(pfs);
@@ -210,7 +211,7 @@ INT  API_SpifFsDevCreate (PCHAR   pcName, PLW_BLK_DEV  pblkd)
     if (iosDevAddEx(&pfs->SPIFFS_devhdrHdr, pcName, _G_iSpiffsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
         API_SemaphoreMDelete(&pfs->SPIFFS_hVolLock);
-        __SHEAP_FREE(pfs);
+        spif_free(pfs, pfs, sizeof(SPIF_VOLUME));
         return  (PX_ERROR);
     }
     
@@ -393,7 +394,7 @@ __re_umount_vol:
         API_SemaphoreMDelete(&pfs->SPIFFS_hVolLock);
         //TODO 文件系统卸载函数
         __spif_unmount(pfs);                                          /*  释放所有文件内容            */
-        __SHEAP_FREE(pfs);
+        spif_free(pfs, pfs, sizeof(SPIF_VOLUME));
         
         _DebugHandle(__LOGMESSAGE_LEVEL, "spiffs unmount ok.\r\n");
         
@@ -1013,7 +1014,7 @@ static INT  __spifFsReadDir (PLW_FD_ENTRY  pfdentry, DIR  *dir)
     //      (plineTemp  = _list_line_get_next(plineTemp)), (i++));         /*  忽略                        */
     lib_assert(pspifn == LW_NULL);
     __spif_opendir(pfs, "/", &dirFile);
-    pDirent = (PSPIFFS_DIRENT)lib_malloc(sizeof(SPIFFS_DIRENT));
+    pDirent = (PSPIFFS_DIRENT)spif_malloc(pfs, sizeof(SPIFFS_DIRENT));
     i       = 0;
     /* 遍历 */
     while ((pDirent = __spif_readdir(&dirFile, pDirent))) {

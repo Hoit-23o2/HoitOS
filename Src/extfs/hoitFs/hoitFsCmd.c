@@ -30,6 +30,7 @@
 ** µ÷ÓÃÄ£¿é:
 *********************************************************************************************************/
 #include "./hoitFsTest.h"
+#include "./hoitFsCache.h"
 PHOIT_VOLUME _G_Volumn;
 
 #define DIVIDER                         "================="
@@ -48,19 +49,29 @@ VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs){
     {
         API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
         if(hoitLogCheckIfLog(pfs, pErasableSectorTraverse)){
-            printf(DIVIDER "SECTOR %d [*LOG] " DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
+            printf(DIVIDER "SECTOR %2d [*LOG] " DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
         }
         else if(pErasableSectorTraverse == pfs->HOITFS_now_sector){
-            printf(DIVIDER "SECTOR %d [*CUR] " DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
+            printf(DIVIDER "SECTOR %2d [*CUR] " DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
         }
         else {
-            printf(DIVIDER "SECTOR %d" DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
+            printf(DIVIDER "SECTOR %2d" DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
         }
         printf("UsedSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiUsedSize);
         printf("FreeSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiFreeSize);
+        printf("ObseletEntity:   %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiObsoleteEntityCount);
+        printf("AvailableEntity: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiAvailableEntityCount);
         pErasableSectorTraverse = pErasableSectorTraverse->HOITS_next;
         API_TShellColorEnd(STD_OUT);
     }
+    API_TShellColorStart2(LW_TSHELL_COLOR_CYAN, STD_OUT);
+                   
+    printf(DIVIDER "MORE INFO" DIVIDER NEXT_LINE, pErasableSectorTraverse->HOITS_bno);
+    printf("Foreground GC Times: %ld" NEXT_LINE, pfs->ulGCForegroundTimes);
+    printf("Background GC Times: %ld" NEXT_LINE, pfs->ulGCBackgroundTimes);
+    printf("Cur Memory Cost    : %u" NEXT_LINE, pfs->HOITFS_ulCurBlk);
+    printf("Max Memory Cost    : %u" NEXT_LINE, pfs->HOITFS_ulMaxBlk);
+    API_TShellColorEnd(STD_OUT);
 }
 
 
@@ -89,7 +100,7 @@ INT gc_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
 
 INT fs_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     PCHAR       pcFSOption;
-
+    
     pcFSOption = GET_ARG(1);
     if(EQU_ARG("-i", pcFSOption)){
         __hoitShowSectorInfo(_G_Volumn);
@@ -109,7 +120,11 @@ INT fs_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
             hoitTestLink(iArgC - 2, ppcArgV + 2);
         }
         else if (EQU_ARG("ebs", pcFSOption)) {
-            hoitTestEBS(_G_Volumn);
+            //hoitEBSTest(_G_Volumn);
+            hoitEBSCheckCmd(_G_Volumn, iArgC - 2, ppcArgV + 2);
+        }
+        else if (EQU_ARG("raw", pcFSOption)) {
+            hoitGetRawInfoMemCost(_G_Volumn);
         }
     }
 }

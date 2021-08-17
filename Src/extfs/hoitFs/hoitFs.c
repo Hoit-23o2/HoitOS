@@ -129,7 +129,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
         return  (PX_ERROR);
     }
 
-    pfs = (PHOIT_VOLUME)__SHEAP_ALLOC(sizeof(HOIT_VOLUME));
+    pfs = (PHOIT_VOLUME)lib_malloc(sizeof(HOIT_VOLUME));
     if (pfs == LW_NULL) {
         _DebugHandle(__ERRORMESSAGE_LEVEL, "system low memory.\r\n");
         _ErrorHandle(ERROR_SYSTEM_LOW_MEMORY);
@@ -144,7 +144,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
         LW_OPTION_INHERIT_PRIORITY | LW_OPTION_OBJECT_GLOBAL,
         LW_NULL);
     if (!pfs->HOITFS_hVolLock) {                                      /*  无法创建卷锁                */
-        __SHEAP_FREE(pfs);
+        hoit_free(pfs, pfs, sizeof(HOIT_VOLUME));
         return  (PX_ERROR);
     }
 
@@ -152,17 +152,21 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     pfs->HOITFS_uid             = getuid();
     pfs->HOITFS_gid             = getgid();
     pfs->HOITFS_time            = lib_time(LW_NULL);
+    //TODO 内存消耗空间计算
     pfs->HOITFS_ulCurBlk        = 0ul;
+    pfs->HOITFS_ulMaxBlk        = 0ul;
     pfs->HOITFS_now_sector      = LW_NULL;
     pfs->HOITFS_pRootDir        = LW_NULL;
     pfs->HOITFS_totalUsedSize   = 0;
-    pfs->HOITFS_totalSize       = 2 * 1024 * 1024;
+
     pfs->HOITFS_hGCThreadId     = LW_NULL;
 
                                                                         /* GC相关 */
     pfs->HOITFS_curGCSector        = LW_NULL;
-    pfs->HOITFS_curGCSuvivorSector  = LW_NULL;
+    pfs->ulGCBackgroundTimes       = 0;
+    pfs->ulGCForegroundTimes       = 0;
     pfs->HOITFS_erasableSectorList = LW_NULL;
+    pfs->HOITFS_bShouldKillGC      = LW_FALSE;
 
     InitList(pfs->HOITFS_dirtySectorList,hoitFs, HOIT_ERASABLE_SECTOR); /* 初始化模板链表 */
     InitList(pfs->HOITFS_cleanSectorList,hoitFs, HOIT_ERASABLE_SECTOR);
@@ -174,13 +178,18 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     //__ram_mount(pramfs);
 
     hoitEnableCache(GET_SECTOR_SIZE(8), 8, pfs);
+    //TODO 文件总大小暂时硬编码
+    pfs->HOITFS_totalSize       = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize * 28;
     __hoit_mount(pfs);
-    hoitStartGCThread(pfs, 64 * 26 * 1024);
-    
+
+#ifdef BACKGOURND_GC_ENABLE 
+    hoitStartGCThread(pfs, pfs->HOITFS_totalSize / 3);
+#endif  /* BACKGOURND_GC_ENABLE */
+
     if (iosDevAddEx(&pfs->HOITFS_devhdrHdr, pcName, _G_iHoitFsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
         API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);
-        __SHEAP_FREE(pfs);
+        hoit_free(pfs, pfs, sizeof(HOIT_VOLUME));
         return  (PX_ERROR);
     }
 
@@ -483,7 +492,7 @@ __re_umount_vol:
         API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);
          
         __hoit_unmount(pfs);
-        __SHEAP_FREE(pfs);
+        hoit_free(pfs, pfs, sizeof(HOIT_VOLUME));
 
         _DebugHandle(__LOGMESSAGE_LEVEL, "hoitfs unmount ok.\r\n");
 
@@ -558,8 +567,8 @@ static INT  __hoitFsClose(PLW_FD_ENTRY    pfdentry)
     }
     
 
-    PHOIT_INODE_INFO phoitFather;
-    PHOIT_INODE_INFO pTempInode = __hoit_open(pfs, cRealFileName, &phoitFather, LW_NULL, LW_NULL, LW_NULL, LW_NULL);
+    // PHOIT_INODE_INFO phoitFather;
+    // PHOIT_INODE_INFO pTempInode = __hoit_open(pfs, cRealFileName, &phoitFather, LW_NULL, LW_NULL, LW_NULL, LW_NULL);
 
     if (__HOIT_VOLUME_LOCK(pfs) != ERROR_NONE) {
         _ErrorHandle(ENXIO);                                            /*  设备出错                    */
@@ -576,18 +585,18 @@ static INT  __hoitFsClose(PLW_FD_ENTRY    pfdentry)
     LW_DEV_DEC_USE_COUNT(&pfs->HOITFS_devhdrHdr);
 
 
-    if (bRemove && phoitn) {
-        if (S_ISDIR(phoitn->HOITN_mode)) {
-            __hoit_unlink_dir(phoitFather, 
-                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pfdentry->FDENTRY_pcName));
-        } else { //TODO 尚不能识别普通文件
-            __hoit_unlink_regular(phoitFather,
-                                __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pfdentry->FDENTRY_pcName));
-        }
-    }
+    // if (bRemove && phoitn) {
+    //     if (S_ISDIR(phoitn->HOITN_mode)) {
+    //         __hoit_unlink_dir(phoitFather, 
+    //                             __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pfdentry->FDENTRY_pcName));
+    //     } else { //TODO 尚不能识别普通文件
+    //         __hoit_unlink_regular(phoitFather,
+    //                             __hoit_search_in_dents(phoitFather, phoitn->HOITN_ino, pfdentry->FDENTRY_pcName));
+    //     }
+    // }
 
-    __hoit_close(phoitFather, 0);
-    __hoit_close(pTempInode, 0);
+    // __hoit_close(phoitFather, 0);
+    // __hoit_close(pTempInode, 0);
     __HOIT_VOLUME_UNLOCK(pfs);
 
     return  (ERROR_NONE);
@@ -921,7 +930,7 @@ static INT  __hoitFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
     INT                 iError;
 
     
-    PCHAR dirPath = (PCHAR)__SHEAP_ALLOC(lib_strlen(pfdentry->FDENTRY_pcName) + 1);
+    PCHAR dirPath = (PCHAR)hoit_malloc(pfs, lib_strlen(pfdentry->FDENTRY_pcName) + 1);
     lib_bzero(dirPath, lib_strlen(pfdentry->FDENTRY_pcName) + 1);
     lib_memcpy(dirPath, pfdentry->FDENTRY_pcName, lib_strlen(pfdentry->FDENTRY_pcName));
     PCHAR pDivider = lib_rindex(dirPath, PX_DIVIDER);
@@ -965,7 +974,7 @@ static INT  __hoitFsRename (PLW_FD_ENTRY  pfdentry, PCHAR  pcNewName)
     iError = __hoit_move(pInodeFather, phoitn, pcNewName);
 
     __HOIT_VOLUME_UNLOCK(pfs);
-
+    hoit_free(pfs, dirPath, lib_strlen(pfdentry->FDENTRY_pcName) + 1);
     return  (iError);
 }
 
@@ -1571,7 +1580,7 @@ static INT  __hoitFsIoctl(PLW_FD_ENTRY  pfdentry,
     case FIOSYNC:                                                       /*  将文件缓存回写              */
     case FIOFLUSH:
     case FIODATASYNC:
-        hoitFlushCache(pfs->HOITFS_cacheHdr);
+        hoitFlushCache(pfs->HOITFS_cacheHdr, (PHOIT_CACHE_BLK)-1);
         return  (ERROR_NONE);
         
     case FIOCHMOD:
