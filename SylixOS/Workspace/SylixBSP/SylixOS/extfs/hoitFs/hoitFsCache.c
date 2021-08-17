@@ -485,6 +485,8 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     pcache->HOITBLK_uiCurOfs    += uiSizeAlign;
     pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_totalUsedSize += uiSizeAlign;
     
+    //! 2021-08-17 不确定这样改是否有问题
+    pSector->HOITS_uiAvailableEntityCount++;
     
     /* 当前写的块满了，则去找下一个仍有空闲的块 */
     //! 减去EBS区域
@@ -497,8 +499,7 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     }
 
     pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
-    //! 2021-08-17 不确定这样改是否有问题
-    pSector->HOITS_uiAvailableEntityCount++;
+
     return writeAddrUpper;
 }
 
@@ -1053,7 +1054,9 @@ VOID hoitCheckEBS(PHOIT_VOLUME pfs, UINT32 sector_no, UINT32 n) {
 /*********************************************************************************************************
 ** 函数名称: __hoit_mark_obsolete
 ** 功能描述: 标注数据实体过期，以及对应的EBS entry过期
-** 输　入  :
+** 输　入  :    pfs             文件卷
+**              pRawHeader      要标注过期的数据实体（写入介质）
+**              pRawInfo        要标注过期的数据实体信息（维护在内存）
 ** 输　出  : 
 ** 全局变量:
 ** 调用模块:
@@ -1070,13 +1073,17 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
     PHOIT_EBS_ENTRY pentry  = LW_NULL;
     HOIT_EBS_ENTRY  entry;
     
-    UINT64 EBS_area_addr    = sectorNo*pcacheHdr->HOITCACHE_blockSize + 
-                                NOR_FLASH_START_OFFSET +
-                                pcacheHdr->HOITCACHE_EBSStartAddr;  /* EBS 区域在flash介质上的地址 */
+    // UINT64 EBS_area_addr    = sectorNo*pcacheHdr->HOITCACHE_blockSize + 
+    //                             NOR_FLASH_START_OFFSET +
+    //                             pcacheHdr->HOITCACHE_EBSStartAddr;  
+    /* EBS 区域在flash介质上的地址 */
+    UINT64 EBS_area_addr    = sectorNo * GET_SECTOR_NO(NOR_FLASH_START_OFFSET) + 
+                                NOR_FLASH_START_OFFSET + 
+                                pcacheHdr->HOITCACHE_EBSStartAddr;
+
     UINT16 EBS_page_no      = (UINT16)((pRawInfo->phys_addr - 
                                         sectorNo * pcacheHdr->HOITCACHE_blockSize) / 
                                         HOIT_FILTER_PAGE_SIZE);     /* 要标记过期的数据所在的首个页号 */
-    
     
     pEraseableSector        = hoitFindSector(pcacheHdr, sectorNo);
     pRawHeader->flag &= (~HOIT_FLAG_NOT_OBSOLETE);      //将obsolete标志变为0，代表过期
@@ -1088,11 +1095,13 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
     
     pcache = hoitCheckCacheHit(pcacheHdr, pRawInfo->phys_addr/pcacheHdr->HOITCACHE_blockSize);
 
-    //TOOPT 要优化
+    // 修改过期数据实体相应的EBS entry
     if (pcache != LW_NULL) {    /* 要修改的EBS entry在cache中 */
         pentry = pcache->HOITBLK_buf + pcacheHdr->HOITCACHE_EBSStartAddr;
         for(i=0 ; i<pcacheHdr->HOITCACHE_PageAmount ; i++) {
-            if(pentry->HOIT_EBS_ENTRY_inodeNo == pRawHeader->ino && pentry->HOIT_EBS_ENTRY_pageNo == EBS_page_no) {
+            if(pentry->HOIT_EBS_ENTRY_inodeNo == pRawHeader->ino 
+                && pentry->HOIT_EBS_ENTRY_pageNo == EBS_page_no
+                && pentry->HOIT_EBS_ENTRY_obsolete != (~HOIT_FLAG_NOT_OBSOLETE)) {
                 pentry->HOIT_EBS_ENTRY_obsolete = EBS_entry_flag;
                 break;
             }
@@ -1101,7 +1110,9 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
     } else {        /* 要修改的EBS entry不在cache中 */
         for(i=0 ; i <pcacheHdr->HOITCACHE_PageAmount ; i++ ) {
             read_nor(EBS_area_addr, (PCHAR)&entry, sizeof(HOIT_FILTER_EBS_ENTRY_SIZE));
-            if (entry.HOIT_EBS_ENTRY_inodeNo == pRawHeader->ino && entry.HOIT_EBS_ENTRY_pageNo == EBS_page_no) {
+            if (entry.HOIT_EBS_ENTRY_inodeNo == pRawHeader->ino 
+                && entry.HOIT_EBS_ENTRY_pageNo == EBS_page_no
+                && entry.HOIT_EBS_ENTRY_obsolete != (~HOIT_FLAG_NOT_OBSOLETE)) {
                 write_nor(EBS_area_addr + sizeof(UINT32), (PCHAR)&EBS_entry_flag, sizeof(UINT16), WRITE_OVERWRITE);
                 break;
             }
@@ -1195,6 +1206,21 @@ BOOL    hoitCheckSectorCRC(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no) {
     read_nor(NOR_FLASH_START_OFFSET + sector_no*GET_SECTOR_SIZE(8) + pcacheHdr->HOITCACHE_CRCMagicAddr, &old_crc, sizeof(UINT32));
     return new_crc == old_crc?LW_TRUE:LW_FALSE;
 }
+//! ZN 暂时用不上
+// /*********************************************************************************************************
+// ** 函数名称: hoitPhysToFlash
+// ** 功能描述: 将上层物理地址(按sector = 57288B)转成flash对应介质地址（按sector = 64KB）
+// ** 输　入  :    pcacheHdr       cache头结构  //!注意，请自行确认pcacheHdr不为LW_NULL
+// **              phys_addr       上层物理地址                
+// ** 输　出  :    对应在flash中的地址
+// ** 全局变量:
+// ** 调用模块:
+// *********************************************************************************************************/
+// inline UINT32 hoitPhysToFlash(PHOIT_CACHE_HDR pcacheHdr, UINT32 phys_addr) {
+//     UINT32 sector_no        = phys_addr / pcacheHdr->HOITCACHE_blockSize;
+//     UINT32 sector_offset    = phys_addr % pcacheHdr->HOITCACHE_blockSize;
+//     return  sector_no * GET_SECTOR_SIZE(NOR_FLASH_START_OFFSET) + sector_offset + NOR_FLASH_START_OFFSET;
+// }
 
 #ifdef HOIT_CACHE_TEST
 /*
