@@ -246,6 +246,9 @@ PHOIT_CACHE_BLK hoitCheckCacheHit(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo) 
 ** 调用模块:    
 */
 BOOL hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
+    if(uiOfs == 1559768){
+        printf("debug\n");
+    }
     PCHAR   pucDest         = pContent;
     size_t  cacheBlkSize    = pcacheHdr->HOITCACHE_blockSize;
     size_t  sectorSize      = hoitGetSectorSize(8);
@@ -1109,6 +1112,9 @@ VOID hoitCheckEBS(PHOIT_VOLUME pfs, UINT32 sector_no, UINT32 n) {
 *********************************************************************************************************/
 //! 2021-07-07 ZN整合标注过期
 VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_RAW_INFO pRawInfo){
+    if(pRawInfo->phys_addr == 1559768){
+        printf("debug\n");
+    }
     PHOIT_CACHE_HDR pcacheHdr = pfs->HOITFS_cacheHdr;
     PHOIT_CACHE_BLK pcache;
     UINT16  EBS_entry_flag  = 0;
