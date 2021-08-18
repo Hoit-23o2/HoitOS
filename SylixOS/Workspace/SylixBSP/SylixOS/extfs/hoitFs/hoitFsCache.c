@@ -329,7 +329,7 @@ BOOL hoitWriteThroughCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pConte
     UINT32  writeAddr;
 
     PHOIT_CACHE_BLK         pcache;
-    PHOIT_ERASABLE_SECTOR   pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+    PHOIT_ERASABLE_SECTOR   pSector = LW_NULL;
     
     //! 22021-07-07 既然这个写函数主要用于标记过期，改成写不分配以及FIFO比较好
     while(uiSize != 0) {
@@ -404,9 +404,9 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     UINT32  uiSizeAlign;    /* 对齐之后数据实体写入大小 */
     UINT32  m = NOR_FLASH_START_OFFSET;
     PHOIT_CACHE_BLK         pcache;
-    PHOIT_ERASABLE_SECTOR   pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+    PHOIT_ERASABLE_SECTOR   pSector;
 
-    //! 添加头部检测
+
     if(uiSize < sizeof(HOIT_RAW_HEADER)){
         /* 不是数据实体 */
         return PX_ERROR;
@@ -416,9 +416,10 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
         return PX_ERROR;
     }
 
-    if (pSector == LW_NULL) {
-        return PX_ERROR;
-    }
+    //!2021-08-18 ZN 不再使用 HOITFS_erasableSectorList
+    // if (pSector == LW_NULL) {
+    //     return PX_ERROR;
+    // }
     
     if ((size_t)uiSize > pcacheHdr->HOITCACHE_blockSize ) {
         return PX_ERROR;
@@ -447,11 +448,6 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
                     hoitGetSectorSize(8) + 
                     pSector->HOITS_offset + 
                     NOR_FLASH_START_OFFSET;         /* 确定下层数据实体写入的物理地址 */ 
-
-    //FOR TEST
-    // if (i == 19 && writeAddr <= 1092504 + NOR_FLASH_START_OFFSET && writeAddr >=19*pcacheHdr->HOITCACHE_blockSize + NOR_FLASH_START_OFFSET) {
-    //     i = 0;
-    // }
 
     pcache = hoitCheckCacheHit(pcacheHdr, pSector->HOITS_bno);
     if (pcache == LW_NULL) {                                    /* 未命中 */
@@ -718,20 +714,28 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
     PHOIT_VOLUME    pfs = pcacheHdr->HOITCACHE_hoitfsVol;
     Iterator(HOIT_ERASABLE_SECTOR_REF) iter = pfs->HOITFS_sectorIterator;
 
-    //! 2021-08-17 ZN 强制GC功能
+    //! 2021-08-18 ZN 强制GC功能 三链表版本
     INT                   iFreeSectorNum = 0;
+    // if(pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_curGCSector == LW_NULL){  /* 避免递归调用 */
+    //     pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+    //     while (pSector != LW_NULL) {
+    //         if(pSector->HOITS_uiUsedSize == 0){
+    //             iFreeSectorNum++;
+    //         }
+    //         pSector = pSector->HOITS_next;
+    //     }  
+    //     if(iFreeSectorNum <= 20){
+    //         hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
+    //     }
+    // }
     if(pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_curGCSector == LW_NULL){  /* 避免递归调用 */
-        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
-        while (pSector != LW_NULL) {
-            if(pSector->HOITS_uiUsedSize == 0){
-                iFreeSectorNum++;
-            }
-            pSector = pSector->HOITS_next;
-        }  
+        for(iter->begin(iter, pfs->HOITFS_freeSectorList); iter->isValid(iter); iter->next(iter)) {
+            iFreeSectorNum ++;
+        }
         if(iFreeSectorNum <= 20){
             hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
         }
-    }
+    }    
 
     switch (cacheType)
     {
@@ -875,16 +879,37 @@ VOID hoitOccupySectorState(PHOIT_CACHE_HDR pcacheHdr, PHOIT_ERASABLE_SECTOR pEra
 ** 全局变量:
 ** 调用模块:    
 */
+//! 2021-08-18 ZN 改成三链表版本
 PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no) {
-    PHOIT_ERASABLE_SECTOR pSector;
-    pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
-    while (pSector != LW_NULL)
-    {
-        if (pSector->HOITS_bno == sector_no)
-            break;
-        pSector = pSector->HOITS_next;
+    PHOIT_ERASABLE_SECTOR_REF   pSectorRef      = LW_NULL;
+    PHOIT_ERASABLE_SECTOR       pSector         = LW_NULL;
+    PHOIT_VOLUME                pfs             = pcacheHdr->HOITCACHE_hoitfsVol;
+    Iterator(HOIT_ERASABLE_SECTOR_REF) iter = pfs->HOITFS_sectorIterator;
+    /* 先在dirty找 */
+    for(iter->begin(iter, pfs->HOITFS_dirtySectorList); iter->isValid(iter); iter->next(iter)) {
+        pSectorRef = iter->get(iter);
+        pSector = pSectorRef->pErasableSetcor;
+        if(pSector->HOITS_bno == sector_no){
+            return pSector;
+        }
     }
-    return pSector;
+    /* 再从clean块找 */
+    for(iter->begin(iter, pfs->HOITFS_cleanSectorList); iter->isValid(iter); iter->next(iter)) {
+        pSectorRef = iter->get(iter);
+        pSector = pSectorRef->pErasableSetcor;
+        if(pSector->HOITS_bno == sector_no){
+            return pSector;
+        }
+    }
+    /* 最后从free块找 */
+        for(iter->begin(iter, pfs->HOITFS_freeSectorList); iter->isValid(iter); iter->next(iter)) {
+            pSectorRef = iter->get(iter);
+            pSector = pSectorRef->pErasableSetcor;
+            if(pSector->HOITS_bno == sector_no){
+                return pSector;
+            }
+        }    
+    return LW_NULL;
 }
 
 /*********************************************************************************************************
