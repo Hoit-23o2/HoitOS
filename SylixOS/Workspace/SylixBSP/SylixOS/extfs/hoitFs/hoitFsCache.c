@@ -487,13 +487,13 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
 
     /* 当前写的块满了，则去找下一个仍有空闲的块 */
     //! 减去EBS区域
-    if (pSector->HOITS_uiFreeSize  == 0) {
-        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
-        i = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA, sizeof(HOIT_RAW_HEADER));
-        if (i != PX_ERROR) {
-            pSector = hoitFindSector(pcacheHdr, i);
-        }
-    }
+//    if (pSector->HOITS_uiFreeSize  == 0) {
+//        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+//        i = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA, sizeof(HOIT_RAW_HEADER));
+//        if (i != PX_ERROR) {
+//            pSector = hoitFindSector(pcacheHdr, i);
+//        }
+//    }
 
     pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
 
@@ -729,7 +729,7 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
         for(iter->begin(iter, pfs->HOITFS_freeSectorList); iter->isValid(iter); iter->next(iter)) {
             iFreeSectorNum ++;
         }
-        if(iFreeSectorNum <= 20){
+        if(iFreeSectorNum <= 2){
             hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
         }
     }    
@@ -774,7 +774,7 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
         }        
 
         pSector = LW_NULL;
-        if (pSector == LW_NULL) {                                   /* flash空间整体不足，开始执行强制GC */
+        if (pSector == LW_NULL && pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_curGCSector == LW_NULL) {                                   /* flash空间整体不足，开始执行强制GC */
             hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
         }
 
@@ -816,7 +816,7 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
             return pSector->HOITS_bno;
         }
         /* 找不到，调用GC */
-        if (pSector == LW_NULL) {
+        if (pSector == LW_NULL && pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_curGCSector == LW_NULL) {
             hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
             iter->begin(iter, pfs->HOITFS_freeSectorList);
             if (iter->isValid(iter)) {
@@ -1124,7 +1124,7 @@ VOID hoitCheckEBS(PHOIT_VOLUME pfs, UINT32 sector_no, UINT32 n) {
 
 /*********************************************************************************************************
 ** 函数名称: __hoit_mark_obsolete
-** 功能描述: 标注数据实体过期，以及对应的EBS entry过期
+** 功能描述: 标注数据实体(raw header)过期，以及对应的EBS entry过期
 ** 输　入  :    pfs             文件卷
 **              pRawHeader      要标注过期的数据实体（写入介质）
 **              pRawInfo        要标注过期的数据实体信息（维护在内存）
@@ -1166,7 +1166,7 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
     //! 2021-07-07 修改flash上EBS采用写不分配
     hoitWriteThroughCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, (PVOID)pRawHeader, pRawInfo->totlen);
     
-    pcache = hoitCheckCacheHit(pcacheHdr, pRawInfo->phys_addr/pcacheHdr->HOITCACHE_blockSize);
+    pcache = hoitCheckCacheHit(pcacheHdr, sectorNo);
 
     // 修改过期数据实体相应的EBS entry
     if (pcache != LW_NULL) {    /* 要修改的EBS entry在cache中 */

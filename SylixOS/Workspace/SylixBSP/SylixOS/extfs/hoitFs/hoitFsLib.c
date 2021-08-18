@@ -345,10 +345,7 @@ UINT8 __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_
     if(phys_addr){
         *phys_addr = temp_addr;
     }
-    if(temp_addr == 1559768) {
-        printf("debug\n");
-        hoitReadFromCache(pfs->HOITFS_cacheHdr, temp_addr, &rawHeader, sizeof(HOIT_RAW_HEADER));
-    }
+
     if (temp_addr == PX_ERROR) {
         printf("Error in write flash\n");
         return PX_ERROR;
@@ -1186,13 +1183,12 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     /* 先读出旧数据 */
     lib_bzero(pReadBuf, pRawInfo->totlen);
     crc32_check(pReadBuf);
-
     __hoit_read_flash(pfs, pRawInfo->phys_addr, pReadBuf, pRawInfo->totlen);
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pReadBuf;
     if (pRawHeader->magic_num != HOIT_MAGIC_NUM 
     || (pRawHeader->flag & HOIT_FLAG_NOT_OBSOLETE) == 0) {
-        //printf("Error in hoit_move_home\n");
+        printf("Error in hoit_move_home\n");
         return LW_FALSE;
     }
     // /* 将obsolete标志位清0后写回原地址 */
@@ -1208,13 +1204,10 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     UINT phys_addr = 0;
 
     //!2021-05-16 修改now_sector指针 modified by PYQ 
-    //pfs->HOITFS_now_sector = hoitFindNextToWrite(pfs->HOITFS_cacheHdr, HOIT_CACHE_TYPE_DATA, pRawInfo->totlen);
+    // pfs->HOITFS_now_sector = hoitFindNextToWrite(pfs->HOITFS_cacheHdr, HOIT_CACHE_TYPE_DATA, pRawInfo->totlen);
     
     pRawHeader->crc = 0;
     pRawHeader->crc = hoit_crc32_le(pRawHeader, pRawInfo->totlen);
-    if(pRawHeader->crc == 928 && pRawHeader->version == 252 && pRawHeader->ino == 2){
-        printf("debug\n");
-    }
     iRes = __hoit_write_flash(pfs, pReadBuf, pRawInfo->totlen, &phys_addr, 1);
 
     pRawInfo->phys_addr = phys_addr;
@@ -2186,13 +2179,14 @@ BOOL __hoit_erasable_sector_list_check_exist(PHOIT_VOLUME pfs, List(HOIT_ERASABL
 *********************************************************************************************************/
 VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector) {
     UINT uiSectorSize = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize;
-
+    //! 2021-08-18 ZN 添加三链表锁
     /* 08-18 判断该sector是否在某个list上 */
     PHOIT_ERASABLE_SECTOR_REF   pSectorRef      = LW_NULL;
     PHOIT_ERASABLE_SECTOR       pSector         = LW_NULL;
     Iterator(HOIT_ERASABLE_SECTOR_REF) iter = pfs->HOITFS_sectorIterator;
 
     BOOL hasRemoved = LW_FALSE;
+    __HOIT_DIRTY_LOCK(pfs);
     for(iter->begin(iter, pfs->HOITFS_dirtySectorList); iter->isValid(iter); iter->next(iter)) {
         pSectorRef = iter->get(iter);
         pSector = pSectorRef->pErasableSetcor;
@@ -2202,7 +2196,10 @@ VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasable
             break;
         }
     }
+    __HOIT_DIRTY_UNLOCK(pfs);
+
     if(hasRemoved == LW_FALSE){
+        __HOIT_CLEAN_LOCK(pfs);
         for(iter->begin(iter, pfs->HOITFS_cleanSectorList); iter->isValid(iter); iter->next(iter)) {
             pSectorRef = iter->get(iter);
             pSector = pSectorRef->pErasableSetcor;
@@ -2212,8 +2209,10 @@ VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasable
                 break;
             }
         }
+        __HOIT_CLEAN_UNLOCK(pfs);
     }
     if(hasRemoved == LW_FALSE){
+        __HOIT_FREE_LOCK(pfs) ;
         for(iter->begin(iter, pfs->HOITFS_freeSectorList); iter->isValid(iter); iter->next(iter)) {
             pSectorRef = iter->get(iter);
             pSector = pSectorRef->pErasableSetcor;
@@ -2223,6 +2222,7 @@ VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasable
                 break;
             }
         }
+        __HOIT_FREE_UNLOCK(pfs);
     }
 
 
@@ -2230,19 +2230,25 @@ VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasable
     pErasableSectorRef->pErasableSetcor = pErasableSector;
 
     if (pErasableSector->HOITS_uiFreeSize == uiSectorSize) { /* 空sector */
+        __HOIT_FREE_LOCK(pfs);
         if (!__hoit_erasable_sector_list_check_exist(pfs, GET_FREE_LIST(pfs), pErasableSector)) {
             GET_FREE_LIST(pfs)->insert(GET_FREE_LIST(pfs), pErasableSectorRef, 0);
         }
+        __HOIT_FREE_UNLOCK(pfs);
     }
     else if (pErasableSector->HOITS_uiObsoleteEntityCount != 0) {
         /* 目前是只要有脏数据实体，就把sector放到dirty list中 */
+        __HOIT_DIRTY_LOCK(pfs);
         if (!__hoit_erasable_sector_list_check_exist(pfs, GET_DIRTY_LIST(pfs), pErasableSector)) {
             GET_DIRTY_LIST(pfs)->insert(GET_DIRTY_LIST(pfs), pErasableSectorRef, 0);
         }
+        __HOIT_DIRTY_UNLOCK(pfs);
     } else {//(pErasableSector->HOITS_uiAvailableEntityCount != 0) {
+        __HOIT_CLEAN_LOCK(pfs);
         if (!__hoit_erasable_sector_list_check_exist(pfs, GET_CLEAN_LIST(pfs), pErasableSector)) {
             GET_CLEAN_LIST(pfs)->insert(GET_CLEAN_LIST(pfs), pErasableSectorRef, 0);
         }
+        __HOIT_CLEAN_UNLOCK(pfs);
     }
 }
 

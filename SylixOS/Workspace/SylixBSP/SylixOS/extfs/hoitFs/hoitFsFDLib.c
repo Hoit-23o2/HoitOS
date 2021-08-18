@@ -95,6 +95,7 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
         return LW_NULL;
     }
     lib_bzero(read_buf, pRawInfo->totlen);
+
     hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
 
     PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)read_buf;

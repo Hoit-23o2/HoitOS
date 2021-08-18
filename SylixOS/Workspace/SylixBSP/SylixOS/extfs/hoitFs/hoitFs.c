@@ -148,6 +148,32 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
         return  (PX_ERROR);
     }
 
+    /* 建立三个链表锁 */
+    pfs->HOITFS_dirtyLock = API_SemaphoreMCreate("hoit_dirty_lock", LW_PRIO_DEF_CEILING,
+        LW_OPTION_WAIT_PRIORITY | LW_OPTION_DELETE_SAFE |
+        LW_OPTION_INHERIT_PRIORITY | LW_OPTION_OBJECT_GLOBAL,
+        LW_NULL);
+    if (!pfs->HOITFS_dirtyLock) {                                      /*  无法创建卷锁                */
+        hoit_free(pfs, pfs, sizeof(HOIT_VOLUME));
+        return  (PX_ERROR);
+    }
+    pfs->HOITFS_cleanLock = API_SemaphoreMCreate("hoit_clean_lock", LW_PRIO_DEF_CEILING,
+        LW_OPTION_WAIT_PRIORITY | LW_OPTION_DELETE_SAFE |
+        LW_OPTION_INHERIT_PRIORITY | LW_OPTION_OBJECT_GLOBAL,
+        LW_NULL);
+    if (!pfs->HOITFS_cleanLock) {                                      /*  无法创建卷锁                */
+        hoit_free(pfs, pfs, sizeof(HOIT_VOLUME));
+        return  (PX_ERROR);
+    }
+    pfs->HOITFS_freeLock = API_SemaphoreMCreate("hoit_free_lock", LW_PRIO_DEF_CEILING,
+        LW_OPTION_WAIT_PRIORITY | LW_OPTION_DELETE_SAFE |
+        LW_OPTION_INHERIT_PRIORITY | LW_OPTION_OBJECT_GLOBAL,
+        LW_NULL);
+    if (!pfs->HOITFS_freeLock) {                                      /*  无法创建卷锁                */
+        hoit_free(pfs, pfs, sizeof(HOIT_VOLUME));
+        return  (PX_ERROR);
+    }
+
     pfs->HOITFS_mode            = S_IFDIR | DEFAULT_DIR_PERM;
     pfs->HOITFS_uid             = getuid();
     pfs->HOITFS_gid             = getgid();
@@ -490,7 +516,10 @@ __re_umount_vol:
 
         iosDevDelete((LW_DEV_HDR *)pfs);                             /*  IO 系统移除设备             */
         API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);
-         
+        API_SemaphoreMDelete(&pfs->HOITFS_dirtyLock);
+        API_SemaphoreMDelete(&pfs->HOITFS_cleanLock);
+        API_SemaphoreMDelete(&pfs->HOITFS_freeLock); 
+
         __hoit_unmount(pfs);
         hoit_free(pfs, pfs, sizeof(HOIT_VOLUME));
 
