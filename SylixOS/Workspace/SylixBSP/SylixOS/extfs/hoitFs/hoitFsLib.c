@@ -375,6 +375,9 @@ UINT8 __hoit_write_flash_thru(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT p
 ** 调用模块:
 *********************************************************************************************************/
 UINT8 __hoit_add_to_inode_cache(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo) {
+    if(pRawInfo->phys_addr == 1559768){
+        printf("debug\n");
+    }
     if (pInodeCache == LW_NULL || pRawInfo == LW_NULL) {
         printk("Error in %s\n", __func__);
         return HOIT_ERROR;
@@ -1117,6 +1120,9 @@ PCHAR __hoit_get_data_after_raw_inode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pInodeInf
 ** 调用模块:
 *********************************************************************************************************/
 VOID __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO pRawInfo) {
+    if(pRawInfo->phys_addr == 1559768){
+        printf("debug\n");
+    }
     INTREG iregInterLevel;
     //API_SpinLockQuick(&pSector->HOITS_lock, &iregInterLevel);
     //TODO: Sector的HOITS_uiObsoleteEntityCount和HOITS_uiAvailableEntityCount初始化位置？
@@ -1176,6 +1182,9 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     PCHAR                   pReadBuf;
     PHOIT_RAW_LOG           pRawLog;
     INT                     iRes;
+    if(pRawInfo->phys_addr == 1559768){
+        printf("debug\n");
+    }
     pReadBuf = (PCHAR)hoit_malloc(pfs, pRawInfo->totlen);
     if(pReadBuf == LW_NULL){
         return LW_FALSE;
