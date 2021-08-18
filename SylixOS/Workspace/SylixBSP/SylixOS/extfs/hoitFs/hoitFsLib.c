@@ -2178,6 +2178,46 @@ BOOL __hoit_erasable_sector_list_check_exist(PHOIT_VOLUME pfs, List(HOIT_ERASABL
 *********************************************************************************************************/
 VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasableSector) {
     UINT uiSectorSize = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize;
+
+    /* 08-18 判断该sector是否在某个list上 */
+    PHOIT_ERASABLE_SECTOR_REF   pSectorRef      = LW_NULL;
+    PHOIT_ERASABLE_SECTOR       pSector         = LW_NULL;
+    Iterator(HOIT_ERASABLE_SECTOR_REF) iter = pfs->HOITFS_sectorIterator;
+
+    BOOL hasRemoved = LW_FALSE;
+    for(iter->begin(iter, pfs->HOITFS_dirtySectorList); iter->isValid(iter); iter->next(iter)) {
+        pSectorRef = iter->get(iter);
+        pSector = pSectorRef->pErasableSetcor;
+        if(pSector->HOITS_bno == pErasableSector->HOITS_bno){
+            pfs->HOITFS_dirtySectorList->removeObject(pfs->HOITFS_dirtySectorList, pSectorRef);
+            //hasRemoved = LW_TRUE;
+            break;
+        }
+    }
+    if(hasRemoved == LW_FALSE){
+        for(iter->begin(iter, pfs->HOITFS_cleanSectorList); iter->isValid(iter); iter->next(iter)) {
+            pSectorRef = iter->get(iter);
+            pSector = pSectorRef->pErasableSetcor;
+            if(pSector->HOITS_bno == pErasableSector->HOITS_bno){
+                pfs->HOITFS_cleanSectorList->removeObject(pfs->HOITFS_cleanSectorList, pSectorRef);
+                //hasRemoved = LW_TRUE;
+                break;
+            }
+        }
+    }
+    if(hasRemoved == LW_FALSE){
+        for(iter->begin(iter, pfs->HOITFS_freeSectorList); iter->isValid(iter); iter->next(iter)) {
+            pSectorRef = iter->get(iter);
+            pSector = pSectorRef->pErasableSetcor;
+            if(pSector->HOITS_bno == pErasableSector->HOITS_bno){
+                pfs->HOITFS_freeSectorList->removeObject(pfs->HOITFS_freeSectorList, pSectorRef);
+                hasRemoved = LW_TRUE;
+                break;
+            }
+        }
+    }
+
+
     PHOIT_ERASABLE_SECTOR_REF pErasableSectorRef = (PHOIT_ERASABLE_SECTOR_REF)hoit_malloc(pfs, sizeof(HOIT_ERASABLE_SECTOR_REF));
     pErasableSectorRef->pErasableSetcor = pErasableSector;
 

@@ -143,61 +143,108 @@ BOOL __hoitGCSectorRawInfoFixUp(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasabl
 ** 调用模块:
 *********************************************************************************************************/
 PHOIT_ERASABLE_SECTOR __hoitGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_GC_LEVEL gcLevel){
-    PHOIT_ERASABLE_SECTOR       pErasableVictimSector;
-    PHOIT_ERASABLE_SECTOR       pErasableListTraverse;
-    
-    INT                         iMinVictimSan;            /* 最小受害者San值 */
-    INT                         iVictimSan;               /* 受害者San值，越小越受害 */
+//    PHOIT_ERASABLE_SECTOR       pErasableVictimSector;
+//    PHOIT_ERASABLE_SECTOR       pErasableListTraverse;
+//
+//    INT                         iMinVictimSan;            /* 最小受害者San值 */
+//    INT                         iVictimSan;               /* 受害者San值，越小越受害 */
+//
+//    UINT                        uiFreeSize;
+//    UINT                        uiObsoleteEntityCount;
+//    UINT                        uiAge;
+//
+//
+//
+//
+//    pErasableVictimSector       = LW_NULL;
+//    iMinVictimSan               = INT_MAX;
+//
+//    pErasableListTraverse       = pfs->HOITFS_erasableSectorList;
+//
+//    while (pErasableListTraverse)
+//    {
+//        if(hoitLogCheckIfLog(pfs, pErasableListTraverse)){          /* 不回收Log Sector中的任何文件 */
+//            pErasableListTraverse   = pErasableListTraverse->HOITS_next;
+//            continue;
+//        }
+//        uiFreeSize             = pErasableListTraverse->HOITS_uiFreeSize;
+//        uiObsoleteEntityCount  = pErasableListTraverse->HOITS_uiObsoleteEntityCount;
+//#ifdef GC_TEST
+//        if(pErasableListTraverse->HOITS_next == LW_NULL){           /* 如果最后一个Sector了 */
+//            pErasableListTraverse->HOITS_uiFreeSize -= 3;           /* 适配一下 */
+//            pErasableListTraverse->HOITS_uiUsedSize += 3;
+//        }
+//#endif // GC_TEST
+//        if(pErasableListTraverse->HOITS_uiUsedSize == 0){
+//            pErasableListTraverse   = pErasableListTraverse->HOITS_next;
+//            continue;
+//        }
+//
+//        switch (gcLevel)
+//        {
+//        case GC_BACKGROUND:{
+//            uiAge       = API_TimeGet() - pErasableListTraverse->HOITS_tBornAge;
+//            iVictimSan = (0.2 / uiAge) + 0.2 * uiFreeSize - 0.4 * uiObsoleteEntityCount;
+//        }
+//            break;
+//        case GC_FOREGROUND:{
+//            iVictimSan = -uiObsoleteEntityCount; // uiFreeSize;
+//        }
+//            break;
+//        default:
+//            break;
+//        }
+//
+//        if(iVictimSan < iMinVictimSan){
+//            pErasableVictimSector   = pErasableListTraverse;
+//            iMinVictimSan           = iVictimSan;
+//        }
+//
+//        pErasableListTraverse   = pErasableListTraverse->HOITS_next;
+//    }
 
-    UINT                        uiFreeSize;
-    UINT                        uiObsoleteEntityCount;
-    UINT                        uiAge;
-
-    pErasableVictimSector       = LW_NULL;
-    iMinVictimSan               = INT_MAX;
-
-    pErasableListTraverse       = pfs->HOITFS_erasableSectorList;
-    
-    while (pErasableListTraverse)
+    /*    08-18 deleted by HZS     */
+    PHOIT_ERASABLE_SECTOR pErasableVictimSector       = pfs->HOITFS_erasableSectorList;
+    BOOL isRandom = LW_FALSE;
+    switch (gcLevel)
     {
-        if(hoitLogCheckIfLog(pfs, pErasableListTraverse)){          /* 不回收Log Sector中的任何文件 */
-            pErasableListTraverse   = pErasableListTraverse->HOITS_next;
-            continue;
-        }
-        uiFreeSize             = pErasableListTraverse->HOITS_uiFreeSize;   
-        uiObsoleteEntityCount  = pErasableListTraverse->HOITS_uiObsoleteEntityCount;   
-#ifdef GC_TEST                                  
-        if(pErasableListTraverse->HOITS_next == LW_NULL){           /* 如果最后一个Sector了 */
-            pErasableListTraverse->HOITS_uiFreeSize -= 3;           /* 适配一下 */
-            pErasableListTraverse->HOITS_uiUsedSize += 3;
-        }
-#endif // GC_TEST
-        if(pErasableListTraverse->HOITS_uiUsedSize == 0){
-            pErasableListTraverse   = pErasableListTraverse->HOITS_next;
-            continue;
-        }
-
-        switch (gcLevel)
-        {
         case GC_BACKGROUND:{
-            uiAge       = API_TimeGet() - pErasableListTraverse->HOITS_tBornAge;
-            iVictimSan = (0.2 / uiAge) + 0.2 * uiFreeSize - 0.4 * uiObsoleteEntityCount;  
+            isRandom = LW_TRUE;
         }
             break;
         case GC_FOREGROUND:{
-            iVictimSan = -uiObsoleteEntityCount; // uiFreeSize;
+            ;
         }
             break;
         default:
             break;
-        }
+    }
 
-        if(iVictimSan < iMinVictimSan){
-            pErasableVictimSector   = pErasableListTraverse;
-            iMinVictimSan           = iVictimSan;
-        }
+    PHOIT_ERASABLE_SECTOR_REF pSectorRef    = LW_NULL;
+    Iterator(HOIT_ERASABLE_SECTOR_REF) iter = pfs->HOITFS_sectorIterator;
 
-        pErasableListTraverse   = pErasableListTraverse->HOITS_next;
+    if(isRandom){
+        /* 随机数 */
+        INT iRandom = lib_random()%100;
+        if(iRandom<2){
+            iter->begin(iter, pfs->HOITFS_cleanSectorList);
+        }
+        else if(iRandom < 4){
+            iter->begin(iter, pfs->HOITFS_freeSectorList);
+        }
+        else{
+            iter->begin(iter, pfs->HOITFS_dirtySectorList);
+        }
+    }
+    else{
+        iter->begin(iter, pfs->HOITFS_dirtySectorList);
+    }
+
+
+    for(; iter->isValid(iter); iter->next(iter)) {
+        pSectorRef = iter->get(iter);
+        pErasableVictimSector = pSectorRef->pErasableSetcor;
+        break;
     }
     return pErasableVictimSector;
 }

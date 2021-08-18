@@ -559,6 +559,9 @@ static inline PVOID hoit_malloc(PHOIT_VOLUME pfs, size_t stNBytes){
 }
 
 static inline PVOID hoit_free(PHOIT_VOLUME pfs, PVOID pvPtr, size_t stNBytes){
+    if(pvPtr == LW_NULL){
+        return;
+    }
     pfs->HOITFS_ulCurBlk -= stNBytes;
     lib_free(pvPtr);
 }
