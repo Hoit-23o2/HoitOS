@@ -338,11 +338,16 @@ UINT8 __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_
     }
     pfs->HOITFS_now_sector->HOITS_offset += length;
     */
+    HOIT_RAW_HEADER rawHeader;
     if(needLog)
         hoitLogAppend(pfs, pdata, length);
     UINT temp_addr = hoitWriteToCache(pfs->HOITFS_cacheHdr, pdata, length);
     if(phys_addr){
         *phys_addr = temp_addr;
+    }
+    if(temp_addr == 1559768) {
+        printf("debug\n");
+        hoitReadFromCache(pfs->HOITFS_cacheHdr, temp_addr, &rawHeader, sizeof(HOIT_RAW_HEADER));
     }
     if (temp_addr == PX_ERROR) {
         printf("Error in write flash\n");
@@ -1207,6 +1212,9 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     
     pRawHeader->crc = 0;
     pRawHeader->crc = hoit_crc32_le(pRawHeader, pRawInfo->totlen);
+    if(pRawHeader->crc == 928 && pRawHeader->version == 252 && pRawHeader->ino == 2){
+        printf("debug\n");
+    }
     iRes = __hoit_write_flash(pfs, pReadBuf, pRawInfo->totlen, &phys_addr, 1);
 
     pRawInfo->phys_addr = phys_addr;
