@@ -2226,12 +2226,12 @@ VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasable
             GET_FREE_LIST(pfs)->insert(GET_FREE_LIST(pfs), pErasableSectorRef, 0);
         }
     }
-    if (pErasableSector->HOITS_uiObsoleteEntityCount != 0) {
+    else if (pErasableSector->HOITS_uiObsoleteEntityCount != 0) {
         /* 目前是只要有脏数据实体，就把sector放到dirty list中 */
         if (!__hoit_erasable_sector_list_check_exist(pfs, GET_DIRTY_LIST(pfs), pErasableSector)) {
             GET_DIRTY_LIST(pfs)->insert(GET_DIRTY_LIST(pfs), pErasableSectorRef, 0);
         }
-    } else if (pErasableSector->HOITS_uiAvailableEntityCount != 0) {
+    } else {//(pErasableSector->HOITS_uiAvailableEntityCount != 0) {
         if (!__hoit_erasable_sector_list_check_exist(pfs, GET_CLEAN_LIST(pfs), pErasableSector)) {
             GET_CLEAN_LIST(pfs)->insert(GET_CLEAN_LIST(pfs), pErasableSectorRef, 0);
         }
