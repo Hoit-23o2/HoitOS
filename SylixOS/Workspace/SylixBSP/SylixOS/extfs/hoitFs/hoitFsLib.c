@@ -345,10 +345,7 @@ UINT8 __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_
     if(phys_addr){
         *phys_addr = temp_addr;
     }
-    if(temp_addr == 1559768) {
-        printf("debug\n");
-        hoitReadFromCache(pfs->HOITFS_cacheHdr, temp_addr, &rawHeader, sizeof(HOIT_RAW_HEADER));
-    }
+
     if (temp_addr == PX_ERROR) {
         printf("Error in write flash\n");
         return PX_ERROR;
@@ -378,9 +375,6 @@ UINT8 __hoit_write_flash_thru(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT p
 ** 调用模块:
 *********************************************************************************************************/
 UINT8 __hoit_add_to_inode_cache(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo) {
-    if(pRawInfo->phys_addr == 1559768){
-        printf("debug\n");
-    }
     if (pInodeCache == LW_NULL || pRawInfo == LW_NULL) {
         printk("Error in %s\n", __func__);
         return HOIT_ERROR;
@@ -490,6 +484,7 @@ UINT8 __hoit_del_raw_info(PHOIT_INODE_CACHE pInodeCache, PHOIT_RAW_INFO pRawInfo
         printk("Error in hoit_del_raw_info\n");
         return HOIT_ERROR;
     }
+
     if (pInodeCache->HOITC_nodes == pRawInfo) {
         pInodeCache->HOITC_nodes = pRawInfo->next_logic;
         return 0;
@@ -1121,11 +1116,8 @@ PCHAR __hoit_get_data_after_raw_inode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pInodeInf
 ** 输　出  : 打开结果
 ** 全局变量:
 ** 调用模块:
-*********************************************************************************************************/
+*******************************************************************************************************/
 VOID __hoit_add_raw_info_to_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO pRawInfo) {
-    if(pRawInfo->phys_addr == 1559768){
-        printf("debug\n");
-    }
     INTREG iregInterLevel;
     //API_SpinLockQuick(&pSector->HOITS_lock, &iregInterLevel);
     //TODO: Sector的HOITS_uiObsoleteEntityCount和HOITS_uiAvailableEntityCount初始化位置？
@@ -1185,23 +1177,24 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     PCHAR                   pReadBuf;
     PHOIT_RAW_LOG           pRawLog;
     INT                     iRes;
-    if(pRawInfo->phys_addr == 1559768){
-        printf("debug\n");
-    }
+
     pReadBuf = (PCHAR)hoit_malloc(pfs, pRawInfo->totlen);
     if(pReadBuf == LW_NULL){
         return LW_FALSE;
     }
     /* 先读出旧数据 */
     lib_bzero(pReadBuf, pRawInfo->totlen);
-    crc32_check(pReadBuf);
+
+    if(pRawInfo->phys_addr == 1546776){
+        printf("debug");
+    }
 
     __hoit_read_flash(pfs, pRawInfo->phys_addr, pReadBuf, pRawInfo->totlen);
-
+    crc32_check(pReadBuf);
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pReadBuf;
     if (pRawHeader->magic_num != HOIT_MAGIC_NUM 
     || (pRawHeader->flag & HOIT_FLAG_NOT_OBSOLETE) == 0) {
-        //printf("Error in hoit_move_home\n");
+        printf("Error in hoit_move_home\n");
         return LW_FALSE;
     }
     // /* 将obsolete标志位清0后写回原地址 */
@@ -1211,7 +1204,15 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     //!pRawHeader->flag &= (~HOIT_FLAG_NOT_OBSOLETE);      //将obsolete标志变为0，代表过期
 
     __hoit_mark_obsolete(pfs, pRawHeader, pRawInfo);
-    
+
+
+    /* 08-18 added by HZS */
+//    PHOIT_CACHE_HDR pcacheHdr = pfs->HOITFS_cacheHdr;
+//    UINT32  sectorNo = pRawInfo->phys_addr / pcacheHdr->HOITCACHE_blockSize;
+//    PHOIT_ERASABLE_SECTOR pErasableSector        = hoitFindSector(pcacheHdr, sectorNo);
+//    __hoit_del_raw_info_from_sector(pErasableSector , pRawInfo);
+
+
     /* 将obsolete标志位恢复后写到新地址 */
     pRawHeader->flag |= HOIT_FLAG_NOT_OBSOLETE;         //将obsolete标志变为1，代表未过期
     UINT phys_addr = 0;
@@ -1221,9 +1222,7 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     
     pRawHeader->crc = 0;
     pRawHeader->crc = hoit_crc32_le(pRawHeader, pRawInfo->totlen);
-    if(pRawHeader->crc == 928 && pRawHeader->version == 252 && pRawHeader->ino == 2){
-        printf("debug\n");
-    }
+
     iRes = __hoit_write_flash(pfs, pReadBuf, pRawInfo->totlen, &phys_addr, 1);
 
     pRawInfo->phys_addr = phys_addr;
@@ -2253,6 +2252,41 @@ VOID __hoit_fix_up_sector_list(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasable
             GET_CLEAN_LIST(pfs)->insert(GET_CLEAN_LIST(pfs), pErasableSectorRef, 0);
         }
     }
+}
+
+
+/*********************************************************************************************************
+** 函数名称: __hoit_del_raw_info_from_sector
+** 功能描述: 将一个RawInfo从对应的sector结构体中删除，但不free对应RawInfo的内存空间
+** 输　入  :
+** 输　出  : !=0 代表出错
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+void __hoit_del_raw_info_from_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO pRawInfo){
+//    PHOIT_RAW_INFO pRawInfoTravel   = pSector->HOITS_pRawInfoFirst;
+//    PHOIT_RAW_INFO pRawInfoNext     = LW_NULL;
+//    PHOIT_RAW_INFO pRawInfoLast     = LW_NULL;
+//    while(pRawInfoTravel != LW_NULL){
+//        pRawInfoNext = pRawInfoTravel->next_phys;
+//        if(pRawInfoTravel->phys_addr == pRawInfo->phys_addr){
+//            if(pRawInfoLast){
+//                pRawInfoLast->next_phys = pRawInfoNext;
+//            }
+//            if(pSector->HOITS_pRawInfoFirst == pRawInfo){
+//                pSector->HOITS_pRawInfoFirst = pRawInfoNext;
+//            }
+//
+//            if(pSector->HOITS_pRawInfoLast == pRawInfo){
+//                pSector->HOITS_pRawInfoLast = pRawInfoLast;
+//            }
+//            return;
+//        }
+//        pRawInfoLast = pRawInfoTravel;
+//        pRawInfoTravel = pRawInfoNext;
+//    }
+//    printf("Error in __hoit_del_raw_info_from_sector\n");
+    return;
 }
 
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */

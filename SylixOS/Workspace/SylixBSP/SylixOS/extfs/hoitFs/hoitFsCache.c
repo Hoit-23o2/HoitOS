@@ -246,9 +246,6 @@ PHOIT_CACHE_BLK hoitCheckCacheHit(PHOIT_CACHE_HDR pcacheHdr, UINT32 flashBlkNo) 
 ** 调用模块:    
 */
 BOOL hoitReadFromCache(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiOfs, PCHAR pContent, UINT32 uiSize){
-    if(uiOfs == 1559768){
-        printf("debug\n");
-    }
     PCHAR   pucDest         = pContent;
     size_t  cacheBlkSize    = pcacheHdr->HOITCACHE_blockSize;
     size_t  sectorSize      = hoitGetSectorSize(8);
@@ -406,7 +403,6 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
     PHOIT_CACHE_BLK         pcache;
     PHOIT_ERASABLE_SECTOR   pSector;
 
-
     if(uiSize < sizeof(HOIT_RAW_HEADER)){
         /* 不是数据实体 */
         return PX_ERROR;
@@ -490,14 +486,14 @@ UINT32 hoitWriteToCache(PHOIT_CACHE_HDR pcacheHdr, PCHAR pContent, UINT32 uiSize
 
     /* 当前写的块满了，则去找下一个仍有空闲的块 */
     //! 减去EBS区域
-    if (pSector->HOITS_uiFreeSize  == 0) {
-        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
-        i = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA, sizeof(HOIT_RAW_HEADER));
-        if (i != PX_ERROR) {
-            pSector = hoitFindSector(pcacheHdr, i);
-        }
-    }
-
+//    if (pSector->HOITS_uiFreeSize  == 0) {
+//        pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
+//        i = hoitFindNextToWrite(pcacheHdr, HOIT_CACHE_TYPE_DATA, sizeof(HOIT_RAW_HEADER));
+//        if (i != PX_ERROR) {
+//            pSector = hoitFindSector(pcacheHdr, i);
+//        }
+//    }
+//
     pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_now_sector = pSector;
 
     return writeAddrUpper;
@@ -732,7 +728,7 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
         for(iter->begin(iter, pfs->HOITFS_freeSectorList); iter->isValid(iter); iter->next(iter)) {
             iFreeSectorNum ++;
         }
-        if(iFreeSectorNum <= 20){
+        if(iFreeSectorNum <= 2){
             hoitGCForegroundForce(pcacheHdr->HOITCACHE_hoitfsVol);
         }
     }    
@@ -1137,9 +1133,6 @@ VOID hoitCheckEBS(PHOIT_VOLUME pfs, UINT32 sector_no, UINT32 n) {
 *********************************************************************************************************/
 //! 2021-07-07 ZN整合标注过期
 VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_RAW_INFO pRawInfo){
-    if(pRawInfo->phys_addr == 1559768){
-        printf("debug\n");
-    }
     PHOIT_CACHE_HDR pcacheHdr = pfs->HOITFS_cacheHdr;
     PHOIT_CACHE_BLK pcache;
     UINT16  EBS_entry_flag  = 0;
@@ -1198,7 +1191,6 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
             EBS_area_addr += sizeof(HOIT_EBS_ENTRY);
         }
     }
-
 }
 
 /*********************************************************************************************************

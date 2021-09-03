@@ -246,6 +246,7 @@ PHOIT_ERASABLE_SECTOR __hoitGCFindErasableSector(PHOIT_VOLUME pfs, ENUM_HOIT_GC_
         pErasableVictimSector = pSectorRef->pErasableSetcor;
         break;
     }
+
     return pErasableVictimSector;
 }
 /*********************************************************************************************************
@@ -268,9 +269,7 @@ BOOL __hoitGCCollectRawInfoAlive(PHOIT_VOLUME pfs, PHOIT_ERASABLE_SECTOR pErasab
     }
     
     pNowSectorOrigin = pfs->HOITFS_now_sector;              /* 保存原有now_sector */
-    // if(pErasableSector->HOITS_bno == 27){
-    //     printf("debug\n");
-    // }
+
     //!把RawInfo及其对应的数据实体搬家
     bIsMoveSuccess = __hoit_move_home(pfs, pRawInfoCurGC);  /* 搬家失败，说明该RawInfo要么是LOG要么是一段错误的数据，我们直接跳过 */
     pfs->HOITFS_now_sector = pNowSectorOrigin;              /* 恢复原有now_sector */
