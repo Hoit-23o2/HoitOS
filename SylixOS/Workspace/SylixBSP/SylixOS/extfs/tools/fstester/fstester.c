@@ -274,9 +274,6 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         else if(testType != TEST_TYPE_MOUNT){                                               /* ≤‚ ‘ÕÃÕ¬ */
             lib_gettimeofday(&timeStart, LW_NULL);
             {
-                if(i==5){
-                    printf("debug\n");
-                }
                 iIOBytes = functionality(iFdTest, stat.st_size, uiLoopTimes, pMountPoint, pUserValue);
                 if(iIOBytes < 0){
                     printf("%10s: [TEST %d Fail]\n", translateTestType(testType), i);
