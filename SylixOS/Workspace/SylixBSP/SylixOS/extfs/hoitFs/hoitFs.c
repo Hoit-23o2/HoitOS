@@ -189,6 +189,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 
                                                                         /* GCÏà¹Ø */
     pfs->HOITFS_curGCSector        = LW_NULL;
+    pfs->HOITFS_GCMsgQ             = PX_ERROR;
     pfs->ulGCBackgroundTimes       = 0;
     pfs->ulGCForegroundTimes       = 0;
     pfs->HOITFS_erasableSectorList = LW_NULL;

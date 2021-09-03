@@ -376,8 +376,8 @@ struct HOIT_ERASABLE_SECTOR{  //100B
     ULONG                         HOITS_tBornAge;                                 /* 当前Sector的出生时间 */                        
 };
 
-struct HOIT_ERASABLE_SECTOR_REF{
-    PHOIT_ERASABLE_SECTOR  pErasableSetcor
+struct HOIT_ERASABLE_SECTOR_REF {
+    PHOIT_ERASABLE_SECTOR  pErasableSetcor;
 };
 
 struct HOIT_LOG_SECTOR{

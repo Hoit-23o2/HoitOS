@@ -609,11 +609,15 @@ VOID hoitGCClose(PHOIT_VOLUME pfs){
     if(pfs->HOITFS_hGCThreadId){
         pfs->HOITFS_bShouldKillGC = LW_TRUE;
         _G_bShouldKillGC = LW_TRUE;
-        API_MsgQueueSend(pfs->HOITFS_GCMsgQ, MSG_GC_END, sizeof(MSG_GC_END));
-        API_MsgQueueShow(pfs->HOITFS_GCMsgQ);
+        if(pfs->HOITFS_GCMsgQ != PX_ERROR){
+            API_MsgQueueSend(pfs->HOITFS_GCMsgQ, MSG_GC_END, sizeof(MSG_GC_END));
+            API_MsgQueueShow(pfs->HOITFS_GCMsgQ);
+        }
         // API_ThreadWakeup(pfs->HOITFS_hGCThreadId);                              /* 强制唤醒GC线程 */
         API_ThreadJoin(pfs->HOITFS_hGCThreadId, LW_NULL);
-        API_MsgQueueDelete(&pfs->HOITFS_GCMsgQ);
+        if(pfs->HOITFS_GCMsgQ != PX_ERROR){
+            API_MsgQueueDelete(&pfs->HOITFS_GCMsgQ);
+        }
         pfs->HOITFS_hGCThreadId = LW_NULL;
     }
     printf("================ Goodbye GC ================\n");

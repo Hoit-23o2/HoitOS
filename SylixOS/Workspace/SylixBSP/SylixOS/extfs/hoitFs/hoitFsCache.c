@@ -704,13 +704,13 @@ BOOL hoitReleaseCacheHDR(PHOIT_CACHE_HDR pcacheHdr) {
 UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 uiSize) {
     //TOOPT: 2021-07-04 如果当前块写不下，是否可以先从cache中找能放得下数据实体的空闲块，再去整个sector列表中找？
     //! 2021-07-04 ZN 添加EBS区域，与uiSize比较时减少一个cache块可写空间。
-    PHOIT_ERASABLE_SECTOR pSector           = LW_NULL;
+    PHOIT_ERASABLE_SECTOR     pSector           = LW_NULL;
     PHOIT_ERASABLE_SECTOR_REF pSectorRef    = LW_NULL;  /* 08-18 add by HZS */
-    PHOIT_VOLUME    pfs = pcacheHdr->HOITCACHE_hoitfsVol;
+    PHOIT_VOLUME              pfs = pcacheHdr->HOITCACHE_hoitfsVol;
     Iterator(HOIT_ERASABLE_SECTOR_REF) iter = pfs->HOITFS_sectorIterator;
 
     //! 2021-08-18 ZN 强制GC功能 三链表版本
-    INT                   iFreeSectorNum = 0;
+    INT                       iFreeSectorNum = 0;
     // if(pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_curGCSector == LW_NULL){  /* 避免递归调用 */
     //     pSector = pcacheHdr->HOITCACHE_hoitfsVol->HOITFS_erasableSectorList;
     //     while (pSector != LW_NULL) {
@@ -828,7 +828,6 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
         _ErrorHandle(ENOSYS);
         return  (PX_ERROR);
     }
-    
 }
 /*
 ** 函数名称: hoitResetSectorState
@@ -840,7 +839,7 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
 ** 调用模块:
 */
 //TODO: Add By PYQ 实现有问题，需要重新检查
-VOID hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr, PHOIT_ERASABLE_SECTOR pErasableSector){
+VOID hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr, PHOIT_ERASABLE_SECTOR pErasableSector) {
     pErasableSector->HOITS_uiFreeSize             = pErasableSector->HOITS_length;
     pErasableSector->HOITS_uiUsedSize             = 0;
     pErasableSector->HOITS_offset                 = 0;
@@ -897,13 +896,13 @@ PHOIT_ERASABLE_SECTOR hoitFindSector(PHOIT_CACHE_HDR pcacheHdr, UINT32 sector_no
         }
     }
     /* 最后从free块找 */
-        for(iter->begin(iter, pfs->HOITFS_freeSectorList); iter->isValid(iter); iter->next(iter)) {
-            pSectorRef = iter->get(iter);
-            pSector = pSectorRef->pErasableSetcor;
-            if(pSector->HOITS_bno == sector_no){
-                return pSector;
-            }
-        }    
+    for(iter->begin(iter, pfs->HOITFS_freeSectorList); iter->isValid(iter); iter->next(iter)) {
+        pSectorRef = iter->get(iter);
+        pSector = pSectorRef->pErasableSetcor;
+        if(pSector->HOITS_bno == sector_no){
+            return pSector;
+        }
+    }    
     return LW_NULL;
 }
 

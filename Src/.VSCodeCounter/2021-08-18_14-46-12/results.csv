@@ -1,0 +1,11 @@
+"filename", "language", "C++", "C", "comment", "blank", "total"
+"d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\Am29LV160DB.h", "C++", 278, 0, 33, 17, 328
+"d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\fake_nor.c", "C", 0, 93, 52, 6, 151
+"d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\fake_nor.h", "C++", 17, 0, 23, 8, 48
+"d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\nor.c", "C", 0, 415, 186, 44, 645
+"d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\nor.h", "C++", 70, 0, 36, 14, 120
+"d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\nor_cmd.c", "C", 0, 197, 40, 18, 255
+"d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\nor_cmd.h", "C++", 24, 0, 29, 6, 59
+"d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\nor_util.c", "C", 0, 274, 171, 13, 458
+"d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\nor_util.h", "C++", 28, 0, 32, 6, 66
+"Total", "-", 417, 979, 602, 132, 2130

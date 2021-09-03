@@ -1,0 +1,34 @@
+Date : 2021-08-18 14:46:12
+Directory : d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver
+Total : 9 files,  1396 codes, 602 comments, 132 blanks, all 2130 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| C        |          4 |        979 |        449 |         81 |      1,509 |
+| C++      |          5 |        417 |        153 |         51 |        621 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++----------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                 | files      | code       | comment    | blank      | total      |
++----------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                    |          9 |      1,396 |        602 |        132 |      2,130 |
++----------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++----------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                             | language | code       | comment    | blank      | total      |
++----------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\Am29LV160DB.h | C++      |        278 |         33 |         17 |        328 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\fake_nor.c    | C        |         93 |         52 |          6 |        151 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\fake_nor.h    | C++      |         17 |         23 |          8 |         48 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\nor.c         | C        |        415 |        186 |         44 |        645 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\nor.h         | C++      |         70 |         36 |         14 |        120 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\nor_cmd.c     | C        |        197 |         40 |         18 |        255 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\nor_cmd.h     | C++      |         24 |         29 |          6 |         59 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\nor_util.c    | C        |        274 |        171 |         13 |        458 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\nor-driver\nor_util.h    | C++      |         28 |         32 |          6 |         66 |
+| Total                                                                |          |      1,396 |        602 |        132 |      2,130 |
++----------------------------------------------------------------------+----------+------------+------------+------------+------------+

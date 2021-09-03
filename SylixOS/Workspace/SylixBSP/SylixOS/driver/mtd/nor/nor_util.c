@@ -137,7 +137,7 @@ VOID nor_reset(UINT32 base){
 		}
 	}
 	else{
-		write_word_to_mem(base, 0x0, 0xF0);	
+		erase_nor(base, ERASE_CHIP);	
 	}
 }
 

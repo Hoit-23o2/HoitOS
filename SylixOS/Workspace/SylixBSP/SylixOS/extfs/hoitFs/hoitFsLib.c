@@ -1600,7 +1600,7 @@ VOID  __hoit_close(PHOIT_INODE_INFO  pInodeInfo, INT  iFlag)
 {
     PHOIT_VOLUME pfs = pInodeInfo->HOITN_volume;
     /* //! Add By PYQ 2021-08-15 关闭前查看红黑树内存 */
-    hoitFragTreeShowMemory(pInodeInfo->HOITN_rbtree);
+    // hoitFragTreeShowMemory(pInodeInfo->HOITN_rbtree);
     if((pInodeInfo->HOITN_ino == HOIT_ROOT_DIR_INO && iFlag != 0x3) || pInodeInfo == LW_NULL){ /* 不close根目录 */
         return;
     }
@@ -1948,8 +1948,8 @@ VOID  __hoit_unmount(PHOIT_VOLUME pfs)
 {
     /* TODO 释放RAW INFO需要把GC先关了*/
     //API_SpinDestory()
-    __hoitShowSectorInfo(pfs);
 #ifdef LIB_DEBUG
+    __hoitShowSectorInfo(pfs);
 #endif /* LIB_DEBUG */
     if (pfs == LW_NULL) {
         printf("Error in unmount.\n");
@@ -2000,7 +2000,6 @@ VOID  __hoit_unmount(PHOIT_VOLUME pfs)
     FreeList(pfs->HOITFS_dirtySectorList);
     FreeList(pfs->HOITFS_cleanSectorList);
     FreeList(pfs->HOITFS_freeSectorList);
-
 }
 /*********************************************************************************************************
 ** 函数名称: __hoit_mount

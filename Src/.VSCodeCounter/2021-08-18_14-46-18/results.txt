@@ -1,0 +1,89 @@
+Date : 2021-08-18 14:46:18
+Directory : d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs
+Total : 57 files,  13299 codes, 5786 comments, 2130 blanks, all 21215 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| C        |         26 |     11,338 |      4,598 |      1,777 |     17,713 |
+| C++      |         31 |      1,961 |      1,188 |        353 |      3,502 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                             | files      | code       | comment    | blank      | total      |
++----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                |         57 |     13,299 |      5,786 |      2,130 |     21,215 |
+| hoitFs                                                                           |         27 |      7,215 |      3,081 |      1,266 |     11,562 |
+| spifFs                                                                           |         17 |      4,877 |      2,319 |        706 |      7,902 |
+| tools                                                                            |         13 |      1,207 |        386 |        158 |      1,751 |
+| tools\crc                                                                        |          1 |         19 |          7 |          6 |         32 |
+| tools\fstester                                                                   |          5 |        754 |        298 |         85 |      1,137 |
+| tools\hash                                                                       |          1 |         13 |         20 |          2 |         35 |
+| tools\list                                                                       |          6 |        421 |         61 |         65 |        547 |
++----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++----------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                                         | language | code       | comment    | blank      | total      |
++----------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFs.c                | C        |      1,077 |        359 |        255 |      1,691 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFs.h                | C++      |         14 |         30 |          5 |         49 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsCache.c           | C        |        716 |        442 |        109 |      1,267 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsCache.h           | C++      |        121 |         51 |         14 |        186 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsCmd.c             | C        |         92 |         32 |         17 |        141 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsCmd.h             | C++      |          6 |         20 |          3 |         29 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsFDLib.c           | C        |        174 |         75 |         32 |        281 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsFDLib.h           | C++      |         13 |         23 |          5 |         41 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsGC.c              | C        |        381 |        116 |         64 |        561 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsGC.h              | C++      |         39 |         31 |         13 |         83 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsLib.c             | C        |      1,438 |        536 |        212 |      2,186 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsLib.h             | C++      |         89 |         28 |         17 |        134 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsLog.c             | C        |        359 |        127 |         82 |        568 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsLog.h             | C++      |         12 |         23 |          8 |         43 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsMid.c             | C        |          3 |         20 |          6 |         29 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsMid.h             | C++      |          3 |         20 |          5 |         28 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsTest.c            | C        |        814 |        181 |        102 |      1,097 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsTest.h            | C++      |          8 |         20 |          2 |         30 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsTree.c            | C        |        668 |        362 |         90 |      1,120 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsTree.h            | C++      |        124 |         55 |         25 |        204 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsTreeUtil.c        | C        |        341 |        183 |         59 |        583 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitFsTreeUtil.h        | C++      |         20 |         20 |         10 |         50 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitMergeBuffer.c       | C        |        172 |         76 |         22 |        270 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitMergeBuffer.h       | C++      |         15 |         25 |          5 |         45 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitType.h              | C++      |        362 |        135 |         80 |        577 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitWriteBuffer.c       | C        |        140 |         66 |         19 |        225 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\hoitFs\hoitWriteBuffer.h       | C++      |         14 |         25 |          5 |         44 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFs.c                | C        |        912 |        337 |        198 |      1,447 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFs.h                | C++      |         14 |         26 |          5 |         45 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsCache.c           | C        |        326 |        156 |         35 |        517 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsCache.h           | C++      |         27 |         32 |          7 |         66 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsCmd.c             | C        |         65 |         37 |          7 |        109 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsCmd.h             | C++      |          5 |          6 |          4 |         15 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsConfig.h          | C++      |        108 |        122 |         12 |        242 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsFDLib.c           | C        |        177 |         86 |          8 |        271 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsFDLib.h           | C++      |         11 |         20 |          2 |         33 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsGC.c              | C        |        487 |        163 |         53 |        703 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsGC.h              | C++      |         26 |         20 |          4 |         50 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsGlue.c            | C        |        732 |        497 |        121 |      1,350 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsGlue.h            | C++      |         44 |         26 |          9 |         79 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsLib.c             | C        |      1,509 |        500 |        177 |      2,186 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsLib.h             | C++      |         51 |         57 |          9 |        117 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsType.h            | C++      |        383 |        214 |         51 |        648 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\spifFs\spifFsVerify.c          | C        |          0 |         20 |          4 |         24 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\tools\crc\crc32.h              | C++      |         19 |          7 |          6 |         32 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\tools\fstester\config.h        | C++      |          3 |         21 |          5 |         29 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\tools\fstester\fstester.c      | C        |        421 |         83 |         48 |        552 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\tools\fstester\fstester.h      | C++      |        193 |         87 |         16 |        296 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\tools\fstester\functionality.c | C        |        131 |        107 |         15 |        253 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\tools\fstester\lorem.h         | C++      |          6 |          0 |          1 |          7 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\tools\hash\hash_template.h     | C++      |         13 |         20 |          2 |         35 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\tools\list\common.h            | C++      |         47 |          6 |         12 |         65 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\tools\list\iter.c              | C        |         28 |          6 |          9 |         43 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\tools\list\list.c              | C        |         96 |         20 |         20 |        136 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\tools\list\list_interface.h    | C++      |         38 |         12 |          4 |         54 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\tools\list\list_template.h     | C++      |        133 |          6 |          7 |        146 |
+| d:\MyProject-Temp\Project.HoitOS\HoitOS\Src\extfs\tools\list\list_test.c         | C        |         79 |         11 |         13 |        103 |
+| Total                                                                            |          |     13,299 |      5,786 |      2,130 |     21,215 |
++----------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
