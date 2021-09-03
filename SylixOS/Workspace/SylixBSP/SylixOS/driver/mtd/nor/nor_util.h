@@ -37,7 +37,7 @@
 /*********************************************************************************************************
   基本内存读写函数
 *********************************************************************************************************/
-VOID     write_word_to_mem(UINT32 base, UINT32 offset, UINT32 data);
+VOID     write_word_to_mem(UINT32 base, UINT32 offset, UINT16 data);
 UINT16   read_word_from_mem(UINT32 base, UINT32 offset);
 UINT8    read_byte_from_mem(UINT32 base, UINT32 offset);
 VOID     wait_ready(UINT32 base, UINT32 addr);

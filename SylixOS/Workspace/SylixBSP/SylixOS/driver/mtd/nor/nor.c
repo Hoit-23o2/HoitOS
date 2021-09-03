@@ -368,6 +368,7 @@ UINT8 write_nor(UINT offset, PCHAR content, UINT size_bytes, ENUM_WRITE_OPTIONS 
 															  offset_to_write,
 															  content_to_write,
 															  size_bytes_to_write);
+		
 #ifdef NOR_DEBUG
 		printf("content_to_write: %s \n", content_to_write);
 		printf("offset_to_write: %d \n", offset_to_write);

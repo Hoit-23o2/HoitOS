@@ -32,7 +32,7 @@
 ** 全局变量: 
 ** 调用模块: 
 *********************************************************************************************************/
-VOID write_word_to_mem(UINT32 base, UINT32 offset, UINT32 data)
+VOID write_word_to_mem(UINT32 base, UINT32 offset, UINT16 data)
 {
 	volatile UINT16* p = (volatile UINT16*)(base + (offset << 1));
 	*p = data;
@@ -222,10 +222,11 @@ BOOL nor_check_should_erase(UINT32 base, UINT offset, PCHAR content, UINT size_b
 ** 全局变量: 
 ** 调用模块: 
 *********************************************************************************************************/
-VOID nor_write_buffer(UINT32 base, UINT offset, PCHAR content, UINT size_bytes){
+VOID nor_write_buffer(UINT32 base, UINT offset, PCHAR _content, UINT size_bytes){
 	UINT8 sector_no = GET_SECTOR_NO(offset);
 	UINT32 sector_start_offset = GET_SECTOR_OFFSET(sector_no);
 	UINT sector_remain_size = GET_SECTOR_SIZE(sector_no) - (offset - sector_start_offset); 
+	PUCHAR content = (PUCHAR)_content;
 	if(size_bytes > sector_remain_size){
 #ifdef NOR_DEBUG
 		pretty_print("[nor write buffer]", FAIL "size not permit", DONT_CENTRAL);
@@ -278,7 +279,7 @@ VOID nor_write_buffer(UINT32 base, UINT offset, PCHAR content, UINT size_bytes){
 		for (i = 0; i < size_words; i++)
 		{
 			INT index = 2 * i;
-			UINT32 data = content[index] + (content[index + 1] << 8);
+			UINT16 data = content[index] + (content[index + 1] << 8);
 			nor_command_unlock(base);
 			write_word_to_mem(base, 0x555, 0xA0);
 			write_word_to_mem(base, offset >> 1, data);
@@ -286,7 +287,7 @@ VOID nor_write_buffer(UINT32 base, UINT offset, PCHAR content, UINT size_bytes){
 			offset += 2;
 		}
 		if(remain_byte){
-			UINT32 data = content[size_bytes - 1];
+			UINT16 data = content[size_bytes - 1];
 			nor_command_unlock(base);
 			write_word_to_mem(base, 0x555, 0xA0);
 			write_word_to_mem(base, offset >> 1, data);

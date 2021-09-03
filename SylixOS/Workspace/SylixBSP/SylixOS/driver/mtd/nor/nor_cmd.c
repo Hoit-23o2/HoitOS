@@ -165,7 +165,10 @@ INT nor_flash_cmd_wrppaer(INT  iArgC, PCHAR  ppcArgV[]){
             INT i;
             for (i = 0; i < size; i++)
             {
-                printf("%c", *(content + i));
+                printf("0x%08x ", *(content + i));
+                if((i + 1) % 5 == 0){
+                    printf("\n");
+                } 
             }
             printf("\n");
             break;

@@ -112,6 +112,7 @@ USE_LIST_TEMPLATE(NAMESPACE, HOIT_ERASABLE_SECTOR_REF);
 LW_API
 INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 {
+    /* mount -t hoitfs  /mnt/hoitfs */
     PHOIT_VOLUME     pfs;
     if (_G_iHoitFsDrvNum <= 0) {
         _DebugHandle(__ERRORMESSAGE_LEVEL, "hoitfs Driver invalidate.\r\n");
@@ -128,6 +129,9 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
         _ErrorHandle(EFAULT);                                           /*  Bad address                 */
         return  (PX_ERROR);
     }
+    
+    // if (sscanf(pblkd->BLKD_pcName, "%zu", &stMax) != 1) {
+    // }
 
     pfs = (PHOIT_VOLUME)lib_malloc(sizeof(HOIT_VOLUME));
     if (pfs == LW_NULL) {
