@@ -226,7 +226,7 @@ VOID nor_write_buffer(UINT32 base, UINT offset, PCHAR _content, UINT size_bytes)
 	UINT8 sector_no = GET_SECTOR_NO(offset);
 	UINT32 sector_start_offset = GET_SECTOR_OFFSET(sector_no);
 	UINT sector_remain_size = GET_SECTOR_SIZE(sector_no) - (offset - sector_start_offset); 
-	PUCHAR content = (PUCHAR)_content;
+	PUCHAR content = (PUCHAR)_content;				/* 转换成PUCHAR */	
 	if(size_bytes > sector_remain_size){
 #ifdef NOR_DEBUG
 		pretty_print("[nor write buffer]", FAIL "size not permit", DONT_CENTRAL);
@@ -237,14 +237,17 @@ VOID nor_write_buffer(UINT32 base, UINT offset, PCHAR _content, UINT size_bytes)
 		return;
 	}
 	if(IS_FAKE_MODE()){
-		PCHAR p = content;
-		INT	  i, size_words;
+		PUCHAR p = content;
+		UINT size_words = size_bytes / 2;
+		INT  remain_byte = size_bytes - size_words * 2 ;
+		INT	 i;
 		volatile INT fake;
+
 		if(get_sector_is_bad(sector_no)){                                                          /* 随机修改 */
 #ifdef NOR_DEBUG
 			printf("| -> [sector #%d is bad, there may be some error(s), remember to check]\n", sector_no);
 #endif // DEBUG
-			PCHAR pe = p + size_bytes;
+			PUCHAR pe = p + size_bytes;
 			for (; p < pe; p++)
 			{
 				INT possibily = rand() % 100 + 1;
@@ -254,20 +257,34 @@ VOID nor_write_buffer(UINT32 base, UINT offset, PCHAR _content, UINT size_bytes)
 				}
 			} 
 		}
-		size_words = size_bytes / 2;
 		for (i = 0; i < size_words; i++)
 		{
+			INT index = 2 * i;
+			UINT16 data = content[index] + (content[index + 1] << 8);
 			/* 模拟nor_cmd_unlock， 2个访存周期 */
-			fake = 1;		/* Cycle 1 */
-			fake = 2;		/* Cycle 2 */
+			fake = 1;		
+			fake = 2;		
 			/* 模拟写入，2个访存周期 */
-			fake = 3;		/* Cycle 3 */
-			fake = 4;		/* Cycle 4 */
+			fake = 3;		
+			lib_memcpy((PVOID)(base + offset), (PUCHAR)&data, 2);	
 			/* 模拟wait_ready， 至少2个访存周期 */
-			fake = 5;		/* Cycle 5 */
-			fake = 6;		/* Cycle 6 */
+			fake = 5;		
+			fake = 6;		
+			offset += 2;
 		}
-		lib_memcpy((PVOID)(base + offset), content, size_bytes);
+		if(remain_byte){
+			UINT16 data = content[size_bytes - 1];
+			/* 模拟nor_cmd_unlock， 2个访存周期 */
+			fake = 1;		
+			fake = 2;		
+			/* 模拟写入，2个访存周期 */
+			fake = 3;		
+			lib_memcpy((PVOID)(base + offset), (PUCHAR)&data, 2);	
+			/* 模拟wait_ready， 至少2个访存周期 */
+			fake = 5;		
+			fake = 6;		
+		}
+		// lib_memcpy((PVOID)(base + offset), content, size_bytes);
 	}
 	else {
 		UINT size_words = size_bytes / 2;

@@ -25,5 +25,7 @@
 #include "hoitFsGC.h"
 
 VOID register_hoitfs_cmd(PHOIT_VOLUME pfs);
+/* //! Added By PYQ 2021-09-04 添加上层文件系统挂载选项解析 */
+VOID parse_hoitfs_options(PHOIT_VOLUME pfs, PCHAR pcOptions);
 
 #endif

@@ -42,10 +42,17 @@
 *********************************************************************************************************/
 BOOL __hoit_new_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
     PHOIT_VOLUME    pfs = pInodeInfo->HOITN_volume;
+    UINT            uiMergeBufferThreshold;
+#ifdef USE_MACRO_FEATURE
+    uiMergeBufferThreshold = HOIT_MERGE_BUFFER_THRESHOLD;
+#else  /* NO USE_MACRO_FEATURE */
+    uiMergeBufferThreshold = pInodeInfo->HOITN_volume->HOITFS_config.HOITFS_MTREE_uiMergeBufferThreshold;
+#endif /* END USE_MACRO_FEATURE */
+
     if (pInodeInfo->HOITN_pMergeBuffer == LW_NULL) {
         pInodeInfo->HOITN_pMergeBuffer              = (PHOIT_MERGE_BUFFER)hoit_malloc(pfs, sizeof(HOIT_MERGE_BUFFER));
         pInodeInfo->HOITN_pMergeBuffer->pList       = LW_NULL;
-        pInodeInfo->HOITN_pMergeBuffer->threshold   = HOIT_MERGE_BUFFER_THRESHOLD;
+        pInodeInfo->HOITN_pMergeBuffer->threshold   = uiMergeBufferThreshold;
         pInodeInfo->HOITN_pMergeBuffer->size        = 0;
     }
     return LW_TRUE;
@@ -185,7 +192,7 @@ BOOL __hoit_refresh_merge_buffer(PHOIT_INODE_INFO pInodeInfo) {
         return LW_FALSE;
     }
     /* ц╟ещеепР */
-    for (i = 0; i < pMergeBuffer->size-1; i++) {
+    for (i = 0; i < pMergeBuffer->size - 1; i++) {
         PHOIT_MERGE_ENTRY pNowEntry = pMergeBuffer->pList;
         PHOIT_MERGE_ENTRY pNextEntry = LW_NULL;
         while(pNowEntry)

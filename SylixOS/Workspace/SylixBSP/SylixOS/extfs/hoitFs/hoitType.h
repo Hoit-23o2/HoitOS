@@ -59,14 +59,20 @@
 /*********************************************************************************************************
   HoitFs 特性宏控
 *********************************************************************************************************/
-#define  MULTI_THREAD_ENABLE      /* 启用多线程 */
-#define  EBS_ENABLE               /* 启用EBS */
-#define  WRITE_BUFFER_ENABLE      /* 启用WriteBuffer */
-#define  BACKGOURND_GC_ENABLE     /* 启用后台GC */
-#define  CRC_DATA_ENABLE          /*  CRC DATA特性 */
+// #define  USE_MACRO_FEATURE                     /* 使用宏控 */
+
+#define  MULTI_THREAD_ENABLE           /* 启用多线程 */          // DONE
+#define  EBS_ENABLE                    /* 启用EBS */            // DONE
+
+#define  MERGE_BUFFER_ENABLE           /* 启用Merge Buffer */   // DONE
+#define  HOIT_MERGE_BUFFER_THRESHOLD   16	// MergeBuffer触发合并动作的节点数
+#define  HOIT_MERGE_BUFFER_FRAGSIZE	   16
+
+#define  BACKGOURND_GC_ENABLE          /* 启用后台GC */         // DONE
+#define  CRC_DATA_ENABLE               /*  CRC DATA特性 */      //TODO:
+#define  HOIT_MAX_DATA_SIZE            1024                     // DONE
 //! 07-18 ZN 暂时注释log
 // #define  LOG_ENABLE
-
 /*********************************************************************************************************
   HoitFs Error Type
 *********************************************************************************************************/
@@ -88,7 +94,6 @@
 #define HOIT_FLAG_OBSOLETE                  0x00000000
 #define HOIT_ERROR                          100
 #define HOIT_ROOT_DIR_INO                   1   /* HoitFs的根目录的ino为1 */
-#define HOIT_MAX_DATA_SIZE                  (56*16)
 #define __HOIT_IS_OBSOLETE(pRawHeader)      ((pRawHeader->flag & HOIT_FLAG_NOT_OBSOLETE)    == 0)
 #define __HOIT_IS_TYPE_INODE(pRawHeader)    ((pRawHeader->flag & HOIT_FLAG_TYPE_INODE)  != 0)
 #define __HOIT_IS_TYPE_DIRENT(pRawHeader)   ((pRawHeader->flag & HOIT_FLAG_TYPE_DIRENT) != 0)
@@ -130,6 +135,7 @@
 /*********************************************************************************************************
   C语言结构体提前声明
 *********************************************************************************************************/
+typedef struct HOIT_CONFIG                HOIT_CONFIG;
 typedef struct HOIT_VOLUME                HOIT_VOLUME;
 typedef struct HOIT_RAW_HEADER            HOIT_RAW_HEADER;
 typedef struct HOIT_RAW_INODE             HOIT_RAW_INODE;
@@ -188,29 +194,49 @@ typedef HOIT_RAW_LOG *                    PHOIT_RAW_LOG;
 
 typedef HOIT_MERGE_BUFFER *               PHOIT_MERGE_BUFFER;
 typedef HOIT_MERGE_ENTRY *                PHOIT_MERGE_ENTRY;
-DEV_HDR          HOITFS_devhdrHdr;
 
 DECLARE_LIST_TEMPLATE(HOIT_ERASABLE_SECTOR_REF);
-// USE_LIST_TEMPLATE(hoitType, HOIT_FRAG_TREE_NODE);
+/*********************************************************************************************************
+  HoitFs 配置
+*********************************************************************************************************/
+typedef struct HOIT_CONFIG
+{
+    BOOL                    HOITFS_CRC_bEnableCRCDataCheck; 
+    BOOL                    HOITFS_EBS_bEnableEBS;
+    
+    BOOL                    HOITFS_MT_bEnableMultiThreadScan;
+    UINT                    HOITFS_MT_uiThreadCnt;              
+    
+    BOOL                    HOITFS_MTREE_bEnableMergeBuffer;
+    UINT                    HOITFS_MTREE_uiMergeDataThreshold;
+    UINT                    HOITFS_MTREE_uiMergeBufferThreshold;
+
+    BOOL                    HOITFS_BGC_bEnableBackgroundGC;
+    UINT                    HOITFS_BGC_uiBackgroundGCThreshold;          /* 百分制 */
+
+    UINT                    HOITFS_TREE_uiMaxDataSize;
+    
+    BOOL                    HOITFS_OPTION_bIsMountSilence;               /* 挂载是否静默 */
+} HOIT_CONFIG;
 /*********************************************************************************************************
   HoitFs super block类型
 *********************************************************************************************************/
-typedef struct HOIT_VOLUME{
-    DEV_HDR                 HOITFS_devhdrHdr;                                /*  HoitFs 文件系统设备头        */
-    LW_OBJECT_HANDLE        HOITFS_hVolLock;                                 /*  卷操作锁                    */
-    LW_LIST_LINE_HEADER     HOITFS_plineFdNodeHeader;                        /*  fd_node 链表                */
-    PHOIT_INODE_INFO        HOITFS_pRootDir;                                 /*  根目录文件暂定为一直打开的  */
+typedef struct HOIT_VOLUME {
+    DEV_HDR                 HOITFS_devhdrHdr;                            /*  HoitFs 文件系统设备头        */
+    LW_OBJECT_HANDLE        HOITFS_hVolLock;                             /*  卷操作锁                    */
+    LW_LIST_LINE_HEADER     HOITFS_plineFdNodeHeader;                    /*  fd_node 链表                */
+    PHOIT_INODE_INFO        HOITFS_pRootDir;                             /*  根目录文件暂定为一直打开的  */
     PHOIT_FULL_DIRENT       HOITFS_pTempRootDirent;
-
-    BOOL                    HOITFS_bForceDelete;                             /*  是否允许强制卸载卷          */
+    
+    BOOL                    HOITFS_bForceDelete;                         /*  是否允许强制卸载卷          */
     BOOL                    HOITFS_bValid;
 
-    uid_t                   HOITFS_uid;                                      /*  用户 id                     */
-    gid_t                   HOITFS_gid;                                      /*  组   id                     */
-    mode_t                  HOITFS_mode;                                     /*  文件 mode                   */
-    time_t                  HOITFS_time;                                     /*  创建时间                    */
-    ULONG                   HOITFS_ulCurBlk;                                 /*  当前消耗内存大小            */
-    ULONG                   HOITFS_ulMaxBlk;                                 /*  最大内存消耗量              */
+    uid_t                   HOITFS_uid;                                  /*  用户 id                     */
+    gid_t                   HOITFS_gid;                                  /*  组   id                     */
+    mode_t                  HOITFS_mode;                                 /*  文件 mode                   */
+    time_t                  HOITFS_time;                                 /*  创建时间                    */
+    ULONG                   HOITFS_ulCurBlk;                             /*  当前消耗内存大小            */
+    ULONG                   HOITFS_ulMaxBlk;                             /*  最大内存消耗量              */
 
     PHOIT_INODE_CACHE       HOITFS_cache_list;
     UINT                    HOITFS_highest_ino;
@@ -218,13 +244,13 @@ typedef struct HOIT_VOLUME{
 
     PHOIT_ERASABLE_SECTOR   HOITFS_now_sector;
     
-                                                                           /*! GC 相关 */
-    PHOIT_ERASABLE_SECTOR           HOITFS_erasableSectorList;                  /* 可擦除Sector列表 */
+                                                                          /*! GC 相关 */
+    PHOIT_ERASABLE_SECTOR           HOITFS_erasableSectorList;            /* 可擦除Sector列表 */
 
-    List(HOIT_ERASABLE_SECTOR_REF)      HOITFS_dirtySectorList;                     /* 含有obsolete的块 */ 
-    List(HOIT_ERASABLE_SECTOR_REF)      HOITFS_cleanSectorList;                     /* 不含obsolete的块 */
-    List(HOIT_ERASABLE_SECTOR_REF)      HOITFS_freeSectorList;                      /* 啥都不含的块 */
-    Iterator(HOIT_ERASABLE_SECTOR_REF)  HOITFS_sectorIterator;                      /* 统一sector迭代器 */
+    List(HOIT_ERASABLE_SECTOR_REF)      HOITFS_dirtySectorList;           /* 含有obsolete的块 */ 
+    List(HOIT_ERASABLE_SECTOR_REF)      HOITFS_cleanSectorList;           /* 不含obsolete的块 */
+    List(HOIT_ERASABLE_SECTOR_REF)      HOITFS_freeSectorList;            /* 啥都不含的块 */
+    Iterator(HOIT_ERASABLE_SECTOR_REF)  HOITFS_sectorIterator;            /* 统一sector迭代器 */
     
     LW_OBJECT_HANDLE                    HOITFS_dirtyLock;                 /* dirty 列表锁 */
     LW_OBJECT_HANDLE                    HOITFS_cleanLock;                 /* dirty 列表锁 */
@@ -247,6 +273,7 @@ typedef struct HOIT_VOLUME{
                                                                            /*! Log相关 */
     PHOIT_LOG_INFO          HOITFS_logInfo;
 
+    HOIT_CONFIG             HOITFS_config;                                  /* 配置相关 */                                          
 } HOIT_VOLUME;
 
 

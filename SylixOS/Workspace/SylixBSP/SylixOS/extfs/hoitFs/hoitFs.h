@@ -38,7 +38,7 @@ LW_API INT          API_HoitFsDrvInstall(VOID);
 LW_API INT          API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd);
 LW_API INT          API_HoitFsDevDelete(PCHAR   pcName);
 
-INT          __hoitFsHardlink(PHOIT_VOLUME pfs, PCHAR pcName, CPCHAR pcLinkDst);
+INT                 __hoitFsHardlink(PHOIT_VOLUME pfs, PCHAR pcName, CPCHAR pcLinkDst);
 
 #endif                                                                  /*  LW_CFG_MAX_VOLUMES > 0      */
 #endif                                                                  /*  __HOITFS_H                   */

@@ -39,7 +39,9 @@ BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFullDnode, INT
         hoitReadFromCache(pfs->HOITFS_cacheHdr, pFullDnode->HOITFD_raw_info->phys_addr, read_buf, pFullDnode->HOITFD_raw_info->totlen);
 
 		PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)read_buf;
-        crc32_check(pRawHeader);
+        if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck) {
+            crc32_check(pRawHeader);
+        }
 //        if(pRawHeader->crc == 0x13797da2){
 //            hoitReadFromCache(pfs->HOITFS_cacheHdr, pFullDnode->HOITFD_raw_info->phys_addr, read_buf, pFullDnode->HOITFD_raw_info->totlen);
 //        }
@@ -99,7 +101,9 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
     hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
 
     PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)read_buf;
-    crc32_check(pRawInode);
+    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck){
+        crc32_check(pRawInode);
+    }
 
     /* 在write_buf中组装好要写入的数据 */
     PCHAR write_buf = (PCHAR)hoit_malloc(pfs, sizeof(struct HOIT_RAW_INODE) + length);  /* 注意避免内存泄露 */
@@ -235,7 +239,9 @@ PHOIT_FULL_DNODE __hoit_bulid_full_dnode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawIn
     PCHAR read_buf = (PCHAR)hoit_malloc(pfs, pRawInfo->totlen);        /* 注意内存泄露 */
     hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
     PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)read_buf;
-    crc32_check(pRawInode);
+    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck){
+        crc32_check(pRawInode);
+    }
     
     PHOIT_FULL_DNODE pFullDnode = (PHOIT_FULL_DNODE)hoit_malloc(pfs, sizeof(HOIT_FULL_DNODE));
     pFullDnode->HOITFD_file_type = pRawInode->file_type;
@@ -259,7 +265,9 @@ PHOIT_FULL_DIRENT __hoit_bulid_full_dirent(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRaw
     PCHAR read_buf = (PCHAR)hoit_malloc(pfs, pRawInfo->totlen);        /* 注意内存泄露 */
     hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
     PHOIT_RAW_DIRENT pRawDirent = (PHOIT_RAW_DIRENT)read_buf;
-    crc32_check(pRawDirent);
+    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck){
+        crc32_check(pRawDirent);
+    }
 
     PHOIT_FULL_DIRENT pFullDirent = (PHOIT_FULL_DIRENT)hoit_malloc(pfs, sizeof(HOIT_FULL_DIRENT));
     PCHAR pFileName = read_buf + sizeof(HOIT_RAW_DIRENT);

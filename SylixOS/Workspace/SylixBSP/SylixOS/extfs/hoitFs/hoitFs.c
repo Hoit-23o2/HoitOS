@@ -25,7 +25,7 @@
 #include "hoitFs.h"
 #include "hoitFsGC.h"
 #include "hoitFsCache.h"
-
+#include "hoitFsCmd.h"
 #ifndef HOITFS_DISABLE
 /*********************************************************************************************************
   内部全局变量
@@ -45,6 +45,85 @@ static INT      __hoitFsLStat();
 static INT      __hoitFsIoctl();
 static INT      __hoitFsSymlink();
 static ssize_t  __hoitFsReadlink();
+
+static inline VOID hoitConfigInitialize(PHOIT_VOLUME pfs){
+    pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck       = LW_TRUE;
+    pfs->HOITFS_config.HOITFS_EBS_bEnableEBS                = LW_TRUE;
+    pfs->HOITFS_config.HOITFS_MT_bEnableMultiThreadScan     = LW_TRUE;
+    pfs->HOITFS_config.HOITFS_MT_uiThreadCnt                = 2;
+    pfs->HOITFS_config.HOITFS_MTREE_bEnableMergeBuffer      = LW_TRUE;
+    pfs->HOITFS_config.HOITFS_MTREE_uiMergeDataThreshold    = 16;
+    pfs->HOITFS_config.HOITFS_MTREE_uiMergeBufferThreshold  = 16;
+    pfs->HOITFS_config.HOITFS_BGC_bEnableBackgroundGC       = LW_TRUE;
+    pfs->HOITFS_config.HOITFS_BGC_uiBackgroundGCThreshold   = 50;     /* 50% */
+    pfs->HOITFS_config.HOITFS_TREE_uiMaxDataSize            = 1024;
+    pfs->HOITFS_config.HOITFS_OPTION_bIsMountSilence        = LW_FALSE;
+}  
+
+static inline VOID hoitConfigDump(PHOIT_VOLUME pfs) {
+    PCHAR       pcTempBuffer;
+    BOOL        bIsEnableCRC   = pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck;
+    BOOL        bIsEnableEBS   = pfs->HOITFS_config.HOITFS_EBS_bEnableEBS;
+    BOOL        bIsEnableMT    = pfs->HOITFS_config.HOITFS_MT_bEnableMultiThreadScan;
+    BOOL        bIsEnableMTREE = pfs->HOITFS_config.HOITFS_MTREE_bEnableMergeBuffer;
+    BOOL        bIsEnableBGC   = pfs->HOITFS_config.HOITFS_BGC_bEnableBackgroundGC;
+    printf("Mount HoitFS With Options Below: \n");
+    if(bIsEnableCRC){
+        printf("\t CRC  CHECK: \t%10s\n", "ON");
+    }
+    else {
+        printf("\t CRC  CHECK: \t%10s\n", "OFF");
+    }
+    
+    if(bIsEnableEBS){
+        printf("\t EBS   MODE: \t%10s\n", "ON");
+    }
+    else {
+        printf("\t EBS   MODE: \t%10s\n", "OFF");
+    }
+
+    if(bIsEnableMT) {
+        printf("\t MT    MODE: \t%10s\n", "ON");
+        asprintf(&pcTempBuffer, "%d", pfs->HOITFS_config.HOITFS_MT_uiThreadCnt);
+        printf("\t MT    TCNT: \t%10s\n", pcTempBuffer);
+        lib_free(pcTempBuffer);
+    }
+    else {
+        printf("\t MT    MODE: \t%10s\n", "OFF");  
+    }
+    
+    if(bIsEnableMTREE){
+        printf("\t MTREE MODE: \t%10s\n", "ON");
+        
+        asprintf(&pcTempBuffer, "%d", pfs->HOITFS_config.HOITFS_MTREE_uiMergeDataThreshold);
+        printf("\t MTREE DATA: \t%10s\n", pcTempBuffer);
+        lib_free(pcTempBuffer);
+
+        asprintf(&pcTempBuffer, "%d", pfs->HOITFS_config.HOITFS_MTREE_uiMergeBufferThreshold);
+        printf("\t MTREE  BUF: \t%10s\n", pcTempBuffer);
+        lib_free(pcTempBuffer);
+    }
+    else {
+        printf("\t MTREE MODE: \t%10s\n", "OFF");
+    }
+
+    if(bIsEnableBGC) {
+        printf("\t BGC   MODE: \t%10s\n", "ON");
+        
+        asprintf(&pcTempBuffer, "%d", pfs->HOITFS_config.HOITFS_BGC_uiBackgroundGCThreshold);
+        printf("\t BGC  THRES: \t%10s\n", pcTempBuffer);
+        lib_free(pcTempBuffer);
+    }
+    else {
+        printf("\t BGC   MODE: \t%10s\n", "OFF");
+    }
+
+    asprintf(&pcTempBuffer, "%d", pfs->HOITFS_config.HOITFS_TREE_uiMaxDataSize);
+    printf("\t TREE MNODE: \t%10s\n", pcTempBuffer);
+    lib_free(pcTempBuffer);
+    printf("\n");
+    return;
+}
 /*********************************************************************************************************
   裁剪宏
 *********************************************************************************************************/
@@ -112,7 +191,6 @@ USE_LIST_TEMPLATE(NAMESPACE, HOIT_ERASABLE_SECTOR_REF);
 LW_API
 INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 {
-    /* mount -t hoitfs  /mnt/hoitfs */
     PHOIT_VOLUME     pfs;
     if (_G_iHoitFsDrvNum <= 0) {
         _DebugHandle(__ERRORMESSAGE_LEVEL, "hoitfs Driver invalidate.\r\n");
@@ -129,9 +207,6 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
         _ErrorHandle(EFAULT);                                           /*  Bad address                 */
         return  (PX_ERROR);
     }
-    
-    // if (sscanf(pblkd->BLKD_pcName, "%zu", &stMax) != 1) {
-    // }
 
     pfs = (PHOIT_VOLUME)lib_malloc(sizeof(HOIT_VOLUME));
     if (pfs == LW_NULL) {
@@ -206,17 +281,28 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 
                                                                         /* Log相关 */
     pfs->HOITFS_logInfo            = LW_NULL;
-    //__ram_mount(pramfs);
 
+    /* //! Added By PYQ 2021-09-04 解析上层参数 */
+    hoitConfigInitialize(pfs);
+    parse_hoitfs_options(pfs, pblkd->BLKD_pcName);  
     hoitEnableCache(GET_SECTOR_SIZE(8), 8, pfs);
+    
     //TODO 文件总大小暂时硬编码
     pfs->HOITFS_totalSize       = pfs->HOITFS_cacheHdr->HOITCACHE_blockSize * 28;
     __hoit_mount(pfs);
-
+    
+#ifdef USE_MACRO_FEATURE
 #ifdef BACKGOURND_GC_ENABLE 
+    //TODO: GC不需要监听器了，直接启用后台GC即可
     hoitStartGCThread(pfs, pfs->HOITFS_totalSize / 3);
-#endif  /* BACKGOURND_GC_ENABLE */
-
+#endif  /* END BACKGOURND_GC_ENABLE */
+#else   /* NO USE_MACRO_FEATURE */
+    if(pfs->HOITFS_config.HOITFS_BGC_bEnableBackgroundGC){
+        UINT uiGCThreshold = pfs->HOITFS_config.HOITFS_BGC_uiBackgroundGCThreshold;
+        //TODO: GC不需要监听器了，直接启用后台GC即可
+        hoitStartGCThread(pfs, pfs->HOITFS_totalSize * uiGCThreshold / 100);
+    }
+#endif  /* END USE_MACRO_FEATURE */
     if (iosDevAddEx(&pfs->HOITFS_devhdrHdr, pcName, _G_iHoitFsDrvNum, DT_DIR)
         != ERROR_NONE) {                                                /*  安装文件系统设备            */
         API_SemaphoreMDelete(&pfs->HOITFS_hVolLock);
@@ -225,9 +311,9 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     }
 
     _DebugFormat(__LOGMESSAGE_LEVEL, "target \"%s\" mount ok.\r\n", pcName);
-
-
-
+    if(pfs->HOITFS_config.HOITFS_OPTION_bIsMountSilence == LW_FALSE) {
+        hoitConfigDump(pfs);
+    }
     return  (ERROR_NONE);
 }
 

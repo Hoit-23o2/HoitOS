@@ -166,7 +166,7 @@ VOID                __hoit_mark_obsolete(PHOIT_VOLUME pfs,
 VOID                hoitCheckEBS(PHOIT_VOLUME pfs, 
                                     UINT32 sector_no, 
                                     UINT32 n); 
-inline UINT32  hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr, 
+inline UINT32       hoitEBSupdateCRC(PHOIT_CACHE_HDR pcacheHdr, 
                                     PHOIT_CACHE_BLK pcache, 
                                     UINT32 sector_no);
 UINT32              hoitEBSEntryAmount(PHOIT_VOLUME pfs, 
