@@ -204,8 +204,9 @@ INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR 
 *********************************************************************************************************/
 INT __fstesterMount(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue){
     (VOID) iFdTest, uiTestRange;
+    API_Unmount(pMountPoint);
     PCHAR pFSType = lib_strcmp(pMountPoint, "/mnt/spiffs") == 0 ? "spiffs" : "hoitfs"; 
-    __fstester_prepare_test(LW_NULL, 0, pMountPoint, pFSType, FALSE);
+    __fstester_prepare_test(LW_NULL, 0, pMountPoint, pFSType, LW_FALSE);
     return ERROR_NONE;
 }
 /*********************************************************************************************************
@@ -251,3 +252,15 @@ INT __fstesterMergeableTree(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCH
     fstat(iFdTest, &stat);
     return *(INT *)stat.st_resv1;
 }
+/*********************************************************************************************************
+** 函数名称: __fstesterPowerFailure
+** 功能描述: Power Failure掉电测试
+** 输　入  : 
+** 输　出  : None
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT __fstesterPowerFailure(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue) {
+    
+}
+    

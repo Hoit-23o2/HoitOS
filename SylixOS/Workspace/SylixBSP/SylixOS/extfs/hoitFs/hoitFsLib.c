@@ -347,7 +347,7 @@ UINT8 __hoit_write_flash(PHOIT_VOLUME pfs, PVOID pdata, UINT length, UINT* phys_
     }
 
     if (temp_addr == PX_ERROR) {
-        printf("Error in write flash\n");
+        printf("Error in %s: run out of flash memory\n", __func__);
         return PX_ERROR;
     }
 
@@ -525,9 +525,13 @@ UINT8 __hoit_del_raw_data(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     __hoit_read_flash(pfs, pRawInfo->phys_addr, buf, pRawInfo->totlen);
 
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)buf;
-    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck){
+#ifdef USE_MACRO_FEATURE
+    crc32_check(pRawHeader);
+#else  /* NO USE_MACRO_FEATURE */
+    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck) {
         crc32_check(pRawHeader);
     }
+#endif /* END USE_MACRO_FEATURE */
     if (pRawHeader->magic_num != HOIT_MAGIC_NUM || (pRawHeader->flag & HOIT_FLAG_NOT_OBSOLETE) == 0) {
         printk("Error in hoit_del_raw_data\n");
         return HOIT_ERROR;
@@ -612,9 +616,13 @@ UINT8 __hoit_get_inode_nodes(PHOIT_VOLUME pfs, PHOIT_INODE_CACHE pInodeInfo, PHO
         __hoit_read_flash(pfs, pRawInfo->phys_addr, pBuf, pRawInfo->totlen);
 
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pBuf;
-        if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck){
+#ifdef USE_MACRO_FEATURE
+        crc32_check(pRawHeader);
+#else  /* NO USE_MACRO_FEATURE */
+        if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck) {
             crc32_check(pRawHeader);
         }
+#endif /* END USE_MACRO_FEATURE */
         if (!__HOIT_IS_OBSOLETE(pRawHeader)) {
             if (__HOIT_IS_TYPE_DIRENT(pRawHeader)) {
                 PHOIT_RAW_DIRENT pRawDirent = (PHOIT_RAW_DIRENT)pRawHeader;
@@ -706,8 +714,10 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     pErasableSector->HOITS_pRawInfoPrevGC   = LW_NULL;
     pErasableSector->HOITS_pRawInfoLastGC   = LW_NULL;
     pErasableSector->HOITS_tBornAge         = API_TimeGet(); 
+
     pErasableSector->HOITS_uiAvailableEntityCount = 0;
     pErasableSector->HOITS_uiObsoleteEntityCount  = 0;
+    pErasableSector->HOITS_uiBadEntityCount       = 0;
     
     LW_SPIN_INIT(&pErasableSector->HOITS_lock);         /* 初始化SPIN LOCK */
 
@@ -799,11 +809,6 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
 
 
         PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pNow;
-        if(sector_no == 0 
-        && pRawHeader->ino != -1
-        && pRawHeader->magic_num == HOIT_MAGIC_NUM){
-            //printf("offs: %d ino: %d\n", uiSectorOffset + (pNow - pReadBuf), pRawHeader->ino);
-        }
         if(pRawHeader->magic_num == HOIT_MAGIC_NUM){
             uiUsedSizeAlign = (pRawHeader->totlen % HOIT_FILTER_PAGE_SIZE ?
                                pRawHeader->totlen / HOIT_FILTER_PAGE_SIZE + 1 :
@@ -815,16 +820,42 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
         if(EBSMode && obsoleteFlag == HOIT_FLAG_OBSOLETE){
             hoit_free(pfs, pNow, pNowSize);
             pNow = LW_NULL;
+            /* //! 2021-09-06 Added By PYQ remount时更新ObsoletedCount */
+            pErasableSector->HOITS_uiObsoleteEntityCount++;
             continue;
         }
 
         if (pRawHeader->magic_num == HOIT_MAGIC_NUM && !__HOIT_IS_OBSOLETE(pRawHeader)) {
             /* //TODO:后面这里还需添加CRC校验 */
             PHOIT_RAW_INFO pRawInfo = LW_NULL;
-            if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck){
-                crc32_check(pRawHeader);
+            /* //! 2021-09-06 Added By PYQ CRC校验出错处理 */
+#ifdef USE_MACRO_FEATURE
+            if(crc32_check(pRawHeader) == LW_FALSE){
+                pErasableSector->HOITS_uiBadEntityCount++;
+                if(EBSMode){
+                    hoit_free(pfs, pNow, pNowSize);
+                } 
+                else {
+                    pNow += 4;   /* 每次移动4字节 */
+                }
+                continue;
             }
-
+#else  /* NO USE_MACRO_FEATURE */
+            if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck) {
+                if(crc32_check(pRawHeader) == LW_FALSE){
+                    pErasableSector->HOITS_uiBadEntityCount++;
+                    if(EBSMode){
+                        hoit_free(pfs, pNow, pNowSize);
+                    } 
+                    else {
+                        pNow += 4;   /* 每次移动4字节 */
+                    }
+                    continue;
+                }
+            }
+#endif /* END USE_MACRO_FEATURE */
+            /* //! 2021-09-06 Added By PYQ 计数AvailableEntity */
+            pErasableSector->HOITS_uiAvailableEntityCount++;
             if (__HOIT_IS_TYPE_INODE(pRawHeader)) {
                 PHOIT_RAW_INODE     pRawInode   = (PHOIT_RAW_INODE)pNow;
                 __HOITFS_VOL_LOCK(pfs);
@@ -946,14 +977,17 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
             }
             if(EBSMode){
                 hoit_free(pfs, pNow, pNowSize);
-            }else{
+            } else {
                 pNow += __HOIT_MIN_4_TIMES(pRawHeader->totlen);
             }
         }
         else {
+            /* //! 2021-09-06 Added By PYQ 计数ObsoletedEntity */
+            pErasableSector->HOITS_uiObsoleteEntityCount++;
             if(EBSMode){
                 hoit_free(pfs, pNow, pNowSize);
-            }else{
+            } 
+            else {
                 pNow += 4;   /* 每次移动4字节 */
             }
         }
@@ -1114,9 +1148,13 @@ PCHAR __hoit_get_data_after_raw_inode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pInodeInf
     PCHAR pTempBuf = (PCHAR)hoit_malloc(pfs, pInodeInfo->totlen);
 
     __hoit_read_flash(pfs, pInodeInfo->phys_addr, pTempBuf, pInodeInfo->totlen);
-    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck){
+#ifdef USE_MACRO_FEATURE
+    crc32_check(pTempBuf);
+#else  /* NO USE_MACRO_FEATURE */
+    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck) {
         crc32_check(pTempBuf);
     }
+#endif /* END USE_MACRO_FEATURE */
     PCHAR pData = (PCHAR)hoit_malloc(pfs, iDataLen + 1);
     lib_bzero(pData, iDataLen + 1);
     PCHAR pTempData = pTempBuf + sizeof(HOIT_RAW_INODE);
@@ -1202,9 +1240,13 @@ BOOL __hoit_move_home(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     lib_bzero(pReadBuf, pRawInfo->totlen);
 
     __hoit_read_flash(pfs, pRawInfo->phys_addr, pReadBuf, pRawInfo->totlen);
-    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck){
+#ifdef USE_MACRO_FEATURE
+    crc32_check(pReadBuf);
+#else  /* NO USE_MACRO_FEATURE */
+    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck) {
         crc32_check(pReadBuf);
     }
+#endif /* END USE_MACRO_FEATURE */
     PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)pReadBuf;
     if (pRawHeader->magic_num != HOIT_MAGIC_NUM 
     || (pRawHeader->flag & HOIT_FLAG_NOT_OBSOLETE) == 0) {
@@ -1841,9 +1883,9 @@ INT  __hoit_stat(PHOIT_INODE_INFO pInodeInfo, PHOIT_VOLUME  pfs, struct stat* ps
         pstat->st_blksize = 0;
         pstat->st_blocks = 0;
     }
-    /* 2021-08-10 Added by PYQ，增加内存 */
+    /* //! 2021-08-10 Added by PYQ，增加内存查看 */
     pstat->st_resv1 = &(((PHOIT_FRAG_TREE)pInodeInfo->HOITN_rbtree)->uiMemoryBytes);
-    pstat->st_resv2 = LW_NULL;
+    pstat->st_resv2 = pfs;                  /* 文件卷 */
     pstat->st_resv3 = LW_NULL;
     return ERROR_NONE;
 }

@@ -268,6 +268,7 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
 
                                                                         /* GC相关 */
     pfs->HOITFS_curGCSector        = LW_NULL;
+    pfs->HOITFS_curGCSize2Free     = LW_NULL;
     pfs->HOITFS_GCMsgQ             = PX_ERROR;
     pfs->ulGCBackgroundTimes       = 0;
     pfs->ulGCForegroundTimes       = 0;
@@ -293,13 +294,11 @@ INT  API_HoitFsDevCreate(PCHAR   pcName, PLW_BLK_DEV  pblkd)
     
 #ifdef USE_MACRO_FEATURE
 #ifdef BACKGOURND_GC_ENABLE 
-    //TODO: GC不需要监听器了，直接启用后台GC即可
     hoitStartGCThread(pfs, pfs->HOITFS_totalSize / 3);
 #endif  /* END BACKGOURND_GC_ENABLE */
 #else   /* NO USE_MACRO_FEATURE */
     if(pfs->HOITFS_config.HOITFS_BGC_bEnableBackgroundGC){
         UINT uiGCThreshold = pfs->HOITFS_config.HOITFS_BGC_uiBackgroundGCThreshold;
-        //TODO: GC不需要监听器了，直接启用后台GC即可
         hoitStartGCThread(pfs, pfs->HOITFS_totalSize * uiGCThreshold / 100);
     }
 #endif  /* END USE_MACRO_FEATURE */

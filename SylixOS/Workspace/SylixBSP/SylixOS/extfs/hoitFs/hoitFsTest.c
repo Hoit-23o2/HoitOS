@@ -20,6 +20,7 @@
 *********************************************************************************************************/
 
 #include "./hoitFsTest.h"
+#include "hoitFsCache.h"
 
 /*********************************************************************************************************
  * File Tree Test 文件树基础测试
@@ -900,45 +901,69 @@ INT hoitTestLink (INT  iArgC, PCHAR  ppcArgV[]) {
 /*********************************************************************************************************
  * GC测试
 *********************************************************************************************************/
-#define FILE_MODE                       (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
-#define BIG_FILE                        "RealBigFiles"
-#define FILE_SIZE                       60 * 1024
+#define BIG_FILE                        "/mnt/hoitfs/RealBigFiles"
+#define FILE_SIZE                       (56 * 1024 * 24)
 #define PER_SIZE                        1024
 
+extern VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs);
 INT hoitTestGC(PHOIT_VOLUME pfs){
     INT   iFd;
     UINT  i, j;
-    UINT  uiSizeWritten;
-    PCHAR pcWriteBuffer;
-    
-    iFd = open(BIG_FILE, O_RDWR | O_CREAT | O_TRUNC, FILE_MODE);
+    UINT  uiKiloByteSizeWritten;
+    PCHAR pcWriteBuffer = (PCHAR)lib_malloc(PER_SIZE);
+    for (j = 0; j < PER_SIZE; j++)
+    {
+        *(pcWriteBuffer + j) = 'a';
+    }
+    printf("[1]. creating big file\n");
+    iFd = open(BIG_FILE, O_RDWR | O_CREAT | O_TRUNC, DEFAULT_FILE_PERM);
     if(iFd < 0){
         printf("[Create " BIG_FILE "Fail]");
         return;
     }
-
-    uiSizeWritten = 0;
-    /* 写入 64 * 1024B */
+    uiKiloByteSizeWritten = 0;
+    printf("[2]. writing big file\n");
+    /* 写入 56 * 1024 * 26 B */
     for (i = 0; i < FILE_SIZE / PER_SIZE; i++)
-    {
-        pcWriteBuffer = (PCHAR)lib_malloc(PER_SIZE);
-        printf("start cycle %d \n", i);
-        for (j = 0; j < PER_SIZE; j++)
-        {
-            *(pcWriteBuffer + j) = 'a';
-        }
+    {   
         write(iFd, pcWriteBuffer, PER_SIZE);
-        uiSizeWritten += (PER_SIZE / 1024);
-        printf("write cycle %d ok, %dKB has written, now sector is %d\n" , i, uiSizeWritten, 
-                pfs->HOITFS_now_sector->HOITS_bno);
-        lib_free(pcWriteBuffer);
+        uiKiloByteSizeWritten += (PER_SIZE / 1024);
     }
+    printf("%dKB has written, now sector is %d\n" , uiKiloByteSizeWritten, 
+            pfs->HOITFS_now_sector->HOITS_bno);
     
     API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
-    printf("Write BigFile OK \n");
+    printf("Write BigFile OK \n\n");
     API_TShellColorEnd(STD_OUT);
 
+    __hoitShowSectorInfo(pfs);
     close(iFd);
+    printf("[3]. deleting big file\n");
+    unlink(BIG_FILE);
+    __hoitShowSectorInfo(pfs);
+
+    printf("[4]. creating and writing big file again\n");
+    iFd = open(BIG_FILE, O_RDWR | O_CREAT | O_TRUNC, DEFAULT_FILE_PERM);
+    if(iFd < 0){
+        printf("[Create " BIG_FILE "Fail]");
+        return;
+    }
+    uiKiloByteSizeWritten = 0;
+    /* 写入 56 * 1024 * 26 B */
+    for (i = 0; i < FILE_SIZE / PER_SIZE; i++)
+    {
+        write(iFd, pcWriteBuffer, PER_SIZE);
+        uiKiloByteSizeWritten += (PER_SIZE / 1024);
+    }
+    printf("%dKB has written, now sector is %d\n" , uiKiloByteSizeWritten, 
+            pfs->HOITFS_now_sector->HOITS_bno);
+    
+    API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+    printf("Write BigFile OK \n\n");
+    API_TShellColorEnd(STD_OUT);
+    close(iFd);
+    lib_free(pcWriteBuffer);
+    printf("All Pass\n");
 }
 
 /*********************************************************************************************************
@@ -1092,5 +1117,115 @@ VOID hoitGetRawInfoMemCost(PHOIT_VOLUME pfs){
     printf("Total Mem Cost: %d Bytes\n", (iValidCount+iInvalidCount)*sizeof(HOIT_RAW_INFO));
     return;
 }
+/*********************************************************************************************************
+** 函数名称: __hoitEmulatePowerFailure
+** 功能描述: 模拟掉电，注意，pRawInfo此时未写入，因此前一个版本的RawInfo不会被标记过期
+** 输　入  :  pfs                 文件卷
+** 输　出  :
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID __hoitEmulatePowerFailure(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfoTarget) {
+    PCHAR                   pContent = (PCHAR)lib_malloc(pRawInfoTarget->totlen);
+    PHOIT_ERASABLE_SECTOR   pErasableSector = pfs->HOITFS_erasableSectorList;
+    PHOIT_RAW_HEADER        pRawHeader;
+    PHOIT_RAW_INODE         pRawDirent;
+    PHOIT_INODE_CACHE       pInodeCache;
+    PHOIT_RAW_INFO          pRawInfoTraverse;
+    PHOIT_RAW_INFO          pRawInfoBackup  = LW_NULL;
+    UINT                    uiBackupVersion = 0;
+    UINT                    ino = pRawHeader->ino;
 
+    UINT                    uiVictimLow;
+    UINT                    uiVictimHigh;
+
+    UINT                    uiConquererLow;
+    UINT                    uiConquererHigh;
+    BOOL                    bIsInode = LW_FALSE;
+    BOOL                    bIsDirent = LW_FALSE;
+
+    hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfoTarget->phys_addr, pContent, pRawInfoTarget->totlen);
+    pRawHeader  = (PHOIT_RAW_HEADER)pContent;
+    ino             = pRawHeader->ino;
+    if(__HOIT_IS_TYPE_INODE(pRawHeader)){
+        uiConquererLow  = ((PHOIT_RAW_INODE)pRawHeader)->offset;
+        uiConquererHigh = uiConquererLow + ((PHOIT_RAW_INODE)pRawHeader)->totlen == 0 ? 0 : 
+                          uiConquererLow + ((PHOIT_RAW_INODE)pRawHeader)->totlen - 1;
+        bIsInode = LW_TRUE;
+    }
+    if(__HOIT_IS_TYPE_DIRENT(pRawHeader)){
+        bIsDirent = LW_TRUE;
+    }
+    while (pErasableSector)
+    {
+        pRawInfoTraverse = pErasableSector->HOITS_pRawInfoFirst; 
+        while (pRawInfoTraverse != LW_NULL)
+        {
+            if(pRawInfoTraverse == pRawInfoTarget){
+                pRawInfoTraverse = pRawInfoTraverse->next_logic;
+                continue;
+            }
+            lib_free(pContent);
+            pContent = (PCHAR)lib_malloc(pRawInfoTraverse->totlen);
+            pRawHeader = (PHOIT_RAW_HEADER)pContent;
+            if(bIsInode && __HOIT_IS_TYPE_INODE(pRawHeader) && ino == pRawHeader->ino){
+                uiVictimLow  = ((PHOIT_RAW_INODE)pRawHeader)->offset;
+                uiVictimHigh = uiVictimLow + ((PHOIT_RAW_INODE)pRawHeader)->totlen == 0 ? 0 : 
+                                uiVictimLow + ((PHOIT_RAW_INODE)pRawHeader)->totlen - 1;
+                /* 只有下面两种情况会被标记为过期
+                    Old:        |-----|                   |-----|
+                    New:    |-------------|           |-----|
+                */
+                if((uiConquererHigh >= uiVictimHigh && uiConquererLow <= uiVictimLow) || 
+                    (uiConquererLow <= uiVictimLow && uiConquererHigh <= uiVictimHigh)){
+                    if(pRawHeader->version > uiBackupVersion){
+                        uiBackupVersion = pRawHeader->version;
+                        pRawInfoBackup  = pRawInfoTraverse;
+                    }
+                }
+            }
+            if(bIsDirent && __HOIT_IS_TYPE_DIRENT(pRawHeader) && ino == pRawHeader->ino){
+                if(pRawHeader->version > uiBackupVersion){
+                    uiBackupVersion = pRawHeader->version;
+                    pRawInfoBackup  = pRawInfoTraverse;
+                }
+            }
+            pRawInfoTraverse = pRawInfoTraverse->next_logic;
+        }
+        pErasableSector = pErasableSector->HOITS_next;
+    }
+    lib_free(pContent);
+    if(pRawInfoBackup){
+        pContent = (PCHAR)lib_malloc(pRawInfoBackup->totlen);
+        hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfoBackup->phys_addr, pContent, pRawInfoBackup->totlen);
+        pRawHeader = (PHOIT_RAW_HEADER)pContent;
+        /* 恢复不过期的状态，因为目标数据实体未写入，因此未被标记过期 */
+        __hoit_mark_not_obsolete(pfs, pRawHeader, pRawInfoBackup);
+        lib_free(pContent);
+    }
+    
+    /* 破坏原有数据实体 */
+    hoitWriteThroughCache(pfs->HOITFS_cacheHdr, pRawInfoTarget->phys_addr + sizeof(HOIT_RAW_HEADER), "power failure", 13);
+}
+/*********************************************************************************************************
+** 函数名称: hoitTestPowerFailure
+** 功能描述: 测试掉电
+** 输　入  :  pfs                 文件卷
+** 输　出  :
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+INT hoitTestPowerFailure(PHOIT_VOLUME pfs){
+    /* //!模拟数据写一半掉电，需要关闭EBS */
+    PHOIT_ERASABLE_SECTOR pErasableSector = pfs->HOITFS_now_sector;
+    PHOIT_RAW_INFO        pRawInfoTraverse = pErasableSector->HOITS_pRawInfoFirst;
+
+    while (pRawInfoTraverse != LW_NULL)
+    {
+        __hoitEmulatePowerFailure(pfs, pRawInfoTraverse);
+        pRawInfoTraverse = pRawInfoTraverse->next_phys;   
+    }
+    
+    
+}
 

@@ -49,7 +49,9 @@ typedef enum test_type{
     
     TEST_TYPE_MOUNT,
     TEST_TYPE_GC,
-    TEST_TYPE_MERGEABLE_TREE
+    TEST_TYPE_MERGEABLE_TREE,
+
+    TEST_TYPE_POWER_FAILURE
 } TEST_TYPE;
 
 
@@ -101,6 +103,7 @@ INT __fstesterSmallWrite(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR 
 INT __fstesterMount(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
 INT __fstesterGC(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
 INT __fstesterMergeableTree(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
+INT __fstesterPowerFailure(INT iFdTest, UINT uiTestRange, UINT uiLoopTimes, PCHAR pMountPoint, PVOID pUserValue);
 /*********************************************************************************************************
   ¹¤¾ßº¯Êý
 *********************************************************************************************************/
@@ -144,6 +147,8 @@ static inline const PCHAR translateTestType(TEST_TYPE testType){
         return "gc-test";
     case TEST_TYPE_MERGEABLE_TREE:
         return "mergeable-tree-test";
+    case TEST_TYPE_POWER_FAILURE:
+        return "power-failure-test";
     default:
         return "unsupported";
     }
@@ -264,6 +269,9 @@ static inline PCHAR getFSTestOutputPath(FS_TYPE fsType, TEST_TYPE testType){
         break;
     case TEST_TYPE_MERGEABLE_TREE:
         pOutputFileName = "out-mergeable-tree-test";
+        break;
+    case TEST_TYPE_POWER_FAILURE:
+        pOutputFileName = "out-power-failure-test";
         break;
     default:
         break;

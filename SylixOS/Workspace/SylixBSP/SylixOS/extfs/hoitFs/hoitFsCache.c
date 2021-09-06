@@ -545,7 +545,7 @@ UINT32 hoitFlushCache(PHOIT_CACHE_HDR pcacheHdr, PHOIT_CACHE_BLK pcache) {
             //! 采用hoitWriteBackCache写回
             hoitWriteBackCache(pcacheHdr,tempCache);
             tempCache = tempCache->HOITBLK_cacheListNext;
-            writeCount ++;
+            writeCount++;
         }
     }
     return writeCount;
@@ -824,15 +824,16 @@ UINT32 hoitFindNextToWrite(PHOIT_CACHE_HDR pcacheHdr, UINT32 cacheType, UINT32 u
 ** 全局变量:
 ** 调用模块:
 */
-//TODO: Add By PYQ 实现有问题，需要重新检查
 VOID hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr, PHOIT_ERASABLE_SECTOR pErasableSector) {
     pErasableSector->HOITS_uiFreeSize             = pErasableSector->HOITS_length;
     pErasableSector->HOITS_uiUsedSize             = 0;
     pErasableSector->HOITS_offset                 = 0;
-    // pErasableSector->HOITS_uiAvailableEntityCount = 0;
-    // pErasableSector->HOITS_uiObsoleteEntityCount  = 0;
-    PHOIT_VOLUME pfs = pcacheHdr->HOITCACHE_hoitfsVol;  /* 08-18 add by HZS */
+    /* //!2021-08-18 add by HZS */
+    PHOIT_VOLUME pfs = pcacheHdr->HOITCACHE_hoitfsVol;  
     __hoit_fix_up_sector_list(pfs, pErasableSector);
+    /* //!2021-09-16 Added by PYQ，修改HOITFS_totalUsedSize */
+    pfs->HOITFS_totalUsedSize -= pfs->HOITFS_curGCSize2Free;
+    pfs->HOITFS_curGCSize2Free = 0;
 }
 /*
 ** 函数名称: hoitOccupySectorState
@@ -844,6 +845,9 @@ VOID hoitResetSectorState(PHOIT_CACHE_HDR pcacheHdr, PHOIT_ERASABLE_SECTOR pEras
 ** 调用模块:
 */
 VOID hoitOccupySectorState(PHOIT_CACHE_HDR pcacheHdr, PHOIT_ERASABLE_SECTOR pErasableSector){
+    PHOIT_VOLUME pfs                  = pcacheHdr->HOITCACHE_hoitfsVol;
+    /* //!2021-09-16 Added by PYQ，记录本次GC能够释放HOITFS_totalUsedSize */
+    pfs->HOITFS_curGCSize2Free        = pErasableSector->HOITS_uiUsedSize;
     pErasableSector->HOITS_uiFreeSize = 0;
     pErasableSector->HOITS_uiUsedSize = pErasableSector->HOITS_length;
     pErasableSector->HOITS_offset     = pErasableSector->HOITS_length;
@@ -984,7 +988,7 @@ UINT32 hoitInitEBS(PHOIT_CACHE_HDR pcacheHdr, UINT32 uiCacheBlockSize) {
     if (!pcacheHdr || uiCacheBlockSize < (HOIT_FILTER_EBS_ENTRY_SIZE+HOIT_FILTER_PAGE_SIZE)) {
         return PX_ERROR;
     }
-    pcacheHdr->HOITCACHE_PageAmount     = uiCacheBlockSize/(HOIT_FILTER_EBS_ENTRY_SIZE+HOIT_FILTER_PAGE_SIZE); 
+    pcacheHdr->HOITCACHE_PageAmount     = uiCacheBlockSize / (HOIT_FILTER_EBS_ENTRY_SIZE + HOIT_FILTER_PAGE_SIZE); 
     addr = HOIT_FILTER_PAGE_SIZE * pcacheHdr->HOITCACHE_PageAmount; 
     pcacheHdr->HOITCACHE_EBSStartAddr   = addr;
     pcacheHdr->HOITCACHE_CRCMagicAddr   = addr - HOIT_FILTER_PAGE_SIZE; 
@@ -1122,7 +1126,6 @@ VOID hoitCheckEBS(PHOIT_VOLUME pfs, UINT32 sector_no, UINT32 n) {
     }
     printk("*****************************************************************************\n");
 }
-
 /*********************************************************************************************************
 ** 函数名称: __hoit_mark_obsolete
 ** 功能描述: 标注数据实体(raw header)过期，以及对应的EBS entry过期
@@ -1203,7 +1206,7 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
             for(i=0 ; i<pcacheHdr->HOITCACHE_PageAmount ; i++) {
                 if(pentry->HOIT_EBS_ENTRY_inodeNo == pRawHeader->ino 
                     && pentry->HOIT_EBS_ENTRY_pageNo == EBS_page_no
-                    && pentry->HOIT_EBS_ENTRY_obsolete != (~HOIT_FLAG_NOT_OBSOLETE)) {
+                    && pentry->HOIT_EBS_ENTRY_obsolete != (HOIT_FLAG_OBSOLETE)) {
                     pentry->HOIT_EBS_ENTRY_obsolete = EBS_entry_flag;
                     break;
                 }
@@ -1214,7 +1217,7 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
                 read_nor(EBS_area_addr, (PCHAR)&entry, sizeof(HOIT_FILTER_EBS_ENTRY_SIZE));
                 if (entry.HOIT_EBS_ENTRY_inodeNo == pRawHeader->ino 
                     && entry.HOIT_EBS_ENTRY_pageNo == EBS_page_no
-                    && entry.HOIT_EBS_ENTRY_obsolete != (~HOIT_FLAG_NOT_OBSOLETE)) {
+                    && entry.HOIT_EBS_ENTRY_obsolete != (HOIT_FLAG_OBSOLETE)) {
                     write_nor(EBS_area_addr + sizeof(UINT32), (PCHAR)&EBS_entry_flag, sizeof(UINT16), WRITE_OVERWRITE);
                     break;
                 }
@@ -1225,7 +1228,80 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
 #endif
 
 }
+/*********************************************************************************************************
+** 函数名称: __hoit_mark_not_obsolete
+** 功能描述: 标注数据实体(raw header)不过期，以及对应的EBS entry不过期
+** 输　入  :    pfs             文件卷
+**              pRawHeader      要标注过期的数据实体（写入介质）
+**              pRawInfo        要标注过期的数据实体信息（维护在内存）
+** 输　出  : 
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+//! 2021-09-06 PYQ掉电恢复用
+VOID __hoit_mark_not_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_RAW_INFO pRawInfo){
+    PHOIT_CACHE_HDR pcacheHdr = pfs->HOITFS_cacheHdr;
+    PHOIT_CACHE_BLK pcache;
+    UINT16  EBS_entry_flag  = HOIT_FLAG_NOT_OBSOLETE;
+    UINT32  i;
+    PHOIT_ERASABLE_SECTOR pEraseableSector;
+    //TODO 三个链表还未使用
+    UINT32  sectorNo = pRawInfo->phys_addr / pcacheHdr->HOITCACHE_blockSize; //(UINT32)hoitGetSectorNo(pRawInfo->phys_addr);    /* 要标注过期的pRawInfo所在块号 */
+    PHOIT_EBS_ENTRY pentry  = LW_NULL;
+    HOIT_EBS_ENTRY  entry;
+    
+    // UINT64 EBS_area_addr    = sectorNo*pcacheHdr->HOITCACHE_blockSize + 
+    //                             NOR_FLASH_START_OFFSET +
+    //                             pcacheHdr->HOITCACHE_EBSStartAddr;  
+    /* EBS 区域在flash介质上的地址 */
+    UINT64 EBS_area_addr    = sectorNo * GET_SECTOR_NO(NOR_FLASH_START_OFFSET) + 
+                                NOR_FLASH_START_OFFSET + 
+                                pcacheHdr->HOITCACHE_EBSStartAddr;
 
+    UINT16 EBS_page_no      = (UINT16)((pRawInfo->phys_addr - 
+                                        sectorNo * pcacheHdr->HOITCACHE_blockSize) / 
+                                        HOIT_FILTER_PAGE_SIZE);     /* 要标记过期的数据所在的首个页号 */
+    
+    pEraseableSector        = hoitFindSector(pcacheHdr, sectorNo);
+    pRawHeader->flag        |= (HOIT_FLAG_NOT_OBSOLETE);      //将obsolete标志变为0，代表过期
+    //! 2021-08-17 Added By PYQ 统计数据实体
+    pEraseableSector->HOITS_uiAvailableEntityCount--;   
+    pEraseableSector->HOITS_uiObsoleteEntityCount++;
+    __hoit_fix_up_sector_list(pfs, pEraseableSector);
+
+    //! 2021-07-07 修改flash上EBS采用写不分配
+    hoitWriteThroughCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, (PVOID)pRawHeader, pRawInfo->totlen);
+    
+#ifdef USE_MACRO_FEATURE
+#ifdef EBS_ENABLE
+    for(i=0 ; i <pcacheHdr->HOITCACHE_PageAmount ; i++ ) {
+        read_nor(EBS_area_addr, (PCHAR)&entry, sizeof(HOIT_FILTER_EBS_ENTRY_SIZE));
+        if (entry.HOIT_EBS_ENTRY_inodeNo == pRawHeader->ino 
+            && entry.HOIT_EBS_ENTRY_pageNo == EBS_page_no
+            && entry.HOIT_EBS_ENTRY_obsolete == (HOIT_FLAG_OBSOLETE)) {
+            write_nor(EBS_area_addr + sizeof(UINT32), (PCHAR)&EBS_entry_flag, sizeof(UINT16), WRITE_OVERWRITE);
+            break;
+        }
+        EBS_area_addr += sizeof(HOIT_EBS_ENTRY);
+    }
+#endif /* EBS_ENABLE */
+#else /* NO USE_MACRO_FEATURE */
+    if(pfs->HOITFS_config.HOITFS_EBS_bEnableEBS){
+        for(i=0 ; i <pcacheHdr->HOITCACHE_PageAmount ; i++ ) {
+            read_nor(EBS_area_addr, (PCHAR)&entry, sizeof(HOIT_FILTER_EBS_ENTRY_SIZE));
+            if (entry.HOIT_EBS_ENTRY_inodeNo == pRawHeader->ino 
+                && entry.HOIT_EBS_ENTRY_pageNo == EBS_page_no
+                && entry.HOIT_EBS_ENTRY_obsolete == (HOIT_FLAG_OBSOLETE)) {
+                write_nor(EBS_area_addr + sizeof(UINT32), (PCHAR)&EBS_entry_flag, sizeof(UINT16), WRITE_OVERWRITE);
+                break;
+            }
+            EBS_area_addr += sizeof(HOIT_EBS_ENTRY);
+        }
+        
+    }
+#endif
+
+}
 /*********************************************************************************************************
 ** 函数名称: hoitEBSEntryAmount
 ** 功能描述: 将一个sector上EBS中有效entry的数量

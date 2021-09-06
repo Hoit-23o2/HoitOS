@@ -69,7 +69,7 @@
 #define  HOIT_MERGE_BUFFER_FRAGSIZE	   16
 
 #define  BACKGOURND_GC_ENABLE          /* 启用后台GC */         // DONE
-#define  CRC_DATA_ENABLE               /*  CRC DATA特性 */      //TODO:
+#define  CRC_DATA_ENABLE               /*  CRC DATA特性 */      //TODO: DONE
 #define  HOIT_MAX_DATA_SIZE            1024                     // DONE
 //! 07-18 ZN 暂时注释log
 // #define  LOG_ENABLE
@@ -257,10 +257,10 @@ typedef struct HOIT_VOLUME {
     LW_OBJECT_HANDLE                    HOITFS_freeLock;                  /* dirty 列表锁 */
 
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
+    UINT                    HOITFS_curGCSize2Free;                         /* 当前正在GC的Sector能够释放的大小 */
     LW_OBJECT_HANDLE        HOITFS_GCMsgQ;                                 /* GC线程消息队列*/
     LW_OBJECT_HANDLE        HOITFS_hGCThreadId;                            /* GC总线程ID */
     BOOL                    HOITFS_bShouldKillGC;                          /* 是否停止后台GC */
-    
     ULONG                   ulGCForegroundTimes;                           /* GC前台计数 */
     ULONG                   ulGCBackgroundTimes;                           /* GC后台计数 */
     
@@ -280,7 +280,7 @@ typedef struct HOIT_VOLUME {
 /*********************************************************************************************************
   HoitFs 数据实体的公共Header类型
 *********************************************************************************************************/
-struct HOIT_RAW_HEADER{ //32B
+struct HOIT_RAW_HEADER{ //28B
     UINT32              magic_num;
     UINT32              flag;
     UINT32              totlen;
@@ -289,8 +289,6 @@ struct HOIT_RAW_HEADER{ //32B
     UINT                version;
     UINT32              crc;
 };
-
-
 /*********************************************************************************************************
   HoitFs raw inode类型
 *********************************************************************************************************/
@@ -386,6 +384,7 @@ struct HOIT_ERASABLE_SECTOR{  //100B
     UINT                          HOITS_offset;                                   /* 当前在写物理地址 = addr+offset  */
     UINT                          HOITS_uiObsoleteEntityCount;                    /* sector当前包含过期实体数量 */
     UINT                          HOITS_uiAvailableEntityCount;                   /* sector当前包含有效实体数量 */
+    UINT                          HOITS_uiBadEntityCount;                         /* sector当前CRC损坏实体数量 */
     //TODO: 写入、GC时，需要持有该锁
     spinlock_t                    HOITS_lock;                                     /* 每个Sector持有一个? */ 
 

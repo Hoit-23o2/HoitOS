@@ -1214,7 +1214,7 @@ INT  __spif_stat(PSPIF_VOLUME pfs, PSPIFN_NODE pspifn, struct stat* pstat) {
     }
 
     pstat->st_resv1 = LW_NULL;
-    pstat->st_resv2 = LW_NULL;
+    pstat->st_resv2 = pfs;
     pstat->st_resv3 = LW_NULL;
     return ERROR_NONE;
 }

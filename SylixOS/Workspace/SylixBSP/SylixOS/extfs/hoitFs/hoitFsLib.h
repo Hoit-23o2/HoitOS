@@ -104,7 +104,7 @@ VOID __hoit_mark_obsolete(PHOIT_VOLUME pfs, PHOIT_RAW_HEADER pRawHeader, PHOIT_R
 void                    __hoit_del_raw_info_from_sector(PHOIT_ERASABLE_SECTOR pSector, PHOIT_RAW_INFO pRawInfo);
 
 #ifdef CRC_DATA_ENABLE
-static void crc32_check(PHOIT_RAW_HEADER pRawHeader) {
+static BOOL crc32_check(PHOIT_RAW_HEADER pRawHeader) {
     if(pRawHeader == LW_NULL){
         return;
     }
@@ -113,17 +113,18 @@ static void crc32_check(PHOIT_RAW_HEADER pRawHeader) {
     pRawHeader->crc = 0;
     UINT32 uNowCrc = hoit_crc32_le((unsigned char*)pRawHeader, pRawHeader->totlen);
     if (uPrevCrc != uNowCrc) {
-        PHOIT_RAW_INODE pp = (PHOIT_RAW_INODE)pRawHeader;
-        CHAR* pChar = ((char*)pp)+sizeof(HOIT_RAW_INODE);
-        snprintf("%s", 925, pChar);
+//        PHOIT_RAW_INODE pp = (PHOIT_RAW_INODE)pRawHeader;
+//        CHAR* pChar = ((char*)pp)+sizeof(HOIT_RAW_INODE);
+//        snprintf("%s", 925, pChar);
         printf("\nError in CRC!\n");
     }
 
     pRawHeader->crc = uPrevCrc; /* 还原CRC到进入函数之前 */
+    return uPrevCrc == uNowCrc ? LW_TRUE : LW_FALSE;
 }
 #else 
-static void crc32_check(PHOIT_RAW_HEADER pRawHeader) {
-
+static BOOL crc32_check(PHOIT_RAW_HEADER pRawHeader) {
+    return LW_TRUE;
 }
 #endif      /* CRC_DATA_ENABLE */
 

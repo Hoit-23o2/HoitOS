@@ -77,17 +77,18 @@ UINT __fstester_write_test_file(INT iFdTest, ULONG testFileSize) {
 ** 调用模块:
 *********************************************************************************************************/
 INT __fstester_prepare_test(PCHAR pTestPath, double testFileSizeRate, 
-                            PCHAR pMountPoint, PCHAR pFSType, BOOL bIsReset){
+                            PCHAR pMountPoint, PCHAR pFSType,PCHAR pcMountOption, 
+                            BOOL bIsPrepareFile){
     struct statfs   pstatfs;
     LONG            testFileSize;
     INT             iFdTest = -1;
 
-    API_Mount("1", pMountPoint, pFSType);
+    API_Mount(pcMountOption, pMountPoint, pFSType);
     /* pTempPath = /mnt/fstype(hoitfs)/write-for-test */
     // sleep(1);
 
     //!ZN 写更大的文件，参数化
-    if(bIsReset){
+    if(bIsPrepareFile){
         statfs(pMountPoint, &pstatfs);   /* 获取文件系统空间 */
         testFileSize = (LONG)(testFileSizeRate * (double)(pstatfs.f_blocks * pstatfs.f_bsize));
         if(access(pTestPath, F_OK) == ERROR_NONE){
@@ -134,7 +135,7 @@ INT __fstester_terminate_test(INT iFdTest, PCHAR pTestPath, PCHAR pMountPoint) {
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes, double testFileSizeRate, 
+VOID fstester_generic_test(FS_TYPE fsType, PCHAR pcMountOption, TEST_TYPE testType, UINT uiLoopTimes, double testFileSizeRate, 
                            FSTESTER_FUNCTIONALITY functionality, PVOID pUserValue){         
     
     PCHAR           pMountPoint;
@@ -223,7 +224,8 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
     return;
 #endif
 
-    iFdTest = __fstester_prepare_test(pTestPath, testFileSizeRate, pMountPoint, pFSType, TRUE);
+    iFdTest = __fstester_prepare_test(pTestPath, testFileSizeRate, pMountPoint, pFSType, 
+                                      pcMountOption, LW_TRUE);
     if(iFdTest != PX_ERROR){
         fstat(iFdTest, &stat);
     }
@@ -253,7 +255,6 @@ VOID fstester_generic_test(FS_TYPE fsType, TEST_TYPE testType, UINT uiLoopTimes,
         printf("====== TEST %d ======\n", i);
 
         if(testType == TEST_TYPE_MOUNT) {                                                   /* 测试时延 */
-            API_Unmount(pMountPoint);
             lib_gettimeofday(&timeStart, LW_NULL);
             functionality(-1, 0, uiLoopTimes, pMountPoint, pUserValue);
             lib_gettimeofday(&timeEnd, LW_NULL);
@@ -454,6 +455,7 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     INT                          i;
     UINT                         uiTestCount        = 10;
     PCHAR                        pUserValue         = LW_NULL;
+    PCHAR                        pcMountOption      = "1";
     double                       dTestFileSizeRate  = 0.5;
     
     InitIterator(iter, NAMESPACE, FSTESTER_FUNC_NODE);
@@ -464,12 +466,17 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
             pArg = GET_ARG(ppcArgV, iArgPos++);
             fsTarget = getFSTypeByStr(pArg);
         }
+        else if(IS_STR_SAME(pArg, "-o")){
+            pArg = GET_ARG(ppcArgV, iArgPos++);
+            pcMountOption = pArg;
+        }
         else if(IS_STR_SAME(pArg, "-h")){
             printf("================================================\n");
             printf("=     FSTESTER implemented By HoitFS Group     =\n");
             printf("================================================\n");
-            printf("[Basic Usage]:        fstester -t [FSType] -l [LoopTimes] [TestType] -s [initial file size]\n");
+            printf("[Basic Usage]:        fstester -t [FSType] -o [Mount Args] -l [LoopTimes] [TestType] -s [initial file size] -args [option-based args]\n");
             printf("[Supported FSType]:   spiffs hoitfs\n");
+            printf("[Mount       Args]:   file system specific mount args\n");
             printf("[Supported TestType]: \n");
             for (iter->begin(iter, _G_FuncNodeList);iter->isValid(iter);iter->next(iter))
             {
@@ -513,13 +520,14 @@ INT fstester_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
     }
     printf("Test With Options Below:\n");
     printf("\tfilesystem_type=%s\n", translateFSType(fsTarget));
+    printf("\tmount_options=%s\n", pcMountOption);
     printf("\ttest_count=%d\n", uiTestCount);
     printf("\ttest_file_factor=%f\n", dTestFileSizeRate);
     printf("\ttest_type=%s\n", translateTestType(testType));
     printf("Press Any Key to Continue\n");
     getchar();
     
-    fstester_generic_test(fsTarget, testType, uiTestCount, dTestFileSizeRate, functionality, pUserValue);
+    fstester_generic_test(fsTarget, pcMountOption, testType, uiTestCount, dTestFileSizeRate, functionality, pUserValue);
     FreeIterator(iter);
 }
 
@@ -537,7 +545,7 @@ VOID register_fstester_cmd(){
     fstester_register_functionality(cOpt3,  2, "Random Write Test", TEST_TYPE_RDM_WR, __fstesterRandomWrite);
     
     PCHAR cOpt4[2] = {"-seqwr", "-swr"};
-    fstester_register_functionality(cOpt4,  2, "Sequence Write Test", TEST_TYPE_SEQ_WR, __fstesterSequentialWrite);
+    fstester_register_functionality(cOpt4,  2, "Sequence Write Test, '-args' gives the percentage of bytes to write", TEST_TYPE_SEQ_WR, __fstesterSequentialWrite);
 
     PCHAR cOpt5[1] = {"-smlwr"};
     fstester_register_functionality(cOpt5,  1, "Small Write Test", TEST_TYPE_SMALL_WR, __fstesterSmallWrite);
@@ -546,10 +554,13 @@ VOID register_fstester_cmd(){
     fstester_register_functionality(cOpt6,  2, "Mount Test", TEST_TYPE_MOUNT, __fstesterMount);
 
     PCHAR cOpt7[1] = {"-gc"};
-    fstester_register_functionality(cOpt7,  1, "Garbage Collection Test", TEST_TYPE_GC, __fstesterGC);
+    fstester_register_functionality(cOpt7,  1, "Garbage Collection Test, '-args' gives the percentage of bytes to write", TEST_TYPE_GC, __fstesterGC);
     
     PCHAR cOpt8[2] = {"-mtree", "-mergeabletree"};
-    fstester_register_functionality(cOpt8,  2, "Mergable Tree Test", TEST_TYPE_MERGEABLE_TREE, __fstesterMergeableTree);
+    fstester_register_functionality(cOpt8,  2, "Mergable Tree Test, 'args' gives the exact value of bytes to write" , TEST_TYPE_MERGEABLE_TREE, __fstesterMergeableTree);
+
+    PCHAR cOpt9[2] = {"-powerdown", "-powerfailure"};
+    fstester_register_functionality(cOpt9,  2, "Power Failure Test" , TEST_TYPE_POWER_FAILURE, __fstesterPowerFailure);
 
     API_TShellKeywordAdd("fstester", fstester_cmd_wrapper);
 }

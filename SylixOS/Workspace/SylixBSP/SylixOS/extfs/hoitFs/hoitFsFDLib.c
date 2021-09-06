@@ -39,9 +39,13 @@ BOOL __hoit_delete_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE pFullDnode, INT
         hoitReadFromCache(pfs->HOITFS_cacheHdr, pFullDnode->HOITFD_raw_info->phys_addr, read_buf, pFullDnode->HOITFD_raw_info->totlen);
 
 		PHOIT_RAW_HEADER pRawHeader = (PHOIT_RAW_HEADER)read_buf;
+#ifdef USE_MACRO_FEATURE
+        crc32_check(pRawHeader);
+#else  /* NO USE_MACRO_FEATURE */
         if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck) {
             crc32_check(pRawHeader);
         }
+#endif /* END */
 //        if(pRawHeader->crc == 0x13797da2){
 //            hoitReadFromCache(pfs->HOITFS_cacheHdr, pFullDnode->HOITFD_raw_info->phys_addr, read_buf, pFullDnode->HOITFD_raw_info->totlen);
 //        }
@@ -101,10 +105,13 @@ PHOIT_FULL_DNODE __hoit_truncate_full_dnode(PHOIT_VOLUME pfs, PHOIT_FULL_DNODE p
     hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
 
     PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)read_buf;
-    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck){
+#ifdef USE_MACRO_FEATURE
+    crc32_check(pRawInode);
+#else  /* NO USE_MACRO_FEATURE */
+    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck) {
         crc32_check(pRawInode);
     }
-
+#endif /* END */
     /* 在write_buf中组装好要写入的数据 */
     PCHAR write_buf = (PCHAR)hoit_malloc(pfs, sizeof(struct HOIT_RAW_INODE) + length);  /* 注意避免内存泄露 */
     if (!write_buf) {
@@ -238,11 +245,14 @@ PHOIT_FULL_DNODE __hoit_write_full_dnode(PHOIT_INODE_INFO pInodeInfo, UINT offse
 PHOIT_FULL_DNODE __hoit_bulid_full_dnode(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRawInfo) {
     PCHAR read_buf = (PCHAR)hoit_malloc(pfs, pRawInfo->totlen);        /* 注意内存泄露 */
     hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
-    PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)read_buf;
-    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck){
+    PHOIT_RAW_INODE pRawInode = (PHOIT_RAW_INODE)read_buf;   
+#ifdef USE_MACRO_FEATURE
+    crc32_check(pRawInode);
+#else  /* NO USE_MACRO_FEATURE */
+    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck) {
         crc32_check(pRawInode);
     }
-    
+#endif /* END USE_MACRO_FEATURE */
     PHOIT_FULL_DNODE pFullDnode = (PHOIT_FULL_DNODE)hoit_malloc(pfs, sizeof(HOIT_FULL_DNODE));
     pFullDnode->HOITFD_file_type = pRawInode->file_type;
     pFullDnode->HOITFD_length = pRawInode->totlen - sizeof(PHOIT_RAW_INODE);
@@ -265,10 +275,13 @@ PHOIT_FULL_DIRENT __hoit_bulid_full_dirent(PHOIT_VOLUME pfs, PHOIT_RAW_INFO pRaw
     PCHAR read_buf = (PCHAR)hoit_malloc(pfs, pRawInfo->totlen);        /* 注意内存泄露 */
     hoitReadFromCache(pfs->HOITFS_cacheHdr, pRawInfo->phys_addr, read_buf, pRawInfo->totlen);
     PHOIT_RAW_DIRENT pRawDirent = (PHOIT_RAW_DIRENT)read_buf;
-    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck){
+#ifdef USE_MACRO_FEATURE
+    crc32_check(pRawDirent);
+#else  /* NO USE_MACRO_FEATURE */
+    if(pfs->HOITFS_config.HOITFS_CRC_bEnableCRCDataCheck) {
         crc32_check(pRawDirent);
     }
-
+#endif /* END USE_MACRO_FEATURE */
     PHOIT_FULL_DIRENT pFullDirent = (PHOIT_FULL_DIRENT)hoit_malloc(pfs, sizeof(HOIT_FULL_DIRENT));
     PCHAR pFileName = read_buf + sizeof(HOIT_RAW_DIRENT);
     PCHAR pNewFileName = (PCHAR)hoit_malloc(pfs, (pRawInfo->totlen - sizeof(HOIT_RAW_DIRENT))+1);

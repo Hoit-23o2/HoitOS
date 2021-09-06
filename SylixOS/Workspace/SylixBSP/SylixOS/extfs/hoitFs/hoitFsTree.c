@@ -651,8 +651,7 @@ error_t hoitFragTreeRead(PHOIT_FRAG_TREE pFTTree, UINT32 uiOfs, UINT32 uiSize, P
 
     UINT32                      uiPerOfs;
     UINT32                      uiPerSize;
-    // PCHAR                       pPerContent;
-    // CHAR                        cPerContent[HOIT_MAX_DATA_SIZE];
+    
 #ifdef FT_OBSOLETE_TREE_LIST
     PHOIT_FRAG_TREE_NODE        pFTnStart;
     HOIT_FRAG_TREE_READ_PARAM   param;
@@ -862,8 +861,8 @@ BOOL hoitFragTreeDeleteTree(PHOIT_FRAG_TREE pFTTree, BOOL bDoDelete){
     
 #ifdef FT_DEBUG
     hoitFragTreeTraverse(pFTTree, (PHOIT_FRAG_TREE_NODE)pFTTree->pRbTree->pRbnRoot);
-    hoitFragTreeShowMemory(pFTTree);
 #endif
+    hoitFragTreeShowMemory(pFTTree);
     return res;
 }
 /*********************************************************************************************************

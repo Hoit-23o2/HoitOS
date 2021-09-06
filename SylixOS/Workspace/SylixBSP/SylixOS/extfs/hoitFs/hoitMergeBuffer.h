@@ -31,8 +31,7 @@
 *	目前就在open创建inodeinfo时初始化MergeBuffer，新写一段数据时检测小数据并加入到MergeBuffer;
 *	同时在红黑树节点fix删除节点时记得删除回指指针;
 */
-#define HOIT_MERGE_BUFFER_THRESHOLD 16	// MergeBuffer触发合并动作的节点数
-#define HOIT_MERGE_BUFFER_FRAGSIZE	16
+
 
 BOOL __hoit_new_merge_buffer(PHOIT_INODE_INFO pInodeInfo);
 BOOL __hoit_new_merge_entry(PHOIT_INODE_INFO pInodeInfo, PHOIT_MERGE_BUFFER pMergeBuffer, PHOIT_FRAG_TREE_NODE pTreeNode);

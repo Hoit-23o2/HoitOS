@@ -163,6 +163,9 @@ UINT32              hoitUpdateEBS(PHOIT_CACHE_HDR pcacheHdr,
 VOID                __hoit_mark_obsolete(PHOIT_VOLUME pfs, 
                                         PHOIT_RAW_HEADER pRawHeader, 
                                         PHOIT_RAW_INFO pRawInfo);
+VOID                __hoit_mark_not_obsolete(PHOIT_VOLUME pfs, 
+                                             PHOIT_RAW_HEADER pRawHeader, 
+                                             PHOIT_RAW_INFO pRawInfo);
 VOID                hoitCheckEBS(PHOIT_VOLUME pfs, 
                                     UINT32 sector_no, 
                                     UINT32 n); 

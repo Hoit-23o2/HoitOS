@@ -51,6 +51,7 @@ PHOIT_VOLUME _G_Volumn;
 
 VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs){
     PHOIT_ERASABLE_SECTOR       pErasableSectorTraverse;
+    PCHAR                       pcTempBuffer;
     pErasableSectorTraverse = pfs->HOITFS_erasableSectorList;
     while (pErasableSectorTraverse)
     {
@@ -68,6 +69,7 @@ VOID __hoitShowSectorInfo(PHOIT_VOLUME pfs){
         printf("FreeSize: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiFreeSize);
         printf("ObseletEntity:   %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiObsoleteEntityCount);
         printf("AvailableEntity: %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiAvailableEntityCount);
+        printf("BadEntity:       %d" NEXT_LINE, pErasableSectorTraverse->HOITS_uiBadEntityCount);
         pErasableSectorTraverse = pErasableSectorTraverse->HOITS_next;
         API_TShellColorEnd(STD_OUT);
     }
@@ -132,6 +134,9 @@ INT fs_cmd_wrapper(INT  iArgC, PCHAR  ppcArgV[]) {
         else if (EQU_ARG("raw", pcFSOption)) {
             hoitGetRawInfoMemCost(_G_Volumn);
         }
+        else if (EQU_ARG("powerfail", pcFSOption)) {
+            hoitTestPowerFailure(_G_Volumn);
+        }
     }
 }
 
@@ -141,9 +146,6 @@ VOID register_hoitfs_cmd(PHOIT_VOLUME pfs) {
     API_TShellKeywordAdd("gc", gc_cmd_wrapper);
     API_TShellKeywordAdd("hoit", fs_cmd_wrapper);
 }
-
-
-
 /*********************************************************************************************************
   相关parser定义
 *********************************************************************************************************/

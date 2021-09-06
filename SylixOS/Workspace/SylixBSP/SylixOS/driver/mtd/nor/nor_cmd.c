@@ -159,14 +159,24 @@ INT nor_flash_cmd_wrppaer(INT  iArgC, PCHAR  ppcArgV[]){
         case READ:{
             UINT offset = atoi(GET_ARG(2));
             UINT size = atoi(GET_ARG(3));
+            size = size % 5 == 0 ? size : (size / 5 + 1) * 5;
             PCHAR content = (PCHAR)lib_malloc(size);
             read_nor(offset, content, size);
             pretty_print("[read content belows]", "", DONT_CENTRAL);
-            INT i;
+            INT i, j;
             for (i = 0; i < size; i++)
             {
                 printf("0x%08x ", *(content + i));
                 if((i + 1) % 5 == 0){
+                    printf("\t\t");
+                    for (j = 0; j < 5; j++)
+                    {
+                        CHAR c = *(content + i - 4 + j);
+                        if(c >= 32 && c <= 126)
+                            printf("%c ", *(content + i - 4 + j));
+                        else
+                            printf(". ");
+                    }
                     printf("\n");
                 } 
             }

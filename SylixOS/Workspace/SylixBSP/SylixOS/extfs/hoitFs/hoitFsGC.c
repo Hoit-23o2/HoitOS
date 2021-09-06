@@ -30,7 +30,6 @@
 #define IS_MSG_BG_GC_END(acMsg, stLen)          lib_memcmp(acMsg, MSG_BG_GC_END, stLen) == 0
 #define KILL_LOOP()                             break
 
-static BOOL _G_bShouldKillGC  = FALSE;
 /*********************************************************************************************************
 ** 函数名称: __hoitGCSectorRawInfoFixUp
 ** 功能描述: 释放所有pErasableSector中的过期RawInfo，修改next_phys关系
@@ -460,7 +459,6 @@ VOID hoitGCForegroundForce(PHOIT_VOLUME pfs){
         LW_SPIN_UNLOCK_QUICK(&pErasableSector->HOITS_lock, iregInterLevel);              /* 尝试解锁 */
     }
 }
-
 /*********************************************************************************************************
 ** 函数名称: hoitFsGCBackgroundThread
 ** 功能描述: HoitFS后台GC线程，只阻塞回收一个实体
@@ -484,7 +482,7 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
                             sizeof(acMsg), 
                             &stLen, 
                             LW_OPTION_NOT_WAIT);
-        if(_G_bShouldKillGC){
+        if(pfs->HOITFS_bShouldKillGC){
             KILL_LOOP();
         }
         if(IS_MSG_BG_GC_END(acMsg, stLen)){
@@ -515,8 +513,6 @@ VOID hoitGCBackgroundThread(PHOIT_VOLUME pfs){
         sleep(1);
     }
 }
-
-
 /*********************************************************************************************************
 ** 函数名称: hoitFsGCThread
 ** 功能描述: HoitFS GC监听线程，用于监听空间变化，从而判断此时该执行的GC方式
@@ -536,9 +532,9 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
     CHAR                        acMsg[MAX_MSG_BYTE_SIZE];
     size_t                      stLen;
 
-    bIsBackgroundThreadStart = LW_FALSE;
-    pfs                      = pGCAttr->pfs;
-    uiThreshold              = pGCAttr->uiThreshold;
+    bIsBackgroundThreadStart    = LW_FALSE;
+    pfs                         = pGCAttr->pfs;
+    uiThreshold                 = pGCAttr->uiThreshold;
 
     printf("\n\n[GC Thread Start...]\n\n");
     pfs->HOITFS_GCMsgQ = API_MsgQueueCreate("q_gc_thread_msgq", 
@@ -552,12 +548,7 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
 
     while (LW_TRUE)
     {
-        API_MsgQueueReceive(pfs->HOITFS_GCMsgQ, 
-                            acMsg, 
-                            sizeof(acMsg), 
-                            &stLen, 
-                            10);
-        if(_G_bShouldKillGC){
+        if(pfs->HOITFS_bShouldKillGC){                                              /* 关闭GC监听线程  */
             __hoitGCClearBackground(pfs, &bIsBackgroundThreadStart, hGcThreadId);   /* 关闭后台GC线程 */
             KILL_LOOP();
         }
@@ -568,11 +559,6 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
         }
         
         uiCurUsedSize = pfs->HOITFS_totalUsedSize;
-        // if(uiCurUsedSize > uiThreshold){                                          /* 执行Foreground */
-        //     //__hoitGCClearBackground(pfs, &bIsBackgroundThreadStart, hGcThreadId); /* 好像没必要终止GC后台线程，因为引入了锁机制，呵呵 */
-        //     hoitGCForegroundForce(pfs);
-        // }
-        // else {
 
         if(!bIsBackgroundThreadStart 
             && uiCurUsedSize > uiThreshold){                                         /* 执行Background */
@@ -590,10 +576,12 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
                                             &gcThreadAttr,
                                             LW_NULL);
         }
-
-        //}
+        /* //! 2021-09-06 Added By PYQ 监听线程关闭后台线程  */
+        if(bIsBackgroundThreadStart 
+           && uiCurUsedSize < uiThreshold){
+            __hoitGCClearBackground(pfs, &bIsBackgroundThreadStart, hGcThreadId);   /* 关闭后台GC线程 */
+        }
     }
-
 }
 
 /*********************************************************************************************************
@@ -608,13 +596,14 @@ VOID hoitGCThread(PHOIT_GC_ATTR pGCAttr){
 VOID hoitGCClose(PHOIT_VOLUME pfs){
     if(pfs->HOITFS_hGCThreadId){
         pfs->HOITFS_bShouldKillGC = LW_TRUE;
-        _G_bShouldKillGC = LW_TRUE;
+
         if(pfs->HOITFS_GCMsgQ != PX_ERROR){
             API_MsgQueueSend(pfs->HOITFS_GCMsgQ, MSG_GC_END, sizeof(MSG_GC_END));
             API_MsgQueueShow(pfs->HOITFS_GCMsgQ);
         }
-        // API_ThreadWakeup(pfs->HOITFS_hGCThreadId);                              /* 强制唤醒GC线程 */
+        
         API_ThreadJoin(pfs->HOITFS_hGCThreadId, LW_NULL);
+
         if(pfs->HOITFS_GCMsgQ != PX_ERROR){
             API_MsgQueueDelete(&pfs->HOITFS_GCMsgQ);
         }
