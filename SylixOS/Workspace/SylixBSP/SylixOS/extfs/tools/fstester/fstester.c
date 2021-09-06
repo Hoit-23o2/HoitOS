@@ -121,7 +121,7 @@ INT __fstester_terminate_test(INT iFdTest, PCHAR pTestPath, PCHAR pMountPoint) {
     close(iFdTest);
     remove(pTestPath);
     API_Unmount(pMountPoint);
-    nor_reset(NOR_FLASH_BASE);
+//    nor_reset(NOR_FLASH_BASE);
     return ERROR_NONE;
 }
 /*********************************************************************************************************

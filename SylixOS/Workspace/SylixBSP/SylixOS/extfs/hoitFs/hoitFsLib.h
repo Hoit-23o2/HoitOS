@@ -110,15 +110,13 @@ static void crc32_check(PHOIT_RAW_HEADER pRawHeader) {
     }
     /* ¼ì²écrcÐ£ÑéÂë */
     UINT32 uPrevCrc = pRawHeader->crc;
-    if(uPrevCrc == 1938479914){
-        printf("111\n");
-    }
+
     pRawHeader->crc = 0;
     UINT32 uNowCrc = hoit_crc32_le((unsigned char*)pRawHeader, pRawHeader->totlen);
     if (uPrevCrc != uNowCrc) {
-        PHOIT_RAW_INODE pp = (PHOIT_RAW_INODE)pRawHeader;
-        CHAR* pChar = ((char*)pp)+sizeof(HOIT_RAW_INODE);
-        snprintf("%s", 925, pChar);
+//        PHOIT_RAW_INODE pp = (PHOIT_RAW_INODE)pRawHeader;
+//        CHAR* pChar = ((char*)pp)+sizeof(HOIT_RAW_INODE);
+//        snprintf("%s", 925, pChar);
         printf("\nError in CRC!\n");
     }
 

@@ -1,33 +1,33 @@
 /*********************************************************************************************************
 **
-**                                    ÖÐ¹úÈí¼þ¿ªÔ´×éÖ¯
+**                                    ï¿½Ð¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô´ï¿½ï¿½Ö¯
 **
-**                                   Ç¶ÈëÊ½ÊµÊ±²Ù×÷ÏµÍ³
+**                                   Ç¶ï¿½ï¿½Ê½ÊµÊ±ï¿½ï¿½ï¿½ï¿½ÏµÍ³
 **
 **                                       SylixOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
-**--------------ÎÄ¼þÐÅÏ¢--------------------------------------------------------------------------------
+**--------------ï¿½Ä¼ï¿½ï¿½ï¿½Ï¢--------------------------------------------------------------------------------
 **
-** ÎÄ   ¼þ   Ãû: nor.c
+** ï¿½ï¿½   ï¿½ï¿½   ï¿½ï¿½: nor.c
 **
-** ´´   ½¨   ÈË: Pan yanqi (ÅËÑÓ÷è)
+** ï¿½ï¿½   ï¿½ï¿½   ï¿½ï¿½: Pan yanqi (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
 **
-** ÎÄ¼þ´´½¨ÈÕÆÚ: 2021 Äê 03 ÔÂ 11 ÈÕ
+** ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: 2021 ï¿½ï¿½ 03 ï¿½ï¿½ 11 ï¿½ï¿½
 **
-** Ãè        Êö: NorFlashÂã°åÇý¶¯
+** ï¿½ï¿½        ï¿½ï¿½: NorFlashï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 *********************************************************************************************************/
 #include "nor.h"
 #include "fake_nor.h"
 #include "nor_cmd.h"
 /*********************************************************************************************************
-** º¯ÊýÃû³Æ: nor_init
-** ¹¦ÄÜÃèÊö: ³õÊ¼»¯NorFlash£¬Ö÷Òª×öSylixOS baseµÄµØÖ·Ó³Éä
-** Êä¡¡Èë  : nor_init_flag			³õÊ¼»¯ÀàÐÍ
-** Êä¡¡³ö  : NONE
-** È«¾Ö±äÁ¿: 
-** µ÷ÓÃÄ£¿é: 
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: nor_init
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½Ê¼ï¿½ï¿½NorFlashï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½SylixOS baseï¿½Äµï¿½Ö·Ó³ï¿½ï¿½
+** ï¿½ä¡¡ï¿½ï¿½  : nor_init_flag			ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+** ï¿½ä¡¡ï¿½ï¿½  : NONE
+** È«ï¿½Ö±ï¿½ï¿½ï¿½: 
+** ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½: 
 *********************************************************************************************************/
 VOID nor_init(ENUM_NOR_INIT_FLAG nor_init_flag){
 	switch (nor_init_flag)
@@ -65,7 +65,7 @@ VOID nor_init(ENUM_NOR_INIT_FLAG nor_init_flag){
 		break;
 	}
 	register_nor_cmd();
-	/* ³¢ÊÔ±£´æÎÄ¼þ£¬ºÃÏñ²»ÐÐ */
+	/* ï¿½ï¿½ï¿½Ô±ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
 	// INT fd;
 	// fd = open(NOR_FLASH_SECTOR_INFO_FILE_PATH, O_RDWR);
 	// if(fd < 0){
@@ -81,12 +81,12 @@ VOID nor_init(ENUM_NOR_INIT_FLAG nor_init_flag){
 }
 
 /*********************************************************************************************************
-** º¯ÊýÃû³Æ: scan_nor
-** ¹¦ÄÜÃèÊö: É¨ÃèNorFlash£¬¸ø³öNorFlash»ù±¾ÐÅÏ¢
-** Êä¡¡Èë  : NONE
-** Êä¡¡³ö  : NONE
-** È«¾Ö±äÁ¿: 
-** µ÷ÓÃÄ£¿é: 
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: scan_nor
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: É¨ï¿½ï¿½NorFlashï¿½ï¿½ï¿½ï¿½ï¿½ï¿½NorFlashï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢
+** ï¿½ä¡¡ï¿½ï¿½  : NONE
+** ï¿½ä¡¡ï¿½ï¿½  : NONE
+** È«ï¿½Ö±ï¿½ï¿½ï¿½: 
+** ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½: 
 *********************************************************************************************************/
 VOID scan_nor(){
 	if(NOR_FLASH_BASE == 0){
@@ -124,19 +124,19 @@ VOID scan_nor(){
 		PCHAR cfi_magic = (PCHAR)lib_malloc(4);
 		pretty_print("[nor scanning statue]", "scanning start", DONT_CENTRAL);
 		
-		nor_command_unlock(NOR_FLASH_BASE);										/* ½âËø²ÁÐ´¡¢¶ÁIDÃüÁî */
+		nor_command_unlock(NOR_FLASH_BASE);										/* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð´ï¿½ï¿½ï¿½ï¿½IDï¿½ï¿½ï¿½ï¿½ */
 		write_word_to_mem(NOR_FLASH_BASE, 0x555, 0x90);
 		manufacturer_id = read_word_from_mem(NOR_FLASH_BASE, 0x00);
 		device_id = read_word_from_mem(NOR_FLASH_BASE, 0x01);
 		nor_reset(NOR_FLASH_BASE);
 		
-		write_word_to_mem(NOR_FLASH_BASE, 0x55, 0x98);							/* ½øÈëCFIÄ£Ê½ */
-		nor_flash_size = 1 << (read_word_from_mem(NOR_FLASH_BASE, 0x27));		/* ²éÑ¯norflash´óÐ¡ */
-		*cfi_magic = read_word_from_mem(NOR_FLASH_BASE, 0x10);					/* ²éÕÒ Q.R.Y */
+		write_word_to_mem(NOR_FLASH_BASE, 0x55, 0x98);							/* ï¿½ï¿½ï¿½ï¿½CFIÄ£Ê½ */
+		nor_flash_size = 1 << (read_word_from_mem(NOR_FLASH_BASE, 0x27));		/* ï¿½ï¿½Ñ¯norflashï¿½ï¿½Ð¡ */
+		*cfi_magic = read_word_from_mem(NOR_FLASH_BASE, 0x10);					/* ï¿½ï¿½ï¿½ï¿½ Q.R.Y */
 		*(cfi_magic + 1) = read_word_from_mem(NOR_FLASH_BASE, 0x11);
 		*(cfi_magic + 2) = read_word_from_mem(NOR_FLASH_BASE, 0x12);
 		*(cfi_magic + 3) = '\0';
-		nor_eraseable_nregions = read_word_from_mem(NOR_FLASH_BASE, 0x2C);	    /* ²éÑ¯ÇøÓòÊý */
+		nor_eraseable_nregions = read_word_from_mem(NOR_FLASH_BASE, 0x2C);	    /* ï¿½ï¿½Ñ¯ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
 		nor_reset(NOR_FLASH_BASE);
 		
 		if(manufacturer_id != NOR_FLASH_MANUID || device_id != NOR_FLASH_DEVID
@@ -190,14 +190,14 @@ scan_fail:
 }
 
 /*********************************************************************************************************
-** º¯ÊýÃû³Æ: read_nor
-** ¹¦ÄÜÃèÊö: ¸ù¾ÝÑ¡Ïî´Óoffset´¦¶ÁÈ¡ÄÚÈÝ
-** Êä¡¡Èë  : offset         Ê×²¿Æ«ÒÆ
-**			 content		¶Á³öµÄÄÚÈÝ
-**           ops            ¶ÁÈ¡Ñ¡Ïî£¬¿ÉÒÔÊÇREAD_BYTE|READ_SECTOR
-** Êä¡¡³ö  : 0³É¹¦£¬ -1Ê§°Ü
-** È«¾Ö±äÁ¿: 
-** µ÷ÓÃÄ£¿é: 
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: read_nor
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½ï¿½ï¿½offsetï¿½ï¿½ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½
+** ï¿½ä¡¡ï¿½ï¿½  : offset         ï¿½×²ï¿½Æ«ï¿½ï¿½
+**			 content		ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+**           ops            ï¿½ï¿½È¡Ñ¡ï¿½î£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½READ_BYTE|READ_SECTOR
+** ï¿½ä¡¡ï¿½ï¿½  : 0ï¿½É¹ï¿½ï¿½ï¿½ -1Ê§ï¿½ï¿½
+** È«ï¿½Ö±ï¿½ï¿½ï¿½: 
+** ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½: 
 *********************************************************************************************************/
 UINT8 read_nor(UINT offset, PCHAR content, UINT size_bytes){
 	if(nor_check_offset_range(NOR_FLASH_BASE, offset, size_bytes)){
@@ -221,14 +221,14 @@ UINT8 read_nor(UINT offset, PCHAR content, UINT size_bytes){
 }
 
 /*********************************************************************************************************
-** º¯ÊýÃû³Æ: erase_nor
-** ¹¦ÄÜÃèÊö: ¸ù¾ÝÑ¡Ïî´Óoffset´¦²Á³ýÄÚÈÝ
-** Êä¡¡Èë  : offset         Ê×²¿Æ«ÒÆ
-**           ops            ²Á³ýÑ¡Ïî£¬¿ÉÒÔÊÇERASE_SECTOR|ERASE_CHIP|ERASE_REGION
-**			 				ERASE_CHIP»áµ÷ÓÃ¶à´ÎERASE_SECTOR£¬²»»á²Á³ýÇ°7¸öSECTOR£¨ÓÃÓÚ±£´æUBOOT£©
-** Êä¡¡³ö  : 0³É¹¦£¬ -1Ê§°Ü
-** È«¾Ö±äÁ¿: 
-** µ÷ÓÃÄ£¿é: 
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: erase_nor
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½ï¿½ï¿½offsetï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+** ï¿½ä¡¡ï¿½ï¿½  : offset         ï¿½×²ï¿½Æ«ï¿½ï¿½
+**           ops            ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½î£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ERASE_SECTOR|ERASE_CHIP|ERASE_REGION
+**			 				ERASE_CHIPï¿½ï¿½ï¿½ï¿½Ã¶ï¿½ï¿½ERASE_SECTORï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç°7ï¿½ï¿½SECTORï¿½ï¿½ï¿½ï¿½ï¿½Ú±ï¿½ï¿½ï¿½UBOOTï¿½ï¿½
+** ï¿½ä¡¡ï¿½ï¿½  : 0ï¿½É¹ï¿½ï¿½ï¿½ -1Ê§ï¿½ï¿½
+** È«ï¿½Ö±ï¿½ï¿½ï¿½: 
+** ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½: 
 *********************************************************************************************************/
 UINT8 erase_nor(UINT offset, ENUM_ERASE_OPTIONS ops)
 {
@@ -268,7 +268,7 @@ UINT8 erase_nor(UINT offset, ENUM_ERASE_OPTIONS ops)
 		lib_memset(temp, 0, TEMP_BUF_SZ);
 #endif // DEBUG
 
-		nor_erase_sector(NOR_FLASH_BASE, offset);						/* ²Á³ý¸Ãsector */
+		nor_erase_sector(NOR_FLASH_BASE, offset);						/* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½sector */
 
 #ifdef NOR_DEBUG
 		sprintf(temp, INFO "sector %d erased", sector_no);
@@ -292,13 +292,13 @@ UINT8 erase_nor(UINT offset, ENUM_ERASE_OPTIONS ops)
 		}
 		return 0;
 	}
-	case ERASE_REGION:{														   /* µ÷ÓÃErase SectorÀ´²Á³ýRegion */
+	case ERASE_REGION:{														   /* ï¿½ï¿½ï¿½ï¿½Erase Sectorï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Region */
 		INT region_no, sector_no;
 		if((sector_no = GET_SECTOR_REGION(offset)) < 0){
 			return -1;
 		}
 		region_no = GET_SECTOR_REGION(sector_no);
-		/* ²Á³ý Regions : ¶ÔÓÚRegion0Ó¦¸ÃÔõÃ´×ö£¿ÔÝÊ±²»×ö´¦Àí */
+		/* ï¿½ï¿½ï¿½ï¿½ Regions : ï¿½ï¿½ï¿½ï¿½Region0Ó¦ï¿½ï¿½ï¿½ï¿½Ã´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
 		if(nor_erase_region(region_no, erase_nor) < 0){				
 			return -1;
 		}
@@ -312,14 +312,14 @@ UINT8 erase_nor(UINT offset, ENUM_ERASE_OPTIONS ops)
 }
 
 /*********************************************************************************************************
-** º¯ÊýÃû³Æ: erase_nor
-** ¹¦ÄÜÃèÊö: ¸ù¾ÝÑ¡Ïî´Óoffset´¦Ð´ÈëÒ»¶¨´óÐ¡µÄÄÚÈÝ
-** Êä¡¡Èë  : offset         Ê×²¿Æ«ÒÆ
-**			 content 		Ð´ÈëµÄÄÚÈÝ
-**           ops            Ð´ÈëÑ¡Ïî£¬¿ÉÒÔÊÇWRITE_KEEP|WRITE_OVERWRITE
-** Êä¡¡³ö  : 0³É¹¦£¬ -1Ê§°Ü
-** È«¾Ö±äÁ¿: 
-** µ÷ÓÃÄ£¿é: 
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: erase_nor
+** ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½ï¿½ï¿½offsetï¿½ï¿½Ð´ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+** ï¿½ä¡¡ï¿½ï¿½  : offset         ï¿½×²ï¿½Æ«ï¿½ï¿½
+**			 content 		Ð´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+**           ops            Ð´ï¿½ï¿½Ñ¡ï¿½î£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½WRITE_KEEP|WRITE_OVERWRITE
+** ï¿½ä¡¡ï¿½ï¿½  : 0ï¿½É¹ï¿½ï¿½ï¿½ -1Ê§ï¿½ï¿½
+** È«ï¿½Ö±ï¿½ï¿½ï¿½: 
+** ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½: 
 *********************************************************************************************************/
 UINT8 write_nor(UINT offset, PCHAR content, UINT size_bytes, ENUM_WRITE_OPTIONS ops){
 #ifdef NOR_DEBUG
@@ -341,43 +341,51 @@ UINT8 write_nor(UINT offset, PCHAR content, UINT size_bytes, ENUM_WRITE_OPTIONS 
 	UINT8 	end_sector_no = GET_SECTOR_NO(offset + size_bytes - 1);
 	UINT8 	sector_no;
 	UINT 	size_bytes_have_written = 0;
-	for (sector_no = start_sector_no; sector_no <= end_sector_no; sector_no++)			    /* °´ÕÕÃ¿¸ösectorÀ´Ð´ */
+	for (sector_no = start_sector_no; sector_no <= end_sector_no; sector_no++)			    /* ï¿½ï¿½ï¿½ï¿½Ã¿ï¿½ï¿½sectorï¿½ï¿½Ð´ */
 	{
 		UINT size_bytes_to_write;
 		PCHAR content_to_write;
 		UINT offset_to_write;
-		if(sector_no == start_sector_no){													/* µÚÒ»¸ösector */
-			if(start_sector_no == end_sector_no){											/* Èç¹ûÖ»Ð´Ò»¸ösector£¬ÄÇÃ´¾ÍÊÇÐ´size_bytes */
+		if(sector_no == start_sector_no){													/* ï¿½ï¿½Ò»ï¿½ï¿½sector */
+			if(start_sector_no == end_sector_no){											/* ï¿½ï¿½ï¿½Ö»Ð´Ò»ï¿½ï¿½sectorï¿½ï¿½ï¿½ï¿½Ã´ï¿½ï¿½ï¿½ï¿½Ð´size_bytes */
 				size_bytes_to_write = size_bytes;										
 			}
 			else {
-				size_bytes_to_write = GET_SECTOR_OFFSET(sector_no + 1) - offset;			/* ·ñÔò£¬Ð´offset ~ µÚÒ»¸ösector½áÊøµÄËùÓÐÎ»ÖÃ */
+				size_bytes_to_write = GET_SECTOR_OFFSET(sector_no + 1) - offset;			/* ï¿½ï¿½ï¿½ï¿½Ð´offset ~ ï¿½ï¿½Ò»ï¿½ï¿½sectorï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½ */
 			}
 		}
-		else if (sector_no == end_sector_no)												/* ×îºóÒ»¸ösector */
+		else if (sector_no == end_sector_no)												/* ï¿½ï¿½ï¿½Ò»ï¿½ï¿½sector */
 		{
-			size_bytes_to_write = size_bytes - size_bytes_have_written;						/* ×Ü¹²ÐèÒªÐ´µÄ×Ö½Ú ¼õÈ¥ ÒÑ¾­Ð´ÈëµÄ×Ö½Ú */
+			size_bytes_to_write = size_bytes - size_bytes_have_written;						/* ï¿½Ü¹ï¿½ï¿½ï¿½ÒªÐ´ï¿½ï¿½ï¿½Ö½ï¿½ ï¿½ï¿½È¥ ï¿½Ñ¾ï¿½Ð´ï¿½ï¿½ï¿½ï¿½Ö½ï¿½ */
 		}
 		else {
-			size_bytes_to_write = GET_SECTOR_SIZE(sector_no);								/* Ð´ÈëÒ»¸ösector´óÐ¡ */
+			size_bytes_to_write = GET_SECTOR_SIZE(sector_no);								/* Ð´ï¿½ï¿½Ò»ï¿½ï¿½sectorï¿½ï¿½Ð¡ */
 		}
-		// TODO: Íê³É is_sector_should_erased ÅÐ¶Ï
-		content_to_write = content + size_bytes_have_written;								/* Ð´ÈëÄÚÈÝÆ«ÒÆÁ¿ */
-		offset_to_write = offset + size_bytes_have_written;									/* Ð´ÈëÎ»ÖÃÆ«ÒÆÁ¿ */
-		BOOL is_sector_should_erased = nor_check_should_erase(NOR_FLASH_BASE, 				/* ²é¿´ÊÇ·ñÐèÒª²Á³ýÕâÒ»¶ÎÄÚÈÝ */
+		// TODO: ï¿½ï¿½ï¿½ is_sector_should_erased ï¿½Ð¶ï¿½
+		content_to_write = content + size_bytes_have_written;								/* Ð´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ«ï¿½ï¿½ï¿½ï¿½ */
+		offset_to_write = offset + size_bytes_have_written;									/* Ð´ï¿½ï¿½Î»ï¿½ï¿½Æ«ï¿½ï¿½ï¿½ï¿½ */
+		BOOL is_sector_should_erased = nor_check_should_erase(NOR_FLASH_BASE, 				/* ï¿½é¿´ï¿½Ç·ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
 															  offset_to_write,
 															  content_to_write,
 															  size_bytes_to_write);
 #ifdef NOR_DEBUG
-		printf("content_to_write: %s \n", content_to_write);
+#endif // NOR_DEBUG
+		INT i;
+		printf("content_to_write: \n");
+		for (i = 0; i < 200; i++)
+		{
+			printf("0x%02x ", *(content_to_write + i));
+			if((i + 1) % 5 == 0){
+				printf("\n");
+			}
+		}
 		printf("offset_to_write: %d \n", offset_to_write);
 		printf("size_bytes_to_write: %d\n", size_bytes_to_write);
 		printf("size_bytes_have_written: %d\n", size_bytes_have_written);
 		printf("is_sector_should_erased: %d\n", is_sector_should_erased);
-#endif // NOR_DEBUG
 		switch (ops)
 		{
-		case WRITE_OVERWRITE:{																/* ¸²¸ÇÐ´£¬Èç¹ûÐèÒª²Á³ýÔòÖ±½Ó²Á³ý */
+		case WRITE_OVERWRITE:{																/* ï¿½ï¿½ï¿½ï¿½Ð´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö±ï¿½Ó²ï¿½ï¿½ï¿½ */
 			UINT32 start_setcor_offset = GET_SECTOR_OFFSET(sector_no);
 			if(is_sector_should_erased){
 				erase_nor(start_setcor_offset, ERASE_SECTOR);
@@ -386,14 +394,14 @@ UINT8 write_nor(UINT offset, PCHAR content, UINT size_bytes, ENUM_WRITE_OPTIONS 
 			break;	
 		}
 		case WRITE_KEEP:{
-			UINT32 start_setcor_offset = GET_SECTOR_OFFSET(sector_no);						/* ±£³ÖÐ´£¬Èç¹ûÐèÒª²Á³ý£¬ÔòÏÈ±£´æÕû¸ösector£¬È»ºóÔÙ½«Õû¸ösectorÐ´Èë */
+			UINT32 start_setcor_offset = GET_SECTOR_OFFSET(sector_no);						/* ï¿½ï¿½ï¿½ï¿½Ð´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½sectorï¿½ï¿½È»ï¿½ï¿½ï¿½Ù½ï¿½ï¿½ï¿½ï¿½ï¿½sectorÐ´ï¿½ï¿½ */
 			UINT sector_size = GET_SECTOR_SIZE(sector_no);
 			if(is_sector_should_erased){
-				PCHAR buffer = (PCHAR)lib_malloc(sector_size);								/* ¶Á³ösectorµÄÄÚÈÝµ½bufferÖÐ */
+				PCHAR buffer = (PCHAR)lib_malloc(sector_size);								/* ï¿½ï¿½ï¿½ï¿½sectorï¿½ï¿½ï¿½ï¿½ï¿½Ýµï¿½bufferï¿½ï¿½ */
 				read_nor(start_setcor_offset, buffer, sector_size);
-				UINT bias_to_write = offset_to_write - start_setcor_offset;					/* ¼ÆËãÐ´ÈëÆ«ÒÆÏà¶Ô¸ÃsectorµÄÆ«ÒÆÁ¿ */
-				lib_memcpy(buffer + bias_to_write, content_to_write, size_bytes_to_write);  /* ÏòbufferÖÐÐ´ÈëÒªÐ´µÄÄÚÈÝ */
-				erase_nor(start_setcor_offset, ERASE_SECTOR);								/* ²Á³ýsector */
+				UINT bias_to_write = offset_to_write - start_setcor_offset;					/* ï¿½ï¿½ï¿½ï¿½Ð´ï¿½ï¿½Æ«ï¿½ï¿½ï¿½ï¿½Ô¸ï¿½sectorï¿½ï¿½Æ«ï¿½ï¿½ï¿½ï¿½ */
+				lib_memcpy(buffer + bias_to_write, content_to_write, size_bytes_to_write);  /* ï¿½ï¿½bufferï¿½ï¿½Ð´ï¿½ï¿½ÒªÐ´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+				erase_nor(start_setcor_offset, ERASE_SECTOR);								/* ï¿½ï¿½ï¿½ï¿½sector */
 #ifdef NOR_DEBUG
 				// INT i;
 				// PCHAR hh = (PCHAR)lib_malloc(sector_size);
@@ -414,12 +422,12 @@ UINT8 write_nor(UINT offset, PCHAR content, UINT size_bytes, ENUM_WRITE_OPTIONS 
 				// 	printf("%x", *(buffer + i));	
 				// }
 #endif
-				nor_write_buffer(NOR_FLASH_BASE, start_setcor_offset, buffer, sector_size);		/* ½«bufferÐ´Èësector */
+				nor_write_buffer(NOR_FLASH_BASE, start_setcor_offset, buffer, sector_size);		/* ï¿½ï¿½bufferÐ´ï¿½ï¿½sector */
 				lib_free(buffer);
 			}
 			else
 			{
-				nor_write_buffer(NOR_FLASH_BASE, offset_to_write, content_to_write, size_bytes_to_write);		/* Ö±½ÓÐ´Èësector */
+				nor_write_buffer(NOR_FLASH_BASE, offset_to_write, content_to_write, size_bytes_to_write);		/* Ö±ï¿½ï¿½Ð´ï¿½ï¿½sector */
 			}
 			break;
 		}
@@ -455,12 +463,12 @@ BOOL test_nor(){
 		INT sector_no, write_cnt;
 		INT start_sector_no = GET_SECTOR_NO(NOR_FLASH_START_OFFSET);
 		UINT offset = NOR_FLASH_START_OFFSET;
-		for (sector_no = start_sector_no; sector_no < NOR_FLASH_NSECTOR; sector_no++)	/* Ð´n¸ösector */
+		for (sector_no = start_sector_no; sector_no < NOR_FLASH_NSECTOR; sector_no++)	/* Ð´nï¿½ï¿½sector */
 		{
 			UINT sector_size = GET_SECTOR_SIZE(sector_no);
 			PCHAR content_one = (PCHAR)lib_malloc(sector_size);
 			lib_memset(content_one, (INT)-1, sector_size);
-			for (write_cnt = 0; write_cnt <= NOR_FLASH_MAX_ERASE_CNT; write_cnt++)                       		/* Ã¿¸ösetcorÐ´MAX_CNT */
+			for (write_cnt = 0; write_cnt <= NOR_FLASH_MAX_ERASE_CNT; write_cnt++)                       		/* Ã¿ï¿½ï¿½setcorÐ´MAX_CNT */
 			{
 				write_nor(offset, content_one, sector_size, WRITE_OVERWRITE);
 			}
@@ -475,7 +483,7 @@ BOOL test_nor(){
 		write_nor(NOR_FLASH_START_OFFSET, "hello power nor, and you know deadpool loves his star!", 55, WRITE_OVERWRITE);
 		BOOL has_bad = FALSE;
 		offset = NOR_FLASH_START_OFFSET;
-		for (sector_no = start_sector_no; sector_no < NOR_FLASH_NSECTOR; sector_no++)                                 /* Ð´n¸ösector */
+		for (sector_no = start_sector_no; sector_no < NOR_FLASH_NSECTOR; sector_no++)                                 /* Ð´nï¿½ï¿½sector */
 		{
 			UINT sector_size = GET_SECTOR_SIZE(sector_no);
 			
@@ -560,22 +568,22 @@ BOOL test_nor(){
 
 /*********************************************************************************************************
  Reference:
- Mini24TEMP_BUF_SZ NorFlash·ÃÎÊÊ±Ðò£º
+ Mini24TEMP_BUF_SZ NorFlashï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½
  
- Word·ÃÎÊ
- 1. ¶Á: 1Cycles
+ Wordï¿½ï¿½ï¿½ï¿½
+ 1. ï¿½ï¿½: 1Cycles
 	- RA 			RD								(RA: Address of the memory location to be read)	
 													(RA: Data read from location RA during read operation)
- 2.	¸´Î»: 1 Cycles
+ 2.	ï¿½ï¿½Î»: 1 Cycles
 	- XXX 			0xF0
  
- 3. Ð´£¨°´×Ö½ÚÐ´Èë£©: 4 Cycles
+ 3. Ð´ï¿½ï¿½ï¿½ï¿½ï¿½Ö½ï¿½Ð´ï¿½ë£©: 4 Cycles
 	- 0x555			0xAA 
 	- 0x2AA 		0x55
 	- 555			0xA0
 	- PA			PD								(PA: Address of the memory location to be programmed)	
 													(PD: Data to be programmed at location PA)		
- 4. ²Á³ý£¨Sector£©: 6 Cycles
+ 4. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Sectorï¿½ï¿½: 6 Cycles
 	- 0x555			0xAA 
 	- 0x2AA 		0x55
 	- 555			0x80
@@ -584,7 +592,7 @@ BOOL test_nor(){
 	- 0x2AA 		0x55
 	- SA			0x30								(SA: Address of the sector to be verified (in autoselect mode) or erased)	
 
- 5. ²Á³ý£¨Chip£©: 6 Cycles
+ 5. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Chipï¿½ï¿½: 6 Cycles
 	- 0x555			0xAA 
 	- 0x2AA 		0x55
 	- 555			0x80
@@ -593,50 +601,50 @@ BOOL test_nor(){
 	- 0x2AA 		0x55
 	- 0x555			0x10
 
- 6. »ñÈ¡Éè±¸ID£¨µ×²¿Boot Block£©: 4 Cycles
+ 6. ï¿½ï¿½È¡ï¿½è±¸IDï¿½ï¿½ï¿½×²ï¿½Boot Blockï¿½ï¿½: 4 Cycles
 	- 0x555			0xAA 
 	- 0x2AA 		0x55
 	- 0x555			0x90
 	- X01			22C4
 
- 7. »ñÈ¡³§ÉÌID : 4 Cycles
+ 7. ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ID : 4 Cycles
  	- 0x555			0xAA 
 	- 0x2AA 		0x55
 	- 0x555			0x90
 	- X00			01
 
- 8. CFI²éÑ¯Ä£Ê½ : 1 Cycles
+ 8. CFIï¿½ï¿½Ñ¯Ä£Ê½ : 1 Cycles
 	- 0x55			0x98
 
-	8.1 ²éÑ¯Magic Number Q.R.Y
+	8.1 ï¿½ï¿½Ñ¯Magic Number Q.R.Y
 		- 0x10			Q
 		- 0x12			R
 		- 0x14			Y
  
- 	8.2 ²éÑ¯´óÐ¡
+ 	8.2 ï¿½ï¿½Ñ¯ï¿½ï¿½Ð¡
 	 	- 0x27			0x15 (2 ^ 15 Byte = 2 MB)
 	
-	8.3 ²éÑ¯¿É²Á³ýÇøÓòRegions
-		- 0x2C			0x4 (4¸ö)
+	8.3 ï¿½ï¿½Ñ¯ï¿½É²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Regions
+		- 0x2C			0x4 (4ï¿½ï¿½)
 	
-	8.4 ²éÑ¯¿É²Á³ýÇøÓòÐÅÏ¢
+	8.4 ï¿½ï¿½Ñ¯ï¿½É²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢
 	(Region 1)
-		- 0x2D			0 (1¸öSector)
+		- 0x2D			0 (1ï¿½ï¿½Sector)
 		- 0x2E			0
 		- 0x2F			0xTEMP_BUF_SZ (16KB)
 		- 0x30			0	
 	(Region 2)
-		- 0x31			1 (2¸öSector)
+		- 0x31			1 (2ï¿½ï¿½Sector)
 		- 0x32			0
 		- 0x33			0x20 (8KB)
 		- 0x34			0	
 	(Region 3)
-		- 0x35			0 (1¸öSector)
+		- 0x35			0 (1ï¿½ï¿½Sector)
 		- 0x36			0
 		- 0x37			0x80 (32KB)
 		- 0x38			0	
 	(Region 4)
-		- 0x39			0x1E (31¸öSector)
+		- 0x39			0x1E (31ï¿½ï¿½Sector)
 		- 0x3A			0
 		- 0x3B			0 
 		- 0x3C			0x1	(64KB)		

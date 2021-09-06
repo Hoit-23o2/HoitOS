@@ -201,7 +201,7 @@ NorFlash的有效地址是：0x0~0x1FFFFF；而BSP的地址是：0x0~0x4CDC77；
  ```shell
 //可以通过nand help查看nand指令的意思，下述语句的意思为：
 //设置启动环境变量：从nand的0x60000处读取0x4ce000字节，写入ram的0x30000000处，然后CPU跳转至0x30000000运行；
-setenv bootcmd "nand read 0x30000000 0x60000 0x4ce000; go 0x30000000"
+setenv bootcmd "nand read 0x30000000 0x60000 0x50c000; go 0x30000000"
 //保存环境变量
 saveenv
  ```
@@ -210,7 +210,7 @@ saveenv
 
 ![image-20210308202523065](./images/mini2440-bootcmd-args.png)
 
-**1**处表明`xxBSP.bin`被烧录到了nand的0x60000处；
+1处表明`xxBSP.bin`被烧录到了nand的0x60000处；
 
 **2**处表明写入大小为0x4ce000，这里应该是做了校验码的处理，所以和`xxBSP.bin`的实际大小**5037186**不太相同；
 
