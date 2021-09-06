@@ -1,22 +1,22 @@
 /*********************************************************************************************************
 **
-**                                    ï¿½Ð¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô´ï¿½ï¿½Ö¯
+**                                    ÖÐ¹úÈí¼þ¿ªÔ´×éÖ¯
 **
-**                                   Ç¶ï¿½ï¿½Ê½ÊµÊ±ï¿½ï¿½ï¿½ï¿½ÏµÍ³
+**                                   Ç¶ÈëÊ½ÊµÊ±²Ù×÷ÏµÍ³
 **
 **                                       SylixOS(TM)
 **
 **                               Copyright  All Rights Reserved
 **
-**--------------ï¿½Ä¼ï¿½ï¿½ï¿½Ï¢--------------------------------------------------------------------------------
+**--------------ÎÄ¼þÐÅÏ¢--------------------------------------------------------------------------------
 **
-** ï¿½ï¿½   ï¿½ï¿½   ï¿½ï¿½: nor_util.c
+** ÎÄ   ¼þ   Ãû: nor_util.c
 **
-** ï¿½ï¿½   ï¿½ï¿½   ï¿½ï¿½: Pan yanqi (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
+** ´´   ½¨   ÈË: Pan yanqi (ÅËÑÓ÷è)
 **
-** ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: 2021 ï¿½ï¿½ 03 ï¿½ï¿½ 11 ï¿½ï¿½
+** ÎÄ¼þ´´½¨ÈÕÆÚ: 2021 Äê 03 ÔÂ 11 ÈÕ
 **
-** ï¿½ï¿½        ï¿½ï¿½: NorFlashï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß¿ï¿½
+** Ãè        Êö: NorFlashÂã°åÇý¶¯¹¤¾ß¿â
 *********************************************************************************************************/
 
 #ifndef SYLIXOS_DRIVER_MTD_NOR_NOR_UTIL_H_
@@ -29,24 +29,24 @@
 #define TEMP_BUF_SZ                             80
 #define NOR_FLASH_SECTOR_INFO_FILE_PATH         "/tmp/nor_sector_infos"
 /*********************************************************************************************************
-  ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½
+  Êä³öÌáÊ¾ÀàÐÍ
 *********************************************************************************************************/
 #define FAIL "FAIL: "
 #define WARN "WARN: "
 #define INFO "INFO: "
 /*********************************************************************************************************
-  ï¿½ï¿½ï¿½ï¿½ï¿½Ú´ï¿½ï¿½Ð´ï¿½ï¿½ï¿½ï¿½
+  »ù±¾ÄÚ´æ¶ÁÐ´º¯Êý
 *********************************************************************************************************/
 VOID     write_word_to_mem(UINT32 base, UINT32 offset, UINT16 data);
 UINT16   read_word_from_mem(UINT32 base, UINT32 offset);
 UINT8    read_byte_from_mem(UINT32 base, UINT32 offset);
 VOID     wait_ready(UINT32 base, UINT32 addr);
 /*********************************************************************************************************
-  ï¿½ï¿½×°ï¿½ï¿½ï¿½î´¦ï¿½ï¿½
+  ·â×°ÃüÁî´¦Àí
 *********************************************************************************************************/
 VOID     nor_command_unlock(UINT32 base);
 VOID     nor_reset(UINT32 base);
-VOID     nor_write_buffer(UINT32 base, UINT offset, PCHAR _content, UINT size_bytes);
+VOID     nor_write_buffer(UINT32 base, UINT offset, PCHAR content, UINT size_bytes);
 VOID     nor_erase_sector(UINT32 base, UINT offset);
 UINT8    nor_erase_range(UINT8 low_sector_no, UINT8 high_sector_no, UINT8 (*erase_nor)(UINT, ENUM_ERASE_OPTIONS));
 UINT8    nor_erase_region(INT8 region_no, UINT8 (*erase_nor)(UINT, ENUM_ERASE_OPTIONS));
@@ -54,7 +54,7 @@ BOOL     nor_check_offset_range(UINT32 base, UINT32 offset, UINT size_bytes);
 BOOL     nor_check_modifiable_perm(UINT32 offset);
 BOOL     nor_check_should_erase(UINT32 base, UINT offset, PCHAR content, UINT size_bytes);
 /*********************************************************************************************************
-  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½
+  »ù±¾ÏÔÊ¾º¯Êý
 *********************************************************************************************************/
 #define  DONT_CENTRAL            FALSE
 #define  DO_CENTRAL              TRUE

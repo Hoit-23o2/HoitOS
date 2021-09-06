@@ -110,7 +110,6 @@ static void crc32_check(PHOIT_RAW_HEADER pRawHeader) {
     }
     /* ¼ì²écrcÐ£ÑéÂë */
     UINT32 uPrevCrc = pRawHeader->crc;
-
     pRawHeader->crc = 0;
     UINT32 uNowCrc = hoit_crc32_le((unsigned char*)pRawHeader, pRawHeader->totlen);
     if (uPrevCrc != uNowCrc) {
