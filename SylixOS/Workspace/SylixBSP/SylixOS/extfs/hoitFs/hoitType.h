@@ -59,12 +59,13 @@
 /*********************************************************************************************************
   HoitFs 特性宏控
 *********************************************************************************************************/
-// #define  USE_MACRO_FEATURE                     /* 使用宏控 */
+#define  USE_MACRO_FEATURE                     /* 使用宏控 */
 
-#define  MULTI_THREAD_ENABLE           /* 启用多线程 */          // DONE
+//#define  MULTI_THREAD_ENABLE           /* 启用多线程 */          // DONE
 #define  EBS_ENABLE                    /* 启用EBS */            // DONE
-
 #define  MERGE_BUFFER_ENABLE           /* 启用Merge Buffer */   // DONE
+#define  THREAD_POOL_ENABLE            /* 09-06 启用(模拟)线程池 */
+
 #define  HOIT_MERGE_BUFFER_THRESHOLD   16	// MergeBuffer触发合并动作的节点数
 #define  HOIT_MERGE_BUFFER_FRAGSIZE	   16
 
@@ -119,6 +120,9 @@
 #define GET_CLEAN_LIST(pfs)                 pfs->HOITFS_cleanSectorList
 #define __HOIT_MIN_4_TIMES(value)           ((value+3)/4*4) /* 将value扩展到4的倍数 */
 
+#define __HOIT_SECNUM_LOCK(pfs)             API_SemaphoreMPend(pfs->HOITFS_secNumLock, \
+                                            LW_OPTION_WAIT_INFINITE)
+#define __HOIT_SECNUM_UNLOCK(pfs)           API_SemaphoreMPost(pfs->HOITFS_secNumLock)
 /*********************************************************************************************************
   文件卷锁操作
 *********************************************************************************************************/
@@ -253,8 +257,11 @@ typedef struct HOIT_VOLUME {
     Iterator(HOIT_ERASABLE_SECTOR_REF)  HOITFS_sectorIterator;            /* 统一sector迭代器 */
     
     LW_OBJECT_HANDLE                    HOITFS_dirtyLock;                 /* dirty 列表锁 */
-    LW_OBJECT_HANDLE                    HOITFS_cleanLock;                 /* dirty 列表锁 */
-    LW_OBJECT_HANDLE                    HOITFS_freeLock;                  /* dirty 列表锁 */
+    LW_OBJECT_HANDLE                    HOITFS_cleanLock;                 /* clean 列表锁 */
+    LW_OBJECT_HANDLE                    HOITFS_freeLock;                  /* free  列表锁 */
+
+    LW_OBJECT_HANDLE                    HOITFS_secNumLock;                /* 挂载时sector number锁 */
+    UINT                                HOITFS_mount_sec_num;             /* 挂载时sector number   */
 
     PHOIT_ERASABLE_SECTOR   HOITFS_curGCSector;                            /* 当前正在GC的Sector */
     LW_OBJECT_HANDLE        HOITFS_GCMsgQ;                                 /* GC线程消息队列*/
@@ -273,7 +280,7 @@ typedef struct HOIT_VOLUME {
                                                                            /*! Log相关 */
     PHOIT_LOG_INFO          HOITFS_logInfo;
 
-    HOIT_CONFIG             HOITFS_config;                                  /* 配置相关 */                                          
+    HOIT_CONFIG             HOITFS_config;                                 /* 配置相关 */
 } HOIT_VOLUME;
 
 

@@ -582,7 +582,7 @@ static PVOID  halBootThread (PVOID  pvBootArg)
     nand_init();
     mtdDevCreateEx("/n");                                               /*  mount mtddevice             */
 
-    nor_init(INIT_TRUE_NOR);
+    nor_init(INIT_FAKE_NOR);
     scan_nor();
 #ifdef NOR_TEST
     test_nor();
