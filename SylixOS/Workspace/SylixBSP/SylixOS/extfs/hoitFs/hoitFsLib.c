@@ -96,7 +96,7 @@ UINT __hoit_name_hash(CPCHAR pcName) {
 ** 调用模块:
 *********************************************************************************************************/
 UINT __hoit_free_full_dirent(PHOIT_VOLUME pfs, PHOIT_FULL_DIRENT pDirent) {
-    
+
     hoit_free(pfs, pDirent->HOITFD_file_name, lib_strlen(pDirent->HOITFD_file_name));
     hoit_free(pfs, pDirent, sizeof(HOIT_FULL_DIRENT));
     return 0;
@@ -688,6 +688,20 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     PHOIT_VOLUME pfs    = pThreadAttr->pfs;
     UINT8 sector_no     = pThreadAttr->sector_no;
 
+
+#ifdef THREAD_POOL_ENABLE
+hoit_scan_single_sector_start:
+    __HOIT_SECNUM_LOCK(pfs);
+    sector_no = pfs->HOITFS_mount_sec_num++;
+    __HOIT_SECNUM_UNLOCK(pfs);
+
+    if(sector_no >= HOIT_CACHE_SECTOR_NUMS){
+        goto hoit_scan_single_sector_end;   /* sector number大于等于28则代表挂载完成 此线程该结束了*/
+    }else{
+        ;
+    }
+#endif
+
     UINT                    uiSectorSize;         
     UINT                    uiSectorOffset;
     UINT                    uiFreeSize;
@@ -1015,6 +1029,17 @@ BOOL __hoit_scan_single_sector(ScanThreadAttr* pThreadAttr) {
     else {
         hoit_free(pfs, pReadBuf, uiSectorSize);
     }
+
+
+#ifdef THREAD_POOL_ENABLE
+    if(sector_no >= HOIT_CACHE_SECTOR_NUMS-1){  /* sector number大于等于27则代表挂载完成 此线程该结束了*/
+        ;   /* 该线程结束 */
+    }else{
+        goto hoit_scan_single_sector_start;
+    }
+hoit_scan_single_sector_end:
+#endif
+
 
     hoit_free(pfs, pThreadAttr, sizeof(ScanThreadAttr));
     return LW_TRUE;
@@ -2100,25 +2125,50 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
 
     // lib_gettimeofday(&timeStart, LW_NULL);
     while (hoitGetSectorSize(sector_no) != -1) {
+#ifndef THREAD_POOL_ENABLE
 
         ScanThreadAttr* pThreadAttr = (ScanThreadAttr*)hoit_malloc(pfs, sizeof(ScanThreadAttr));
         pThreadAttr->pfs = pfs;
         pThreadAttr->sector_no = sector_no;
-#ifdef USE_MACRO_FEATURE 
-#ifndef MULTI_THREAD_ENABLE
-        __hoit_scan_single_sector(pThreadAttr);
-#else   /* USE MULTI_THREAD_ENABLE */
-        API_ThreadAttrBuild(&scThreadAttr,
-             LW_CFG_KB_SIZE,
-             LW_PRIO_HIGHEST,
-             LW_OPTION_THREAD_STK_CHK,
-             (VOID*)pThreadAttr);
+#endif
 
-        ulObjectHandle[handleSize++] = API_ThreadCreate("t_scan_thread",
-            (PTHREAD_START_ROUTINE)__hoit_scan_single_sector,
-            &scThreadAttr,
-            LW_NULL);
-#endif  /* END MULTI_THREAD_ENABLE */
+#ifdef USE_MACRO_FEATURE
+    #ifdef THREAD_POOL_ENABLE
+        /* (模拟)线程池模式, 只开5个线程 */
+        for(i=0; i<5; i++){
+            ScanThreadAttr* pThreadAttr = (ScanThreadAttr*)hoit_malloc(pfs, sizeof(ScanThreadAttr));
+                pThreadAttr->pfs = pfs;
+                pThreadAttr->sector_no = sector_no;
+            API_ThreadAttrBuild(&scThreadAttr,
+                 LW_CFG_KB_SIZE,
+                 LW_PRIO_NORMAL,
+                 LW_OPTION_THREAD_STK_CHK,
+                 (VOID*)pThreadAttr);
+
+            ulObjectHandle[handleSize++] = API_ThreadCreate("t_scan_thread",
+                (PTHREAD_START_ROUTINE)__hoit_scan_single_sector,
+                &scThreadAttr,
+                LW_NULL);
+        }
+        break;  /* (模拟)线程池模式, 提前退出while循环 */
+    #else
+        #ifndef MULTI_THREAD_ENABLE
+            __hoit_scan_single_sector(pThreadAttr);
+        #else   /* USE MULTI_THREAD_ENABLE */
+            API_ThreadAttrBuild(&scThreadAttr,
+                 LW_CFG_KB_SIZE,
+                 LW_PRIO_HIGHEST,
+                 LW_OPTION_THREAD_STK_CHK,
+                 (VOID*)pThreadAttr);
+
+            ulObjectHandle[handleSize++] = API_ThreadCreate("t_scan_thread",
+                (PTHREAD_START_ROUTINE)__hoit_scan_single_sector,
+                &scThreadAttr,
+                LW_NULL);
+        #endif  /* END MULTI_THREAD_ENABLE */
+    #endif  /* END THREAD_POOL_ENABLE */
+
+
 #else   /* NO USE_MACRO_FEATURE */
         if(pfs->HOITFS_config.HOITFS_MT_bEnableMultiThreadScan){
             API_ThreadAttrBuild(&scThreadAttr,
@@ -2140,11 +2190,26 @@ VOID  __hoit_mount(PHOIT_VOLUME  pfs)
     }
     // lib_gettimeofday(&timeEnd, LW_NULL);
     // printf("[scan sector: %fms]\n", (1000 * ((LONG)timeEnd.tv_sec - (LONG)timeStart.tv_sec) + ((timeEnd.tv_usec - timeStart.tv_usec) / 1000.0)));
-#ifdef MULTI_THREAD_ENABLE
-    for (i = 0; i < handleSize; i++) {
-       API_ThreadJoin(ulObjectHandle[i], LW_NULL);
+#ifdef USE_MACRO_FEATURE
+    #ifdef THREAD_POOL_ENABLE
+        for (i = 0; i < handleSize; i++) {
+           API_ThreadJoin(ulObjectHandle[i], LW_NULL);
+        }
+    #else
+        #ifdef MULTI_THREAD_ENABLE
+
+            for (i = 0; i < handleSize; i++) {
+               API_ThreadJoin(ulObjectHandle[i], LW_NULL);
+            }
+        #endif /* END MULTI_THREAD_ENABLE */
+    #endif  /* END THREAD_POOL_ENABLE */
+#else  /* NO USE_MACRO_FEATURE */
+    if(pfs->HOITFS_config.HOITFS_MT_bEnableMultiThreadScan) {
+        for (i = 0; i < handleSize; i++) {
+           API_ThreadJoin(ulObjectHandle[i], LW_NULL);
+        }
     }
-#endif
+#endif /* END USE_MACRO_FEATURE */
     pfs->HOITFS_highest_ino++;
     pfs->HOITFS_highest_version++;
 

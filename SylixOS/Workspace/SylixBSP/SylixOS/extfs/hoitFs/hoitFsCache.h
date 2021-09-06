@@ -47,6 +47,7 @@
 #define HOIT_FILTER_PAGE_SIZE                       (sizeof(HOIT_EBS_ENTRY) * ( 8 - 1 ))   /* 即56B，7倍的EBS entry size */
 #define HOIT_FILTER_EBS_AREA_SIZE(pcacheHdr)        (pcacheHdr->HOITCACHE_PageAmount * HOIT_FILTER_EBS_ENTRY_SIZE - HOIT_FILTER_PAGE_SIZE)
 #define HOIT_FILTER_EBS_MAGIC_NUMBER                0x13579BDF02468ACE                      /* EBS magic number，之后放校验码 */
+#define HOIT_CACHE_SECTOR_NUMS                      (NOR_FLASH_NSECTOR - GET_SECTOR_NO(NOR_FLASH_START_OFFSET)) /* 09-06 sector总数 added by HZS */
 /*********************************************************************************************************
   内联函数偏移修改，注意这里默认cache块大小与flash的sector
 *********************************************************************************************************/
